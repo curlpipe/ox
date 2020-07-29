@@ -3,6 +3,7 @@ use termion::{color, style};
 use termion::event::Key;
 use crate::Terminal;
 use crate::Buffer;
+use std::cmp::min;
 use std::env;
 
 // Get the version of Ox
@@ -22,6 +23,7 @@ pub struct Editor {
     kill: bool,
     cursor: Cursor,
     buffer: Buffer,
+    offset: u64, // NOTE: Up to u128 in future for longer files?
 }
 
 impl Editor {
@@ -39,6 +41,7 @@ impl Editor {
             kill: false,
             cursor: Cursor { x: 0, y: 0 },
             buffer,
+            offset: 0,
         }
 
     }
@@ -73,16 +76,26 @@ impl Editor {
                     }
                     Key::Up => {
                         // Move cursor up
-                        self.cursor.y = self.cursor.y.saturating_sub(1);
-                        self.correct_line();
+                        if self.cursor.y != 0 {
+                            self.cursor.y = self.cursor.y.saturating_sub(1);
+                            self.correct_line();
+                        } else {
+                            self.offset = self.offset.saturating_sub(1);
+                        }
                     }
                     Key::Down => {
                         // Move cursor down
-                        if self.cursor.y < self.terminal.height.saturating_sub(3) {
-                            self.cursor.y = self.cursor.y.saturating_add(1);
-                            self.correct_line();
-                        } else {
-                            self.buffer.offset += 1;
+                        let buff_len = self.buffer.lines.len() as u64;
+                        let mut proposed = self.cursor.y.saturating_add(1) as u64;
+                        proposed += self.offset;
+                        let max = self.terminal.height.saturating_sub(3);
+                        if proposed < buff_len {
+                            if self.cursor.y < max {
+                                self.cursor.y = proposed as u16;
+                                self.correct_line();
+                            } else {
+                                self.offset = self.offset.saturating_add(1);
+                            }
                         }
                     }
                     Key::PageUp => {
@@ -91,8 +104,10 @@ impl Editor {
                         self.correct_line();
                     }
                     Key::PageDown => {
-                        // Move the cursor to the bottom of the terminal
-                        self.cursor.y = self.terminal.height.saturating_sub(3);
+                        // Move the cursor to the bottom of the buffer / terminal
+                        let t = self.terminal.height.saturating_sub(3) as u16;
+                        let b = self.buffer.lines.len().saturating_sub(1) as u16;
+                        self.cursor.y = min(t, b);
                         self.correct_line();
                     }
                     Key::Home => {
@@ -121,7 +136,6 @@ impl Editor {
     }
     fn render(&mut self) {
         // Render the rows
-        let buf_length = self.buffer.lines.len() as u16;
         let term_length = self.terminal.height;
         for row in 0..self.terminal.height {
             self.terminal.move_cursor(0, row);
@@ -132,17 +146,20 @@ impl Editor {
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
                 l = format!("{}{}{}", "~", pad, welcome);
-            } else if row == (self.terminal.height / 3) + 2 {
+            } else if row == (self.terminal.height / 3) + 2 && 
+                self.buffer.lines.is_empty()  {
                 let welcome = "A speedy editor built with Rust";
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
                 l = format!("{}{}{}", "~", pad, welcome);
-            } else if row == (self.terminal.height / 3) + 3 {
+            } else if row == (self.terminal.height / 3) + 3 && 
+                self.buffer.lines.is_empty()  {
                 let welcome = "by curlpipe";
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
                 l = format!("{}{}{}", "~", pad, welcome);
-            } else if row == (self.terminal.height / 3) + 5 {
+            } else if row == (self.terminal.height / 3) + 5 && 
+                self.buffer.lines.is_empty()  {
                 let welcome = "Ctrl + Q:  Exit";
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
@@ -169,9 +186,10 @@ impl Editor {
                     color::Fg(color::Reset), color::Bg(color::Reset), style::Reset,
                 );
             } else if row == term_length - 1 {
-                l = format!("Start typing to get started!");
-            } else if buf_length > term_length {
-                l = self.buffer.lines[row as usize].clone();
+                l = format!("DEBUG: {}", self.offset);
+            } else if row < self.buffer.lines.len() as u16 {
+                let index = self.offset as usize + row as usize;
+                l = self.buffer.lines[index].clone();
             } else {
                 l = String::from("~");
             }
