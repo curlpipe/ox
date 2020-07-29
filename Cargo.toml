@@ -1,0 +1,8 @@
+[package]
+name = "ox"
+version = "0.1.0"
+authors = ["Curly <11898833+curlpipe@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+termion = "1"
