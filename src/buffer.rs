@@ -3,12 +3,14 @@ use std::fs;
 
 pub struct Buffer {
     pub lines: Vec<String>,
+    pub offset: u16,
 }
 
 impl Buffer {
     pub fn new() -> Self {
         Buffer {
             lines: Vec::new(),
+            offset: 0,
         }
     }
     pub fn open(path: &str) -> Self {
@@ -17,6 +19,9 @@ impl Buffer {
         for line in file.split('\n') {
             lines.push(line.to_string());
         }
-        Self { lines }
+        Self { 
+            offset: 0,
+            lines,
+        }
     }
 }
