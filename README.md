@@ -1,4 +1,7 @@
-# Ox editor
+<p align="center">
+ <img src="assets/logo.png" style="display: block;margin-left: auto;margin-right: auto;" data-canonical-src="https://i.imgur.com/Gdko6yP.png" width="300" height="300" align="center"/><br><br>
+</p>
+<h1 align="center">Ox editor</h1>
 
 ## What is Ox?
 
