@@ -66,8 +66,10 @@ impl Editor {
                     }
                     Key::Right => {
                         // Move cursor to the right
-                        self.cursor.x = self.cursor.x.saturating_add(1);
-                        self.correct_line();
+                        if self.cursor.x < self.terminal.width.saturating_sub(1) {
+                            self.cursor.x = self.cursor.x.saturating_add(1);
+                            self.correct_line();
+                        }
                     }
                     Key::Up => {
                         // Move cursor up
@@ -99,7 +101,7 @@ impl Editor {
                     }
                     Key::End => {
                         // Move to the end of the current line
-                        self.cursor.x = self.terminal.width;
+                        self.cursor.x = self.terminal.width.saturating_sub(1);
                         self.correct_line();
                     }
                     _ => (), // Unbound key
@@ -111,6 +113,7 @@ impl Editor {
     }
     fn correct_line(&mut self) {
         // Ensure that the cursor isn't out of bounds
+        if self.buffer.lines.is_empty() { return; }
         let current = self.buffer.lines[self.cursor.y as usize].clone();
         if self.cursor.x > current.len() as u16 {
             self.cursor.x = current.len() as u16;
@@ -124,11 +127,32 @@ impl Editor {
             self.terminal.move_cursor(0, row);
             self.terminal.clear_line();
             let l: String;
-            if row == self.terminal.height / 5 && self.buffer.lines.is_empty() {
+            if row == self.terminal.height / 3 && self.buffer.lines.is_empty() {
                 let welcome = format!("Ox editor v{}", VERSION);
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
                 l = format!("{}{}{}", "~", pad, welcome);
+            } else if row == (self.terminal.height / 3) + 2 {
+                let welcome = "A speedy editor built with Rust";
+                let pad = " ".repeat(self.terminal.width as usize / 2 
+                                     - welcome.len() / 2);
+                l = format!("{}{}{}", "~", pad, welcome);
+            } else if row == (self.terminal.height / 3) + 3 {
+                let welcome = "by curlpipe";
+                let pad = " ".repeat(self.terminal.width as usize / 2 
+                                     - welcome.len() / 2);
+                l = format!("{}{}{}", "~", pad, welcome);
+            } else if row == (self.terminal.height / 3) + 5 {
+                let welcome = "Ctrl + Q:  Exit";
+                let pad = " ".repeat(self.terminal.width as usize / 2 
+                                     - welcome.len() / 2);
+                l = format!(
+                    "{}{}{}{}{}", "~", 
+                    pad, 
+                    color::Fg(color::Blue),
+                    welcome,
+                    color::Fg(color::Reset),
+                );
             } else if row == term_length - 2 {
                 let status_line = format!(
                     " Ox: {} | x: {} | y: {}", 
@@ -145,7 +169,7 @@ impl Editor {
                     color::Fg(color::Reset), color::Bg(color::Reset), style::Reset,
                 );
             } else if row == term_length - 1 {
-                l = format!("CTRL + Q to quit");
+                l = format!("Start typing to get started!");
             } else if buf_length > term_length {
                 l = self.buffer.lines[row as usize].clone();
             } else {
