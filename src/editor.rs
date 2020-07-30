@@ -56,8 +56,6 @@ impl Editor {
             if self.kill { break; }
             // Render our interface
             self.render();
-            // FPS cap to stop greedy CPU usage
-            thread::sleep(Duration::from_millis(40));
             // Read a key
             match stdin.next() {
                 Some(key) => match key.unwrap() {
@@ -120,7 +118,11 @@ impl Editor {
                     }
                     _ => (), // Unbound key
                 }
-                None => self.terminal.check_resize(), // Check for resize
+                None => {
+                    self.terminal.check_resize(); // Check for resize
+                    // FPS cap to stop greedy CPU usage
+                    thread::sleep(Duration::from_millis(30));
+                }
             }
         }
     }
