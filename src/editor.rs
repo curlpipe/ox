@@ -4,7 +4,9 @@ use termion::input::TermRead;
 use termion::event::Key;
 use crate::Terminal;
 use crate::Buffer;
+use std::time::Duration;
 use std::cmp::min;
+use std::thread;
 use std::env;
 
 // Get the version of Ox
@@ -54,8 +56,8 @@ impl Editor {
             if self.kill { break; }
             // Render our interface
             self.render();
-            // Hold up
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            // FPS cap to stop greedy CPU usage
+            thread::sleep(Duration::from_millis(40));
             // Read a key
             match stdin.next() {
                 Some(key) => match key.unwrap() {
