@@ -53,7 +53,11 @@ impl Editor {
         // Run our editor
         loop {
             // Exit if required
-            if self.kill { break; }
+            if self.kill {
+                self.terminal.clear_all();
+                self.terminal.move_cursor(0, 0);
+                break; 
+            }
             // Render our interface
             self.render();
             // Read a key
@@ -83,10 +87,9 @@ impl Editor {
                     Key::Down => {
                         // Move cursor down
                         let buff_len = self.buffer.lines.len() as u64;
-                        let mut proposed = self.cursor.y.saturating_add(1) as u64;
-                        proposed += self.offset;
+                        let proposed = self.cursor.y.saturating_add(1) as u64;
                         let max = self.terminal.height.saturating_sub(3);
-                        if proposed < buff_len {
+                        if proposed.saturating_add(self.offset) < buff_len {
                             if self.cursor.y < max {
                                 self.cursor.y = proposed as u16;
                                 self.correct_line();
@@ -129,7 +132,7 @@ impl Editor {
     fn correct_line(&mut self) {
         // Ensure that the cursor isn't out of bounds
         if self.buffer.lines.is_empty() { return; }
-        let current = self.buffer.lines[self.cursor.y as usize].clone();
+        let current = self.buffer.lines[(self.cursor.y + self.offset as u16) as usize].clone();
         if self.cursor.x > current.len() as u16 {
             self.cursor.x = current.len() as u16;
         }

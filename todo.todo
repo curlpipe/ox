@@ -1,52 +1,56 @@
-0.1.0 (Editor basics)
+0.1.0 (Editor basics #1)
 - [ ] Line wrapping
 - [ ] File writing
 - [X] Scroll
 - [X] Responsive resizing
 
-0.1.1 (Clarity update)
-- [ ] Save as
+0.1.1 (Editor basics #2)
+- [ ] Save as / Save
 - [ ] Unicode support
 - [ ] Update statusline
   - [ ] File name
   - [ ] File extension
   - [ ] File length
 
-0.1.2 (Bells and whistles update)
+0.1.2 (Editor basics #3)
 - [ ] Search feature
 - [ ] Line numbers
 
-0.2.0 (Configuration update)
+0.2.0 (Configuration)
 - [ ] New buffer support
 - [ ] Open buffer support
 - [ ] Config file for custom commands
 - [ ] Macro system
 
-0.2.1 (Mouse interactivity update)
+0.2.1 (Mouse interactivity)
 - [ ] Mouse support
 - [ ] Clipboard support
 
-0.2.2 (Syntax highlighting update)
+0.2.2 (Syntax highlighting)
 - [ ] Rust syntax highlighting
 - [ ] Config system supports highlighting
 
-0.2.3 (Language a plenty update)
+0.2.3 (Language support)
 - [ ] Javascript syntax highlighting
 - [ ] C system supports highlighting
 - [ ] Python system supports highlighting
 - [ ] Ruby system supports highlighting
 
-0.3.0 (Multiple files update)
+0.3.0 (Multiple files)
 - [ ] Tabs
 - [ ] Save all
 
 0.3.1 (Buffer revamp)
 - [ ] Split buffers
 
-0.3.2 (Terminal update)
+0.3.2 (Embedded terminals)
 - [ ] Terminal splitting support
 - [ ] Compile code in terminal on keybinding
 
-0.4.0 (IDE update)
+0.4.0 (IDE features #1)
 - [ ] Prettier integration
-- [ ] Autocomplete
+- [ ] Auto indentation
+
+0.4.1
+- [ ] Auto complete
+- [ ] Auto brackets
