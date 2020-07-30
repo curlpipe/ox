@@ -54,6 +54,8 @@ impl Editor {
             if self.kill { break; }
             // Render our interface
             self.render();
+            // Hold up
+            std::thread::sleep(std::time::Duration::from_millis(10));
             // Read a key
             match stdin.next() {
                 Some(key) => match key.unwrap() {
@@ -116,7 +118,7 @@ impl Editor {
                     }
                     _ => (), // Unbound key
                 }
-                None => self.terminal.check_resize(),
+                None => self.terminal.check_resize(), // Check for resize
             }
         }
     }
