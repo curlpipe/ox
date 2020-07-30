@@ -1,5 +1,6 @@
 // Editor.rs - For controling the current editor
 use termion::{color, style};
+use termion::input::TermRead;
 use termion::event::Key;
 use crate::Terminal;
 use crate::Buffer;
@@ -46,22 +47,16 @@ impl Editor {
 
     }
     pub fn run(&mut self) {
+        let mut stdin = termion::async_stdin().keys();
         // Run our editor
         loop {
             // Exit if required
-            if self.kill { 
-                self.terminal.clear_all();
-                self.terminal.move_cursor(0, 0);
-                // println!("Ox exited\r");
-                break; 
-            }
-            // Check for and subsequently handle a resize event
-            self.terminal.check_resize();
+            if self.kill { break; }
             // Render our interface
             self.render();
             // Read a key
-            if let Ok(key) = self.terminal.read_key() {
-                match key {
+            match stdin.next() {
+                Some(key) => match key.unwrap() {
                     Key::Ctrl('q') => self.kill = true, // Exit
                     Key::Left => {
                         // Move cursor to the left
@@ -121,8 +116,7 @@ impl Editor {
                     }
                     _ => (), // Unbound key
                 }
-            } else {
-                kill(); // There was an error reading the key
+                None => self.terminal.check_resize(),
             }
         }
     }
@@ -200,7 +194,3 @@ impl Editor {
     }
 }
 
-fn kill() {
-    // Kill the program
-    panic!("Exited");
-}
