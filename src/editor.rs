@@ -26,7 +26,7 @@ pub struct Editor {
     kill: bool,
     cursor: Cursor,
     buffer: Buffer,
-    offset: u64, // NOTE: Up to u128 in future for longer files?
+    offset: u64,
 }
 
 impl Editor {
@@ -66,11 +66,31 @@ impl Editor {
                     Key::Ctrl('q') => self.kill = true, // Exit
                     Key::Left => {
                         // Move cursor to the left
-                        self.cursor.x = self.cursor.x.saturating_sub(1);
+                        let current = self.cursor.y + self.offset as u16;
+                        if self.cursor.x == 0 && current != 0 {
+                            if self.cursor.y == 0 { 
+                                self.offset = self.offset.saturating_sub(1); 
+                            }
+                            self.cursor.x = self.terminal.width;
+                            self.cursor.y = self.cursor.y.saturating_sub(1);
+                            self.correct_line();
+                        } else {
+                            self.cursor.x = self.cursor.x.saturating_sub(1);
+                        }
                     }
                     Key::Right => {
                         // Move cursor to the right
-                        if self.cursor.x < self.terminal.width.saturating_sub(1) {
+                        let index = self.cursor.y + self.offset as u16;
+                        let current = &self.buffer.lines[index as usize];
+                        if current.len() as u16 == self.cursor.x && 
+                           self.buffer.lines.len() as u16 != index + 1 {
+                            if self.cursor.y == self.terminal.height - 3 { 
+                                self.offset = self.offset.saturating_add(1); 
+                            } else {
+                                self.cursor.y = self.cursor.y.saturating_add(1);
+                            }
+                            self.cursor.x = 0;
+                        } else if self.cursor.x < self.terminal.width.saturating_sub(1) {
                             self.cursor.x = self.cursor.x.saturating_add(1);
                             self.correct_line();
                         }
@@ -124,17 +144,22 @@ impl Editor {
                 None => {
                     self.terminal.check_resize(); // Check for resize
                     // FPS cap to stop greedy CPU usage
-                    thread::sleep(Duration::from_millis(30));
+                    thread::sleep(Duration::from_millis(12));
                 }
             }
         }
     }
     fn correct_line(&mut self) {
         // Ensure that the cursor isn't out of bounds
-        if self.buffer.lines.is_empty() { return; }
-        let current = self.buffer.lines[(self.cursor.y + self.offset as u16) as usize].clone();
-        if self.cursor.x > current.len() as u16 {
-            self.cursor.x = current.len() as u16;
+        if self.buffer.lines.is_empty() { 
+            self.cursor.x = 0;
+        } else {
+            let current = self.buffer.lines[
+                (self.cursor.y + self.offset as u16) as usize
+            ].clone();
+            if self.cursor.x > current.len() as u16 {
+                self.cursor.x = current.len() as u16;
+            }
         }
     }
     fn render(&mut self) {

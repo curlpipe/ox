@@ -1,8 +1,8 @@
 0.1.0 (Editor basics #1)
-- [ ] Line wrapping
 - [ ] File writing
 - [X] Scroll
 - [X] Responsive resizing
+- [X] Line wrapping
 
 0.1.1 (Editor basics #2)
 - [ ] Save as / Save
