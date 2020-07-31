@@ -81,16 +81,23 @@ impl Editor {
                     Key::Right => {
                         // Move cursor to the right
                         let index = self.cursor.y + self.offset as u16;
+                        if self.buffer.lines.is_empty() {
+                            continue;
+                        }
                         let current = &self.buffer.lines[index as usize];
+                        let size = [
+                            &self.terminal.width,
+                            &self.terminal.height,
+                        ];
                         if current.len() as u16 == self.cursor.x && 
                            self.buffer.lines.len() as u16 != index + 1 {
-                            if self.cursor.y == self.terminal.height - 3 { 
+                            if self.cursor.y == size[1] - 3 { 
                                 self.offset = self.offset.saturating_add(1); 
                             } else {
                                 self.cursor.y = self.cursor.y.saturating_add(1);
                             }
                             self.cursor.x = 0;
-                        } else if self.cursor.x < self.terminal.width.saturating_sub(1) {
+                        } else if self.cursor.x < size[0].saturating_sub(1) {
                             self.cursor.x = self.cursor.x.saturating_add(1);
                             self.correct_line();
                         }

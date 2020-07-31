@@ -1,72 +1,127 @@
+<!-- PROJECT LOGO -->
+<br />
 <p align="center">
- <img src="assets/logo.png" style="display: block;margin-left: auto;margin-right: auto;" data-canonical-src="https://i.imgur.com/Gdko6yP.png" width="300" height="300" align="center"/><br><br>
+  <a href="https://github.com/curlpipe/ox/">
+    <img src="assets/logo.png" alt="Logo" width="200" height="200">
+  </a>
+
+  <h1 align="center" style="font-size: 50px;">Ox editor</h1>
+
+  <p align="center" style="font-size: 20px;">
+    Ox is a fast text editor that runs in your terminal.
+    <br />
+    ![](https://i.postimg.cc/hGRgs97Z/image.png) 
+    <br />
 </p>
-<h1 align="center">Ox editor</h1>
 
-## What is Ox?
+<!-- TABLE OF CONTENTS -->
+## Table of Contents
 
-Ox is an efficient, fast and safe text editor that runs in your command line. It is inspired by projects like `kilo`, `hecto`, `kiro`, `vim` and `emacs`. I want everything built in to Ox, e.g. a file tree, automatic formatting plugins and other features that developers can't live without. It caters to people who are used to nano as well as catering to people who are used to modal editors like vim. Ox is not a modal editor because I find switching modes annoying. Ox uses a very speedy and more ergonomic method to run custom macros and commands.
+* [About the Project](#about-the-project)
+    * [Built With](#built-with)
+* [Getting Started](#getting-started)
+    * [Prerequisites](#prerequisites)
+    * [Installation](#installation)
+* [Usage](#usage)
+* [Roadmap](#roadmap)
+* [License](#license)
+* [Contact](#contact)
+* [Acknowledgements](#acknowledgements)
 
-## Justify Ox's existence
-Ox doesn't have a plugin system because plugin systems allow for code that can be broken, has the potential to be slow, may not have good documentation and just be super janky. With Ox, you can edit your config file and give it to anyone else without needing them to install some horrific plugin management system and then use that to install a boatload of plugins from git (super janky).
+<!-- ABOUT THE PROJECT -->
+## About The Project
 
-Here are the closest projects to what Ox achieves:
+Ox is a text editor that differs to many text editors that are already out there. It's is built in the Rust language to ensure that it almost never crashes, leaks or fails. It is different from Vim due to its non-modal approach and uses keybindings just like nano does but has a lot more features including a secret command mode similar to Vim. Ox doesn't have a plugin system nor a special language like vimscript because that gives the potential for bugs errors and unintended events, instead of having plugins, one can either edit the source code directly and build using the simple instructions followed by submitting a pull request into Ox or uploading your own distrobution to a git repository! This ensures that the plugins and modifications are optimised and fast and don't require learning a new editor-specific language.
 
- - `Xi` - Xi is a new editor written in Rust and it is backed by Google. Xi sounds good but I don't feel like it can be used as a proper editor yet and has a million and one different concepts to get your head around. Also features a plugin system (bad idea).
- - `Vim / Neovim` - Vim is a very robust editor but the minimalism it has is its major downfall. It provides a language called `vimscript` which is not only slow but requires you to learn an entirely new language. It also opens up window for breakage and spamming of errors all over your buffer. Ox implements everything you'll ever need right into itself. It implements it in one effective and efficient way that integrates amazingly with the editor without having 100 different types of plugins and confusing users on which one to use.
- - `Emacs` - Emacs is an incredibly advanced editor that can pretty much do everything including playing tetris. While you would be able to do this by opening a terminal in Ox, Ox's main focus is to be a text editor and not an entire user interface. Also there are about 1 million different types of Emacs interfaces compared to just one Ox interface.
- - `Nano` - This is just too simple for me, however I love the simplicity and therefore Ox works very similar to this but it has a ton more plugins.
- - `Kiro` - This is a very good editor, it supports a lot of things including UTF-8 and in fact is an outstanding example of what `kilo` can become if you edit it a bit. However this doesn't have seamless mouse integration and lacks quite a few features in my opinion.
- - `Kilo / Hecto` - These are probably some of the most simple editors in existence. They are designed to teach people how to bulid an editor and I was incredibly inspired by them.
+### Built With
+
+Ox is super minimal and aims to use as few dependencies as possible, allowing for rapid compile time and low risk of breakage.
+
+* [Rust language](https://rust-lang.org)
+* [Termion](https://gitlab.redox-os.org/redox-os/termion)
+
+<!-- GETTING STARTED -->
+## Getting Started
+
+You can currently only build Ox from source.
+While this may sound daunting to many people, it really isn't that hard!
+
+### Prerequisites
+
+Because Ox is written in Rust, you must have a modern and working version of `rustc` and `cargo`.
+On Arch Linux, you can run this command:
+```sh
+sudo pacman -S rust
+```
+
+If you are not using Arch, you can easily set it up on other distros by running the distro-neutral command:
+```sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+You must have `curl` installed in order to run this command.
+
+### Installation
  
-## How to use it?
-You can customise Ox's key bindings in its config file, in your config file you'll be able to find these keybindings:
+1. Clone the repo and change into it
+```sh
+git clone https://github.com/curlpipe/ox
+cd ox
+```
+2. Build Ox
+```sh
+cargo build --release
+```
+3. Copy the binary into your `/usr/bin` directory
+```sh
+sudo cp target/release/ox /usr/bin/ox
+```
 
-I've grouped commands to each modifier key:
- - `Ctrl` is the key for managing the editor (e.g. saving files, opening files, creating new buffers)
- - `Alt` is for custom commands and macros that you can add to your editor to make it super comfy
+That's all there is to it!
 
- - `Ctrl + q`: Quit the editor (spam it to force exit the editor)
- - `Ctrl + Shift + q`: Quit the current buffer
+<!-- USAGE EXAMPLES -->
+## Usage
 
- - `Ctrl + n`: Create a new buffer in a new tab
- - `Ctrl + Shift + n`: Create a new buffer in the current tab
+#### Opening Ox
+At the moment, you can open ox by using the command
+```
+ox
+```
 
- - `Ctrl + w`: Write the current buffer
- - `Ctrl + Shift + w`: Write all of the open buffers
+This will open up an empty buffer.
 
- - `Ctrl + c`: Copy text within the current buffer
- - `Ctrl + v`: Paste text within the current buffer
- - `Ctrl + x`: Cut text within the current buffer
+If you wish to open a file, you can run
+```
+ox /path/to/file
+```
+To open and edit a file.
 
- - `Ctrl + f`: Search for text in the buffer
+#### Moving the cursor around
+You can use the arrow keys to move the cursor around
 
- - `Ctrl + u`: Undo
- - `Ctrl + r`: Redo
+You can also use:
+ - `PageUp` - Go to the top of the window
+ - `PageDown` - Go to the bottom of the window
+ - `Home` - Go to the start of the current line
+ - `End` - Go to the end of the current line
 
- - `Ctrl + ->`: Move to the tab
- - `Ctrl + <-`: Move to the previous tab
+#### Closing Ox
+You can use the keybinding `Ctrl + Q` to exit Ox.
 
-Hey! thats pretty intuitive!
+<!-- ROADMAP -->
+## Roadmap
 
-How about the `Alt` key?
-Usually the `Alt` key is for user-programmed macros in your config file but i've provided some built-in macros (they come after this section)
+You can see the `todo.todo` file to see my plans for the future of the editor!
 
- - `Alt+A`: Access special "vim command" mode to execute custom macros
- - `Alt+J`: Move cursor left
- - `Alt+K`: Move cursor up
- - `Alt+L`: Move cursor down
- - `Alt+;`: Move cursor right
+<!-- LICENSE -->
+## License
 
-Hey! thats pretty nice! So what about those built-in macros?
-After pressing `Alt-A` you can access a special command mode where you can type the name of your macro and provide some arguments, here are the built-in ones:
+Distributed under the GNU GPLv2 License. See `LICENSE` for more information.
 
- - `r [REGEX/TEXT] [TEXT]`: Replace the regex or text with other text
+<!-- CONTACT -->
+## Contact
+You can contact me on Discord at `curlpipe#1496`. I'll be happy to answer any questions you may have!
 
- - `d [REGEX/TEXT]`: Delete the first occurance of a regex / text
- - `da [REGEX/TEXT]`: Purge every occurance of a regex/text
+<!-- ACKNOWLEDGEMENTS -->
+## Acknowledgements
 
- - `ya`: Copy the entire buffer into the clipboard
- - `xa`: Cut the entire buffer into the clipboard
-
- - `e`: Open up the config file in a new buffer
+* [Curlpipe](https://github.com/curlpipe)
