@@ -27,6 +27,7 @@ pub struct Editor {
     cursor: Cursor,
     buffer: Buffer,
     offset: u64,
+    command_bar: String,
 }
 
 impl Editor {
@@ -45,6 +46,7 @@ impl Editor {
             cursor: Cursor { x: 0, y: 0 },
             buffer,
             offset: 0,
+            command_bar: String::from("Welcome to Ox!"),
         }
 
     }
@@ -146,6 +148,12 @@ impl Editor {
                         self.cursor.x = self.terminal.width.saturating_sub(1);
                         self.correct_line();
                     }
+                    Key::Char(c) => {
+                        self.insert(c);
+                    }
+                    Key::Backspace => {
+                        self.delete();
+                    }
                     _ => (), // Unbound key
                 }
                 None => {
@@ -154,6 +162,23 @@ impl Editor {
                     thread::sleep(Duration::from_millis(24));
                 }
             }
+        }
+    }
+    fn insert(&mut self, c: char) {
+        self.buffer.lines[
+            (self.cursor.y + self.offset as u16) as usize
+        ].push(c);
+        self.cursor.x = self.cursor.x.saturating_add(1);
+    }
+    fn delete(&mut self) {
+        if self.cursor.x != 0 {
+          self.cursor.x = self.cursor.x.saturating_sub(1);
+          let index = self.cursor.y + self.offset as u16;
+          let start = self.cursor.x.saturating_sub(1) as usize;
+          let end = self.cursor.x.saturating_add(1) as usize;
+          let start = self.buffer.lines[index as usize][..=start].to_string();
+          let end = self.buffer.lines[index as usize][end..].to_string();
+          self.buffer.lines[index as usize] = start + &end;
         }
     }
     fn correct_line(&mut self) {
@@ -219,7 +244,7 @@ impl Editor {
                     color::Fg(color::Reset), color::Bg(color::Reset), style::Reset,
                 ));
             } else if row == term_length - 1 {
-                frame.push(format!("DEBUG: {}", self.offset));
+                frame.push(self.command_bar.clone());
             } else if row < self.buffer.lines.len() as u16 {
                 let index = self.offset as usize + row as usize;
                 frame.push(self.buffer.lines[index].clone());
