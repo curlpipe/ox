@@ -9,9 +9,9 @@
 
   <p align="center" style="font-size: 20px;">
     Ox is a fast text editor that runs in your terminal.
-    <br />
+    <br><br>
     <img src="https://i.postimg.cc/hGRgs97Z/image.png">
-    <br />
+    <br>
 </p>
 
 <!-- TABLE OF CONTENTS -->
