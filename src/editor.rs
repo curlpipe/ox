@@ -144,7 +144,7 @@ impl Editor {
                 None => {
                     self.terminal.check_resize(); // Check for resize
                     // FPS cap to stop greedy CPU usage
-                    thread::sleep(Duration::from_millis(12));
+                    thread::sleep(Duration::from_millis(24));
                 }
             }
         }
@@ -165,39 +165,37 @@ impl Editor {
     fn render(&mut self) {
         // Render the rows
         let term_length = self.terminal.height;
+        let mut frame: Vec<String> = Vec::new();
         for row in 0..self.terminal.height {
-            self.terminal.move_cursor(0, row);
-            self.terminal.clear_line();
-            let l: String;
             if row == self.terminal.height / 3 && self.buffer.lines.is_empty() {
                 let welcome = format!("Ox editor v{}", VERSION);
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
-                l = format!("{}{}{}", "~", pad, welcome);
+                frame.push(format!("{}{}{}", "~", pad, welcome));
             } else if row == (self.terminal.height / 3) + 2 && 
                 self.buffer.lines.is_empty()  {
                 let welcome = "A speedy editor built with Rust";
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
-                l = format!("{}{}{}", "~", pad, welcome);
+                frame.push(format!("{}{}{}", "~", pad, welcome));
             } else if row == (self.terminal.height / 3) + 3 && 
                 self.buffer.lines.is_empty()  {
                 let welcome = "by curlpipe";
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
-                l = format!("{}{}{}", "~", pad, welcome);
+                frame.push(format!("{}{}{}", "~", pad, welcome));
             } else if row == (self.terminal.height / 3) + 5 && 
                 self.buffer.lines.is_empty()  {
                 let welcome = "Ctrl + Q:  Exit";
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
-                l = format!(
+                frame.push(format!(
                     "{}{}{}{}{}", "~", 
                     pad, 
                     color::Fg(color::Blue),
                     welcome,
                     color::Fg(color::Reset),
-                );
+                ));
             } else if row == term_length - 2 {
                 let status_line = format!(
                     " Ox: {} | x: {} | y: {}", 
@@ -207,22 +205,24 @@ impl Editor {
                 );
                 let pad = self.terminal.width as usize - status_line.len();
                 let pad = " ".repeat(pad);
-                l = format!(
+                frame.push(format!(
                     "{}{}{}{}{}{}{}{}", 
                     FG, BG, style::Bold,
                     status_line, pad,
                     color::Fg(color::Reset), color::Bg(color::Reset), style::Reset,
-                );
+                ));
             } else if row == term_length - 1 {
-                l = format!("DEBUG: {}", self.offset);
+                frame.push(format!("DEBUG: {}", self.offset));
             } else if row < self.buffer.lines.len() as u16 {
                 let index = self.offset as usize + row as usize;
-                l = self.buffer.lines[index].clone();
+                frame.push(self.buffer.lines[index].clone());
             } else {
-                l = String::from("~");
+                frame.push(String::from("~"));
             }
-            print!("{}", l);
         }
+        self.terminal.clear_all();
+        self.terminal.move_cursor(0, 0);
+        print!("{}", frame.join("\r\n"));
         self.terminal.move_cursor(self.cursor.x, self.cursor.y);
         self.terminal.flush();
     }
