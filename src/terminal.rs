@@ -1,11 +1,13 @@
 // Terminal.rs - Low level mangement of the terminal
 use termion::raw::{IntoRawMode, RawTerminal};
+use termion::screen::AlternateScreen;
 use termion::terminal_size;
 use std::io::{stdout, Write};
 
 // Holds the information on the terminal
 pub struct Terminal {
     _stdout: RawTerminal<std::io::Stdout>,
+    pub screen: AlternateScreen<std::io::Stdout>,
     pub width: u16,
     pub height: u16,
 }
@@ -16,28 +18,28 @@ impl Terminal {
         let _stdout = stdout().into_raw_mode().unwrap();
         let (w, h) = terminal_size().unwrap();
         Self {
+            screen: AlternateScreen::from(stdout()),
             _stdout,
             width: w,
             height: h,
         }
     }
-    pub fn clear_all(&self) {
+    pub fn write(&mut self, w: String) {
+        write!(self.screen, "{}", w).unwrap();
+    }
+    pub fn clear_all(&mut self) {
         // Clear the entire screen
-        print!("{}", termion::clear::All);
+        write!(self.screen, "{}", termion::clear::All).unwrap();
     }
-    pub fn clear_line(&self) {
-        // Clear the current line
-        print!("{}", termion::clear::CurrentLine);
-    }
-    pub fn move_cursor(&self, mut x: u16, mut y: u16) {
+    pub fn move_cursor(&mut self, mut x: u16, mut y: u16) {
         // Move the cursor to a specific point
         x = x.saturating_add(1);
         y = y.saturating_add(1);
-        print!("{}", termion::cursor::Goto(x, y));
+        write!(self.screen, "{}", termion::cursor::Goto(x, y)).unwrap();
     }
-    pub fn flush(&self) {
+    pub fn flush(&mut self) {
         // Flush the terminal
-        stdout().flush().unwrap();
+        self.screen.flush().unwrap();
     }
     pub fn check_resize(&mut self) {
         // Check if the terminal has resized

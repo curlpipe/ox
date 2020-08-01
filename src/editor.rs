@@ -172,13 +172,13 @@ impl Editor {
     }
     fn delete(&mut self) {
         if self.cursor.x != 0 {
-          self.cursor.x = self.cursor.x.saturating_sub(1);
-          let index = self.cursor.y + self.offset as u16;
-          let start = self.cursor.x.saturating_sub(1) as usize;
-          let end = self.cursor.x.saturating_add(1) as usize;
-          let start = self.buffer.lines[index as usize][..=start].to_string();
-          let end = self.buffer.lines[index as usize][end..].to_string();
-          self.buffer.lines[index as usize] = start + &end;
+            self.cursor.x = self.cursor.x.saturating_sub(1);
+            let index = self.cursor.y + self.offset as u16;
+            let start = self.cursor.x.saturating_sub(1) as usize;
+            let end = self.cursor.x.saturating_add(1) as usize;
+            let start = self.buffer.lines[index as usize][..=start].to_string();
+            let end = self.buffer.lines[index as usize][end..].to_string();
+            self.buffer.lines[index as usize] = start + &end;
         }
     }
     fn correct_line(&mut self) {
@@ -254,7 +254,7 @@ impl Editor {
         }
         self.terminal.clear_all();
         self.terminal.move_cursor(0, 0);
-        print!("{}", frame.join("\r\n"));
+        self.terminal.write(format!("{}", frame.join("\r\n")));
         self.terminal.move_cursor(self.cursor.x, self.cursor.y);
         self.terminal.flush();
     }
