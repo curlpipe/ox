@@ -15,6 +15,10 @@ const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(0, 175, 135));
 const FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(38, 38, 38));
 
 // For holding the position and directions of the cursor
+enum Direction {
+    Up, Down, Left, Right
+}
+
 pub struct Cursor {
     x: u16,
     y: u16,
@@ -66,67 +70,12 @@ impl Editor {
             match stdin.next() {
                 Some(key) => match key.unwrap() {
                     Key::Ctrl('q') => self.kill = true, // Exit
-                    Key::Left => {
-                        // Move cursor to the left
-                        let current = self.cursor.y + self.offset as u16;
-                        if self.cursor.x == 0 && current != 0 {
-                            if self.cursor.y == 0 { 
-                                self.offset = self.offset.saturating_sub(1); 
-                            }
-                            self.cursor.x = self.terminal.width;
-                            self.cursor.y = self.cursor.y.saturating_sub(1);
-                            self.correct_line();
-                        } else {
-                            self.cursor.x = self.cursor.x.saturating_sub(1);
-                        }
-                    }
-                    Key::Right => {
-                        // Move cursor to the right
-                        let index = self.cursor.y + self.offset as u16;
-                        if self.buffer.lines.is_empty() {
-                            continue;
-                        }
-                        let current = &self.buffer.lines[index as usize];
-                        let size = [
-                            &self.terminal.width,
-                            &self.terminal.height,
-                        ];
-                        if current.len() as u16 == self.cursor.x && 
-                           self.buffer.lines.len() as u16 != index + 1 {
-                            if self.cursor.y == size[1] - 3 { 
-                                self.offset = self.offset.saturating_add(1); 
-                            } else {
-                                self.cursor.y = self.cursor.y.saturating_add(1);
-                            }
-                            self.cursor.x = 0;
-                        } else if self.cursor.x < size[0].saturating_sub(1) {
-                            self.cursor.x = self.cursor.x.saturating_add(1);
-                            self.correct_line();
-                        }
-                    }
-                    Key::Up => {
-                        // Move cursor up
-                        if self.cursor.y != 0 {
-                            self.cursor.y = self.cursor.y.saturating_sub(1);
-                            self.correct_line();
-                        } else {
-                            self.offset = self.offset.saturating_sub(1);
-                        }
-                    }
-                    Key::Down => {
-                        // Move cursor down
-                        let buff_len = self.buffer.lines.len() as u64;
-                        let proposed = self.cursor.y.saturating_add(1) as u64;
-                        let max = self.terminal.height.saturating_sub(3);
-                        if proposed.saturating_add(self.offset) < buff_len {
-                            if self.cursor.y < max {
-                                self.cursor.y = proposed as u16;
-                                self.correct_line();
-                            } else {
-                                self.offset = self.offset.saturating_add(1);
-                            }
-                        }
-                    }
+                    Key::Char(c) => self.insert(c), // Insert character
+                    Key::Backspace => self.delete(), // Delete character
+                    Key::Left => self.move_cursor(Direction::Left),
+                    Key::Right => self.move_cursor(Direction::Right),
+                    Key::Up => self.move_cursor(Direction::Up),
+                    Key::Down => self.move_cursor(Direction::Down),
                     Key::PageUp => {
                         // Move the cursor to the top of the terminal
                         self.cursor.y = 0;
@@ -148,12 +97,6 @@ impl Editor {
                         self.cursor.x = self.terminal.width.saturating_sub(1);
                         self.correct_line();
                     }
-                    Key::Char(c) => {
-                        self.insert(c);
-                    }
-                    Key::Backspace => {
-                        self.delete();
-                    }
                     _ => (), // Unbound key
                 }
                 None => {
@@ -165,21 +108,31 @@ impl Editor {
         }
     }
     fn insert(&mut self, c: char) {
-        self.buffer.lines[
-            (self.cursor.y + self.offset as u16) as usize
-        ].push(c);
+        let index = self.cursor.y + self.offset as u16;
+        let line = &self.buffer.lines[index as usize];
+        let mut result: String = line.chars()
+            .take(self.cursor.x as usize)
+            .collect();
+        let remainder: String = line.chars()
+            .skip(self.cursor.x as usize)
+            .collect();
+        result.push(c);
+        result.push_str(&remainder);
+        self.buffer.lines[index as usize] = result;
         self.cursor.x = self.cursor.x.saturating_add(1);
     }
     fn delete(&mut self) {
-        if self.cursor.x != 0 {
-            self.cursor.x = self.cursor.x.saturating_sub(1);
-            let index = self.cursor.y + self.offset as u16;
-            let start = self.cursor.x.saturating_sub(1) as usize;
-            let end = self.cursor.x.saturating_add(1) as usize;
-            let start = self.buffer.lines[index as usize][..=start].to_string();
-            let end = self.buffer.lines[index as usize][end..].to_string();
-            self.buffer.lines[index as usize] = start + &end;
-        }
+        self.cursor.x = self.cursor.x.saturating_sub(1);
+        let index = self.cursor.y + self.offset as u16;
+        let line = &self.buffer.lines[index as usize];
+        let mut result: String = line.chars()
+            .take(self.cursor.x as usize)
+            .collect();
+        let remainder: String = line.chars()
+            .skip((self.cursor.x + 1) as usize)
+            .collect();
+        result.push_str(&remainder);
+        self.buffer.lines[index as usize] = result;
     }
     fn correct_line(&mut self) {
         // Ensure that the cursor isn't out of bounds
@@ -191,6 +144,69 @@ impl Editor {
             ].clone();
             if self.cursor.x > current.len() as u16 {
                 self.cursor.x = current.len() as u16;
+            }
+        }
+    }
+    fn move_cursor(&mut self, direction: Direction) {
+        match direction {
+            Direction::Up => {
+                // Move cursor up
+                if self.cursor.y != 0 {
+                    self.cursor.y = self.cursor.y.saturating_sub(1);
+                    self.correct_line();
+                } else {
+                    self.offset = self.offset.saturating_sub(1);
+                }
+            }
+            Direction::Down => {
+                // Move cursor down
+                let buff_len = self.buffer.lines.len() as u64;
+                let proposed = self.cursor.y.saturating_add(1) as u64;
+                let max = self.terminal.height.saturating_sub(3);
+                if proposed.saturating_add(self.offset) < buff_len {
+                    if self.cursor.y < max {
+                        self.cursor.y = proposed as u16;
+                        self.correct_line();
+                    } else {
+                        self.offset = self.offset.saturating_add(1);
+                    }
+                }
+            }
+            Direction::Left => {
+                // Move cursor to the left
+                let current = self.cursor.y + self.offset as u16;
+                if self.cursor.x == 0 && current != 0 {
+                    if self.cursor.y == 0 { 
+                        self.offset = self.offset.saturating_sub(1); 
+                    }
+                    self.cursor.x = self.terminal.width;
+                    self.cursor.y = self.cursor.y.saturating_sub(1);
+                    self.correct_line();
+                } else {
+                    self.cursor.x = self.cursor.x.saturating_sub(1);
+                }
+            }
+            Direction::Right => {
+                // Move cursor to the right
+                let index = self.cursor.y + self.offset as u16;
+                if self.buffer.lines.is_empty() { return; }
+                let current = &self.buffer.lines[index as usize];
+                let size = [
+                    &self.terminal.width,
+                    &self.terminal.height,
+                ];
+                if current.len() as u16 == self.cursor.x && 
+                   self.buffer.lines.len() as u16 != index + 1 {
+                    if self.cursor.y == size[1] - 3 { 
+                        self.offset = self.offset.saturating_add(1); 
+                    } else {
+                        self.cursor.y = self.cursor.y.saturating_add(1);
+                    }
+                    self.cursor.x = 0;
+                } else if self.cursor.x < size[0].saturating_sub(1) {
+                    self.cursor.x = self.cursor.x.saturating_add(1);
+                    self.correct_line();
+                }
             }
         }
     }
