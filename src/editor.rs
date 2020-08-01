@@ -123,15 +123,20 @@ impl Editor {
     }
     fn delete(&mut self) {
         let index = self.cursor.y + self.offset as u16;
-        let line = &self.buffer.lines[index as usize];
+        let line = self.buffer.lines[index as usize].clone();
         let max = self.buffer.lines.len() as u16;
         if !(self.cursor.x == 0 && index == 0) && index != max { 
             if self.cursor.x == 0 {
-              self.buffer.lines.remove(index as usize);
+                let old_len = self.buffer.lines[
+                    (index - 1) as usize
+                ].len() as u16;
+                if !line.is_empty() {
+                    self.buffer.lines[(index - 1) as usize] += &line.clone();
+                }
+                self.buffer.lines.remove(index as usize);
                 if self.offset > 0 { self.offset -= 1; } 
                 else { self.cursor.y = self.cursor.y.saturating_sub(1); }
-                self.cursor.x = self.terminal.width;
-                self.correct_line();
+                self.cursor.x = old_len;
             } else {
                 self.cursor.x = self.cursor.x.saturating_sub(1);
                 let mut result: String = line.chars()

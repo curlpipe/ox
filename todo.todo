@@ -1,11 +1,11 @@
 0.1.0 (Editor basics #1)
 - [ ] File editing
-  - [ ] Add support for cross mid-line deletion
   - [ ] Support for the enter key
   - [X] Insert text
   - [X] Delete text
   - [X] Add support for deletion with offset and multiline
   - [X] Fix bounds errors
+  - [X] Add support for cross mid-line deletion
 - [ ] File writing
 - [X] Scroll
 - [X] Responsive resizing
@@ -21,6 +21,7 @@
   - [ ] File length
 
 0.1.2 (Editor basics #3)
+- [ ] Soft line wrap
 - [ ] Search feature
 - [ ] Line numbers
 
