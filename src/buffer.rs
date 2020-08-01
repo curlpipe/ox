@@ -8,7 +8,7 @@ pub struct Buffer {
 impl Buffer {
     pub fn new() -> Self {
         Buffer {
-            lines: Vec::new(),
+            lines: vec![String::new()],
         }
     }
     pub fn open(path: &str) -> Self {

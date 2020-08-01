@@ -32,6 +32,7 @@ pub struct Editor {
     buffer: Buffer,
     offset: u64,
     command_bar: String,
+    show_welcome: bool,
 }
 
 impl Editor {
@@ -39,12 +40,16 @@ impl Editor {
         // Create a new editor instance
         let args: Vec<String> = env::args().collect();
         let buffer: Buffer;
+        let show_welcome: bool;
         if args.len() <= 1 { 
             buffer = Buffer::new();
+            show_welcome = true;
         } else {
+            show_welcome = false;
             buffer = Buffer::open(args[1].trim());
         }
         Self {
+            show_welcome,
             terminal: Terminal::new(),
             kill: false,
             cursor: Cursor { x: 0, y: 0 },
@@ -107,19 +112,45 @@ impl Editor {
             }
         }
     }
-    fn insert(&mut self, c: char) {
+    fn insert(&mut self, character: char) {
+        self.show_welcome = false;
         let index = self.cursor.y + self.offset as u16;
         let line = &self.buffer.lines[index as usize];
-        let mut result: String = line.chars()
-            .take(self.cursor.x as usize)
-            .collect();
-        let remainder: String = line.chars()
-            .skip(self.cursor.x as usize)
-            .collect();
-        result.push(c);
-        result.push_str(&remainder);
-        self.buffer.lines[index as usize] = result;
-        self.cursor.x = self.cursor.x.saturating_add(1);
+        if character == '\n' {
+            if self.cursor.x == 0 {
+                // Cursor is on the start of the line
+                self.buffer.lines.insert(self.cursor.y as usize, String::new());
+                self.cursor.y = self.cursor.y.saturating_add(1);
+            } else if self.cursor.x == line.len() as u16 {
+                // Cursor is on the end of the line
+                self.cursor.y = self.cursor.y.saturating_add(1);
+                self.buffer.lines.insert(self.cursor.y as usize, String::new());
+                self.correct_line();
+            } else {
+                // Cursor is in the middle of the line
+                let result: String = line.chars()
+                  .take(self.cursor.x as usize)
+                  .collect();
+                let remainder: String = line.chars()
+                  .skip(self.cursor.x as usize)
+                  .collect();
+                self.buffer.lines[index as usize] = remainder;
+                self.buffer.lines.insert(self.cursor.y as usize, result);
+                self.cursor.y = self.cursor.y.saturating_add(1);
+                self.cursor.x = 0;
+            }
+        } else {
+            let mut result: String = line.chars()
+              .take(self.cursor.x as usize)
+              .collect();
+            let remainder: String = line.chars()
+              .skip(self.cursor.x as usize)
+              .collect();
+            result.push(character);
+            result.push_str(&remainder);
+            self.buffer.lines[index as usize] = result;
+            self.cursor.x = self.cursor.x.saturating_add(1);
+        }
     }
     fn delete(&mut self) {
         let index = self.cursor.y + self.offset as u16;
@@ -232,25 +263,25 @@ impl Editor {
         let mut frame: Vec<String> = Vec::new();
         self.terminal.clear_all();
         for row in 0..self.terminal.height {
-            if row == self.terminal.height / 3 && self.buffer.lines.is_empty() {
+            if row == self.terminal.height / 3 && self.show_welcome {
                 let welcome = format!("Ox editor v{}", VERSION);
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
                 frame.push(format!("{}{}{}", "~", pad, welcome));
             } else if row == (self.terminal.height / 3) + 2 && 
-                self.buffer.lines.is_empty()  {
+                self.show_welcome  {
                 let welcome = "A speedy editor built with Rust";
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
                 frame.push(format!("{}{}{}", "~", pad, welcome));
             } else if row == (self.terminal.height / 3) + 3 && 
-                self.buffer.lines.is_empty()  {
+                self.show_welcome  {
                 let welcome = "by curlpipe";
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);
                 frame.push(format!("{}{}{}", "~", pad, welcome));
             } else if row == (self.terminal.height / 3) + 5 && 
-                self.buffer.lines.is_empty()  {
+                self.show_welcome {
                 let welcome = "Ctrl + Q:  Exit";
                 let pad = " ".repeat(self.terminal.width as usize / 2 
                                      - welcome.len() / 2);

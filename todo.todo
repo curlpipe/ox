@@ -1,16 +1,16 @@
 0.1.0 (Editor basics #1)
-- [ ] File editing
-  - [ ] Support for the enter key
-  - [X] Insert text
-  - [X] Delete text
-  - [X] Add support for deletion with offset and multiline
-  - [X] Fix bounds errors
-  - [X] Add support for cross mid-line deletion
 - [ ] File writing
 - [X] Scroll
 - [X] Responsive resizing
 - [X] Line wrapping
 - [X] Single shot rendering
+- [X] File editing
+  - [X] Insert text
+  - [X] Delete text
+  - [X] Add support for deletion with offset and multiline
+  - [X] Fix bounds errors
+  - [X] Add support for cross mid-line deletion
+  - [X] Support for the enter key
 
 0.1.1 (Editor basics #2)
 - [ ] Save as / Save
