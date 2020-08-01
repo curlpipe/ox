@@ -122,17 +122,28 @@ impl Editor {
         self.cursor.x = self.cursor.x.saturating_add(1);
     }
     fn delete(&mut self) {
-        self.cursor.x = self.cursor.x.saturating_sub(1);
         let index = self.cursor.y + self.offset as u16;
         let line = &self.buffer.lines[index as usize];
-        let mut result: String = line.chars()
-            .take(self.cursor.x as usize)
-            .collect();
-        let remainder: String = line.chars()
-            .skip((self.cursor.x + 1) as usize)
-            .collect();
-        result.push_str(&remainder);
-        self.buffer.lines[index as usize] = result;
+        let max = self.buffer.lines.len() as u16;
+        if !(self.cursor.x == 0 && index == 0) && index != max { 
+            if self.cursor.x == 0 {
+              self.buffer.lines.remove(index as usize);
+                if self.offset > 0 { self.offset -= 1; } 
+                else { self.cursor.y = self.cursor.y.saturating_sub(1); }
+                self.cursor.x = self.terminal.width;
+                self.correct_line();
+            } else {
+                self.cursor.x = self.cursor.x.saturating_sub(1);
+                let mut result: String = line.chars()
+                    .take(self.cursor.x as usize)
+                    .collect();
+                let remainder: String = line.chars()
+                    .skip((self.cursor.x + 1) as usize)
+                    .collect();
+                result.push_str(&remainder);
+                self.buffer.lines[index as usize] = result;
+            }
+        } 
     }
     fn correct_line(&mut self) {
         // Ensure that the cursor isn't out of bounds
@@ -214,6 +225,7 @@ impl Editor {
         // Render the rows
         let term_length = self.terminal.height;
         let mut frame: Vec<String> = Vec::new();
+        self.terminal.clear_all();
         for row in 0..self.terminal.height {
             if row == self.terminal.height / 3 && self.buffer.lines.is_empty() {
                 let welcome = format!("Ox editor v{}", VERSION);
@@ -268,7 +280,6 @@ impl Editor {
                 frame.push(String::from("~"));
             }
         }
-        self.terminal.clear_all();
         self.terminal.move_cursor(0, 0);
         self.terminal.write(format!("{}", frame.join("\r\n")));
         self.terminal.move_cursor(self.cursor.x, self.cursor.y);
