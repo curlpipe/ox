@@ -295,8 +295,9 @@ impl Editor {
                 ));
             } else if row == term_length - 2 {
                 let status_line = format!(
-                    " File: {} | Cursor: ({}, {}) ",
-                    self.buffer.filename, self.cursor.x, self.cursor.y,
+                    " File: {} | Type: {} | Cursor: ({}, {}) ",
+                    self.buffer.filename, self.buffer.identify(),
+                    self.cursor.x, self.cursor.y,
                 );
                 let pad = self.terminal.width as usize - status_line.len();
                 let pad = " ".repeat(pad);
