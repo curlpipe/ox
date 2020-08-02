@@ -81,6 +81,14 @@ impl Editor {
                     Key::Right => self.move_cursor(Direction::Right),
                     Key::Up => self.move_cursor(Direction::Up),
                     Key::Down => self.move_cursor(Direction::Down),
+                    Key::Ctrl('s') => {
+                        // Save the current file
+                        self.buffer.save();
+                        self.command_bar = format!(
+                            "Saved to file: {}", 
+                            self.buffer.path
+                        );
+                    }
                     Key::PageUp => {
                         // Move the cursor to the top of the terminal
                         self.cursor.y = 0;
@@ -89,7 +97,7 @@ impl Editor {
                     Key::PageDown => {
                         // Move the cursor to the bottom of the buffer / terminal
                         let t = self.terminal.height.saturating_sub(3) as u16;
-                        let b = self.buffer.lines.len().saturating_sub(1) as u16;
+                        let b = self.buffer.lines.len().saturating_sub(2) as u16;
                         self.cursor.y = min(t, b);
                         self.correct_line();
                     }
@@ -155,7 +163,7 @@ impl Editor {
     fn delete(&mut self) {
         let index = self.cursor.y + self.offset as u16;
         let line = self.buffer.lines[index as usize].clone();
-        let max = self.buffer.lines.len() as u16;
+        let max = (self.buffer.lines.len() - 1) as u16;
         if !(self.cursor.x == 0 && index == 0) && index != max { 
             if self.cursor.x == 0 {
                 let old_len = self.buffer.lines[
@@ -207,7 +215,7 @@ impl Editor {
             }
             Direction::Down => {
                 // Move cursor down
-                let buff_len = self.buffer.lines.len() as u64;
+                let buff_len = (self.buffer.lines.len() - 1) as u64;
                 let proposed = self.cursor.y.saturating_add(1) as u64;
                 let max = self.terminal.height.saturating_sub(3);
                 if proposed.saturating_add(self.offset) < buff_len {
@@ -243,7 +251,7 @@ impl Editor {
                     &self.terminal.height,
                 ];
                 if current.len() as u16 == self.cursor.x && 
-                   self.buffer.lines.len() as u16 != index + 1 {
+                   (self.buffer.lines.len() - 1) as u16 != index + 1 {
                     if self.cursor.y == size[1] - 3 { 
                         self.offset = self.offset.saturating_add(1); 
                     } else {
@@ -309,7 +317,7 @@ impl Editor {
                 ));
             } else if row == term_length - 1 {
                 frame.push(self.command_bar.clone());
-            } else if row < self.buffer.lines.len() as u16 {
+            } else if row < (self.buffer.lines.len() - 1) as u16 {
                 let index = self.offset as usize + row as usize;
                 frame.push(self.buffer.lines[index].clone());
             } else {

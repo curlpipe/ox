@@ -3,12 +3,14 @@ use std::fs;
 
 pub struct Buffer {
     pub lines: Vec<String>,
+    pub path: String,
 }
 
 impl Buffer {
     pub fn new() -> Self {
         Buffer {
             lines: vec![String::new()],
+            path: String::new(),
         }
     }
     pub fn open(path: &str) -> Self {
@@ -19,6 +21,10 @@ impl Buffer {
         }
         Self { 
             lines,
+            path: path.to_string(),
         }
+    }
+    pub fn save(&self) {
+        fs::write(&self.path, self.lines.join("\n")).unwrap();
     }
 }

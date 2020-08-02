@@ -1,5 +1,4 @@
 0.1.0 (Editor basics #1)
-- [ ] File writing
 - [X] Scroll
 - [X] Responsive resizing
 - [X] Line wrapping
@@ -11,6 +10,7 @@
   - [X] Fix bounds errors
   - [X] Add support for cross mid-line deletion
   - [X] Support for the enter key
+- [X] File writing
 
 0.1.1 (Editor basics #2)
 - [ ] Save as / Save
