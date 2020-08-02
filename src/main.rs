@@ -1,9 +1,9 @@
-mod terminal;
 mod buffer;
 mod editor;
-use terminal::Terminal;
-use editor::Editor;
+mod terminal;
 use buffer::Buffer;
+use editor::Editor;
+use terminal::Terminal;
 
 use std::io::ErrorKind;
 
@@ -13,6 +13,6 @@ fn main() {
         Err(err) => match err.kind() {
             ErrorKind::NotFound => println!("File not found"),
             _ => println!("An error occured"),
-        }
+        },
     }
 }

@@ -1,8 +1,8 @@
 // Terminal.rs - Low level mangement of the terminal
+use std::io::{stdout, Write};
 use termion::raw::{IntoRawMode, RawTerminal};
 use termion::screen::AlternateScreen;
 use termion::terminal_size;
-use std::io::{stdout, Write};
 
 // Holds the information on the terminal
 pub struct Terminal {

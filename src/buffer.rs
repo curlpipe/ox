@@ -19,7 +19,7 @@ impl Buffer {
             for line in file.split('\n') {
                 lines.push(line.to_string());
             }
-            Some(Self { 
+            Some(Self {
                 lines,
                 path: path.to_string(),
             })
