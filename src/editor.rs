@@ -4,12 +4,13 @@ use termion::input::TermRead;
 use termion::event::Key;
 use crate::Terminal;
 use crate::Buffer;
+use std::io::{ErrorKind, Error};
 use std::time::Duration;
 use std::cmp::min;
 use std::thread;
 use std::env;
 
-// Get the version of Ox
+// Set up Ox
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(0, 175, 135));
 const FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(38, 38, 38));
@@ -36,26 +37,38 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, Error> {
         // Create a new editor instance
         let args: Vec<String> = env::args().collect();
         let buffer: Buffer;
         let show_welcome: bool;
         if args.len() <= 1 { 
-            buffer = Buffer::new();
             show_welcome = true;
+            buffer = Buffer::new();
+            Ok(Self {
+                show_welcome,
+                terminal: Terminal::new(),
+                kill: false,
+                cursor: Cursor { x: 0, y: 0 },
+                buffer,
+                offset: 0,
+                command_bar: String::from("Welcome to Ox!"),
+            })
         } else {
             show_welcome = false;
-            buffer = Buffer::open(args[1].trim());
-        }
-        Self {
-            show_welcome,
-            terminal: Terminal::new(),
-            kill: false,
-            cursor: Cursor { x: 0, y: 0 },
-            buffer,
-            offset: 0,
-            command_bar: String::from("Welcome to Ox!"),
+            if let Some(buffer) = Buffer::open(args[1].trim()) {
+                Ok(Self {
+                    show_welcome,
+                    terminal: Terminal::new(),
+                    kill: false,
+                    cursor: Cursor { x: 0, y: 0 },
+                    buffer,
+                    offset: 0,
+                    command_bar: String::from("Welcome to Ox!"),
+                })
+            } else {
+                Err(Error::new(ErrorKind::NotFound, "File not found!"))
+            }
         }
 
     }

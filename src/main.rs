@@ -5,14 +5,14 @@ use terminal::Terminal;
 use editor::Editor;
 use buffer::Buffer;
 
-use std::panic;
+use std::io::ErrorKind;
 
 fn main() {
-    let result = panic::catch_unwind(|| {
-        let mut editor = Editor::new();
-        editor.run();
-    });
-    if result.is_err() {
-        std::thread::sleep(std::time::Duration::from_millis(5000));
+    match Editor::new() {
+        Ok(mut editor) => editor.run(),
+        Err(err) => match err.kind() {
+            ErrorKind::NotFound => println!("File not found"),
+            _ => println!("An error occured"),
+        }
     }
 }

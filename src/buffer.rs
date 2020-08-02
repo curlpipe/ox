@@ -13,15 +13,18 @@ impl Buffer {
             path: String::new(),
         }
     }
-    pub fn open(path: &str) -> Self {
-        let file = fs::read_to_string(path).unwrap();
-        let mut lines = Vec::new();
-        for line in file.split('\n') {
-            lines.push(line.to_string());
-        }
-        Self { 
-            lines,
-            path: path.to_string(),
+    pub fn open(path: &str) -> Option<Self> {
+        if let Ok(file) = fs::read_to_string(path) {
+            let mut lines = Vec::new();
+            for line in file.split('\n') {
+                lines.push(line.to_string());
+            }
+            Some(Self { 
+                lines,
+                path: path.to_string(),
+            })
+        } else {
+            None
         }
     }
     pub fn save(&self) {
