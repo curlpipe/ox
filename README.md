@@ -104,6 +104,12 @@ You can also use:
  - `Home` - Go to the start of the current line
  - `End` - Go to the end of the current line
 
+#### Editing the file
+You can use the keys `Backspace` and `Return` / `Enter` as well as all the characters on your keyboard to edit the opened file!
+
+#### Saving the file
+The simple keyboard shortcut of `Ctrl + S` can be used to save the current file.
+
 #### Closing Ox
 You can use the keybinding `Ctrl + Q` to exit Ox.
 
