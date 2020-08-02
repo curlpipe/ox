@@ -1,14 +1,17 @@
 - [ ] 0.1.1 (Editor basics #2)
-  - [ ] Fix current and potential runtime errors
-    - [ ] Create a better warning and error system
-  - [ ] Better file opening
-  - [ ] Ability to create new files
-  - [ ] Save as / Save
-  - [ ] Unicode support
   - [ ] Update statusline
-    - [ ] File name
     - [ ] File extension
     - [ ] File length
+    - [X] File name
+  - [ ] Unicode support
+  - [ ] Save as / Save
+  - [ ] Ability to create new files
+  - [ ] Allow opening of files from within the editor
+  - [ ] Better file opening
+    - [ ] New file created when not recognised
+    - [ ] Allow opening without providing a file name argument
+  - [X] Fix current and potential runtime errors
+    - [X] Create a better warning and error system
 - [ ] 0.1.2 (Editor basics #3)
   - [ ] Soft line wrap
   - [ ] Search feature

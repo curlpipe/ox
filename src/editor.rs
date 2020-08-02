@@ -138,23 +138,20 @@ impl Editor {
         if character == '\n' {
             if self.cursor.x == 0 {
                 // Cursor is on the start of the line
-                self.buffer
-                    .lines
-                    .insert(self.cursor.y as usize, String::new());
+                self.buffer.lines.insert(index as usize, String::new());
                 self.cursor.y = self.cursor.y.saturating_add(1);
             } else if self.cursor.x == line.len() as u16 {
                 // Cursor is on the end of the line
                 self.cursor.y = self.cursor.y.saturating_add(1);
-                self.buffer
-                    .lines
-                    .insert(self.cursor.y as usize, String::new());
+                let index = self.cursor.y + self.offset as u16;
+                self.buffer.lines.insert(index as usize, String::new());
                 self.correct_line();
             } else {
                 // Cursor is in the middle of the line
                 let result: String = line.chars().take(self.cursor.x as usize).collect();
                 let remainder: String = line.chars().skip(self.cursor.x as usize).collect();
                 self.buffer.lines[index as usize] = remainder;
-                self.buffer.lines.insert(self.cursor.y as usize, result);
+                self.buffer.lines.insert(index as usize, result);
                 self.cursor.y = self.cursor.y.saturating_add(1);
                 self.cursor.x = 0;
             }
@@ -223,10 +220,10 @@ impl Editor {
                 if proposed.saturating_add(self.offset) < buff_len {
                     if self.cursor.y < max {
                         self.cursor.y = proposed as u16;
-                        self.correct_line();
                     } else {
                         self.offset = self.offset.saturating_add(1);
                     }
+                    self.correct_line();
                 }
             }
             Direction::Left => {
@@ -298,8 +295,8 @@ impl Editor {
                 ));
             } else if row == term_length - 2 {
                 let status_line = format!(
-                    " Ox: {} | x: {} | y: {}",
-                    VERSION, self.cursor.x, self.cursor.y,
+                    " File: {} | Cursor: ({}, {}) ",
+                    self.buffer.filename, self.cursor.x, self.cursor.y,
                 );
                 let pad = self.terminal.width as usize - status_line.len();
                 let pad = " ".repeat(pad);

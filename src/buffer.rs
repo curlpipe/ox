@@ -4,6 +4,7 @@ use std::fs;
 pub struct Buffer {
     pub lines: Vec<String>,
     pub path: String,
+    pub filename: String,
 }
 
 impl Buffer {
@@ -11,6 +12,7 @@ impl Buffer {
         Buffer {
             lines: vec![String::new()],
             path: String::new(),
+            filename: String::from("[No name]"),
         }
     }
     pub fn open(path: &str) -> Option<Self> {
@@ -22,6 +24,7 @@ impl Buffer {
             Some(Self {
                 lines,
                 path: path.to_string(),
+                filename: String::from(path),
             })
         } else {
             None
