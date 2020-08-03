@@ -66,7 +66,7 @@ Probably around the level that Kiro is at
 - [ ] Terminal splitting support
 - [ ] Compile code in terminal on keybinding
 
-Head to head with stock vim / neovim
+Head to head with stock vim / neovim & micro
 
 0.4.0 (IDE features #1)
 - [ ] Prettier integration
@@ -76,4 +76,4 @@ Head to head with stock vim / neovim
 - [ ] Auto complete
 - [ ] Auto brackets
 
-More like Micro, Modified Vim and VSCode
+More like Modified Vim and VSCode
