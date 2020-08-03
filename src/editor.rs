@@ -135,14 +135,17 @@ impl Editor {
         self.show_welcome = false;
         let index = self.cursor.y + self.offset as u16;
         let line = &self.buffer.lines[index as usize];
+        let max = self.terminal.height.saturating_sub(3);
         if character == '\n' {
             if self.cursor.x == 0 {
                 // Cursor is on the start of the line
                 self.buffer.lines.insert(index as usize, String::new());
-                self.cursor.y = self.cursor.y.saturating_add(1);
+                if self.cursor.y >= max { self.offset += 1; }
+                else { self.cursor.y = self.cursor.y.saturating_add(1); }
             } else if self.cursor.x == line.len() as u16 {
                 // Cursor is on the end of the line
-                self.cursor.y = self.cursor.y.saturating_add(1);
+                if self.cursor.y >= max { self.offset += 1; }
+                else { self.cursor.y = self.cursor.y.saturating_add(1); }
                 let index = self.cursor.y + self.offset as u16;
                 self.buffer.lines.insert(index as usize, String::new());
                 self.correct_line();
@@ -152,7 +155,8 @@ impl Editor {
                 let remainder: String = line.chars().skip(self.cursor.x as usize).collect();
                 self.buffer.lines[index as usize] = remainder;
                 self.buffer.lines.insert(index as usize, result);
-                self.cursor.y = self.cursor.y.saturating_add(1);
+                if self.cursor.y >= max { self.offset += 1; }
+                else { self.cursor.y = self.cursor.y.saturating_add(1); }
                 self.cursor.x = 0;
             }
         } else {
