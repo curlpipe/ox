@@ -294,10 +294,11 @@ impl Editor {
                     color::Fg(color::Reset),
                 ));
             } else if row == term_length - 2 {
+                let index = self.cursor.y + self.offset as u16;
                 let status_line = format!(
-                    " File: {} | Type: {} | Cursor: ({}, {}) ",
+                    " File: {} | Type: {} | {} / {} ",
                     self.buffer.filename, self.buffer.identify(),
-                    self.cursor.x, self.cursor.y,
+                    index + 1, self.buffer.lines.len() - 1
                 );
                 let pad = self.terminal.width as usize - status_line.len();
                 let pad = " ".repeat(pad);

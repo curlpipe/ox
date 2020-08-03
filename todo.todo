@@ -1,8 +1,4 @@
 - [ ] 0.1.1 (Editor basics #2)
-  - [ ] Update statusline
-    - [ ] File extension
-    - [ ] File length
-    - [X] File name
   - [ ] Unicode support
   - [ ] Save as / Save
   - [ ] Ability to create new files
@@ -12,6 +8,10 @@
     - [ ] Allow opening without providing a file name argument
   - [X] Fix current and potential runtime errors
     - [X] Create a better warning and error system
+  - [X] Update statusline
+    - [X] File name
+    - [X] File extension
+    - [X] File length
 - [ ] 0.1.2 (Editor basics #3)
   - [ ] Soft line wrap
   - [ ] Search feature
