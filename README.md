@@ -42,7 +42,7 @@ Ox doesn't have a plugin system (yet) nor a special language like vimscript beca
 Ox is super minimal and aims to use as few dependencies as possible, allowing for rapid compile time and low risk of breakage.
 
 * [Rust language](https://rust-lang.org)
-* [Termion](https://gitlab.redox-os.org/redox-os/termion)
+* [Termion](https://github.com/redox-os/termion)
 
 <!-- GETTING STARTED -->
 ## Getting Started
