@@ -31,7 +31,11 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-Ox is a text editor that differs to many text editors that are already out there. It's is built in the Rust language to ensure that it almost never crashes, leaks or fails. It is different from Vim due to its non-modal approach and uses keybindings just like nano does but has a lot more features including a secret command mode similar to Vim. Ox doesn't have a plugin system nor a special language like vimscript because that gives the potential for bugs errors and unintended events, instead of having plugins, one can either edit the source code directly and build using the simple instructions followed by submitting a pull request into Ox or uploading your own distrobution to a git repository! This ensures that the plugins and modifications are optimised and fast and don't require learning a new editor-specific language.
+Ox is a text editor that differs to many text editors that are already out there. It's is built in the Rust language to ensure that it is memory and thread safe as well as being fast. 
+
+It is different from Vim due to its non-modal approach and uses keybindings just like nano does but has a lot more features including a secret command mode similar to Vim. 
+
+Ox doesn't have a plugin system (yet) nor a special language like vimscript because that gives the potential for bugs errors and unintended events and it requires learning a new editor-specific language.
 
 ### Built With
 
