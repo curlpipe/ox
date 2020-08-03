@@ -116,7 +116,7 @@ You can use the keybinding `Ctrl + Q` to exit Ox.
 <!-- ROADMAP -->
 ## Roadmap
 
-You can see the `todo.todo` file to see my plans for the future of the editor!
+You can see the `roadmap.todo.md` file to see my plans for the future of the editor!
 
 <!-- LICENSE -->
 ## License

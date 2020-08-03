@@ -1,4 +1,5 @@
 - [ ] 0.1.1 (Editor basics #2)
+  - [ ] Fix offset enter bug
   - [ ] Unicode support
   - [ ] Save as / Save
   - [ ] Ability to create new files
@@ -9,9 +10,9 @@
   - [X] Fix current and potential runtime errors
     - [X] Create a better warning and error system
   - [X] Update statusline
-    - [X] File name
-    - [X] File extension
     - [X] File length
+    - [X] File extension
+    - [X] File name
 - [ ] 0.1.2 (Editor basics #3)
   - [ ] Soft line wrap
   - [ ] Search feature
