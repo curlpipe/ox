@@ -1,11 +1,9 @@
 // Editor.rs - For controling the current editor
-use crate::Buffer;
-use crate::Terminal;
+use crate::{Buffer, Row, Terminal};
 use std::cmp::min;
-use std::env;
 use std::io::{Error, ErrorKind};
-use std::thread;
 use std::time::Duration;
+use std::{env, thread};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::{color, style};
@@ -32,6 +30,7 @@ pub struct Cursor {
 pub struct Editor {
     terminal: Terminal,
     kill: bool,
+    raw_cursor: u16,
     cursor: Cursor,
     buffer: Buffer,
     offset: u64,
@@ -53,6 +52,7 @@ impl Editor {
                 terminal: Terminal::new(),
                 kill: false,
                 cursor: Cursor { x: 0, y: 0 },
+                raw_cursor: 0,
                 buffer,
                 offset: 0,
                 command_bar: String::from("Welcome to Ox!"),
@@ -65,6 +65,7 @@ impl Editor {
                     terminal: Terminal::new(),
                     kill: false,
                     cursor: Cursor { x: 0, y: 0 },
+                    raw_cursor: 0,
                     buffer,
                     offset: 0,
                     command_bar: String::from("Welcome to Ox!"),
@@ -116,10 +117,12 @@ impl Editor {
                     Key::Home => {
                         // Move to the start of the current line
                         self.cursor.x = 0;
+                        self.raw_cursor = 0;
                     }
                     Key::End => {
                         // Move to the end of the current line
                         self.cursor.x = self.terminal.width.saturating_sub(1);
+                        self.raw_cursor = self.terminal.width.saturating_sub(1);
                         self.correct_line();
                     }
                     _ => (), // Unbound key
@@ -134,74 +137,93 @@ impl Editor {
     fn insert(&mut self, character: char) {
         self.show_welcome = false;
         let index = self.cursor.y + self.offset as u16;
-        let line = &self.buffer.lines[index as usize];
-        let max = self.terminal.height.saturating_sub(3);
+        let current = &self.buffer.lines[index as usize];
         if character == '\n' {
+            // Handle return key
             if self.cursor.x == 0 {
-                // Cursor is on the start of the line
-                self.buffer.lines.insert(index as usize, String::new());
-                if self.cursor.y >= max { self.offset += 1; }
-                else { self.cursor.y = self.cursor.y.saturating_add(1); }
-            } else if self.cursor.x == line.len() as u16 {
-                // Cursor is on the end of the line
-                if self.cursor.y >= max { self.offset += 1; }
-                else { self.cursor.y = self.cursor.y.saturating_add(1); }
-                let index = self.cursor.y + self.offset as u16;
-                self.buffer.lines.insert(index as usize, String::new());
+                // Cursor is at the beginning of the line
+                self.buffer
+                    .lines
+                    .insert(index as usize, Row::new(String::new()));
+                self.buffer.lines[index as usize].update_jumps();
+                self.move_cursor(Direction::Down);
+            } else if self.cursor.x == current.length() as u16 {
+                // Cursor is at the end of the line
+                self.buffer
+                    .lines
+                    .insert((index + 1) as usize, Row::new(String::new()));
+                self.buffer.lines[(index + 1) as usize].update_jumps();
+                self.move_cursor(Direction::Down);
                 self.correct_line();
             } else {
                 // Cursor is in the middle of the line
-                let result: String = line.chars().take(self.cursor.x as usize).collect();
-                let remainder: String = line.chars().skip(self.cursor.x as usize).collect();
-                self.buffer.lines[index as usize] = remainder;
-                self.buffer.lines.insert(index as usize, result);
-                if self.cursor.y >= max { self.offset += 1; }
-                else { self.cursor.y = self.cursor.y.saturating_add(1); }
+                let before: String = current.chars().take(self.cursor.x as usize).collect();
+                let after: String = current.chars().skip(self.cursor.x as usize).collect();
+                self.buffer.lines[index as usize] = Row::new(before);
+                self.buffer.lines[index as usize].update_jumps();
+                self.buffer
+                    .lines
+                    .insert((index + 1) as usize, Row::new(after));
+                self.buffer.lines[(index + 1) as usize].update_jumps();
+                self.move_cursor(Direction::Down);
                 self.cursor.x = 0;
+                self.raw_cursor = 0;
             }
         } else {
-            let mut result: String = line.chars().take(self.cursor.x as usize).collect();
-            let remainder: String = line.chars().skip(self.cursor.x as usize).collect();
-            result.push(character);
-            result.push_str(&remainder);
-            self.buffer.lines[index as usize] = result;
-            self.cursor.x = self.cursor.x.saturating_add(1);
+            // Not the return key
+            let mut before: String = current.chars().take(self.cursor.x as usize).collect();
+            let after: String = current.chars().skip(self.cursor.x as usize).collect();
+            before.push(character);
+            before.push_str(&after);
+            self.buffer.lines[index as usize] = Row::new(before);
+            self.move_cursor(Direction::Right);
         }
     }
     fn delete(&mut self) {
         let index = self.cursor.y + self.offset as u16;
-        let line = self.buffer.lines[index as usize].clone();
-        let max = (self.buffer.lines.len() - 1) as u16;
-        if !(self.cursor.x == 0 && index == 0) && index != max {
-            if self.cursor.x == 0 {
-                let old_len = self.buffer.lines[(index - 1) as usize].len() as u16;
-                if !line.is_empty() {
-                    self.buffer.lines[(index - 1) as usize] += &line;
-                }
-                self.buffer.lines.remove(index as usize);
-                if self.offset > 0 {
-                    self.offset -= 1;
-                } else {
-                    self.cursor.y = self.cursor.y.saturating_sub(1);
-                }
-                self.cursor.x = old_len;
+        if self.buffer.lines.is_empty() {
+            return;
+        }
+        let current = &self.buffer.lines[index as usize];
+        if self.cursor.x == 0 && index != 0 {
+            // Cursor is at the beginning of a line
+            let up = &self.buffer.lines[(index - 1) as usize];
+            let old_line = current.string.clone();
+            let old_raw_len = up.raw_length() as u16;
+            let old_len = up.length() as u16;
+            self.buffer.lines.remove(index as usize);
+            if self.offset > 0 {
+                self.offset -= 1;
             } else {
-                self.cursor.x = self.cursor.x.saturating_sub(1);
-                let mut result: String = line.chars().take(self.cursor.x as usize).collect();
-                let remainder: String = line.chars().skip((self.cursor.x + 1) as usize).collect();
-                result.push_str(&remainder);
-                self.buffer.lines[index as usize] = result;
+                self.cursor.y = self.cursor.y.saturating_sub(1);
             }
+            self.correct_line();
+            let index = self.cursor.y + self.offset as u16;
+            self.buffer.lines[index as usize] =
+                Row::new(self.buffer.lines[index as usize].string.clone() + &old_line);
+            self.buffer.lines[index as usize].update_jumps();
+            self.cursor.x = old_len;
+            self.raw_cursor = old_raw_len;
+        } else {
+            // Cursor is ready to delete text
+            let current = &self.buffer.lines[index as usize].clone();
+            self.move_cursor(Direction::Left);
+            let before: String = current.chars().take(self.cursor.x as usize).collect();
+            let after: String = current.chars().skip(1 + self.cursor.x as usize).collect();
+            self.buffer.lines[index as usize] = Row::new(before + &after);
+            self.buffer.lines[index as usize].update_jumps();
         }
     }
     fn correct_line(&mut self) {
         // Ensure that the cursor isn't out of bounds
         if self.buffer.lines.is_empty() {
             self.cursor.x = 0;
+            self.raw_cursor = 0;
         } else {
-            let current = self.buffer.lines[(self.cursor.y + self.offset as u16) as usize].clone();
-            if self.cursor.x > current.len() as u16 {
-                self.cursor.x = current.len() as u16;
+            let current = &self.buffer.lines[(self.cursor.y + self.offset as u16) as usize];
+            if self.raw_cursor >= current.raw_length() as u16 {
+                self.raw_cursor = current.raw_length() as u16;
+                self.cursor.x = current.length() as u16;
             }
         }
     }
@@ -211,10 +233,10 @@ impl Editor {
                 // Move cursor up
                 if self.cursor.y != 0 {
                     self.cursor.y = self.cursor.y.saturating_sub(1);
-                    self.correct_line();
                 } else {
                     self.offset = self.offset.saturating_sub(1);
                 }
+                self.correct_line();
             }
             Direction::Down => {
                 // Move cursor down
@@ -232,15 +254,20 @@ impl Editor {
             }
             Direction::Left => {
                 // Move cursor to the left
-                let current = self.cursor.y + self.offset as u16;
-                if self.cursor.x == 0 && current != 0 {
+                let index = self.cursor.y + self.offset as u16;
+                let current = &self.buffer.lines[index as usize];
+                if self.raw_cursor == 0 && index != 0 {
                     if self.cursor.y == 0 {
                         self.offset = self.offset.saturating_sub(1);
                     }
                     self.cursor.x = self.terminal.width;
+                    self.raw_cursor = self.terminal.width;
                     self.cursor.y = self.cursor.y.saturating_sub(1);
                     self.correct_line();
-                } else {
+                } else if self.cursor.x != 0 {
+                    self.raw_cursor = self
+                        .raw_cursor
+                        .saturating_sub(current.jumps[(self.cursor.x - 1) as usize] as u16);
                     self.cursor.x = self.cursor.x.saturating_sub(1);
                 }
             }
@@ -252,7 +279,7 @@ impl Editor {
                 }
                 let current = &self.buffer.lines[index as usize];
                 let size = [&self.terminal.width, &self.terminal.height];
-                if current.len() as u16 == self.cursor.x
+                if current.raw_length() as u16 == self.raw_cursor
                     && (self.buffer.lines.len() - 1) as u16 != index + 1
                 {
                     if self.cursor.y == size[1] - 3 {
@@ -261,12 +288,34 @@ impl Editor {
                         self.cursor.y = self.cursor.y.saturating_add(1);
                     }
                     self.cursor.x = 0;
-                } else if self.cursor.x < size[0].saturating_sub(1) {
+                    self.raw_cursor = 0;
+                } else if self.raw_cursor < current.raw_length() as u16 {
+                    self.raw_cursor = self
+                        .raw_cursor
+                        .saturating_add(current.jumps[self.cursor.x as usize] as u16);
                     self.cursor.x = self.cursor.x.saturating_add(1);
                     self.correct_line();
                 }
             }
         }
+        self.update_cursor();
+    }
+    fn update_cursor(&mut self) {
+        let index = self.cursor.y + self.offset as u16;
+        let current = &self.buffer.lines[index as usize];
+        let mut raw_count = self.raw_cursor as i32;
+        let mut count = 0;
+        for jump in &current.jumps {
+            if raw_count <= 0 {
+                break;
+            }
+            count += 1;
+            raw_count -= *jump as i32;
+        }
+        if raw_count < 0 {
+            self.raw_cursor = self.raw_cursor.saturating_sub(1);
+        }
+        self.cursor.x = count;
     }
     fn render(&mut self) {
         // Render the rows
@@ -300,9 +349,13 @@ impl Editor {
             } else if row == term_length - 2 {
                 let index = self.cursor.y + self.offset as u16;
                 let status_line = format!(
-                    " File: {} | Type: {} | {} / {} ",
-                    self.buffer.filename, self.buffer.identify(),
-                    index + 1, self.buffer.lines.len() - 1
+                    " File: {} | Type: {} | Line: {} / {} | Cursor: {}, {}",
+                    self.buffer.filename,
+                    self.buffer.identify(),
+                    index + 1,
+                    self.buffer.lines.len() - 1,
+                    self.cursor.x,
+                    self.cursor.y
                 );
                 let pad = self.terminal.width as usize - status_line.len();
                 let pad = " ".repeat(pad);
@@ -321,14 +374,14 @@ impl Editor {
                 frame.push(self.command_bar.clone());
             } else if row < (self.buffer.lines.len() - 1) as u16 {
                 let index = self.offset as usize + row as usize;
-                frame.push(self.buffer.lines[index].clone());
+                frame.push(self.buffer.lines[index].render());
             } else {
                 frame.push(String::from("~"));
             }
         }
         self.terminal.move_cursor(0, 0);
         self.terminal.write(frame.join("\r\n"));
-        self.terminal.move_cursor(self.cursor.x, self.cursor.y);
+        self.terminal.move_cursor(self.raw_cursor, self.cursor.y);
         self.terminal.flush();
     }
 }

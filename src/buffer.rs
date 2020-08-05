@@ -1,8 +1,9 @@
 // Buffer.rs - For managing buffers
+use crate::Row;
 use std::fs;
 
 pub struct Buffer {
-    pub lines: Vec<String>,
+    pub lines: Vec<Row>,
     pub path: String,
     pub filename: String,
 }
@@ -10,7 +11,7 @@ pub struct Buffer {
 impl Buffer {
     pub fn new() -> Self {
         Buffer {
-            lines: vec![String::new()],
+            lines: vec![Row::new(String::new())],
             path: String::new(),
             filename: String::from("[No name]"),
         }
@@ -19,7 +20,7 @@ impl Buffer {
         if let Ok(file) = fs::read_to_string(path) {
             let mut lines = Vec::new();
             for line in file.split('\n') {
-                lines.push(line.to_string());
+                lines.push(Row::new(line.to_string()));
             }
             Some(Self {
                 lines,
@@ -31,7 +32,12 @@ impl Buffer {
         }
     }
     pub fn save(&self) {
-        fs::write(&self.path, self.lines.join("\n")).unwrap();
+        let mut result = String::new();
+        for row in &self.lines {
+            result.push_str(&row.string);
+            result.push('\n');
+        }
+        fs::write(&self.path, result).unwrap();
     }
     pub fn identify(&self) -> &str {
         let extension = self.filename.split(".").last();
