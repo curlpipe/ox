@@ -1,6 +1,4 @@
 - [ ] 0.1.1 (Editor basics #2)
-  - [ ] Fix offset enter bug
-  - [ ] Unicode support
   - [ ] Save as / Save
   - [ ] Ability to create new files
   - [ ] Allow opening of files from within the editor
@@ -13,6 +11,8 @@
     - [X] File length
     - [X] File extension
     - [X] File name
+  - [X] Fix offset enter bug
+  - [X] Unicode support
 - [ ] 0.1.2 (Editor basics #3)
   - [ ] Soft line wrap
   - [ ] Search feature
