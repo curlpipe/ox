@@ -9,10 +9,15 @@ use termion::input::TermRead;
 use termion::{color, style};
 use unicode_width::UnicodeWidthStr;
 
-// Set up Ox
+// Get Ox version
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// Get status bar colors
+const STATUS_BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(68, 71, 90));
+const STATUS_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(189, 147, 249));
+
+// Global colors
 const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(40, 42, 54));
-const FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(189, 147, 249));
 
 // For holding the position and directions of the cursor
 enum Direction {
@@ -152,7 +157,7 @@ impl Editor {
             Some(key.unwrap())
         } else {
             self.terminal.check_resize(); // Check for resize
-            thread::sleep(Duration::from_millis(24)); // FPS cap to stop greedy CPU usage
+            thread::sleep(Duration::from_millis(6)); // FPS cap to stop greedy CPU usage
             None
         }
     }
@@ -410,8 +415,8 @@ impl Editor {
                 let pad = " ".repeat(pad);
                 frame.push(format!(
                     "{}{}{}{}{}{}{}{}{}",
-                    FG,
-                    BG,
+                    STATUS_FG,
+                    STATUS_BG,
                     style::Bold,
                     left,
                     pad,
@@ -421,16 +426,47 @@ impl Editor {
                     style::Reset,
                 ));
             } else if row == term_length - 1 {
-                frame.push(self.command_bar.clone());
+                let line = self.command_bar.clone();
+                let pad = " ".repeat(
+                    (self.terminal.width - line.len() as u16) as usize
+                );
+                frame.push(
+                    format!(
+                        "{}{}{}{}", 
+                        BG, 
+                        line, 
+                        pad, 
+                        color::Bg(color::Reset)
+                    )
+                );
             } else if row < (self.buffer.lines.len() - 1) as u16 {
                 let index = self.offset as usize + row as usize;
-                frame.push(self.buffer.lines[index].render());
+                let line = self.buffer.lines[index].clone();
+                let pad = " ".repeat(
+                    (self.terminal.width - line.raw_length() as u16) as usize
+                );
+                frame.push(
+                    format!(
+                        "{}{}{}{}", 
+                        BG, 
+                        line.string, 
+                        pad, 
+                        color::Bg(color::Reset)
+                    )
+                );
             } else {
                 frame.push(String::from("~"));
             }
         }
         self.terminal.move_cursor(0, 0);
-        self.terminal.write(frame.join("\r\n"));
+        self.terminal.write(
+            format!(
+                "{}{}{}", 
+                BG,
+                frame.join("\r\n"),
+                color::Bg(color::Reset),
+            )
+        );
         self.terminal.move_cursor(self.raw_cursor, self.cursor.y);
         self.terminal.flush();
     }

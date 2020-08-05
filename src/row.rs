@@ -29,9 +29,6 @@ impl Row {
         }
         self.jumps = seg;
     }
-    pub fn render(&self) -> String {
-        self.string.clone()
-    }
     pub fn raw_length(&self) -> usize {
         UnicodeWidthStr::width(&self.string[..])
     }
