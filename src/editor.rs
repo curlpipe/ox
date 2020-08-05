@@ -7,11 +7,12 @@ use std::{env, thread};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::{color, style};
+use unicode_width::UnicodeWidthStr;
 
 // Set up Ox
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(0, 175, 135));
-const FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(38, 38, 38));
+const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(40, 42, 54));
+const FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(189, 147, 249));
 
 // For holding the position and directions of the cursor
 enum Direction {
@@ -391,24 +392,30 @@ impl Editor {
                 ));
             } else if row == term_length - 2 {
                 let index = self.cursor.y + self.offset as u16;
-                let status_line = format!(
-                    " File: {} | Type: {} | Line: {} / {} | Cursor: {}, {}",
+                let left = format!(
+                    " {}  | {}  ",
                     self.buffer.filename,
-                    self.buffer.identify(),
+                    self.buffer.identify()
+                );
+                let right = format!(
+                    "並 {} / {} |﫦({}, {}) ",
                     index + 1,
                     self.buffer.lines.len() - 1,
                     self.cursor.x,
                     self.cursor.y
                 );
-                let pad = self.terminal.width as usize - status_line.len();
+                let pad = self.terminal.width as usize - 
+                     UnicodeWidthStr::width(&left[..]) - 
+                     UnicodeWidthStr::width(&right[..]);
                 let pad = " ".repeat(pad);
                 frame.push(format!(
-                    "{}{}{}{}{}{}{}{}",
+                    "{}{}{}{}{}{}{}{}{}",
                     FG,
                     BG,
                     style::Bold,
-                    status_line,
+                    left,
                     pad,
+                    right,
                     color::Fg(color::Reset),
                     color::Bg(color::Reset),
                     style::Reset,
