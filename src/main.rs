@@ -1,3 +1,6 @@
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::cast_possible_truncation)]
+
 mod buffer;
 mod editor;
 mod row;

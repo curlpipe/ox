@@ -40,7 +40,7 @@ impl Buffer {
         fs::write(&self.path, result).unwrap();
     }
     pub fn identify(&self) -> &str {
-        let extension = self.filename.split(".").last();
+        let extension = self.filename.split('.').last();
         match extension.unwrap() {
             "asm" => "Assembly",
             "b" => "B",
@@ -54,7 +54,7 @@ impl Buffer {
             "cpp" => "C++",
             "css" => "CSS",
             "csv" => "CSV",
-            "class" => "Java",
+            "class" | "java" => "Java",
             "d" => "D",
             "db" => "Database",
             "erb" => "ERB",
@@ -65,7 +65,6 @@ impl Buffer {
             "hs" => "Haskell",
             "html" => "HTML",
             "js" => "JavaScript",
-            "java" => "Java",
             "json" => "JSON",
             "lua" => "LUA",
             "log" => "Log file",

@@ -41,7 +41,4 @@ impl Row {
     pub fn chars(&self) -> Chars {
         self.string.chars()
     }
-    pub fn is_empty(&self) -> bool {
-        self.length() == 0
-    }
 }

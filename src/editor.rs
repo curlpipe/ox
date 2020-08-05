@@ -88,8 +88,8 @@ impl Editor {
             // Render our interface
             self.render();
             // Read a key
-            match stdin.next() {
-                Some(key) => match key.unwrap() {
+            if let Some(key) = stdin.next() {
+                match key.unwrap() {
                     Key::Ctrl('q') => self.kill = true, // Exit
                     Key::Char(c) => self.insert(c),     // Insert character
                     Key::Backspace => self.delete(),    // Delete character
@@ -109,9 +109,9 @@ impl Editor {
                     }
                     Key::PageDown => {
                         // Move the cursor to the bottom of the buffer / terminal
-                        let t = self.terminal.height.saturating_sub(3) as u16;
-                        let b = self.buffer.lines.len().saturating_sub(2) as u16;
-                        self.cursor.y = min(t, b);
+                        let t = self.terminal.height.saturating_sub(3) as usize;
+                        let b = self.buffer.lines.len().saturating_sub(2) as usize;
+                        self.cursor.y = min(t, b) as u16;
                         self.correct_line();
                     }
                     Key::Home => {
@@ -126,11 +126,10 @@ impl Editor {
                         self.correct_line();
                     }
                     _ => (), // Unbound key
-                },
-                None => {
-                    self.terminal.check_resize(); // Check for resize
-                    thread::sleep(Duration::from_millis(24)); // FPS cap to stop greedy CPU usage
-                }
+                };
+            } else {
+                self.terminal.check_resize(); // Check for resize
+                thread::sleep(Duration::from_millis(24)); // FPS cap to stop greedy CPU usage
             }
         }
     }
@@ -184,9 +183,9 @@ impl Editor {
         if self.buffer.lines.is_empty() {
             return;
         }
-        let current = &self.buffer.lines[index as usize];
         if self.cursor.x == 0 && index != 0 {
             // Cursor is at the beginning of a line
+            let current = &self.buffer.lines[index as usize];
             let up = &self.buffer.lines[(index - 1) as usize];
             let old_line = current.string.clone();
             let old_raw_len = up.raw_length() as u16;
@@ -198,10 +197,10 @@ impl Editor {
                 self.cursor.y = self.cursor.y.saturating_sub(1);
             }
             self.correct_line();
-            let index = self.cursor.y + self.offset as u16;
-            self.buffer.lines[index as usize] =
-                Row::new(self.buffer.lines[index as usize].string.clone() + &old_line);
-            self.buffer.lines[index as usize].update_jumps();
+            let new_index = self.cursor.y + self.offset as u16;
+            self.buffer.lines[new_index as usize] =
+                Row::new(self.buffer.lines[new_index as usize].string.clone() + &old_line);
+            self.buffer.lines[new_index as usize].update_jumps();
             self.cursor.x = old_len;
             self.raw_cursor = old_raw_len;
         } else {
@@ -231,17 +230,17 @@ impl Editor {
         match direction {
             Direction::Up => {
                 // Move cursor up
-                if self.cursor.y != 0 {
-                    self.cursor.y = self.cursor.y.saturating_sub(1);
-                } else {
+                if self.cursor.y == 0 {
                     self.offset = self.offset.saturating_sub(1);
+                } else {
+                    self.cursor.y = self.cursor.y.saturating_sub(1);
                 }
                 self.correct_line();
             }
             Direction::Down => {
                 // Move cursor down
                 let buff_len = (self.buffer.lines.len() - 1) as u64;
-                let proposed = self.cursor.y.saturating_add(1) as u64;
+                let proposed = u64::from(self.cursor.y.saturating_add(1));
                 let max = self.terminal.height.saturating_sub(3);
                 if proposed.saturating_add(self.offset) < buff_len {
                     if self.cursor.y < max {
@@ -303,14 +302,14 @@ impl Editor {
     fn update_cursor(&mut self) {
         let index = self.cursor.y + self.offset as u16;
         let current = &self.buffer.lines[index as usize];
-        let mut raw_count = self.raw_cursor as i32;
+        let mut raw_count = i64::from(self.raw_cursor);
         let mut count = 0;
         for jump in &current.jumps {
             if raw_count <= 0 {
                 break;
             }
             count += 1;
-            raw_count -= *jump as i32;
+            raw_count -= *jump as i64;
         }
         if raw_count < 0 {
             self.raw_cursor = self.raw_cursor.saturating_sub(1);
