@@ -28,6 +28,7 @@ pub struct Cursor {
 
 // For holding our editor information
 pub struct Editor {
+    stdin: termion::AsyncReader,
     terminal: Terminal,
     kill: bool,
     raw_cursor: u16,
@@ -42,12 +43,14 @@ impl Editor {
     pub fn new() -> Result<Self, Error> {
         // Create a new editor instance
         let args: Vec<String> = env::args().collect();
+        let stdin = termion::async_stdin();
         let buffer: Buffer;
         let show_welcome: bool;
         if args.len() <= 1 {
             show_welcome = true;
             buffer = Buffer::new();
             Ok(Self {
+                stdin,
                 show_welcome,
                 terminal: Terminal::new(),
                 kill: false,
@@ -61,6 +64,7 @@ impl Editor {
             show_welcome = false;
             if let Some(buffer) = Buffer::open(args[1].trim()) {
                 Ok(Self {
+                    stdin,
                     show_welcome,
                     terminal: Terminal::new(),
                     kill: false,
@@ -76,7 +80,6 @@ impl Editor {
         }
     }
     pub fn run(&mut self) {
-        let mut stdin = termion::async_stdin().keys();
         // Run our editor
         loop {
             // Exit if required
@@ -88,19 +91,31 @@ impl Editor {
             // Render our interface
             self.render();
             // Read a key
-            if let Some(key) = stdin.next() {
-                match key.unwrap() {
-                    Key::Ctrl('q') => self.kill = true, // Exit
-                    Key::Char(c) => self.insert(c),     // Insert character
-                    Key::Backspace => self.delete(),    // Delete character
+            let key = self.read_keys();
+            if let Some(key) = key {
+                match key {
+                    Key::Char(c) => self.insert(c),  // Insert character
+                    Key::Backspace => self.delete(), // Delete character
                     Key::Left => self.move_cursor(Direction::Left),
                     Key::Right => self.move_cursor(Direction::Right),
                     Key::Up => self.move_cursor(Direction::Up),
                     Key::Down => self.move_cursor(Direction::Down),
+                    Key::Ctrl('q') => self.kill = true, // Exit
+                    Key::Ctrl('w') => {
+                        let filename = self.prompt("Save as");
+                        if let Ok(_) = self.buffer.save_as(&filename) {
+                            self.command_bar = format!("Saved to file: {}", filename);
+                        } else {
+                            self.command_bar = format!("Failed to save file: {}", filename);
+                        }
+                    }
                     Key::Ctrl('s') => {
                         // Save the current file
-                        self.buffer.save();
-                        self.command_bar = format!("Saved to file: {}", self.buffer.path);
+                        if let Ok(_) = self.buffer.save() {
+                            self.command_bar = format!("Saved to file: {}", self.buffer.path);
+                        } else {
+                            self.command_bar = format!("Failed to save file: {}", self.buffer.path);
+                        }
                     }
                     Key::PageUp => {
                         // Move the cursor to the top of the terminal
@@ -127,10 +142,17 @@ impl Editor {
                     }
                     _ => (), // Unbound key
                 };
-            } else {
-                self.terminal.check_resize(); // Check for resize
-                thread::sleep(Duration::from_millis(24)); // FPS cap to stop greedy CPU usage
             }
+        }
+    }
+    fn read_keys(&mut self) -> Option<Key> {
+        let keys = &mut self.stdin;
+        if let Some(key) = keys.keys().next() {
+            Some(key.unwrap())
+        } else {
+            self.terminal.check_resize(); // Check for resize
+            thread::sleep(Duration::from_millis(24)); // FPS cap to stop greedy CPU usage
+            None
         }
     }
     fn insert(&mut self, character: char) {
@@ -315,6 +337,28 @@ impl Editor {
             self.raw_cursor = self.raw_cursor.saturating_sub(1);
         }
         self.cursor.x = count;
+    }
+    fn prompt(&mut self, prompt: &str) -> String {
+        // Create a new prompt
+        let mut result = String::new();
+        'p: loop {
+            self.render();
+            let key = self.read_keys();
+            if let Some(key) = key {
+                match key {
+                    Key::Char(c) => {
+                        if c == '\n' {
+                            break 'p;
+                        } else {
+                            result.push(c);
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            self.command_bar = format!("{}: {}", prompt, result);
+        }
+        result
     }
     fn render(&mut self) {
         // Render the rows

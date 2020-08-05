@@ -31,13 +31,21 @@ impl Buffer {
             None
         }
     }
-    pub fn save(&self) {
+    pub fn render(&self) -> String {
         let mut result = String::new();
         for row in &self.lines {
             result.push_str(&row.string);
             result.push('\n');
         }
-        fs::write(&self.path, result).unwrap();
+        result
+    }
+    pub fn save(&self) -> std::io::Result<()> {
+        let string = self.render();
+        fs::write(&self.path, string)
+    }
+    pub fn save_as(&self, path: &String) -> std::io::Result<()> {
+        let string = self.render();
+        fs::write(path, string)
     }
     pub fn identify(&self) -> &str {
         let extension = self.filename.split('.').last();
