@@ -14,7 +14,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Get status bar colors
 const STATUS_BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(68, 71, 90));
-const STATUS_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(189, 147, 249));
+const STATUS_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(80, 250, 123));
 
 // Global colors
 const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(40, 42, 54));
@@ -157,7 +157,7 @@ impl Editor {
             Some(key.unwrap())
         } else {
             self.terminal.check_resize(); // Check for resize
-            thread::sleep(Duration::from_millis(6)); // FPS cap to stop greedy CPU usage
+            thread::sleep(Duration::from_millis(48)); // FPS cap to stop greedy CPU usage
             None
         }
     }
@@ -398,12 +398,12 @@ impl Editor {
             } else if row == term_length - 2 {
                 let index = self.cursor.y + self.offset as u16;
                 let left = format!(
-                    " {}  | {}  ",
+                    " {}  │ {}  ",
                     self.buffer.filename,
                     self.buffer.identify()
                 );
                 let right = format!(
-                    "並 {} / {} |﫦({}, {}) ",
+                    "並 {} / {} │﫦({}, {}) ",
                     index + 1,
                     self.buffer.lines.len() - 1,
                     self.cursor.x,
@@ -455,7 +455,14 @@ impl Editor {
                     )
                 );
             } else {
-                frame.push(String::from("~"));
+                frame.push(
+                    format!(
+                        "{}~{}{}",
+                        BG,
+                        " ".repeat(self.terminal.width.saturating_sub(1) as usize),
+                        color::Bg(color::Reset),
+                    )
+                );
             }
         }
         self.terminal.move_cursor(0, 0);
