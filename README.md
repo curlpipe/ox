@@ -10,7 +10,7 @@
   <p align="center" style="font-size: 20px;">
     Ox is a fast text editor that runs in your terminal.
     <br><br>
-    <img src="https://i.postimg.cc/tRwFMHy4/image.png">
+    <img src="https://i.postimg.cc/6qmRzMSm/image.png">
     <br>
 </p>
 
