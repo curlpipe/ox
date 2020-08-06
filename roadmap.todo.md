@@ -1,5 +1,4 @@
 - [ ] 0.1.1 (Editor basics #2)
-  - [ ] Save as / Save
   - [ ] Ability to create new files
   - [ ] Allow opening of files from within the editor
   - [ ] Better file opening
@@ -13,10 +12,18 @@
     - [X] File name
   - [X] Fix offset enter bug
   - [X] Unicode support
+  - [X] Save as / Save
+  - [X] Better theming
+  - [X] More efficient rendering
+    - [X] Stop constant flicker on the tty
+    - [X] Allows the screen to resize
 - [ ] 0.1.2 (Editor basics #3)
+  - [ ] Smart rendering that doesn't render the screen when nothing has changed
   - [ ] Soft line wrap
   - [ ] Search feature
   - [ ] Line numbers
+  - [ ] Undo
+  - [ ] Redo
 - [X] 0.1.0 (Editor basics #1)
   - [X] Scroll
   - [X] Responsive resizing

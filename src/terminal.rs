@@ -41,12 +41,15 @@ impl Terminal {
         // Flush the terminal
         self.screen.flush().unwrap();
     }
-    pub fn check_resize(&mut self) {
+    pub fn check_resize(&mut self) -> bool {
         // Check if the terminal has resized
         let (w, h) = terminal_size().unwrap();
         if self.height != h || self.width != w {
             self.height = h;
             self.width = w;
+            true
+        } else {
+            false
         }
     }
 }

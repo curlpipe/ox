@@ -97,68 +97,75 @@ impl Editor {
             // Render our interface
             self.render();
             // Read a key
-            let key = self.read_keys();
-            if let Some(key) = key {
-                match key {
-                    Key::Char(c) => self.insert(c),  // Insert character
-                    Key::Backspace => self.delete(), // Delete character
-                    Key::Left => self.move_cursor(Direction::Left),
-                    Key::Right => self.move_cursor(Direction::Right),
-                    Key::Up => self.move_cursor(Direction::Up),
-                    Key::Down => self.move_cursor(Direction::Down),
-                    Key::Ctrl('q') => self.kill = true, // Exit
-                    Key::Ctrl('w') => {
-                        let filename = self.prompt("Save as");
+            let key = self.loop_until_keypress();
+            match key {
+                Key::Char(c) => self.insert(c),  // Insert character
+                Key::Backspace => self.delete(), // Delete character
+                Key::Left => self.move_cursor(Direction::Left),
+                Key::Right => self.move_cursor(Direction::Right),
+                Key::Up => self.move_cursor(Direction::Up),
+                Key::Down => self.move_cursor(Direction::Down),
+                Key::Ctrl('q') => self.kill = true, // Exit
+                Key::Ctrl('w') => {
+                    // Save as
+                    self.command_bar = String::from("Save as: ");
+                    let filename = self.prompt("Save as");
+                    if let Some(filename) = filename {
                         if let Ok(_) = self.buffer.save_as(&filename) {
                             self.command_bar = format!("Saved to file: {}", filename);
                         } else {
                             self.command_bar = format!("Failed to save file: {}", filename);
                         }
+                    } else {
+                        self.command_bar = String::from("Save as cancelled");
                     }
-                    Key::Ctrl('s') => {
-                        // Save the current file
-                        if let Ok(_) = self.buffer.save() {
-                            self.command_bar = format!("Saved to file: {}", self.buffer.path);
-                        } else {
-                            self.command_bar = format!("Failed to save file: {}", self.buffer.path);
-                        }
+                }
+                Key::Ctrl('s') => {
+                    // Save the current file
+                    if let Ok(_) = self.buffer.save() {
+                        self.command_bar = format!("Saved to file: {}", self.buffer.path);
+                    } else {
+                        self.command_bar = format!("Failed to save file: {}", self.buffer.path);
                     }
-                    Key::PageUp => {
-                        // Move the cursor to the top of the terminal
-                        self.cursor.y = 0;
-                        self.correct_line();
-                    }
-                    Key::PageDown => {
-                        // Move the cursor to the bottom of the buffer / terminal
-                        let t = self.terminal.height.saturating_sub(3) as usize;
-                        let b = self.buffer.lines.len().saturating_sub(2) as usize;
-                        self.cursor.y = min(t, b) as u16;
-                        self.correct_line();
-                    }
-                    Key::Home => {
-                        // Move to the start of the current line
-                        self.cursor.x = 0;
-                        self.raw_cursor = 0;
-                    }
-                    Key::End => {
-                        // Move to the end of the current line
-                        self.cursor.x = self.terminal.width.saturating_sub(1);
-                        self.raw_cursor = self.terminal.width.saturating_sub(1);
-                        self.correct_line();
-                    }
-                    _ => (), // Unbound key
-                };
+                }
+                Key::PageUp => {
+                    // Move the cursor to the top of the terminal
+                    self.cursor.y = 0;
+                    self.correct_line();
+                }
+                Key::PageDown => {
+                    // Move the cursor to the bottom of the buffer / terminal
+                    let t = self.terminal.height.saturating_sub(3) as usize;
+                    let b = self.buffer.lines.len().saturating_sub(2) as usize;
+                    self.cursor.y = min(t, b) as u16;
+                    self.correct_line();
+                }
+                Key::Home => {
+                    // Move to the start of the current line
+                    self.cursor.x = 0;
+                    self.raw_cursor = 0;
+                }
+                Key::End => {
+                    // Move to the end of the current line
+                    self.cursor.x = self.terminal.width.saturating_sub(1);
+                    self.raw_cursor = self.terminal.width.saturating_sub(1);
+                    self.correct_line();
+                }
+                _ => (), // Unbound key
             }
         }
     }
-    fn read_keys(&mut self) -> Option<Key> {
-        let keys = &mut self.stdin;
-        if let Some(key) = keys.keys().next() {
-            Some(key.unwrap())
-        } else {
-            self.terminal.check_resize(); // Check for resize
-            thread::sleep(Duration::from_millis(48)); // FPS cap to stop greedy CPU usage
-            None
+    fn loop_until_keypress(&mut self) -> Key {
+        loop {
+            let keys = &mut self.stdin;
+            if let Some(key) = keys.keys().next() {
+                return key.unwrap();
+            } else {
+                if self.terminal.check_resize() {
+                    self.render();
+                }
+                thread::sleep(Duration::from_millis(48));
+            }
         }
     }
     fn insert(&mut self, character: char) {
@@ -344,27 +351,43 @@ impl Editor {
         }
         self.cursor.x = count;
     }
-    fn prompt(&mut self, prompt: &str) -> String {
+    fn prompt(&mut self, prompt: &str) -> Option<String> {
         // Create a new prompt
         let mut result = String::new();
         'p: loop {
-            self.render();
-            let key = self.read_keys();
-            if let Some(key) = key {
-                match key {
-                    Key::Char(c) => {
-                        if c == '\n' {
-                            break 'p;
-                        } else {
-                            result.push(c);
-                        }
+            let key = self.loop_until_keypress();
+            match key {
+                Key::Char(c) => {
+                    if c == '\n' {
+                        break 'p;
+                    } else {
+                        result.push(c);
                     }
-                    _ => (),
                 }
+                Key::Backspace => { result.pop(); },
+                Key::Esc => return None,
+                _ => (),
             }
             self.command_bar = format!("{}: {}", prompt, result);
+            self.render();
         }
-        result
+        Some(result)
+    }
+    fn welcome_message(&self, welcome: String, fg: color::Fg<color::Rgb>) -> String {
+        let pad = " ".repeat(self.terminal.width as usize / 2 - welcome.len() / 2);
+        let pad_right =
+            " ".repeat(self.terminal.width.saturating_sub(1) as usize - welcome.len() - pad.len());
+        format!(
+            "{}{}{}{}{}{}{}{}",
+            BG,
+            "~",
+            pad,
+            fg,
+            welcome,
+            pad_right,
+            color::Fg(color::Reset),
+            color::Bg(color::Reset),
+        )
     }
     fn render(&mut self) {
         // Render the rows
@@ -373,28 +396,26 @@ impl Editor {
         self.terminal.clear_all();
         for row in 0..self.terminal.height {
             if row == self.terminal.height / 3 && self.show_welcome {
-                let welcome = format!("Ox editor v{}", VERSION);
-                let pad = " ".repeat(self.terminal.width as usize / 2 - welcome.len() / 2);
-                frame.push(format!("{}{}{}", "~", pad, welcome));
-            } else if row == (self.terminal.height / 3) + 2 && self.show_welcome {
-                let welcome = "A speedy editor built with Rust";
-                let pad = " ".repeat(self.terminal.width as usize / 2 - welcome.len() / 2);
-                frame.push(format!("{}{}{}", "~", pad, welcome));
-            } else if row == (self.terminal.height / 3) + 3 && self.show_welcome {
-                let welcome = "by curlpipe";
-                let pad = " ".repeat(self.terminal.width as usize / 2 - welcome.len() / 2);
-                frame.push(format!("{}{}{}", "~", pad, welcome));
-            } else if row == (self.terminal.height / 3) + 5 && self.show_welcome {
-                let welcome = "Ctrl + Q:  Exit";
-                let pad = " ".repeat(self.terminal.width as usize / 2 - welcome.len() / 2);
-                frame.push(format!(
-                    "{}{}{}{}{}",
-                    "~",
-                    pad,
-                    color::Fg(color::Blue),
-                    welcome,
-                    color::Fg(color::Reset),
+                frame.push(self.welcome_message(
+                    format!("Ox editor v{}", VERSION),
+                    color::Fg(color::Rgb(255, 255, 255)),
                 ));
+            } else if row == (self.terminal.height / 3) + 2 && self.show_welcome {
+                frame.push(self.welcome_message(
+                    "A speedy editor built with Rust".to_string(),
+                    color::Fg(color::Rgb(255, 255, 255)),
+                ));
+            } else if row == (self.terminal.height / 3) + 3 && self.show_welcome {
+                frame.push(self.welcome_message(
+                    "by curlpipe".to_string(),
+                    color::Fg(color::Rgb(255, 255, 255)),
+                ));
+            } else if row == (self.terminal.height / 3) + 5 && self.show_welcome {
+                frame.push(self.welcome_message("Ctrl + Q: Quit   ".to_string(), STATUS_FG));
+            } else if row == (self.terminal.height / 3) + 6 && self.show_welcome {
+                frame.push(self.welcome_message("Ctrl + S: Save   ".to_string(), STATUS_FG));
+            } else if row == (self.terminal.height / 3) + 7 && self.show_welcome {
+                frame.push(self.welcome_message("Ctrl + W: Save As".to_string(), STATUS_FG));
             } else if row == term_length - 2 {
                 let index = self.cursor.y + self.offset as u16;
                 let left = format!(
@@ -409,9 +430,9 @@ impl Editor {
                     self.cursor.x,
                     self.cursor.y
                 );
-                let pad = self.terminal.width as usize - 
-                     UnicodeWidthStr::width(&left[..]) - 
-                     UnicodeWidthStr::width(&right[..]);
+                let pad = self.terminal.width as usize
+                    - UnicodeWidthStr::width(&left[..])
+                    - UnicodeWidthStr::width(&right[..]);
                 let pad = " ".repeat(pad);
                 frame.push(format!(
                     "{}{}{}{}{}{}{}{}{}",
@@ -427,53 +448,35 @@ impl Editor {
                 ));
             } else if row == term_length - 1 {
                 let line = self.command_bar.clone();
-                let pad = " ".repeat(
-                    (self.terminal.width - line.len() as u16) as usize
-                );
-                frame.push(
-                    format!(
-                        "{}{}{}{}", 
-                        BG, 
-                        line, 
-                        pad, 
-                        color::Bg(color::Reset)
-                    )
-                );
+                let pad = " ".repeat((self.terminal.width - line.len() as u16) as usize);
+                frame.push(format!("{}{}{}{}", BG, line, pad, color::Bg(color::Reset)));
             } else if row < (self.buffer.lines.len() - 1) as u16 {
                 let index = self.offset as usize + row as usize;
                 let line = self.buffer.lines[index].clone();
-                let pad = " ".repeat(
-                    (self.terminal.width - line.raw_length() as u16) as usize
-                );
-                frame.push(
-                    format!(
-                        "{}{}{}{}", 
-                        BG, 
-                        line.string, 
-                        pad, 
-                        color::Bg(color::Reset)
-                    )
-                );
+                let pad = " ".repeat((self.terminal.width - line.raw_length() as u16) as usize);
+                frame.push(format!(
+                    "{}{}{}{}",
+                    BG,
+                    line.string,
+                    pad,
+                    color::Bg(color::Reset)
+                ));
             } else {
-                frame.push(
-                    format!(
-                        "{}~{}{}",
-                        BG,
-                        " ".repeat(self.terminal.width.saturating_sub(1) as usize),
-                        color::Bg(color::Reset),
-                    )
-                );
+                frame.push(format!(
+                    "{}~{}{}",
+                    BG,
+                    " ".repeat(self.terminal.width.saturating_sub(1) as usize),
+                    color::Bg(color::Reset),
+                ));
             }
         }
         self.terminal.move_cursor(0, 0);
-        self.terminal.write(
-            format!(
-                "{}{}{}", 
-                BG,
-                frame.join("\r\n"),
-                color::Bg(color::Reset),
-            )
-        );
+        self.terminal.write(format!(
+            "{}{}{}",
+            BG,
+            frame.join("\r\n"),
+            color::Bg(color::Reset),
+        ));
         self.terminal.move_cursor(self.raw_cursor, self.cursor.y);
         self.terminal.flush();
     }
