@@ -108,11 +108,9 @@ impl Editor {
                 Key::Ctrl('q') => self.kill = true, // Exit
                 Key::Ctrl('w') => {
                     // Save as
-                    self.command_bar = String::from("Save as: ");
-                    self.render();
                     let filename = self.prompt("Save as");
                     if let Some(filename) = filename {
-                        if let Ok(_) = self.buffer.save_as(&filename) {
+                        if self.buffer.save_as(&filename).is_ok() {
                             self.command_bar = format!("Saved to file: {}", filename);
                         } else {
                             self.command_bar = format!("Failed to save file: {}", filename);
@@ -123,7 +121,7 @@ impl Editor {
                 }
                 Key::Ctrl('s') => {
                     // Save the current file
-                    if let Ok(_) = self.buffer.save() {
+                    if self.buffer.save().is_ok() {
                         self.command_bar = format!("Saved to file: {}", self.buffer.path);
                     } else {
                         self.command_bar = format!("Failed to save file: {}", self.buffer.path);
@@ -354,6 +352,8 @@ impl Editor {
     }
     fn prompt(&mut self, prompt: &str) -> Option<String> {
         // Create a new prompt
+        self.command_bar = format!("{}: ", prompt);
+        self.render();
         let mut result = String::new();
         'p: loop {
             let key = self.loop_until_keypress();
@@ -365,7 +365,9 @@ impl Editor {
                         result.push(c);
                     }
                 }
-                Key::Backspace => { result.pop(); },
+                Key::Backspace => {
+                    result.pop();
+                }
                 Key::Esc => return None,
                 _ => (),
             }
@@ -374,7 +376,7 @@ impl Editor {
         }
         Some(result)
     }
-    fn welcome_message(&self, welcome: String, fg: color::Fg<color::Rgb>) -> String {
+    fn welcome_message(&self, welcome: &str, fg: color::Fg<color::Rgb>) -> String {
         let pad = " ".repeat(self.terminal.width as usize / 2 - welcome.len() / 2);
         let pad_right =
             " ".repeat(self.terminal.width.saturating_sub(1) as usize - welcome.len() - pad.len());
@@ -398,34 +400,34 @@ impl Editor {
         for row in 0..self.terminal.height {
             if row == self.terminal.height / 3 && self.show_welcome {
                 frame.push(self.welcome_message(
-                    format!("Ox editor v{}", VERSION),
+                    &format!("Ox editor v{}", VERSION)[..],
                     color::Fg(color::Rgb(255, 255, 255)),
                 ));
             } else if row == (self.terminal.height / 3) + 2 && self.show_welcome {
                 frame.push(self.welcome_message(
-                    "A speedy editor built with Rust".to_string(),
+                    "A speedy editor built with Rust",
                     color::Fg(color::Rgb(255, 255, 255)),
                 ));
             } else if row == (self.terminal.height / 3) + 3 && self.show_welcome {
                 frame.push(self.welcome_message(
-                    "by curlpipe".to_string(),
+                    "by curlpipe",
                     color::Fg(color::Rgb(255, 255, 255)),
                 ));
             } else if row == (self.terminal.height / 3) + 5 && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + Q: Quit   ".to_string(), STATUS_FG));
+                frame.push(self.welcome_message("Ctrl + Q: Quit   ", STATUS_FG));
             } else if row == (self.terminal.height / 3) + 6 && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + S: Save   ".to_string(), STATUS_FG));
+                frame.push(self.welcome_message("Ctrl + S: Save   ", STATUS_FG));
             } else if row == (self.terminal.height / 3) + 7 && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + W: Save As".to_string(), STATUS_FG));
+                frame.push(self.welcome_message("Ctrl + W: Save As", STATUS_FG));
             } else if row == term_length - 2 {
                 let index = self.cursor.y + self.offset as u16;
                 let left = format!(
-                    " {}  │ {}  ",
+                    " {} \u{f15b} \u{2502} {} \u{f1c9} ",
                     self.buffer.filename,
                     self.buffer.identify()
                 );
                 let right = format!(
-                    "並 {} / {} │﫦({}, {}) ",
+                    "\u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
                     index + 1,
                     self.buffer.lines.len() - 1,
                     self.cursor.x,
@@ -472,12 +474,12 @@ impl Editor {
             }
         }
         self.terminal.move_cursor(0, 0);
-        self.terminal.write(format!(
+        self.terminal.write(&format!(
             "{}{}{}",
             BG,
             frame.join("\r\n"),
             color::Bg(color::Reset),
-        ));
+        )[..]);
         self.terminal.move_cursor(self.raw_cursor, self.cursor.y);
         self.terminal.flush();
     }

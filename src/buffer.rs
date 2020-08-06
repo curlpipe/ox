@@ -43,7 +43,7 @@ impl Buffer {
         let string = self.render();
         fs::write(&self.path, string)
     }
-    pub fn save_as(&self, path: &String) -> std::io::Result<()> {
+    pub fn save_as(&self, path: &str) -> std::io::Result<()> {
         let string = self.render();
         fs::write(path, string)
     }

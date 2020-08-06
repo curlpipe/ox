@@ -24,7 +24,7 @@ impl Terminal {
             height: h,
         }
     }
-    pub fn write(&mut self, w: String) {
+    pub fn write(&mut self, w: &str) {
         write!(self.screen, "{}", w).unwrap();
     }
     pub fn clear_all(&mut self) {
