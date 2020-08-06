@@ -109,6 +109,7 @@ impl Editor {
                 Key::Ctrl('w') => {
                     // Save as
                     self.command_bar = String::from("Save as: ");
+                    self.render();
                     let filename = self.prompt("Save as");
                     if let Some(filename) = filename {
                         if let Ok(_) = self.buffer.save_as(&filename) {
