@@ -34,6 +34,7 @@ pub struct Cursor {
 
 // For holding our editor information
 pub struct Editor {
+    dirty: bool,
     stdin: termion::AsyncReader,
     terminal: Terminal,
     kill: bool,
@@ -56,6 +57,7 @@ impl Editor {
             show_welcome = true;
             buffer = Buffer::new();
             Ok(Self {
+                dirty: false,
                 stdin,
                 show_welcome,
                 terminal: Terminal::new(),
@@ -66,10 +68,10 @@ impl Editor {
                 offset: 0,
                 command_bar: String::from("Welcome to Ox!"),
             })
-        } else {
-            if let Some(buffer) = Buffer::open(args[1].trim()) {
+        } else if let Some(buffer) = Buffer::open(args[1].trim()) {
                 show_welcome = false;
                 Ok(Self {
+                    dirty: false,
                     stdin,
                     show_welcome,
                     terminal: Terminal::new(),
@@ -80,21 +82,21 @@ impl Editor {
                     offset: 0,
                     command_bar: String::from("Welcome to Ox!"),
                 })
-            } else {
-                show_welcome = true;
-                buffer = Buffer::from(args[1].trim());
-                Ok(Self {
-                    stdin,
-                    show_welcome,
-                    terminal: Terminal::new(),
-                    kill: false,
-                    cursor: Cursor { x: 0, y: 0 },
-                    raw_cursor: 0,
-                    buffer,
-                    offset: 0,
-                    command_bar: String::from("Welcome to Ox!"),
-                })
-            }
+        } else {
+            show_welcome = true;
+            buffer = Buffer::from(args[1].trim());
+            Ok(Self {
+                dirty: true,
+                stdin,
+                show_welcome,
+                terminal: Terminal::new(),
+                kill: false,
+                cursor: Cursor { x: 0, y: 0 },
+                raw_cursor: 0,
+                buffer,
+                offset: 0,
+                command_bar: String::from("Welcome to Ox!"),
+            })
         }
     }
     pub fn run(&mut self) {
@@ -126,6 +128,7 @@ impl Editor {
                             self.command_bar = format!("Saved to file: {}", filename);
                             self.buffer.path = filename.clone();
                             self.buffer.filename = filename.clone();
+                            self.dirty = false;
                         } else {
                             self.command_bar = format!("Failed to save file: {}", filename);
                         }
@@ -137,6 +140,7 @@ impl Editor {
                     // Save the current file
                     if self.buffer.save().is_ok() {
                         self.command_bar = format!("Saved to file: {}", self.buffer.path);
+                        self.dirty = false;
                     } else {
                         self.command_bar = format!("Failed to save file: {}", self.buffer.path);
                     }
@@ -182,6 +186,7 @@ impl Editor {
         }
     }
     fn insert(&mut self, character: char) {
+        self.dirty = true;
         self.show_welcome = false;
         let index = self.cursor.y + self.offset as u16;
         let current = &self.buffer.lines[index as usize];
@@ -227,6 +232,7 @@ impl Editor {
         }
     }
     fn delete(&mut self) {
+        self.dirty = true;
         let index = self.cursor.y + self.offset as u16;
         if self.buffer.lines.is_empty() {
             return;
@@ -435,8 +441,9 @@ impl Editor {
             } else if row == term_length - 2 {
                 let index = self.cursor.y + self.offset as u16;
                 let left = format!(
-                    " {} \u{f15b} \u{2502} {} \u{f1c9} ",
+                    " {}{} \u{2502} {} \u{f1c9} ",
                     self.buffer.filename,
+                    if self.dirty { "[+] \u{fb12} " } else { " \u{f723} " },
                     self.buffer.identify()
                 );
                 let right = format!(

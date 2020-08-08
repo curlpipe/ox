@@ -1,9 +1,6 @@
 - [ ] 0.1.1 (Editor basics #2)
   - [ ] Ability to create new files
   - [ ] Allow opening of files from within the editor
-  - [ ] Better file opening
-    - [ ] New file created when not recognised
-    - [ ] Allow opening without providing a file name argument
   - [X] Fix current and potential runtime errors
     - [X] Create a better warning and error system
   - [X] Update statusline
@@ -17,6 +14,10 @@
   - [X] More efficient rendering
     - [X] Stop constant flicker on the tty
     - [X] Allows the screen to resize
+  - [X] Better file opening
+    - [X] New file created when not recognised
+    - [X] Allow opening without providing a file name argument
+  - [X] Dirty file detection
 - [ ] 0.1.2 (Editor basics #3)
   - [ ] Smart rendering that doesn't render the screen when nothing has changed
   - [ ] Soft line wrap
