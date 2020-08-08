@@ -1,7 +1,7 @@
 // Editor.rs - For controling the current editor
 use crate::{Buffer, Row, Terminal};
 use std::cmp::min;
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 use std::time::Duration;
 use std::{env, thread};
 use termion::event::Key;
@@ -67,8 +67,8 @@ impl Editor {
                 command_bar: String::from("Welcome to Ox!"),
             })
         } else {
-            show_welcome = false;
             if let Some(buffer) = Buffer::open(args[1].trim()) {
+                show_welcome = false;
                 Ok(Self {
                     stdin,
                     show_welcome,
@@ -81,7 +81,19 @@ impl Editor {
                     command_bar: String::from("Welcome to Ox!"),
                 })
             } else {
-                Err(Error::new(ErrorKind::NotFound, "File not found!"))
+                show_welcome = true;
+                buffer = Buffer::from(args[1].trim());
+                Ok(Self {
+                    stdin,
+                    show_welcome,
+                    terminal: Terminal::new(),
+                    kill: false,
+                    cursor: Cursor { x: 0, y: 0 },
+                    raw_cursor: 0,
+                    buffer,
+                    offset: 0,
+                    command_bar: String::from("Welcome to Ox!"),
+                })
             }
         }
     }
@@ -112,6 +124,8 @@ impl Editor {
                     if let Some(filename) = filename {
                         if self.buffer.save_as(&filename).is_ok() {
                             self.command_bar = format!("Saved to file: {}", filename);
+                            self.buffer.path = filename.clone();
+                            self.buffer.filename = filename.clone();
                         } else {
                             self.command_bar = format!("Failed to save file: {}", filename);
                         }
@@ -135,7 +149,7 @@ impl Editor {
                 Key::PageDown => {
                     // Move the cursor to the bottom of the buffer / terminal
                     let t = self.terminal.height.saturating_sub(3) as usize;
-                    let b = self.buffer.lines.len().saturating_sub(2) as usize;
+                    let b = self.buffer.lines.len().saturating_sub(1) as usize;
                     self.cursor.y = min(t, b) as u16;
                     self.correct_line();
                 }
@@ -163,7 +177,7 @@ impl Editor {
                 if self.terminal.check_resize() {
                     self.render();
                 }
-                thread::sleep(Duration::from_millis(48));
+                thread::sleep(Duration::from_millis(12));
             }
         }
     }
@@ -273,7 +287,7 @@ impl Editor {
             }
             Direction::Down => {
                 // Move cursor down
-                let buff_len = (self.buffer.lines.len() - 1) as u64;
+                let buff_len = self.buffer.lines.len() as u64;
                 let proposed = u64::from(self.cursor.y.saturating_add(1));
                 let max = self.terminal.height.saturating_sub(3);
                 if proposed.saturating_add(self.offset) < buff_len {
@@ -313,7 +327,7 @@ impl Editor {
                 let current = &self.buffer.lines[index as usize];
                 let size = [&self.terminal.width, &self.terminal.height];
                 if current.raw_length() as u16 == self.raw_cursor
-                    && (self.buffer.lines.len() - 1) as u16 != index + 1
+                    && self.buffer.lines.len() as u16 != index + 1
                 {
                     if self.cursor.y == size[1] - 3 {
                         self.offset = self.offset.saturating_add(1);
@@ -409,10 +423,9 @@ impl Editor {
                     color::Fg(color::Rgb(255, 255, 255)),
                 ));
             } else if row == (self.terminal.height / 3) + 3 && self.show_welcome {
-                frame.push(self.welcome_message(
-                    "by curlpipe",
-                    color::Fg(color::Rgb(255, 255, 255)),
-                ));
+                frame.push(
+                    self.welcome_message("by curlpipe", color::Fg(color::Rgb(255, 255, 255))),
+                );
             } else if row == (self.terminal.height / 3) + 5 && self.show_welcome {
                 frame.push(self.welcome_message("Ctrl + Q: Quit   ", STATUS_FG));
             } else if row == (self.terminal.height / 3) + 6 && self.show_welcome {
@@ -429,7 +442,7 @@ impl Editor {
                 let right = format!(
                     "\u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
                     index + 1,
-                    self.buffer.lines.len() - 1,
+                    self.buffer.lines.len(),
                     self.cursor.x,
                     self.cursor.y
                 );
@@ -453,7 +466,7 @@ impl Editor {
                 let line = self.command_bar.clone();
                 let pad = " ".repeat((self.terminal.width - line.len() as u16) as usize);
                 frame.push(format!("{}{}{}{}", BG, line, pad, color::Bg(color::Reset)));
-            } else if row < (self.buffer.lines.len() - 1) as u16 {
+            } else if row < self.buffer.lines.len() as u16 {
                 let index = self.offset as usize + row as usize;
                 let line = self.buffer.lines[index].clone();
                 let pad = " ".repeat((self.terminal.width - line.raw_length() as u16) as usize);
@@ -474,12 +487,8 @@ impl Editor {
             }
         }
         self.terminal.move_cursor(0, 0);
-        self.terminal.write(&format!(
-            "{}{}{}",
-            BG,
-            frame.join("\r\n"),
-            color::Bg(color::Reset),
-        )[..]);
+        self.terminal
+            .write(&format!("{}{}{}", BG, frame.join("\r\n"), color::Bg(color::Reset),)[..]);
         self.terminal.move_cursor(self.raw_cursor, self.cursor.y);
         self.terminal.flush();
     }

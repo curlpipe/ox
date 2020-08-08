@@ -10,8 +10,8 @@ pub struct Buffer {
 
 impl Buffer {
     pub fn new() -> Self {
-        Buffer {
-            lines: vec![Row::new(String::new())],
+        Self {
+            lines: vec![Row::new("".to_string())],
             path: String::new(),
             filename: String::from("[No name]"),
         }
@@ -24,11 +24,18 @@ impl Buffer {
             }
             Some(Self {
                 lines,
-                path: path.to_string(),
+                path: String::from(path),
                 filename: String::from(path),
             })
         } else {
             None
+        }
+    }
+    pub fn from(path: &str) -> Self {
+        Self {
+            lines: vec![Row::new("".to_string())],
+            path: String::from(path),
+            filename: String::from(path),
         }
     }
     pub fn render(&self) -> String {
