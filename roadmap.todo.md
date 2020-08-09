@@ -42,8 +42,6 @@
 You now have probably reached the stage that Nano is currently at
 
 0.2.0 (Configuration)
-- [ ] New buffer support
-- [ ] Open buffer support
 - [ ] Config file for custom commands
 - [ ] Macro system
 
@@ -85,3 +83,4 @@ Head to head with stock vim / neovim & micro
 - [ ] Auto brackets
 
 More like Modified Vim and VSCode
+
