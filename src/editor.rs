@@ -121,6 +121,7 @@ impl Editor {
                 Key::Down => self.move_cursor(Direction::Down),
                 Key::Ctrl('q') => self.close(), // Exit
                 Key::Ctrl('n') => self.new_buffer(),
+                Key::Ctrl('o') => self.open_buffer(),
                 Key::Ctrl('w') => {
                     // Save as
                     let filename = self.prompt("Save as");
@@ -416,7 +417,10 @@ impl Editor {
     fn new_buffer(&mut self) {
         // Creating buffer
         if self.dirty {
-            if self.prompt("Edited file! Enter to confirm, Esc to cancel").is_some() {
+            if self
+                .prompt("Edited file! Enter to confirm, Esc to cancel")
+                .is_some()
+            {
                 self.command_bar = "New buffer created".to_string();
                 self.buffer = Buffer::new();
                 self.render();
@@ -432,10 +436,32 @@ impl Editor {
             self.correct_line();
         }
     }
+    fn open_buffer(&mut self) {
+        // Open file into buffer
+        if self.dirty {
+            if self
+                .prompt("Edited file! Enter to confirm, Esc to cancel")
+                .is_none()
+            {
+                self.command_bar = String::new();
+                return;
+            }
+        }
+        if let Some(filename) = self.prompt("File to open") {
+            if let Some(buffer) = Buffer::open(&filename[..]) {
+                self.buffer = buffer;
+            } else {
+                self.command_bar = "Failed to open file".to_string();
+            }
+        }
+    }
     fn close(&mut self) {
         // Close the editor
         if self.dirty {
-            if self.prompt("Edited file! Enter to confirm, Esc to cancel").is_some() {
+            if self
+                .prompt("Edited file! Enter to confirm, Esc to cancel")
+                .is_some()
+            {
                 self.kill = true;
             }
             self.command_bar = String::new();
