@@ -1,23 +1,3 @@
-- [ ] 0.1.1 (Editor basics #2)
-  - [ ] Allow opening of files from within the editor
-  - [X] Fix current and potential runtime errors
-    - [X] Create a better warning and error system
-  - [X] Update statusline
-    - [X] File length
-    - [X] File extension
-    - [X] File name
-  - [X] Fix offset enter bug
-  - [X] Unicode support
-  - [X] Save as / Save
-  - [X] Better theming
-  - [X] More efficient rendering
-    - [X] Stop constant flicker on the tty
-    - [X] Allows the screen to resize
-  - [X] Better file opening
-    - [X] New file created when not recognised
-    - [X] Allow opening without providing a file name argument
-  - [X] Dirty file detection
-  - [X] Ability to create new files
 - [ ] 0.1.2 (Editor basics #3)
   - [ ] Smart rendering that doesn't render the screen when nothing has changed
   - [ ] Soft line wrap
@@ -38,6 +18,26 @@
     - [X] Add support for cross mid-line deletion
     - [X] Support for the enter key
   - [X] File writing
+- [X] 0.1.1 (Editor basics #2)
+  - [X] Fix current and potential runtime errors
+    - [X] Create a better warning and error system
+  - [X] Update statusline
+    - [X] File length
+    - [X] File extension
+    - [X] File name
+  - [X] Fix offset enter bug
+  - [X] Unicode support
+  - [X] Save as / Save
+  - [X] Better theming
+  - [X] More efficient rendering
+    - [X] Stop constant flicker on the tty
+    - [X] Allows the screen to resize
+  - [X] Better file opening
+    - [X] New file created when not recognised
+    - [X] Allow opening without providing a file name argument
+  - [X] Dirty file detection
+  - [X] Ability to create new files
+  - [X] Allow opening of files from within the editor
 
 You now have probably reached the stage that Nano is currently at
 
