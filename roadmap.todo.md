@@ -1,5 +1,4 @@
 - [ ] 0.1.1 (Editor basics #2)
-  - [ ] Ability to create new files
   - [ ] Allow opening of files from within the editor
   - [X] Fix current and potential runtime errors
     - [X] Create a better warning and error system
@@ -18,6 +17,7 @@
     - [X] New file created when not recognised
     - [X] Allow opening without providing a file name argument
   - [X] Dirty file detection
+  - [X] Ability to create new files
 - [ ] 0.1.2 (Editor basics #3)
   - [ ] Smart rendering that doesn't render the screen when nothing has changed
   - [ ] Soft line wrap

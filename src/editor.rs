@@ -69,19 +69,19 @@ impl Editor {
                 command_bar: String::from("Welcome to Ox!"),
             })
         } else if let Some(buffer) = Buffer::open(args[1].trim()) {
-                show_welcome = false;
-                Ok(Self {
-                    dirty: false,
-                    stdin,
-                    show_welcome,
-                    terminal: Terminal::new(),
-                    kill: false,
-                    cursor: Cursor { x: 0, y: 0 },
-                    raw_cursor: 0,
-                    buffer,
-                    offset: 0,
-                    command_bar: String::from("Welcome to Ox!"),
-                })
+            show_welcome = false;
+            Ok(Self {
+                dirty: false,
+                stdin,
+                show_welcome,
+                terminal: Terminal::new(),
+                kill: false,
+                cursor: Cursor { x: 0, y: 0 },
+                raw_cursor: 0,
+                buffer,
+                offset: 0,
+                command_bar: String::from("Welcome to Ox!"),
+            })
         } else {
             show_welcome = true;
             buffer = Buffer::from(args[1].trim());
@@ -119,7 +119,8 @@ impl Editor {
                 Key::Right => self.move_cursor(Direction::Right),
                 Key::Up => self.move_cursor(Direction::Up),
                 Key::Down => self.move_cursor(Direction::Down),
-                Key::Ctrl('q') => self.kill = true, // Exit
+                Key::Ctrl('q') => self.close(), // Exit
+                Key::Ctrl('n') => self.new_buffer(),
                 Key::Ctrl('w') => {
                     // Save as
                     let filename = self.prompt("Save as");
@@ -267,19 +268,6 @@ impl Editor {
             self.buffer.lines[index as usize].update_jumps();
         }
     }
-    fn correct_line(&mut self) {
-        // Ensure that the cursor isn't out of bounds
-        if self.buffer.lines.is_empty() {
-            self.cursor.x = 0;
-            self.raw_cursor = 0;
-        } else {
-            let current = &self.buffer.lines[(self.cursor.y + self.offset as u16) as usize];
-            if self.raw_cursor >= current.raw_length() as u16 {
-                self.raw_cursor = current.raw_length() as u16;
-                self.cursor.x = current.length() as u16;
-            }
-        }
-    }
     fn move_cursor(&mut self, direction: Direction) {
         match direction {
             Direction::Up => {
@@ -353,6 +341,19 @@ impl Editor {
         }
         self.update_cursor();
     }
+    fn correct_line(&mut self) {
+        // Ensure that the cursor isn't out of bounds
+        if self.buffer.lines.is_empty() {
+            self.cursor.x = 0;
+            self.raw_cursor = 0;
+        } else {
+            let current = &self.buffer.lines[(self.cursor.y + self.offset as u16) as usize];
+            if self.raw_cursor >= current.raw_length() as u16 {
+                self.raw_cursor = current.raw_length() as u16;
+                self.cursor.x = current.length() as u16;
+            }
+        }
+    }
     fn update_cursor(&mut self) {
         let index = self.cursor.y + self.offset as u16;
         let current = &self.buffer.lines[index as usize];
@@ -407,10 +408,40 @@ impl Editor {
             pad,
             fg,
             welcome,
-            pad_right,
             color::Fg(color::Reset),
+            pad_right,
             color::Bg(color::Reset),
         )
+    }
+    fn new_buffer(&mut self) {
+        // Creating buffer
+        if self.dirty {
+            if self.prompt("Edited file! Enter to confirm, Esc to cancel").is_some() {
+                self.command_bar = "New buffer created".to_string();
+                self.buffer = Buffer::new();
+                self.render();
+                self.cursor.y = 0;
+                self.correct_line();
+            } else {
+                self.command_bar = "New buffer cancelled".to_string();
+            }
+        } else {
+            self.buffer = Buffer::new();
+            self.render();
+            self.cursor.y = 0;
+            self.correct_line();
+        }
+    }
+    fn close(&mut self) {
+        // Close the editor
+        if self.dirty {
+            if self.prompt("Edited file! Enter to confirm, Esc to cancel").is_some() {
+                self.kill = true;
+            }
+            self.command_bar = String::new();
+        } else {
+            self.kill = true;
+        }
     }
     fn render(&mut self) {
         // Render the rows
@@ -418,32 +449,40 @@ impl Editor {
         let mut frame: Vec<String> = Vec::new();
         self.terminal.clear_all();
         for row in 0..self.terminal.height {
-            if row == self.terminal.height / 3 && self.show_welcome {
+            if row == (self.terminal.height / 3) - 3 && self.show_welcome {
                 frame.push(self.welcome_message(
                     &format!("Ox editor v{}", VERSION)[..],
                     color::Fg(color::Rgb(255, 255, 255)),
                 ));
-            } else if row == (self.terminal.height / 3) + 2 && self.show_welcome {
+            } else if row == (self.terminal.height / 3) - 1 && self.show_welcome {
                 frame.push(self.welcome_message(
                     "A speedy editor built with Rust",
                     color::Fg(color::Rgb(255, 255, 255)),
                 ));
-            } else if row == (self.terminal.height / 3) + 3 && self.show_welcome {
+            } else if row == (self.terminal.height / 3) && self.show_welcome {
                 frame.push(
                     self.welcome_message("by curlpipe", color::Fg(color::Rgb(255, 255, 255))),
                 );
-            } else if row == (self.terminal.height / 3) + 5 && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + Q: Quit   ", STATUS_FG));
-            } else if row == (self.terminal.height / 3) + 6 && self.show_welcome {
+            } else if row == (self.terminal.height / 3) + 2 && self.show_welcome {
+                frame.push(self.welcome_message("Ctrl + N: New    ", STATUS_FG));
+            } else if row == (self.terminal.height / 3) + 3 && self.show_welcome {
+                frame.push(self.welcome_message("Ctrl + O: Open   ", STATUS_FG));
+            } else if row == (self.terminal.height / 3) + 4 && self.show_welcome {
                 frame.push(self.welcome_message("Ctrl + S: Save   ", STATUS_FG));
-            } else if row == (self.terminal.height / 3) + 7 && self.show_welcome {
+            } else if row == (self.terminal.height / 3) + 5 && self.show_welcome {
                 frame.push(self.welcome_message("Ctrl + W: Save As", STATUS_FG));
+            } else if row == (self.terminal.height / 3) + 6 && self.show_welcome {
+                frame.push(self.welcome_message("Ctrl + Q: Quit   ", STATUS_FG));
             } else if row == term_length - 2 {
                 let index = self.cursor.y + self.offset as u16;
                 let left = format!(
                     " {}{} \u{2502} {} \u{f1c9} ",
                     self.buffer.filename,
-                    if self.dirty { "[+] \u{fb12} " } else { " \u{f723} " },
+                    if self.dirty {
+                        "[+] \u{fb12} "
+                    } else {
+                        " \u{f723} "
+                    },
                     self.buffer.identify()
                 );
                 let right = format!(
