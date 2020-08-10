@@ -2,9 +2,9 @@
   - [ ] Smart rendering that doesn't render the screen when nothing has changed
   - [ ] Soft line wrap
   - [ ] Search feature
-  - [ ] Line numbers
   - [ ] Undo
   - [ ] Redo
+  - [X] Line numbers
 - [X] 0.1.0 (Editor basics #1)
   - [X] Scroll
   - [X] Responsive resizing

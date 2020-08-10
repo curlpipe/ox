@@ -6,6 +6,7 @@ pub struct Buffer {
     pub lines: Vec<Row>,
     pub path: String,
     pub filename: String,
+    pub line_number_offset: usize,
 }
 
 impl Buffer {
@@ -14,6 +15,7 @@ impl Buffer {
             lines: vec![Row::new("".to_string())],
             path: String::new(),
             filename: String::from("[No name]"),
+            line_number_offset: 2,
         }
     }
     pub fn open(path: &str) -> Option<Self> {
@@ -26,16 +28,21 @@ impl Buffer {
                 lines,
                 path: String::from(path),
                 filename: String::from(path),
+                line_number_offset: 2,
             })
         } else {
             None
         }
+    }
+    pub fn update_line_offset(&mut self) {
+        self.line_number_offset = self.lines.len().to_string().len().saturating_add(1);
     }
     pub fn from(path: &str) -> Self {
         Self {
             lines: vec![Row::new("".to_string())],
             path: String::from(path),
             filename: String::from(path),
+            line_number_offset: 2,
         }
     }
     pub fn render(&self) -> String {

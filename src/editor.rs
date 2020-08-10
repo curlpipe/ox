@@ -471,6 +471,8 @@ impl Editor {
     }
     fn render(&mut self) {
         // Render the rows
+        self.buffer.update_line_offset();
+        let max_line = self.buffer.lines.len().to_string().len();
         let term_length = self.terminal.height;
         let mut frame: Vec<String> = Vec::new();
         self.terminal.clear_all();
@@ -541,10 +543,20 @@ impl Editor {
             } else if row < self.buffer.lines.len() as u16 {
                 let index = self.offset as usize + row as usize;
                 let line = self.buffer.lines[index].clone();
-                let pad = " ".repeat((self.terminal.width - line.raw_length() as u16) as usize);
+                let post_padding =
+                    max_line.saturating_sub(index.saturating_add(1).to_string().len());
+                let line_number = format!(
+                    "{}{}{}",
+                    " ".repeat(post_padding),
+                    index.saturating_add(1),
+                    " ",
+                );
+                let pad = " "
+                    .repeat(self.terminal.width as usize - line.raw_length() - line_number.len());
                 frame.push(format!(
-                    "{}{}{}{}",
+                    "{}{}{}{}{}",
                     BG,
+                    line_number,
                     line.string,
                     pad,
                     color::Bg(color::Reset)
@@ -561,7 +573,10 @@ impl Editor {
         self.terminal.move_cursor(0, 0);
         self.terminal
             .write(&format!("{}{}{}", BG, frame.join("\r\n"), color::Bg(color::Reset),)[..]);
-        self.terminal.move_cursor(self.raw_cursor, self.cursor.y);
+        self.terminal.move_cursor(
+            self.raw_cursor + self.buffer.line_number_offset as u16,
+            self.cursor.y,
+        );
         self.terminal.flush();
     }
 }
