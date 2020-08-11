@@ -542,17 +542,21 @@ impl Editor {
                 frame.push(format!("{}{}{}{}", BG, line, pad, color::Bg(color::Reset)));
             } else if row < self.buffer.lines.len() as u16 {
                 let index = self.offset as usize + row as usize;
-                let line = self.buffer.lines[index].clone();
-                let post_padding =
-                    max_line.saturating_sub(index.saturating_add(1).to_string().len());
+                let mut line = self.buffer.lines[index].clone();
+
+                if line.raw_length() > self.terminal.width.saturating_sub(2) as usize {
+                    line = Row::new(line.string[..self.terminal.width.saturating_sub(self.buffer.line_number_offset as u16) as usize].to_string());
+                }
+
+                let post_padding = max_line.saturating_sub(index.saturating_add(1).to_string().len());
                 let line_number = format!(
-                    "{}{}{}",
+                    "{}{}{}", 
                     " ".repeat(post_padding),
-                    index.saturating_add(1),
+                    index.saturating_add(1), 
                     " ",
                 );
-                let pad = " "
-                    .repeat(self.terminal.width as usize - line.raw_length() - line_number.len());
+                let pad = " ".repeat(self.terminal.width as usize - line.raw_length() - line_number.len());
+                
                 frame.push(format!(
                     "{}{}{}{}{}",
                     BG,
@@ -573,10 +577,7 @@ impl Editor {
         self.terminal.move_cursor(0, 0);
         self.terminal
             .write(&format!("{}{}{}", BG, frame.join("\r\n"), color::Bg(color::Reset),)[..]);
-        self.terminal.move_cursor(
-            self.raw_cursor + self.buffer.line_number_offset as u16,
-            self.cursor.y,
-        );
+        self.terminal.move_cursor(self.raw_cursor + self.buffer.line_number_offset as u16, self.cursor.y);
         self.terminal.flush();
     }
 }
