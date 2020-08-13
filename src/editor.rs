@@ -1,13 +1,20 @@
-// Editor.rs - For controling the current editor
-use crate::{Buffer, Row, Terminal};
-use std::cmp::min;
-use std::io::Error;
-use std::time::Duration;
-use std::{env, thread};
-use termion::event::Key;
-use termion::input::TermRead;
-use termion::{color, style};
-use unicode_width::UnicodeWidthStr;
+/*
+    Editor.rs - For controling the current editor
+
+    This is where the majority of processing happens.
+    It is in charge of getting input from the user and
+    rendering the result to the buffer.
+*/
+
+use crate::{Buffer, Row, Terminal}; // Import from modules
+use std::cmp::min; // Find the smallest value of 2 numbers
+use std::io::Error; // For error handling
+use std::time::Duration; // To get durations of time
+use std::{env, thread}; // To manage threads and arguments
+use termion::event::Key; // To read keys from the stdin
+use termion::input::TermRead; // To read from the terminal
+use termion::{color, style}; // To style text in the terminal
+use unicode_width::UnicodeWidthStr; // To calculate widths of strings
 
 // Get Ox version
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -20,6 +27,7 @@ const STATUS_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(80, 250, 123));
 const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(40, 42, 54));
 
 // For holding the position and directions of the cursor
+#[derive(Clone, Copy)]
 enum Direction {
     Up,
     Down,
@@ -27,23 +35,30 @@ enum Direction {
     Right,
 }
 
-pub struct Cursor {
+// Struct for holding the cursor position
+struct Cursor {
+    x: u16,
+    y: u16,
+}
+
+// Struct for holding the offsets
+struct Offset {
     x: u16,
     y: u16,
 }
 
 // For holding our editor information
 pub struct Editor {
-    dirty: bool,
-    stdin: termion::AsyncReader,
-    terminal: Terminal,
-    kill: bool,
-    raw_cursor: u16,
-    cursor: Cursor,
-    buffer: Buffer,
-    offset: u64,
-    command_bar: String,
-    show_welcome: bool,
+    dirty: bool,                 // Is file edited
+    kill: bool,                  // Whether to break out of main loop
+    show_welcome: bool,          // Wheter or not to show the welcome message
+    raw_cursor: u16,             // Holds the raw cursor position
+    command_bar: String,         // Holds the contents of the command bar
+    terminal: Terminal,          // The terminal instance
+    buffer: Buffer,              // Holds our buffer instance
+    cursor: Cursor,              // Holds the cursor position in grapheme terms
+    offset: Offset,              // Holds our offset instance
+    stdin: termion::AsyncReader, // Asynchronous stdin
 }
 
 impl Editor {
@@ -54,6 +69,7 @@ impl Editor {
         let buffer: Buffer;
         let show_welcome: bool;
         if args.len() <= 1 {
+            // Open a new empty buffer
             show_welcome = true;
             buffer = Buffer::new();
             Ok(Self {
@@ -65,10 +81,11 @@ impl Editor {
                 cursor: Cursor { x: 0, y: 0 },
                 raw_cursor: 0,
                 buffer,
-                offset: 0,
+                offset: Offset { x: 0, y: 0 },
                 command_bar: String::from("Welcome to Ox!"),
             })
         } else if let Some(buffer) = Buffer::open(args[1].trim()) {
+            // Open a buffer with contents of an external file
             show_welcome = false;
             Ok(Self {
                 dirty: false,
@@ -79,11 +96,12 @@ impl Editor {
                 cursor: Cursor { x: 0, y: 0 },
                 raw_cursor: 0,
                 buffer,
-                offset: 0,
+                offset: Offset { x: 0, y: 0 },
                 command_bar: String::from("Welcome to Ox!"),
             })
         } else {
             show_welcome = true;
+            // Open a buffer whether or not the file exists
             buffer = Buffer::from(args[1].trim());
             Ok(Self {
                 dirty: true,
@@ -94,7 +112,7 @@ impl Editor {
                 cursor: Cursor { x: 0, y: 0 },
                 raw_cursor: 0,
                 buffer,
-                offset: 0,
+                offset: Offset { x: 0, y: 0 },
                 command_bar: String::from("Welcome to Ox!"),
             })
         }
@@ -113,15 +131,15 @@ impl Editor {
             // Read a key
             let key = self.loop_until_keypress();
             match key {
-                Key::Char(c) => self.insert(c),  // Insert character
-                Key::Backspace => self.delete(), // Delete character
-                Key::Left => self.move_cursor(Direction::Left),
-                Key::Right => self.move_cursor(Direction::Right),
-                Key::Up => self.move_cursor(Direction::Up),
-                Key::Down => self.move_cursor(Direction::Down),
-                Key::Ctrl('q') => self.close(), // Exit
-                Key::Ctrl('n') => self.new_buffer(),
-                Key::Ctrl('o') => self.open_buffer(),
+                Key::Char(c) => self.insert(c),                   // Insert character
+                Key::Backspace => self.delete(),                  // Delete character
+                Key::Left => self.move_cursor(Direction::Left),   // Move cursor left
+                Key::Right => self.move_cursor(Direction::Right), // Move cursor right
+                Key::Up => self.move_cursor(Direction::Up),       // Move cursor up
+                Key::Down => self.move_cursor(Direction::Down),   // Move cursor down
+                Key::Ctrl('q') => self.close(),                   // Exit
+                Key::Ctrl('n') => self.new_buffer(),              // Open a new empty buffer
+                Key::Ctrl('o') => self.open_buffer(),             // Open an external file
                 Key::Ctrl('w') => {
                     // Save as
                     let filename = self.prompt("Save as");
@@ -175,6 +193,7 @@ impl Editor {
         }
     }
     fn loop_until_keypress(&mut self) -> Key {
+        // Keep looping until a keypress event while checking for resize
         loop {
             let keys = &mut self.stdin;
             if let Some(key) = keys.keys().next() {
@@ -188,9 +207,10 @@ impl Editor {
         }
     }
     fn insert(&mut self, character: char) {
+        // Insert a character into the buffer
         self.dirty = true;
         self.show_welcome = false;
-        let index = self.cursor.y + self.offset as u16;
+        let index = self.cursor.y + self.offset.y;
         let current = &self.buffer.lines[index as usize];
         if character == '\n' {
             // Handle return key
@@ -234,8 +254,9 @@ impl Editor {
         }
     }
     fn delete(&mut self) {
+        // Delete a character from the buffer
         self.dirty = true;
-        let index = self.cursor.y + self.offset as u16;
+        let index = self.cursor.y + self.offset.y;
         if self.buffer.lines.is_empty() {
             return;
         }
@@ -247,13 +268,13 @@ impl Editor {
             let old_raw_len = up.raw_length() as u16;
             let old_len = up.length() as u16;
             self.buffer.lines.remove(index as usize);
-            if self.offset > 0 {
-                self.offset -= 1;
+            if self.offset.y > 0 {
+                self.offset.y -= 1;
             } else {
                 self.cursor.y = self.cursor.y.saturating_sub(1);
             }
             self.correct_line();
-            let new_index = self.cursor.y + self.offset as u16;
+            let new_index = self.cursor.y + self.offset.y;
             self.buffer.lines[new_index as usize] =
                 Row::new(self.buffer.lines[new_index as usize].string.clone() + &old_line);
             self.buffer.lines[new_index as usize].update_jumps();
@@ -270,11 +291,12 @@ impl Editor {
         }
     }
     fn move_cursor(&mut self, direction: Direction) {
+        // Handle the moving of the cursor
         match direction {
             Direction::Up => {
                 // Move cursor up
                 if self.cursor.y == 0 {
-                    self.offset = self.offset.saturating_sub(1);
+                    self.offset.y = self.offset.y.saturating_sub(1);
                 } else {
                     self.cursor.y = self.cursor.y.saturating_sub(1);
                 }
@@ -282,25 +304,25 @@ impl Editor {
             }
             Direction::Down => {
                 // Move cursor down
-                let buff_len = self.buffer.lines.len() as u64;
-                let proposed = u64::from(self.cursor.y.saturating_add(1));
+                let buff_len = self.buffer.lines.len() as u16;
+                let proposed = self.cursor.y.saturating_add(1);
                 let max = self.terminal.height.saturating_sub(3);
-                if proposed.saturating_add(self.offset) < buff_len {
+                if proposed.saturating_add(self.offset.y) < buff_len {
                     if self.cursor.y < max {
-                        self.cursor.y = proposed as u16;
+                        self.cursor.y = proposed;
                     } else {
-                        self.offset = self.offset.saturating_add(1);
+                        self.offset.y = self.offset.y.saturating_add(1);
                     }
                     self.correct_line();
                 }
             }
             Direction::Left => {
                 // Move cursor to the left
-                let index = self.cursor.y + self.offset as u16;
+                let index = self.cursor.y + self.offset.y;
                 let current = &self.buffer.lines[index as usize];
                 if self.raw_cursor == 0 && index != 0 {
                     if self.cursor.y == 0 {
-                        self.offset = self.offset.saturating_sub(1);
+                        self.offset.y = self.offset.y.saturating_sub(1);
                     }
                     self.cursor.x = self.terminal.width;
                     self.raw_cursor = self.terminal.width;
@@ -315,7 +337,7 @@ impl Editor {
             }
             Direction::Right => {
                 // Move cursor to the right
-                let index = self.cursor.y + self.offset as u16;
+                let index = self.cursor.y + self.offset.y;
                 if self.buffer.lines.is_empty() {
                     return;
                 }
@@ -325,7 +347,7 @@ impl Editor {
                     && self.buffer.lines.len() as u16 != index + 1
                 {
                     if self.cursor.y == size[1] - 3 {
-                        self.offset = self.offset.saturating_add(1);
+                        self.offset.y = self.offset.y.saturating_add(1);
                     } else {
                         self.cursor.y = self.cursor.y.saturating_add(1);
                     }
@@ -348,7 +370,7 @@ impl Editor {
             self.cursor.x = 0;
             self.raw_cursor = 0;
         } else {
-            let current = &self.buffer.lines[(self.cursor.y + self.offset as u16) as usize];
+            let current = &self.buffer.lines[(self.cursor.y + self.offset.y) as usize];
             if self.raw_cursor >= current.raw_length() as u16 {
                 self.raw_cursor = current.raw_length() as u16;
                 self.cursor.x = current.length() as u16;
@@ -356,7 +378,8 @@ impl Editor {
         }
     }
     fn update_cursor(&mut self) {
-        let index = self.cursor.y + self.offset as u16;
+        // Make sure that the cursor isn't inbetween a unicode character
+        let index = self.cursor.y + self.offset.y;
         let current = &self.buffer.lines[index as usize];
         let mut raw_count = i64::from(self.raw_cursor);
         let mut count = 0;
@@ -399,6 +422,7 @@ impl Editor {
         Some(result)
     }
     fn welcome_message(&self, welcome: &str, fg: color::Fg<color::Rgb>) -> String {
+        // Render a part of the welcome message
         let pad = " ".repeat(self.terminal.width as usize / 2 - welcome.len() / 2);
         let pad_right =
             " ".repeat(self.terminal.width.saturating_sub(1) as usize - welcome.len() - pad.len());
@@ -438,16 +462,13 @@ impl Editor {
     }
     fn open_buffer(&mut self) {
         // Open file into buffer
-        if self.dirty {
-            if self
+        if self.dirty
+            && self
                 .prompt("Edited file! Enter to confirm, Esc to cancel")
                 .is_none()
-            {
-                self.command_bar = String::new();
-                return;
-            }
-        }
-        if let Some(filename) = self.prompt("File to open") {
+        {
+            self.command_bar = String::new();
+        } else if let Some(filename) = self.prompt("File to open") {
             if let Some(buffer) = Buffer::open(&filename[..]) {
                 self.buffer = buffer;
             } else {
@@ -477,16 +498,19 @@ impl Editor {
         let mut frame: Vec<String> = Vec::new();
         for row in 0..self.terminal.height {
             if row == (self.terminal.height / 3) - 3 && self.show_welcome {
+                // Display the main title of the welcome message
                 frame.push(self.welcome_message(
                     &format!("Ox editor v{}", VERSION)[..],
                     color::Fg(color::Rgb(255, 255, 255)),
                 ));
             } else if row == (self.terminal.height / 3) - 1 && self.show_welcome {
+                // Display the description of the welcome message
                 frame.push(self.welcome_message(
                     "A speedy editor built with Rust",
                     color::Fg(color::Rgb(255, 255, 255)),
                 ));
             } else if row == (self.terminal.height / 3) && self.show_welcome {
+                // Display the author in the welcome message
                 frame.push(
                     self.welcome_message("by curlpipe", color::Fg(color::Rgb(255, 255, 255))),
                 );
@@ -501,7 +525,9 @@ impl Editor {
             } else if row == (self.terminal.height / 3) + 6 && self.show_welcome {
                 frame.push(self.welcome_message("Ctrl + Q: Quit   ", STATUS_FG));
             } else if row == term_length - 2 {
-                let index = self.cursor.y + self.offset as u16;
+                // Render the status line
+                let index = self.cursor.y + self.offset.y;
+                // Create the left part of the status line
                 let left = format!(
                     " {}{} \u{2502} {} \u{f1c9} ",
                     self.buffer.filename,
@@ -512,6 +538,7 @@ impl Editor {
                     },
                     self.buffer.identify()
                 );
+                // Create the right part of the status line
                 let right = format!(
                     "\u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
                     index + 1,
@@ -519,10 +546,13 @@ impl Editor {
                     self.cursor.x,
                     self.cursor.y
                 );
-                let pad = self.terminal.width as usize
-                    - UnicodeWidthStr::width(&left[..])
-                    - UnicodeWidthStr::width(&right[..]);
-                let pad = " ".repeat(pad);
+                // Work out the padding in between the two
+                let pad = " ".repeat(
+                    self.terminal.width as usize
+                        - UnicodeWidthStr::width(&left[..])
+                        - UnicodeWidthStr::width(&right[..]),
+                );
+                // Put everything together
                 frame.push(format!(
                     "{}{}{}{}{}{}{}{}{}",
                     STATUS_FG,
@@ -536,12 +566,15 @@ impl Editor {
                     style::Reset,
                 ));
             } else if row == term_length - 1 {
+                // Render the command bar
                 let line = self.command_bar.clone();
                 let pad = " ".repeat((self.terminal.width - line.len() as u16) as usize);
                 frame.push(format!("{}{}{}{}", BG, line, pad, color::Bg(color::Reset)));
             } else if row < self.buffer.lines.len() as u16 {
-                let index = self.offset as usize + row as usize;
+                // Render the lines of text
+                let index = self.offset.y as usize + row as usize;
                 let mut line = self.buffer.lines[index].clone();
+                // Trim overflowing lines to prevent runtime issues
                 let length = line.raw_length() + self.buffer.line_number_offset;
                 if (self.terminal.width as usize) < length {
                     line = Row::new(
@@ -553,6 +586,7 @@ impl Editor {
                             .to_string(),
                     );
                 }
+                // Work out the amount of padding required on the ends of the lines
                 let post_padding =
                     max_line.saturating_sub(index.saturating_add(1).to_string().len());
                 let line_number = format!(
@@ -566,6 +600,7 @@ impl Editor {
                         .saturating_sub(line.raw_length() + line_number.len())
                         as usize,
                 );
+                // Put everything together and add it to the render queue
                 frame.push(format!(
                     "{}{}{}{}{}",
                     BG,
@@ -575,6 +610,7 @@ impl Editor {
                     color::Bg(color::Reset)
                 ));
             } else {
+                // Render an empty line
                 frame.push(format!(
                     "{}~{}{}",
                     BG,
@@ -583,6 +619,7 @@ impl Editor {
                 ));
             }
         }
+        // Render rows from the render queue and move mouse
         self.terminal.move_cursor(0, 0);
         self.terminal
             .write(&format!("{}{}{}", BG, frame.join("\r\n"), color::Bg(color::Reset),)[..]);

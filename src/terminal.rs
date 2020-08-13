@@ -1,15 +1,22 @@
-// Terminal.rs - Low level mangement of the terminal
-use std::io::{stdout, Write};
-use termion::raw::{IntoRawMode, RawTerminal};
-use termion::screen::AlternateScreen;
-use termion::terminal_size;
+/*
+    Terminal.rs - Low level mangement of the terminal
+
+    This contains structs (classes) which allow moving of the cursor
+    and clearing of the screen as well as handling resize events.
+
+*/
+
+use std::io::{stdout, Write}; // For writing to the terminal
+use termion::raw::{IntoRawMode, RawTerminal}; // To gain control of the terminal
+use termion::screen::AlternateScreen; // To gain access to a seperate screen
+use termion::terminal_size; // To obtain the terminal size
 
 // Holds the information on the terminal
 pub struct Terminal {
-    _stdout: RawTerminal<std::io::Stdout>,
-    pub screen: AlternateScreen<std::io::Stdout>,
-    pub width: u16,
-    pub height: u16,
+    _stdout: RawTerminal<std::io::Stdout>, // The stdout that keeps us in raw mode
+    pub screen: AlternateScreen<std::io::Stdout>, // The screen that stores our stdout
+    pub width: u16,                        // The width of the terminal
+    pub height: u16,                       // The height of the terminal
 }
 
 impl Terminal {
@@ -25,6 +32,7 @@ impl Terminal {
         }
     }
     pub fn write(&mut self, w: &str) {
+        // Write to the screen
         write!(self.screen, "{}", w).unwrap();
     }
     pub fn clear_all(&mut self) {

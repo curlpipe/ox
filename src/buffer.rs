@@ -1,16 +1,25 @@
-// Buffer.rs - For managing buffers
-use crate::Row;
-use std::fs;
+/*
+    Buffer.rs - For managing buffers
 
+    This is where external files are managed
+    as well as the line numbers.
+*/
+
+use crate::Row; // Bring in the Row struct
+use std::fs; // For reading and writing external files
+
+// Set up a struct for the buffer
 pub struct Buffer {
-    pub lines: Vec<Row>,
-    pub path: String,
-    pub filename: String,
-    pub line_number_offset: usize,
+    pub lines: Vec<Row>,           // For storing the lines
+    pub path: String,              // For storing the file path
+    pub filename: String,          // For storing the file name
+    pub line_number_offset: usize, // For storing the line number offset
 }
 
+// Add methods to the buffer struct
 impl Buffer {
     pub fn new() -> Self {
+        // Create a new empty buffer
         Self {
             lines: vec![Row::new("".to_string())],
             path: String::new(),
@@ -19,6 +28,7 @@ impl Buffer {
         }
     }
     pub fn open(path: &str) -> Option<Self> {
+        // Open an external file in a buffer with a result
         if let Ok(file) = fs::read_to_string(path) {
             let mut lines = Vec::new();
             for line in file.split('\n') {
@@ -34,10 +44,8 @@ impl Buffer {
             None
         }
     }
-    pub fn update_line_offset(&mut self) {
-        self.line_number_offset = self.lines.len().to_string().len().saturating_add(1);
-    }
     pub fn from(path: &str) -> Self {
+        // Open an external file regardless of whether it exists
         Self {
             lines: vec![Row::new("".to_string())],
             path: String::from(path),
@@ -45,7 +53,12 @@ impl Buffer {
             line_number_offset: 2,
         }
     }
+    pub fn update_line_offset(&mut self) {
+        // Update the offset caused by the line numbers
+        self.line_number_offset = self.lines.len().to_string().len().saturating_add(1);
+    }
     pub fn render(&self) -> String {
+        // Turn the buffer into a string for writing to a file
         let mut result = String::new();
         for row in &self.lines {
             result.push_str(&row.string);
@@ -54,14 +67,17 @@ impl Buffer {
         result
     }
     pub fn save(&self) -> std::io::Result<()> {
+        // Save a file
         let string = self.render();
         fs::write(&self.path, string)
     }
     pub fn save_as(&self, path: &str) -> std::io::Result<()> {
+        // Save a file to a specific path
         let string = self.render();
         fs::write(path, string)
     }
     pub fn identify(&self) -> &str {
+        // Identify which type of file the current buffer is
         let extension = self.filename.split('.').last();
         match extension.unwrap() {
             "asm" => "Assembly",
