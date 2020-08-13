@@ -83,4 +83,3 @@ Head to head with stock vim / neovim & micro
 - [ ] Auto brackets
 
 More like Modified Vim and VSCode
-
