@@ -1,0 +1,26 @@
+Hello there my name is Curlpipe and this is my text editor.
+
+It runs very well because it's written in Rust and therefore 
+memory issues that would initially be a problem are no longer 
+a problem because Rust has an intriguing borrow checking system 
+that very few / no other languages have.
+
+Why not C?
+C is a good language and I could have written Ox in
+but due to Rusts better ecosystem in terms of dependency
+management, potential, and safety, I chose Rust.
+
+Why not C++?
+(see C)
+C++ is a total nightmare and I believe that it is an 
+overly complicated languge and lacks a solution like 
+cargo for managing packages
+
+Why not Go?
+Because Go is Slow and chunky.
+
+Why not Python?
+Because Python is slower than a reliant robin turning 
+a corner at a speed at which it won't do a barrel roll 
+and explode. (and thats about 1mph)
+

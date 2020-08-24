@@ -1,407 +1,274 @@
-/*
-    Editor.rs - For controling the current editor
+// Editor.rs - Controls the editor and brings everything together
+use crate::{Document, Row, Terminal}; // Bringing in all the structs
+use std::time::Duration; // For implementing an FPS cap
+use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
+use termion::event::Key; // For reading Keys and shortcuts
+use termion::input::TermRead; // To allow reading from the terminal
+use termion::{color, style}; // For managing colors and styles of text
+use unicode_width::UnicodeWidthStr; // For calculating unicode character widths
 
-    This is where the majority of processing happens.
-    It is in charge of getting input from the user and
-    rendering the result to the buffer.
-*/
-
-use crate::{Buffer, Row, Terminal}; // Import from modules
-use std::cmp::min; // Find the smallest value of 2 numbers
-use std::io::Error; // For error handling
-use std::time::Duration; // To get durations of time
-use std::{env, thread}; // To manage threads and arguments
-use termion::event::Key; // To read keys from the stdin
-use termion::input::TermRead; // To read from the terminal
-use termion::{color, style}; // To style text in the terminal
-use unicode_width::UnicodeWidthStr; // To calculate widths of strings
-
-// Get Ox version
+// Get the current version of Ox
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// Get status bar colors
-const STATUS_BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(68, 71, 90));
-const STATUS_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(80, 250, 123));
-
-// Global colors
+// Set up some colours
 const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(40, 42, 54));
+const STATUS_BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(68, 71, 90));
+const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
 
-// For holding the position and directions of the cursor
-#[derive(Clone, Copy)]
-enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
+const STATUS_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(80, 250, 123));
+const RESET_FG: color::Fg<color::Reset> = color::Fg(color::Reset);
+
+// For holding the tab width (how many spaces in a tab)
+const TAB_WIDTH: usize = 4;
+
+// Enum for the kinds of status messages
+enum Type {
+    Error,
+    Warning,
+    Info,
 }
 
-// Struct for holding the cursor position
-struct Cursor {
-    x: u16,
-    y: u16,
+// For holding the info in the command line
+struct CommandLine {
+    msg: Type,
+    text: String,
 }
 
-// Struct for holding the offsets
-struct Offset {
-    x: u16,
-    y: u16,
+// For representing positions
+pub struct Position {
+    pub x: usize,
+    pub y: usize,
 }
 
-// For holding our editor information
+// The main editor struct
 pub struct Editor {
-    dirty: bool,                 // Is file edited
-    kill: bool,                  // Whether to break out of main loop
-    show_welcome: bool,          // Wheter or not to show the welcome message
-    raw_cursor: u16,             // Holds the raw cursor position
-    command_bar: String,         // Holds the contents of the command bar
-    terminal: Terminal,          // The terminal instance
-    buffer: Buffer,              // Holds our buffer instance
-    cursor: Cursor,              // Holds the cursor position in grapheme terms
-    offset: Offset,              // Holds our offset instance
-    stdin: termion::AsyncReader, // Asynchronous stdin
+    quit: bool,                // Toggle for cleanly quitting the editor
+    show_welcome: bool,        // Toggle for showing the welcome message
+    dirty: bool,               // True if the current document has been edited
+    graphemes: usize,          // For holding the special grapheme cursor
+    command_line: CommandLine, // For holding the command line
+    term: Terminal,            // For the handling of the terminal
+    cursor: Position,          // For holding the raw cursor location
+    doc: Document,             // For holding our document
+    offset: Position,          // For holding the offset on the X and Y axes
 }
 
+// Implementing methods for our editor struct / class
 impl Editor {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> Self {
         // Create a new editor instance
         let args: Vec<String> = env::args().collect();
-        let stdin = termion::async_stdin();
-        let buffer: Buffer;
-        let show_welcome: bool;
-        if args.len() <= 1 {
-            // Open a new empty buffer
-            show_welcome = true;
-            buffer = Buffer::new();
-            Ok(Self {
-                dirty: false,
-                stdin,
-                show_welcome,
-                terminal: Terminal::new(),
-                kill: false,
-                cursor: Cursor { x: 0, y: 0 },
-                raw_cursor: 0,
-                buffer,
-                offset: Offset { x: 0, y: 0 },
-                command_bar: String::from("Welcome to Ox!"),
-            })
-        } else if let Some(buffer) = Buffer::open(args[1].trim()) {
-            // Open a buffer with contents of an external file
-            show_welcome = false;
-            Ok(Self {
-                dirty: false,
-                stdin,
-                show_welcome,
-                terminal: Terminal::new(),
-                kill: false,
-                cursor: Cursor { x: 0, y: 0 },
-                raw_cursor: 0,
-                buffer,
-                offset: Offset { x: 0, y: 0 },
-                command_bar: String::from("Welcome to Ox!"),
-            })
-        } else {
-            show_welcome = true;
-            // Open a buffer whether or not the file exists
-            buffer = Buffer::from(args[1].trim());
-            Ok(Self {
-                dirty: true,
-                stdin,
-                show_welcome,
-                terminal: Terminal::new(),
-                kill: false,
-                cursor: Cursor { x: 0, y: 0 },
-                raw_cursor: 0,
-                buffer,
-                offset: Offset { x: 0, y: 0 },
-                command_bar: String::from("Welcome to Ox!"),
-            })
+        Self {
+            quit: false,
+            show_welcome: args.len() < 2,
+            dirty: false,
+            command_line: CommandLine {
+                text: "Welcome to Ox!".to_string(),
+                msg: Type::Info,
+            },
+            term: Terminal::new(),
+            graphemes: 0,
+            cursor: Position { x: 0, y: 0 },
+            offset: Position { x: 0, y: 0 },
+            doc: Document::from(if args.len() >= 2 {
+                Some(args[1].trim())
+            } else {
+                None
+            }),
         }
     }
     pub fn run(&mut self) {
-        // Run our editor
-        loop {
-            // Exit if required
-            if self.kill {
-                self.terminal.clear_all();
-                self.terminal.move_cursor(0, 0);
-                break;
-            }
-            // Render our interface
-            self.render();
-            // Read a key
-            let key = self.loop_until_keypress();
-            match key {
-                Key::Char(c) => self.insert(c),                   // Insert character
-                Key::Backspace => self.delete(),                  // Delete character
-                Key::Left => self.move_cursor(Direction::Left),   // Move cursor left
-                Key::Right => self.move_cursor(Direction::Right), // Move cursor right
-                Key::Up => self.move_cursor(Direction::Up),       // Move cursor up
-                Key::Down => self.move_cursor(Direction::Down),   // Move cursor down
-                Key::Ctrl('q') => self.close(),                   // Exit
-                Key::Ctrl('n') => self.new_buffer(),              // Open a new empty buffer
-                Key::Ctrl('o') => self.open_buffer(),             // Open an external file
-                Key::Ctrl('w') => {
-                    // Save as
-                    let filename = self.prompt("Save as");
-                    if let Some(filename) = filename {
-                        if self.buffer.save_as(&filename).is_ok() {
-                            self.command_bar = format!("Saved to file: {}", filename);
-                            self.buffer.path = filename.clone();
-                            self.buffer.filename = filename.clone();
-                            self.dirty = false;
-                        } else {
-                            self.command_bar = format!("Failed to save file: {}", filename);
-                        }
-                    } else {
-                        self.command_bar = String::from("Save as cancelled");
-                    }
-                }
-                Key::Ctrl('s') => {
-                    // Save the current file
-                    if self.buffer.save().is_ok() {
-                        self.command_bar = format!("Saved to file: {}", self.buffer.path);
-                        self.dirty = false;
-                    } else {
-                        self.command_bar = format!("Failed to save file: {}", self.buffer.path);
-                    }
-                }
-                Key::PageUp => {
-                    // Move the cursor to the top of the terminal
-                    self.cursor.y = 0;
-                    self.correct_line();
-                }
-                Key::PageDown => {
-                    // Move the cursor to the bottom of the buffer / terminal
-                    let t = self.terminal.height.saturating_sub(3) as usize;
-                    let b = self.buffer.lines.len().saturating_sub(1) as usize;
-                    self.cursor.y = min(t, b) as u16;
-                    self.correct_line();
-                }
-                Key::Home => {
-                    // Move to the start of the current line
-                    self.cursor.x = 0;
-                    self.raw_cursor = 0;
-                }
-                Key::End => {
-                    // Move to the end of the current line
-                    self.cursor.x = self.terminal.width.saturating_sub(1);
-                    self.raw_cursor = self.terminal.width.saturating_sub(1);
-                    self.correct_line();
-                }
-                _ => (), // Unbound key
-            }
+        // Run the editor instance
+        while !self.quit {
+            self.update();
+            self.process_input();
         }
     }
-    fn loop_until_keypress(&mut self) -> Key {
-        // Keep looping until a keypress event while checking for resize
+    fn read_key(&mut self) -> Key {
+        // Wait until a key is pressed and then return it
         loop {
-            let keys = &mut self.stdin;
-            if let Some(key) = keys.keys().next() {
+            let stdin = &mut self.term.stdin;
+            if let Some(key) = stdin.keys().next() {
+                // When a keypress was detected
                 return key.unwrap();
             } else {
-                if self.terminal.check_resize() {
-                    self.render();
+                // Run code that we want to run when the key isn't pressed
+                if self.term.check_resize() {
+                    // The terminal has changed in size
+                    if self.cursor.y > self.term.height.saturating_sub(3) as usize {
+                        // Prevent cursor going off the screen and breaking everything
+                        self.cursor.y = self.term.height.saturating_sub(3) as usize;
+                    }
+                    // Re-render everything to the new size
+                    self.update();
                 }
-                thread::sleep(Duration::from_millis(12));
+                // FPS cap to stop using the entire CPU
+                thread::sleep(Duration::from_millis(24));
             }
         }
     }
-    fn insert(&mut self, character: char) {
-        // Insert a character into the buffer
+    fn process_input(&mut self) {
+        // Read a key and act on it
+        let key = self.read_key();
+        match key {
+            Key::Char(c) => self.character(c),
+            Key::Backspace => self.backspace(),
+            Key::Ctrl('q') => self.quit(),
+            Key::Ctrl('s') => self.save(),
+            Key::Ctrl('w') => self.save_as(),
+            Key::Left
+            | Key::Right
+            | Key::Up
+            | Key::Down
+            | Key::PageDown
+            | Key::PageUp
+            | Key::Home
+            | Key::End => self.move_cursor(key),
+            _ => (),
+        }
+    }
+    fn character(&mut self, c: char) {
+        // The user pressed a character key
         self.dirty = true;
         self.show_welcome = false;
-        let index = self.cursor.y + self.offset.y;
-        let current = &self.buffer.lines[index as usize];
-        if character == '\n' {
-            // Handle return key
-            if self.cursor.x == 0 {
-                // Cursor is at the beginning of the line
-                self.buffer
-                    .lines
-                    .insert(index as usize, Row::new(String::new()));
-                self.buffer.lines[index as usize].update_jumps();
-                self.move_cursor(Direction::Down);
-            } else if self.cursor.x == current.length() as u16 {
-                // Cursor is at the end of the line
-                self.buffer
-                    .lines
-                    .insert((index + 1) as usize, Row::new(String::new()));
-                self.buffer.lines[(index + 1) as usize].update_jumps();
-                self.move_cursor(Direction::Down);
-                self.correct_line();
-            } else {
-                // Cursor is in the middle of the line
-                let before: String = current.chars().take(self.cursor.x as usize).collect();
-                let after: String = current.chars().skip(self.cursor.x as usize).collect();
-                self.buffer.lines[index as usize] = Row::new(before);
-                self.buffer.lines[index as usize].update_jumps();
-                self.buffer
-                    .lines
-                    .insert((index + 1) as usize, Row::new(after));
-                self.buffer.lines[(index + 1) as usize].update_jumps();
-                self.move_cursor(Direction::Down);
-                self.cursor.x = 0;
-                self.raw_cursor = 0;
+        match c {
+            '\n' => self.return_key(), // The user pressed the return key
+            '\t' => {
+                // The user pressed the tab key
+                for _ in 0..TAB_WIDTH {
+                    self.doc.rows[self.cursor.y + self.offset.y].insert(' ', self.graphemes);
+                    self.move_cursor(Key::Right);
+                }
             }
-        } else {
-            // Not the return key
-            let mut before: String = current.chars().take(self.cursor.x as usize).collect();
-            let after: String = current.chars().skip(self.cursor.x as usize).collect();
-            before.push(character);
-            before.push_str(&after);
-            self.buffer.lines[index as usize] = Row::new(before);
-            self.move_cursor(Direction::Right);
+            _ => {
+                // Other characters
+                self.doc.rows[self.cursor.y + self.offset.y].insert(c, self.graphemes);
+                self.move_cursor(Key::Right);
+            }
         }
     }
-    fn delete(&mut self) {
-        // Delete a character from the buffer
+    fn backspace(&mut self) {
+        // Handling the backspace key
         self.dirty = true;
-        let index = self.cursor.y + self.offset.y;
-        if self.buffer.lines.is_empty() {
-            return;
+        self.show_welcome = false;
+        if self.cursor.x + self.offset.x == 0 && self.cursor.y + self.offset.y != 0 {
+            // Backspace at the start of a line
+            let current = self.doc.rows[self.cursor.y + self.offset.y].string.clone();
+            let prev = self.doc.rows[self.cursor.y + self.offset.y - 1].clone();
+            self.doc.rows[self.cursor.y + self.offset.y - 1] =
+                Row::from(&(prev.string.clone() + &current)[..]);
+            self.doc.rows.remove(self.cursor.y + self.offset.y);
+            self.move_cursor(Key::Up);
+            self.cursor.x = prev.length();
+            self.recalculate_graphemes();
+        } else {
+            // Backspace in the middle of a line
+            self.move_cursor(Key::Left);
+            self.doc.rows[self.cursor.y + self.offset.y].delete(self.graphemes);
         }
-        if self.cursor.x == 0 && index != 0 {
-            // Cursor is at the beginning of a line
-            let current = &self.buffer.lines[index as usize];
-            let up = &self.buffer.lines[(index - 1) as usize];
-            let old_line = current.string.clone();
-            let old_raw_len = up.raw_length() as u16;
-            let old_len = up.length() as u16;
-            self.buffer.lines.remove(index as usize);
-            if self.offset.y > 0 {
-                self.offset.y -= 1;
+    }
+    fn quit(&mut self) {
+        // For handling a quit event
+        if self.dirty {
+            // Handle unsaved changes
+            self.command_line = CommandLine {
+                text: "Unsaved Changes! Ctrl + Q to force quit".to_string(),
+                msg: Type::Warning,
+            };
+            self.update();
+            match self.read_key() {
+                Key::Ctrl('q') | Key::Char('\n') => self.quit = true,
+                _ => {
+                    self.command_line = CommandLine {
+                        text: "Quit cancelled".to_string(),
+                        msg: Type::Info,
+                    }
+                }
+            }
+        } else {
+            self.quit = true;
+        }
+    }
+    fn save(&mut self) {
+        // Handle save event
+        if self.doc.save().is_ok() {
+            self.dirty = false;
+            self.command_line = CommandLine {
+                text: format!("File saved to {} successfully", self.doc.path),
+                msg: Type::Info,
+            };
+        } else {
+            self.command_line = CommandLine {
+                text: format!("Failed to save file to {}", self.doc.path),
+                msg: Type::Error,
+            };
+        }
+    }
+    fn save_as(&mut self) {
+        // Handle save as event
+        if let Some(result) = self.prompt("Save as") {
+            if self.doc.save_as(&result[..]).is_ok() {
+                self.dirty = false;
+                self.command_line = CommandLine {
+                    text: format!("File saved to {} successfully", result),
+                    msg: Type::Info,
+                };
+                self.doc.name = result.clone();
+                self.doc.path = result;
             } else {
-                self.cursor.y = self.cursor.y.saturating_sub(1);
+                self.command_line = CommandLine {
+                    text: format!("Failed to save file to {}", result),
+                    msg: Type::Error,
+                };
             }
-            self.correct_line();
-            let new_index = self.cursor.y + self.offset.y;
-            self.buffer.lines[new_index as usize] =
-                Row::new(self.buffer.lines[new_index as usize].string.clone() + &old_line);
-            self.buffer.lines[new_index as usize].update_jumps();
-            self.cursor.x = old_len;
-            self.raw_cursor = old_raw_len;
         } else {
-            // Cursor is ready to delete text
-            let current = &self.buffer.lines[index as usize].clone();
-            self.move_cursor(Direction::Left);
-            let before: String = current.chars().take(self.cursor.x as usize).collect();
-            let after: String = current.chars().skip(1 + self.cursor.x as usize).collect();
-            self.buffer.lines[index as usize] = Row::new(before + &after);
-            self.buffer.lines[index as usize].update_jumps();
+            self.command_line = CommandLine {
+                text: "Save as cancelled".to_string(),
+                msg: Type::Info,
+            };
         }
     }
-    fn move_cursor(&mut self, direction: Direction) {
-        // Handle the moving of the cursor
-        match direction {
-            Direction::Up => {
-                // Move cursor up
-                if self.cursor.y == 0 {
-                    self.offset.y = self.offset.y.saturating_sub(1);
-                } else {
-                    self.cursor.y = self.cursor.y.saturating_sub(1);
-                }
-                self.correct_line();
-            }
-            Direction::Down => {
-                // Move cursor down
-                let buff_len = self.buffer.lines.len() as u16;
-                let proposed = self.cursor.y.saturating_add(1);
-                let max = self.terminal.height.saturating_sub(3);
-                if proposed.saturating_add(self.offset.y) < buff_len {
-                    if self.cursor.y < max {
-                        self.cursor.y = proposed;
-                    } else {
-                        self.offset.y = self.offset.y.saturating_add(1);
-                    }
-                    self.correct_line();
-                }
-            }
-            Direction::Left => {
-                // Move cursor to the left
-                let index = self.cursor.y + self.offset.y;
-                let current = &self.buffer.lines[index as usize];
-                if self.raw_cursor == 0 && index != 0 {
-                    if self.cursor.y == 0 {
-                        self.offset.y = self.offset.y.saturating_sub(1);
-                    }
-                    self.cursor.x = self.terminal.width;
-                    self.raw_cursor = self.terminal.width;
-                    self.cursor.y = self.cursor.y.saturating_sub(1);
-                    self.correct_line();
-                } else if self.cursor.x != 0 {
-                    self.raw_cursor = self
-                        .raw_cursor
-                        .saturating_sub(current.jumps[(self.cursor.x - 1) as usize] as u16);
-                    self.cursor.x = self.cursor.x.saturating_sub(1);
-                }
-            }
-            Direction::Right => {
-                // Move cursor to the right
-                let index = self.cursor.y + self.offset.y;
-                if self.buffer.lines.is_empty() {
-                    return;
-                }
-                let current = &self.buffer.lines[index as usize];
-                let size = [&self.terminal.width, &self.terminal.height];
-                if current.raw_length() as u16 == self.raw_cursor
-                    && self.buffer.lines.len() as u16 != index + 1
-                {
-                    if self.cursor.y == size[1] - 3 {
-                        self.offset.y = self.offset.y.saturating_add(1);
-                    } else {
-                        self.cursor.y = self.cursor.y.saturating_add(1);
-                    }
-                    self.cursor.x = 0;
-                    self.raw_cursor = 0;
-                } else if self.raw_cursor < current.raw_length() as u16 {
-                    self.raw_cursor = self
-                        .raw_cursor
-                        .saturating_add(current.jumps[self.cursor.x as usize] as u16);
-                    self.cursor.x = self.cursor.x.saturating_add(1);
-                    self.correct_line();
-                }
-            }
-        }
-        self.update_cursor();
-    }
-    fn correct_line(&mut self) {
-        // Ensure that the cursor isn't out of bounds
-        if self.buffer.lines.is_empty() {
-            self.cursor.x = 0;
-            self.raw_cursor = 0;
+    fn return_key(&mut self) {
+        // Return key
+        if self.cursor.x + self.offset.x == 0 {
+            // Return key pressed at the start of the line
+            self.doc
+                .rows
+                .insert(self.cursor.y + self.offset.y, Row::from(""));
+            self.move_cursor(Key::Down);
+        } else if self.cursor.x + self.offset.x
+            == self.doc.rows[self.cursor.y + self.offset.y].length()
+        {
+            // Return key pressed at the end of the line
+            self.doc
+                .rows
+                .insert(self.cursor.y + self.offset.y + 1, Row::from(""));
+            self.move_cursor(Key::Down);
+            self.move_cursor(Key::Home);
+            self.recalculate_graphemes();
         } else {
-            let current = &self.buffer.lines[(self.cursor.y + self.offset.y) as usize];
-            if self.raw_cursor >= current.raw_length() as u16 {
-                self.raw_cursor = current.raw_length() as u16;
-                self.cursor.x = current.length() as u16;
-            }
+            // Return key pressed in the middle of the line
+            let current = self.doc.rows[self.cursor.y + self.offset.y].chars();
+            let before = Row::from(&current[..self.graphemes].join("")[..]);
+            let after = Row::from(&current[self.graphemes..].join("")[..]);
+            self.doc
+                .rows
+                .insert(self.cursor.y + self.offset.y + 1, after);
+            self.doc.rows[self.cursor.y + self.offset.y] = before;
+            self.move_cursor(Key::Down);
+            self.move_cursor(Key::Home);
         }
-    }
-    fn update_cursor(&mut self) {
-        // Make sure that the cursor isn't inbetween a unicode character
-        let index = self.cursor.y + self.offset.y;
-        let current = &self.buffer.lines[index as usize];
-        let mut raw_count = i64::from(self.raw_cursor);
-        let mut count = 0;
-        for jump in &current.jumps {
-            if raw_count <= 0 {
-                break;
-            }
-            count += 1;
-            raw_count -= *jump as i64;
-        }
-        if raw_count < 0 {
-            self.raw_cursor = self.raw_cursor.saturating_sub(1);
-        }
-        self.cursor.x = count;
     }
     fn prompt(&mut self, prompt: &str) -> Option<String> {
         // Create a new prompt
-        self.command_bar = format!("{}: ", prompt);
-        self.render();
+        self.command_line = CommandLine {
+            text: format!("{}: ", prompt),
+            msg: Type::Info,
+        };
+        self.update();
         let mut result = String::new();
         'p: loop {
-            let key = self.loop_until_keypress();
+            let key = self.read_key();
             match key {
                 Key::Char(c) => {
                     if c == '\n' {
@@ -416,217 +283,284 @@ impl Editor {
                 Key::Esc => return None,
                 _ => (),
             }
-            self.command_bar = format!("{}: {}", prompt, result);
-            self.render();
+            self.command_line = CommandLine {
+                text: format!("{}: {}", prompt, result),
+                msg: Type::Info,
+            };
+            self.update();
         }
         Some(result)
     }
-    fn welcome_message(&self, welcome: &str, fg: color::Fg<color::Rgb>) -> String {
-        // Render a part of the welcome message
-        let pad = " ".repeat(self.terminal.width as usize / 2 - welcome.len() / 2);
-        let pad_right =
-            " ".repeat(self.terminal.width.saturating_sub(1) as usize - welcome.len() - pad.len());
+    fn move_cursor(&mut self, direction: Key) {
+        // Move the cursor around the editor
+        match direction {
+            Key::Down => {
+                if self.cursor.y + self.offset.y + 1 < self.doc.rows.len() {
+                    // If the proposed move is within the length of the document
+                    if self.cursor.y == self.term.height.saturating_sub(3) as usize {
+                        self.offset.y = self.offset.y.saturating_add(1);
+                    } else {
+                        self.cursor.y = self.cursor.y.saturating_add(1);
+                    }
+                    self.snap_cursor();
+                    self.prevent_unicode_hell();
+                    self.recalculate_graphemes();
+                }
+            }
+            Key::Up => {
+                if self.cursor.y == 0 {
+                    self.offset.y = self.offset.y.saturating_sub(1);
+                } else {
+                    self.cursor.y = self.cursor.y.saturating_sub(1);
+                }
+                self.snap_cursor();
+                self.prevent_unicode_hell();
+                self.recalculate_graphemes();
+            }
+            Key::Right => {
+                let line = &self.doc.rows[self.cursor.y + self.offset.y];
+                // Work out the width of the character to traverse
+                let mut jump = 1;
+                if let Some(chr) = line.ext_chars().get(self.cursor.x + self.offset.x) {
+                    jump = UnicodeWidthStr::width(*chr);
+                }
+                if line.length() > self.cursor.x + self.offset.x {
+                    // If the proposed move is within the current line length
+                    let indicator1 =
+                        self.cursor.x == self.term.width.saturating_sub(jump as u16) as usize;
+                    let indicator2 = self.cursor.x == self.term.width.saturating_sub(1) as usize;
+                    if indicator1 || indicator2 {
+                        self.offset.x = self.offset.x.saturating_add(jump);
+                    } else {
+                        self.cursor.x = self.cursor.x.saturating_add(jump);
+                    }
+                    self.graphemes = self.graphemes.saturating_add(1);
+                }
+            }
+            Key::Left => {
+                let line = &self.doc.rows[self.cursor.y + self.offset.y];
+                // Work out the width of the character to traverse
+                let mut jump = 1;
+                if let Some(chr) = line
+                    .ext_chars()
+                    .get((self.cursor.x + self.offset.x).saturating_sub(1))
+                {
+                    jump = UnicodeWidthStr::width(*chr);
+                }
+                if self.cursor.x == 0 {
+                    self.offset.x = self.offset.x.saturating_sub(jump);
+                } else {
+                    self.cursor.x = self.cursor.x.saturating_sub(jump);
+                }
+                self.graphemes = self.graphemes.saturating_sub(1);
+            }
+            Key::PageUp => {
+                self.cursor.y = 0;
+                self.snap_cursor();
+                self.prevent_unicode_hell();
+                self.recalculate_graphemes();
+            }
+            Key::PageDown => {
+                self.cursor.y = cmp::min(
+                    self.doc.rows.len().saturating_sub(1),
+                    self.term.height.saturating_sub(3) as usize,
+                );
+                self.snap_cursor();
+                self.prevent_unicode_hell();
+                self.recalculate_graphemes();
+            }
+            Key::Home => {
+                self.offset.x = 0;
+                self.cursor.x = 0;
+                self.graphemes = 0;
+            }
+            Key::End => {
+                let line = &self.doc.rows[self.cursor.y + self.offset.y];
+                if line.length() >= self.term.width as usize {
+                    // Work out the width of the character to traverse
+                    let mut jump = 1;
+                    if let Some(chr) = line.ext_chars().get(line.length()) {
+                        jump = UnicodeWidthStr::width(*chr);
+                    }
+                    self.offset.x = line
+                        .length()
+                        .saturating_add(jump)
+                        .saturating_sub(self.term.width as usize);
+                    self.cursor.x = self.term.width.saturating_sub(jump as u16) as usize;
+                } else {
+                    self.cursor.x = line.length();
+                }
+                self.graphemes = line.chars().len();
+            }
+            _ => (),
+        }
+    }
+    fn snap_cursor(&mut self) {
+        // Snap the cursor to the end of the row when outside
+        let current = self.doc.rows[self.cursor.y + self.offset.y].clone();
+        if current.length() <= self.cursor.x + self.offset.x {
+            // If the cursor is out of bounds
+            self.move_cursor(Key::Home);
+            self.move_cursor(Key::End);
+        }
+    }
+    fn prevent_unicode_hell(&mut self) {
+        // Make sure that the cursor isn't inbetween a unicode character
+        let line = &self.doc.rows[self.cursor.y + self.offset.y];
+        if line.length() > self.cursor.x + self.offset.x {
+            // As long as the cursor is within range
+            let boundaries = line.boundaries();
+            let mut index = self.cursor.x + self.offset.x;
+            if !boundaries.contains(&index) && index != 0 {}
+            while !boundaries.contains(&index) && index != 0 {
+                self.cursor.x = self.cursor.x.saturating_sub(1);
+                self.graphemes = self.graphemes.saturating_sub(1);
+                index = index.saturating_sub(1);
+            }
+        }
+    }
+    fn recalculate_graphemes(&mut self) {
+        // Recalculate the grapheme cursor after moving up and down
+        let current = self.doc.rows[self.cursor.y + self.offset.y].clone();
+        let jumps = current.get_jumps();
+        let mut counter = 0;
+        for (mut counter2, i) in jumps.into_iter().enumerate() {
+            if counter == self.cursor.x + self.offset.x {
+                break;
+            }
+            counter2 += 1;
+            self.graphemes = counter2;
+            counter += i;
+        }
+    }
+    fn update(&mut self) {
+        // Move the cursor and render the screen
+        self.term.goto(&Position { x: 0, y: 0 });
+        self.render();
+        self.term.goto(&Position {
+            x: self.cursor.x,
+            y: self.cursor.y,
+        });
+        self.term.flush();
+    }
+    fn welcome_message(&self, text: &str, colour: bool) -> String {
+        if colour {
+            format!(
+                "{}~{}{}{}{}{}{}",
+                BG,
+                " ".repeat((self.term.width as usize - text.len()) / 2),
+                STATUS_FG,
+                text,
+                RESET_FG,
+                " ".repeat((self.term.width as usize - text.len()) / 2),
+                RESET_BG
+            )
+        } else {
+            format!(
+                "{}~{}{}{}{}",
+                BG,
+                " ".repeat((self.term.width as usize - text.len()) / 2),
+                text,
+                " ".repeat((self.term.width as usize - text.len()) / 2),
+                RESET_BG
+            )
+        }
+    }
+    fn status_line(&self) -> String {
+        // Produce the status line
+        // Create the left part of the status line
+        let left = format!(
+            " {}{} \u{2502} {} \u{f1c9} ",
+            self.doc.name,
+            if self.dirty {
+                "[+] \u{fb12} "
+            } else {
+                " \u{f723} "
+            },
+            self.doc.identify()
+        );
+        // Create the right part of the status line
+        let right = format!(
+            "\u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
+            self.cursor.y + self.offset.y + 1,
+            self.doc.rows.len(),
+            self.cursor.x,
+            self.cursor.y
+        );
+        // Get the padding value
+        let padding = self.term.align_break(&left, &right);
+        // Generate it
         format!(
-            "{}{}{}{}{}{}{}{}",
-            BG,
-            "~",
-            pad,
-            fg,
-            welcome,
-            color::Fg(color::Reset),
-            pad_right,
-            color::Bg(color::Reset),
+            "{}{}{}{}{}{}{}{}{}",
+            style::Bold,
+            STATUS_FG,
+            STATUS_BG,
+            left,
+            padding,
+            right,
+            RESET_BG,
+            RESET_FG,
+            style::Reset,
         )
     }
-    fn new_buffer(&mut self) {
-        // Creating buffer
-        if self.dirty {
-            if self
-                .prompt("Edited file! Enter to confirm, Esc to cancel")
-                .is_some()
-            {
-                self.command_bar = "New buffer created".to_string();
-                self.buffer = Buffer::new();
-                self.render();
-                self.cursor.y = 0;
-                self.correct_line();
-            } else {
-                self.command_bar = "New buffer cancelled".to_string();
-            }
-        } else {
-            self.buffer = Buffer::new();
-            self.render();
-            self.cursor.y = 0;
-            self.correct_line();
-        }
+    fn add_background(&self, text: &str) -> String {
+        // Add a background colour to a line
+        format!("{}{}{}{}", BG, text, self.term.align_left(text), RESET_BG)
     }
-    fn open_buffer(&mut self) {
-        // Open file into buffer
-        if self.dirty
-            && self
-                .prompt("Edited file! Enter to confirm, Esc to cancel")
-                .is_none()
-        {
-            self.command_bar = String::new();
-        } else if let Some(filename) = self.prompt("File to open") {
-            if let Some(buffer) = Buffer::open(&filename[..]) {
-                self.buffer = buffer;
-            } else {
-                self.command_bar = "Failed to open file".to_string();
-            }
-        }
-    }
-    fn close(&mut self) {
-        // Close the editor
-        if self.dirty {
-            if self
-                .prompt("Edited file! Enter to confirm, Esc to cancel")
-                .is_some()
-            {
-                self.kill = true;
-            }
-            self.command_bar = String::new();
-        } else {
-            self.kill = true;
+    fn command_line(&self) -> String {
+        // Render the command line
+        let line = self.add_background(&self.command_line.text);
+        // Add the correct styling
+        match self.command_line.msg {
+            Type::Error => format!(
+                "{}{}{}{}{}",
+                style::Bold,
+                color::Fg(color::Red),
+                line,
+                color::Fg(color::Reset),
+                style::Reset
+            ),
+            Type::Warning => format!(
+                "{}{}{}{}{}",
+                style::Bold,
+                color::Fg(color::Yellow),
+                line,
+                color::Fg(color::Reset),
+                style::Reset
+            ),
+            Type::Info => line,
         }
     }
     fn render(&mut self) {
-        // Render the rows
-        self.buffer.update_line_offset();
-        let max_line = self.buffer.lines.len().to_string().len();
-        let term_length = self.terminal.height;
-        let mut frame: Vec<String> = Vec::new();
-        for row in 0..self.terminal.height {
-            if row == (self.terminal.height / 3) - 3 && self.show_welcome {
-                // Display the main title of the welcome message
-                frame.push(self.welcome_message(
-                    &format!("Ox editor v{}", VERSION)[..],
-                    color::Fg(color::Rgb(255, 255, 255)),
-                ));
-            } else if row == (self.terminal.height / 3) - 1 && self.show_welcome {
-                // Display the description of the welcome message
-                frame.push(self.welcome_message(
-                    "A speedy editor built with Rust",
-                    color::Fg(color::Rgb(255, 255, 255)),
-                ));
-            } else if row == (self.terminal.height / 3) && self.show_welcome {
-                // Display the author in the welcome message
+        // Draw the screen to the terminal
+        let mut frame = Vec::new();
+        for row in 0..self.term.height {
+            if row == self.term.height - 1 {
+                // Render command line
+                frame.push(self.command_line());
+            } else if row == self.term.height - 2 {
+                // Render status line
+                frame.push(self.status_line());
+            } else if row == self.term.height / 4 && self.show_welcome {
+                frame.push(self.welcome_message(&format!("Ox editor  v{}", VERSION), false));
+            } else if row == (self.term.height / 4).saturating_add(1) && self.show_welcome {
+                frame.push(self.welcome_message("A Rust powered editor by Curlpipe", false));
+            } else if row == (self.term.height / 4).saturating_add(3) && self.show_welcome {
+                frame.push(self.welcome_message("Ctrl + Q: Exit   ", true));
+            } else if row == (self.term.height / 4).saturating_add(4) && self.show_welcome {
+                frame.push(self.welcome_message("Ctrl + S: Save   ", true));
+            } else if row == (self.term.height / 4).saturating_add(5) && self.show_welcome {
+                frame.push(self.welcome_message("Ctrl + W: Save as", true));
+            } else if let Some(row) = self.doc.rows.get(self.offset.y + row as usize) {
+                // Render lines of code
                 frame.push(
-                    self.welcome_message("by curlpipe", color::Fg(color::Rgb(255, 255, 255))),
+                    self.add_background(&row.render(self.offset.x, self.term.width as usize)),
                 );
-            } else if row == (self.terminal.height / 3) + 2 && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + N: New    ", STATUS_FG));
-            } else if row == (self.terminal.height / 3) + 3 && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + O: Open   ", STATUS_FG));
-            } else if row == (self.terminal.height / 3) + 4 && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + S: Save   ", STATUS_FG));
-            } else if row == (self.terminal.height / 3) + 5 && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + W: Save As", STATUS_FG));
-            } else if row == (self.terminal.height / 3) + 6 && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + Q: Quit   ", STATUS_FG));
-            } else if row == term_length - 2 {
-                // Render the status line
-                let index = self.cursor.y + self.offset.y;
-                // Create the left part of the status line
-                let left = format!(
-                    " {}{} \u{2502} {} \u{f1c9} ",
-                    self.buffer.filename,
-                    if self.dirty {
-                        "[+] \u{fb12} "
-                    } else {
-                        " \u{f723} "
-                    },
-                    self.buffer.identify()
-                );
-                // Create the right part of the status line
-                let right = format!(
-                    "\u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
-                    index + 1,
-                    self.buffer.lines.len(),
-                    self.cursor.x,
-                    self.cursor.y
-                );
-                // Work out the padding in between the two
-                let pad = " ".repeat(
-                    self.terminal.width as usize
-                        - UnicodeWidthStr::width(&left[..])
-                        - UnicodeWidthStr::width(&right[..]),
-                );
-                // Put everything together
-                frame.push(format!(
-                    "{}{}{}{}{}{}{}{}{}",
-                    STATUS_FG,
-                    STATUS_BG,
-                    style::Bold,
-                    left,
-                    pad,
-                    right,
-                    color::Fg(color::Reset),
-                    color::Bg(color::Reset),
-                    style::Reset,
-                ));
-            } else if row == term_length - 1 {
-                // Render the command bar
-                let line = self.command_bar.clone();
-                let pad = " ".repeat((self.terminal.width - line.len() as u16) as usize);
-                frame.push(format!("{}{}{}{}", BG, line, pad, color::Bg(color::Reset)));
-            } else if row < self.buffer.lines.len() as u16 {
-                // Render the lines of text
-                let index = self.offset.y as usize + row as usize;
-                let mut line = self.buffer.lines[index].clone();
-                // Trim overflowing lines to prevent runtime issues
-                let length = line.raw_length() + self.buffer.line_number_offset;
-                if (self.terminal.width as usize) < length {
-                    line = Row::new(
-                        line.string[..self
-                            .terminal
-                            .width
-                            .saturating_sub(self.buffer.line_number_offset as u16)
-                            as usize]
-                            .to_string(),
-                    );
-                }
-                // Work out the amount of padding required on the ends of the lines
-                let post_padding =
-                    max_line.saturating_sub(index.saturating_add(1).to_string().len());
-                let line_number = format!(
-                    "{}{}{}",
-                    " ".repeat(post_padding),
-                    index.saturating_add(1),
-                    " ",
-                );
-                let pad = " ".repeat(
-                    (self.terminal.width as usize)
-                        .saturating_sub(line.raw_length() + line_number.len())
-                        as usize,
-                );
-                // Put everything together and add it to the render queue
-                frame.push(format!(
-                    "{}{}{}{}{}",
-                    BG,
-                    line_number,
-                    line.string,
-                    pad,
-                    color::Bg(color::Reset)
-                ));
             } else {
-                // Render an empty line
-                frame.push(format!(
-                    "{}~{}{}",
-                    BG,
-                    " ".repeat(self.terminal.width.saturating_sub(1) as usize),
-                    color::Bg(color::Reset),
-                ));
+                // Render empty lines
+                frame.push(self.add_background("~"));
             }
         }
-        // Render rows from the render queue and move mouse
-        self.terminal.move_cursor(0, 0);
-        self.terminal
-            .write(&format!("{}{}{}", BG, frame.join("\r\n"), color::Bg(color::Reset),)[..]);
-        self.terminal.move_cursor(
-            self.raw_cursor + self.buffer.line_number_offset as u16,
-            self.cursor.y,
-        );
-        self.terminal.flush();
+        print!("{}", frame.join("\r\n"));
     }
 }
