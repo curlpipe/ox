@@ -103,7 +103,7 @@ impl Editor {
                     self.update();
                 }
                 // FPS cap to stop using the entire CPU
-                thread::sleep(Duration::from_millis(24));
+                thread::sleep(Duration::from_millis(16));
             }
         }
     }
