@@ -70,11 +70,11 @@ impl Editor {
             graphemes: 0,
             cursor: Position { x: 0, y: 0 },
             offset: Position { x: 0, y: 0 },
-            doc: Document::from(if args.len() >= 2 {
-                Some(args[1].trim())
+            doc: if args.len() >= 2 {
+                Document::from(args[1].trim())
             } else {
-                None
-            }),
+                Document::new()
+            },
         }
     }
     pub fn run(&mut self) {
@@ -114,6 +114,8 @@ impl Editor {
             Key::Char(c) => self.character(c),
             Key::Backspace => self.backspace(),
             Key::Ctrl('q') => self.quit(),
+            Key::Ctrl('n') => self.new_document(),
+            Key::Ctrl('o') => self.open_document(),
             Key::Ctrl('s') => self.save(),
             Key::Ctrl('w') => self.save_as(),
             Key::Left
@@ -169,24 +171,42 @@ impl Editor {
     }
     fn quit(&mut self) {
         // For handling a quit event
-        if self.dirty {
-            // Handle unsaved changes
-            self.command_line = CommandLine {
-                text: "Unsaved Changes! Ctrl + Q to force quit".to_string(),
-                msg: Type::Warning,
-            };
-            self.update();
-            match self.read_key() {
-                Key::Ctrl('q') | Key::Char('\n') => self.quit = true,
-                _ => {
+        if self.dirty_prompt('q', "quit") {
+            self.quit = true;
+        }
+    }
+    fn new_document(&mut self) {
+        // Handle new document event
+        if self.dirty_prompt('n', "new") {
+            self.doc = Document::new();
+            self.dirty = false;
+            self.cursor.y = 0;
+            self.offset.y = 0;
+            self.move_cursor(Key::Home);
+        }
+    }
+    fn open_document(&mut self) {
+        // Handle new document event
+        if self.dirty_prompt('o', "open") {
+            if let Some(result) = self.prompt("Open") {
+                if let Some(doc) = Document::open(&result[..]) {
+                    self.doc = doc;
+                    self.dirty = false;
+                    self.cursor.y = 0;
+                    self.offset.y = 0;
+                    self.move_cursor(Key::Home);
+                } else {
                     self.command_line = CommandLine {
-                        text: "Quit cancelled".to_string(),
-                        msg: Type::Info,
-                    }
+                        text: "File couldn't be opened".to_string(),
+                        msg: Type::Error,
+                    };
                 }
             }
         } else {
-            self.quit = true;
+            self.command_line = CommandLine {
+                text: "Open cancelled".to_string(),
+                msg: Type::Info,
+            };
         }
     }
     fn save(&mut self) {
@@ -258,6 +278,43 @@ impl Editor {
             self.move_cursor(Key::Down);
             self.move_cursor(Key::Home);
         }
+    }
+    fn dirty_prompt(&mut self, key: char, subject: &str) -> bool {
+        // For events that require changes to the document
+        if self.dirty {
+            // Handle unsaved changes
+            self.command_line = CommandLine {
+                text: format!(
+                    "Unsaved Changes! Ctrl + {} to force {}",
+                    key.to_uppercase(),
+                    subject
+                ),
+                msg: Type::Warning,
+            };
+            self.update();
+            match self.read_key() {
+                Key::Char('\n') => return true,
+                Key::Ctrl(k) => {
+                    if k == key {
+                        return true;
+                    } else {
+                        self.command_line = CommandLine {
+                            text: format!("{} cancelled", title(subject)),
+                            msg: Type::Info,
+                        }
+                    }
+                }
+                _ => {
+                    self.command_line = CommandLine {
+                        text: format!("{} cancelled", title(subject)),
+                        msg: Type::Info,
+                    }
+                }
+            }
+        } else {
+            return true;
+        }
+        false
     }
     fn prompt(&mut self, prompt: &str) -> Option<String> {
         // Create a new prompt
@@ -562,5 +619,13 @@ impl Editor {
             }
         }
         print!("{}", frame.join("\r\n"));
+    }
+}
+
+fn title(c: &str) -> String {
+    if let Some(f) = c.chars().next() {
+        f.to_uppercase().collect::<String>() + &c[1..]
+    } else {
+        String::new()
     }
 }

@@ -11,33 +11,40 @@ pub struct Document {
 
 // Add methods to the document struct
 impl Document {
-    pub fn from(path: Option<&str>) -> Self {
+    pub fn new() -> Self {
+        // Create a new, empty document
+        Self {
+            rows: vec![Row::from("")],
+            name: String::from("[No name]"),
+            path: String::new(),
+        }
+    }
+    pub fn open(path: &str) -> Option<Self> {
         // Create a new document from a path
-        if let Some(path) = path {
-            // Path was provided
-            let mut import = Vec::new();
-            if let Ok(file) = fs::read_to_string(path) {
-                // File exists and can be accessed
-                let mut lines = file.split('\n').collect::<Vec<&str>>();
-                lines.pop();
-                for row in lines {
-                    import.push(Row::from(row));
-                }
-            } else {
-                // File can't be accessed
-                import = vec![Row::from("")];
-            }
-            Self {
-                rows: import,
+        if let Ok(file) = fs::read_to_string(path) {
+            // File exists
+            let mut file = file.split('\n').collect::<Vec<&str>>();
+            file.pop();
+            Some(Self {
+                rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: path.to_string(),
                 path: path.to_string(),
-            }
+            })
         } else {
-            // Empty path
+            // File doesn't exist
+            None
+        }
+    }
+    pub fn from(path: &str) -> Self {
+        // Create a new document from a path with empty document on error
+        if let Some(doc) = Document::open(path) {
+            doc
+        } else {
+            // Create blank document
             Self {
                 rows: vec![Row::from("")],
-                name: String::from("[No name]"),
-                path: String::new(),
+                name: path.to_string(),
+                path: path.to_string(),
             }
         }
     }
