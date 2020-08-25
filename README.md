@@ -17,28 +17,41 @@
     <br>
 </p>
 
-<!-- TABLE OF CONTENTS -->
-## Table of Contents
-
-* [About the Project](#about-the-project)
-    * [Built With](#built-with)
-* [Getting Started](#getting-started)
-    * [Prerequisites](#prerequisites)
-    * [Installation](#installation)
-* [Usage](#usage)
-* [Roadmap](#roadmap)
-* [License](#license)
-* [Contact](#contact)
-* [Acknowledgements](#acknowledgements)
-
-<!-- ABOUT THE PROJECT -->
 ## About The Project
 
-Ox is a text editor that differs to many text editors that are already out there. It's is built in the Rust language to ensure that it is memory and thread safe as well as being fast. 
+Ox is a text editor that differs to many text editors that are already out there. 
+It is programmed in Rust to ensure that it is memory and thread safe as well as light and quick.
 
-It is different from Vim due to its non-modal approach and uses keybindings just like nano does but has a lot more features including a secret command mode similar to Vim. 
+Ox is not based off any other editor and has been built from the ground up without any base at all.
 
-Ox doesn't have a plugin system (yet) nor a special language like vimscript because that gives the potential for bugs errors and unintended events and it requires learning a new editor-specific language.
+## What features does Ox have and why should I use it?
+
+Ox aims to be an editor that takes features from some of the most popular editors out there, gaining the best of all worlds.
+
+#### Ox vs Vim
+
+Vim is a text editor that came about in 1991 and derived from Vi.
+
+ - Vim has its own scripting language
+    - Ox doesn't have it's own scripting language in order to stay light and remain fast.
+    - Instead, modifications can be applied through editing the Rust code directly to take advantage of the optimisation. 
+ - Vim has a plugin system
+    - Vim's plugin system is great but there is a major flaw with it because many plugins are poor quality and conflict with each other.
+    - Ox implements the majority of plugins that you'd need directly into the editor, ensuring that they work well and are effcient.
+ - Vim is a modal editor
+    - Vim is modal text editor meaning that they have modes that repurpose your keyboard depending on what mode you are in.
+    - Ox isn't modal in the way Vim is because pressing <kbd>esc</kbd> over and over again can become incredibly labour intensive and doesn't flow very well.
+
+#### Ox vs Nano
+
+Nano is an editor from around 1999 and has the advantage of being very easy to use.
+
+ - Nano is easy to use and intuitive
+    - Nano uses keybindings on Ctrl to manage the editor.
+    - Ox uses Ctrl keybindings that the majority of GUI text editors use, just like nano. This makes it easy to use.
+ - Nano is simple
+    - Nano can be used to edit text and that's about it, it does one thing well.
+    - Ox is more modern than Nano because it implements many features that Nano is unable to get, making it a great and easy replacement for nano.
 
 ### Built With
 
@@ -88,7 +101,7 @@ That's all there is to it!
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-#### Opening Ox
+#### Opening files in Ox
 At the moment, you can open ox by using the command
 ```
 ox
@@ -96,45 +109,48 @@ ox
 
 This will open up an empty buffer.
 
-If you wish to open a file, you can run
+If you wish to open a file straight from the command line, you can run
 ```
 ox /path/to/file
 ```
 To open and edit a file.
 
+<!-- 
+You can also open a file from within Ox by using the <kbd>Ctrl + O</kbd> Key binding
+If at any time, you wish to create a new file, you can use <kbd>Ctrl + N</kbd> to do so.
+-->
+
 #### Moving the cursor around
 You can use the arrow keys to move the cursor around
 
 You can also use:
- - `PageUp` - Go to the top of the window
- - `PageDown` - Go to the bottom of the window
- - `Home` - Go to the start of the current line
- - `End` - Go to the end of the current line
+ - <kbd>PageUp</kbd> - Go to the top of the document
+ - <kbd>PageDown</kbd> - Go to the bottom of the document
+ - <kbd>Home</kbd> - Go to the start of the current line
+ - <kbd>End</kbd> - Go to the end of the current line
 
 #### Editing the file
-You can use the keys `Backspace` and `Return` / `Enter` as well as all the characters on your keyboard to edit the opened file!
+You can use the keys <kbd>Backspace</kbd> and <kbd>Return</kbd> / <kbd>Enter</kbd> as well as all the characters on your keyboard to edit files!
 
 #### Saving the file
-The simple keyboard shortcut of `Ctrl + S` can be used to save the current file.
+The simple keyboard shortcut of <kbd>Ctrl + S</kbd> can be used to save the current file.
+
+The simple keyboard shortcut of <kbd>Ctrl + W</kbd> can be used to "save as" the current file to a specific path.
 
 #### Closing Ox
-You can use the keybinding `Ctrl + Q` to exit Ox.
+You can use the keybinding <kbd>Ctrl + Q</kbd> to exit Ox.
 
-<!-- ROADMAP -->
 ## Roadmap
 
-You can see the `roadmap.todo.md` file to see my plans for the future of the editor!
+You can see the `tasks.todo.md` file to see my plans for the future of the editor!
 
-<!-- LICENSE -->
 ## License
 
 Distributed under the GNU GPLv2 License. See `LICENSE` for more information.
 
-<!-- CONTACT -->
 ## Contact
 You can contact me on Discord at `curlpipe#1496`. I'll be happy to answer any questions you may have!
 
-<!-- ACKNOWLEDGEMENTS -->
 ## Acknowledgements
 
 * [Curlpipe](https://github.com/curlpipe)
