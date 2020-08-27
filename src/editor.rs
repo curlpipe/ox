@@ -15,6 +15,7 @@ const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(40, 42, 54));
 const STATUS_BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(68, 71, 90));
 const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
 
+const FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(255, 255, 255));
 const STATUS_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(80, 250, 123));
 const RESET_FG: color::Fg<color::Reset> = color::Fg(color::Reset);
 
@@ -500,28 +501,15 @@ impl Editor {
         });
         self.term.flush();
     }
-    fn welcome_message(&self, text: &str, colour: bool) -> String {
-        if colour {
-            format!(
-                "{}~{}{}{}{}{}{}",
-                BG,
-                " ".repeat((self.term.width as usize - text.len()) / 2),
-                STATUS_FG,
-                text,
-                RESET_FG,
-                " ".repeat((self.term.width as usize - text.len()) / 2),
-                RESET_BG
-            )
-        } else {
-            format!(
-                "{}~{}{}{}{}",
-                BG,
-                " ".repeat((self.term.width as usize - text.len()) / 2),
-                text,
-                " ".repeat((self.term.width as usize - text.len()) / 2),
-                RESET_BG
-            )
-        }
+    fn welcome_message(&self, text: &str, colour: color::Fg<color::Rgb>) -> String {
+        let pad = " ".repeat((self.term.width as usize / 2).saturating_sub(text.len() / 2));
+        let pad_right = " ".repeat(
+            (self.term.width.saturating_sub(1) as usize).saturating_sub(text.len() + pad.len()),
+        );
+        format!(
+            "{}~{}{}{}{}{}{}",
+            BG, pad, colour, text, RESET_FG, pad_right, RESET_BG,
+        )
     }
     fn status_line(&self) -> String {
         // Produce the status line
@@ -599,15 +587,15 @@ impl Editor {
                 // Render status line
                 frame.push(self.status_line());
             } else if row == self.term.height / 4 && self.show_welcome {
-                frame.push(self.welcome_message(&format!("Ox editor  v{}", VERSION), false));
+                frame.push(self.welcome_message(&format!("Ox editor  v{}", VERSION), FG));
             } else if row == (self.term.height / 4).saturating_add(1) && self.show_welcome {
-                frame.push(self.welcome_message("A Rust powered editor by Curlpipe", false));
+                frame.push(self.welcome_message("A Rust powered editor by Curlpipe", FG));
             } else if row == (self.term.height / 4).saturating_add(3) && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + Q: Exit   ", true));
+                frame.push(self.welcome_message("Ctrl + Q: Exit   ", STATUS_FG));
             } else if row == (self.term.height / 4).saturating_add(4) && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + S: Save   ", true));
+                frame.push(self.welcome_message("Ctrl + S: Save   ", STATUS_FG));
             } else if row == (self.term.height / 4).saturating_add(5) && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + W: Save as", true));
+                frame.push(self.welcome_message("Ctrl + W: Save as", STATUS_FG));
             } else if let Some(row) = self.doc.rows.get(self.offset.y + row as usize) {
                 // Render lines of code
                 frame.push(
