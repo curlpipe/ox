@@ -17,4 +17,3 @@ pub const TAB_WIDTH: usize = 4;
 // Line numbers
 pub const LINE_NUMBER_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(68, 71, 90));
 pub const LINE_NUMBER_PADDING: usize = 1;
-

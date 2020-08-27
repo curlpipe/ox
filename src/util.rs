@@ -1,5 +1,5 @@
-use unicode_width::{UnicodeWidthStr, UnicodeWidthChar}; // Getting width of unicode characters
-use regex::Regex; // Fast regex engine
+use regex::Regex;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // Getting width of unicode characters // Fast regex engine
 
 pub fn no_ansi_len(data: &str) -> usize {
     let ansi_scanner = Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap();
@@ -17,7 +17,10 @@ pub fn title(c: &str) -> String {
 
 pub fn trim_start(text: &str, start: usize) -> String {
     // Create a special vector with spaces inserted for trimming
-    let widths: Vec<usize> = text.chars().map(|i| UnicodeWidthChar::width(i).unwrap()).collect();
+    let widths: Vec<usize> = text
+        .chars()
+        .map(|i| UnicodeWidthChar::width(i).unwrap())
+        .collect();
     let chars: Vec<char> = text.chars().collect();
     let mut result = Vec::new();
     let mut count = 0;

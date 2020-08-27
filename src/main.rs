@@ -16,11 +16,11 @@
 */
 
 // Bring in the external modules
+mod config;
 mod document;
 mod editor;
 mod row;
 mod terminal;
-mod config;
 mod util;
 
 use document::Document;

@@ -1,7 +1,7 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::{Document, Row, Terminal}; // Bringing in all the structs
-use crate::config::*; // Bring in the configuration values
+use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH}; // Bring in the configuration values
 use crate::util::title; // Bring in the title utility for text formatting
+use crate::{Document, Row, Terminal}; // Bringing in all the structs
 use std::time::Duration; // For implementing an FPS cap
 use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
@@ -109,14 +109,8 @@ impl Editor {
             Key::Ctrl('o') => self.open_document(),
             Key::Ctrl('s') => self.save(),
             Key::Ctrl('w') => self.save_as(),
-            Key::Left
-            | Key::Right
-            | Key::Up
-            | Key::Down
-            | Key::PageDown
-            | Key::PageUp
-            | Key::Home
-            | Key::End => self.move_cursor(key),
+            Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
+            Key::PageDown | Key::PageUp | Key::Home | Key::End => self.jump_cursor(key),
             _ => (),
         }
     }
@@ -339,6 +333,53 @@ impl Editor {
         }
         Some(result)
     }
+    fn jump_cursor(&mut self, action: Key) {
+        match action {
+            Key::PageUp => {
+                self.cursor.y = 0;
+                self.snap_cursor();
+                self.prevent_unicode_hell();
+                self.recalculate_graphemes();
+            }
+            Key::PageDown => {
+                self.cursor.y = cmp::min(
+                    self.doc.rows.len().saturating_sub(1),
+                    self.term.height.saturating_sub(3) as usize,
+                );
+                self.snap_cursor();
+                self.prevent_unicode_hell();
+                self.recalculate_graphemes();
+            }
+            Key::Home => {
+                self.offset.x = 0;
+                self.cursor.x = 0;
+                self.graphemes = 0;
+            }
+            Key::End => {
+                let line = &self.doc.rows[self.cursor.y + self.offset.y];
+                if line.length() >= self.term.width as usize {
+                    // Work out the width of the character to traverse
+                    let mut jump = 1;
+                    if let Some(chr) = line.ext_chars().get(line.length()) {
+                        jump = UnicodeWidthStr::width(*chr);
+                    }
+                    self.offset.x = line
+                        .length()
+                        .saturating_add(jump + self.doc.line_offset + 1)
+                        .saturating_sub(self.term.width as usize);
+                    self.cursor.x = self
+                        .term
+                        .width
+                        .saturating_sub((self.doc.line_offset + jump + 1) as u16)
+                        as usize;
+                } else {
+                    self.cursor.x = line.length();
+                }
+                self.graphemes = line.chars().len();
+            }
+            _ => (),
+        }
+    }
     fn move_cursor(&mut self, direction: Key) {
         // Move the cursor around the editor
         match direction {
@@ -374,9 +415,12 @@ impl Editor {
                 }
                 if line.length() > self.cursor.x + self.offset.x {
                     // If the proposed move is within the current line length
-                    let indicator1 = self.cursor.x == self.term.width.saturating_sub(
-                        (self.doc.line_offset + jump + 1) as u16
-                    ) as usize;
+                    let indicator1 = self.cursor.x
+                        == self
+                            .term
+                            .width
+                            .saturating_sub((self.doc.line_offset + jump + 1) as u16)
+                            as usize;
                     let indicator2 = self.cursor.x == self.term.width.saturating_sub(1) as usize;
                     if indicator1 || indicator2 {
                         self.offset.x = self.offset.x.saturating_add(jump);
@@ -402,46 +446,6 @@ impl Editor {
                     self.cursor.x = self.cursor.x.saturating_sub(jump);
                 }
                 self.graphemes = self.graphemes.saturating_sub(1);
-            }
-            Key::PageUp => {
-                self.cursor.y = 0;
-                self.snap_cursor();
-                self.prevent_unicode_hell();
-                self.recalculate_graphemes();
-            }
-            Key::PageDown => {
-                self.cursor.y = cmp::min(
-                    self.doc.rows.len().saturating_sub(1),
-                    self.term.height.saturating_sub(3) as usize,
-                );
-                self.snap_cursor();
-                self.prevent_unicode_hell();
-                self.recalculate_graphemes();
-            }
-            Key::Home => {
-                self.offset.x = 0;
-                self.cursor.x = 0;
-                self.graphemes = 0;
-            }
-            Key::End => {
-                let line = &self.doc.rows[self.cursor.y + self.offset.y];
-                if line.length() >= self.term.width as usize {
-                    // Work out the width of the character to traverse
-                    let mut jump = 1;
-                    if let Some(chr) = line.ext_chars().get(line.length()) {
-                        jump = UnicodeWidthStr::width(*chr);
-                    }
-                    self.offset.x = line
-                        .length()
-                        .saturating_add(jump + self.doc.line_offset + 1)
-                        .saturating_sub(self.term.width as usize);
-                    self.cursor.x = self.term.width.saturating_sub(
-                        (self.doc.line_offset + jump + 1) as u16
-                    ) as usize;
-                } else {
-                    self.cursor.x = line.length();
-                }
-                self.graphemes = line.chars().len();
             }
             _ => (),
         }
@@ -593,14 +597,19 @@ impl Editor {
             } else if let Some(line) = self.doc.rows.get(self.offset.y + row as usize) {
                 // Render lines of code
                 frame.push(self.add_background(&line.render(
-                    self.offset.x, 
-                    self.term.width as usize, 
-                    self.offset.y + row as usize, 
-                    self.doc.line_offset
+                    self.offset.x,
+                    self.term.width as usize,
+                    self.offset.y + row as usize,
+                    self.doc.line_offset,
                 )));
             } else {
                 // Render empty lines
-                frame.push(format!("{}{}{}", LINE_NUMBER_FG, self.add_background("~"), RESET_FG));
+                frame.push(format!(
+                    "{}{}{}",
+                    LINE_NUMBER_FG,
+                    self.add_background("~"),
+                    RESET_FG
+                ));
             }
         }
         print!("{}", frame.join("\r\n"));

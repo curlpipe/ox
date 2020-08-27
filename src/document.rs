@@ -5,9 +5,9 @@ use std::fs; // For managing file reading and writing
 
 // Document struct (class) to manage files and text
 pub struct Document {
-    pub rows: Vec<Row>, // For holding the contents of the document
-    pub path: String,   // For holding the path to the document
-    pub name: String,   // For holding the name of the document
+    pub rows: Vec<Row>,     // For holding the contents of the document
+    pub path: String,       // For holding the path to the document
+    pub name: String,       // For holding the name of the document
     pub line_offset: usize, // For holding a line number offset
 }
 

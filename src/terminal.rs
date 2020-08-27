@@ -1,6 +1,6 @@
 // Terminal.rs - Handling low level terminal operations
-use crate::Position; // Allow use and handling of positions
 use crate::util::no_ansi_len; // To strip ansi values
+use crate::Position; // Allow use and handling of positions
 use std::io::{stdout, Stdout, Write}; // For writing to the stdout
 use termion::raw::{IntoRawMode, RawTerminal}; // To access raw mode
 use termion::screen::AlternateScreen; // To render to a separate screen

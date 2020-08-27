@@ -1,8 +1,8 @@
 // Row.rs - Handling the rows of a document
-use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
-use unicode_width::UnicodeWidthStr; // Getting width of unicode strings
 use crate::config::{LINE_NUMBER_FG, LINE_NUMBER_PADDING, RESET_FG}; // Config stuff
-use crate::util::{trim_start, trim_end, no_ansi_len}; // Bring in the utilities
+use crate::util::{no_ansi_len, trim_end, trim_start};
+use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
+use unicode_width::UnicodeWidthStr; // Getting width of unicode strings // Bring in the utilities
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Clone)]
@@ -35,7 +35,10 @@ impl Row {
             RESET_FG,
         );
         let line_number_len = no_ansi_len(&line_number);
-        let body = trim_end(&trim_start(&self.string, start), end.saturating_sub(line_number_len));
+        let body = trim_end(
+            &trim_start(&self.string, start),
+            end.saturating_sub(line_number_len),
+        );
         line_number + &body
     }
     pub fn length(&self) -> usize {
