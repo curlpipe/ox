@@ -1,5 +1,6 @@
 // Terminal.rs - Handling low level terminal operations
 use crate::Position; // Allow use and handling of positions
+use crate::util::no_ansi_len; // To strip ansi values
 use std::io::{stdout, Stdout, Write}; // For writing to the stdout
 use termion::raw::{IntoRawMode, RawTerminal}; // To access raw mode
 use termion::screen::AlternateScreen; // To render to a separate screen
@@ -50,7 +51,7 @@ impl Terminal {
     }
     pub fn align_left(&self, text: &str) -> String {
         // Align items to the left
-        let length = UnicodeWidthStr::width(text);
+        let length = no_ansi_len(text);
         let padding = (self.width as usize).saturating_sub(length);
         " ".repeat(padding as usize)
     }

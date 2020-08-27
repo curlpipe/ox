@@ -1,5 +1,7 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::{Document, Row, Terminal}; // Bringing in all the structs
+use crate::config::*; // Bring in the configuration values
+use crate::util::title; // Bring in the title utility for text formatting
 use std::time::Duration; // For implementing an FPS cap
 use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
@@ -9,18 +11,6 @@ use unicode_width::UnicodeWidthStr; // For calculating unicode character widths
 
 // Get the current version of Ox
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-// Set up some colours
-const BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(40, 42, 54));
-const STATUS_BG: color::Bg<color::Rgb> = color::Bg(color::Rgb(68, 71, 90));
-const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
-
-const FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(255, 255, 255));
-const STATUS_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(80, 250, 123));
-const RESET_FG: color::Fg<color::Reset> = color::Fg(color::Reset);
-
-// For holding the tab width (how many spaces in a tab)
-const TAB_WIDTH: usize = 4;
 
 // Enum for the kinds of status messages
 enum Type {
@@ -384,8 +374,9 @@ impl Editor {
                 }
                 if line.length() > self.cursor.x + self.offset.x {
                     // If the proposed move is within the current line length
-                    let indicator1 =
-                        self.cursor.x == self.term.width.saturating_sub(jump as u16) as usize;
+                    let indicator1 = self.cursor.x == self.term.width.saturating_sub(
+                        (self.doc.line_offset + jump + 1) as u16
+                    ) as usize;
                     let indicator2 = self.cursor.x == self.term.width.saturating_sub(1) as usize;
                     if indicator1 || indicator2 {
                         self.offset.x = self.offset.x.saturating_add(jump);
@@ -442,9 +433,11 @@ impl Editor {
                     }
                     self.offset.x = line
                         .length()
-                        .saturating_add(jump)
+                        .saturating_add(jump + self.doc.line_offset + 1)
                         .saturating_sub(self.term.width as usize);
-                    self.cursor.x = self.term.width.saturating_sub(jump as u16) as usize;
+                    self.cursor.x = self.term.width.saturating_sub(
+                        (self.doc.line_offset + jump + 1) as u16
+                    ) as usize;
                 } else {
                     self.cursor.x = line.length();
                 }
@@ -494,9 +487,10 @@ impl Editor {
     fn update(&mut self) {
         // Move the cursor and render the screen
         self.term.goto(&Position { x: 0, y: 0 });
+        self.doc.recalculate_offset();
         self.render();
         self.term.goto(&Position {
-            x: self.cursor.x,
+            x: self.cursor.x.saturating_add(self.doc.line_offset + 1),
             y: self.cursor.y,
         });
         self.term.flush();
@@ -596,24 +590,19 @@ impl Editor {
                 frame.push(self.welcome_message("Ctrl + S: Save   ", STATUS_FG));
             } else if row == (self.term.height / 4).saturating_add(5) && self.show_welcome {
                 frame.push(self.welcome_message("Ctrl + W: Save as", STATUS_FG));
-            } else if let Some(row) = self.doc.rows.get(self.offset.y + row as usize) {
+            } else if let Some(line) = self.doc.rows.get(self.offset.y + row as usize) {
                 // Render lines of code
-                frame.push(
-                    self.add_background(&row.render(self.offset.x, self.term.width as usize)),
-                );
+                frame.push(self.add_background(&line.render(
+                    self.offset.x, 
+                    self.term.width as usize, 
+                    self.offset.y + row as usize, 
+                    self.doc.line_offset
+                )));
             } else {
                 // Render empty lines
-                frame.push(self.add_background("~"));
+                frame.push(format!("{}{}{}", LINE_NUMBER_FG, self.add_background("~"), RESET_FG));
             }
         }
         print!("{}", frame.join("\r\n"));
-    }
-}
-
-fn title(c: &str) -> String {
-    if let Some(f) = c.chars().next() {
-        f.to_uppercase().collect::<String>() + &c[1..]
-    } else {
-        String::new()
     }
 }

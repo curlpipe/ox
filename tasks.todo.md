@@ -30,12 +30,12 @@
  - [X] Thorough commenting
  - [X] Privatisation
 16/08/2020 (0.2.0 Editor basics) (MERGE)
- - [ ] Line numbers
  - [ ] Search feature
  - [ ] Undo
  - [ ] Redo
  - [X] New document
  - [X] Open document
+ - [X] Line numbers
 17/08/2020 (0.2.1 Customisation)
  - [ ] Config file
  - [ ] Macro system

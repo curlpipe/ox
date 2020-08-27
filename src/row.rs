@@ -1,6 +1,8 @@
 // Row.rs - Handling the rows of a document
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // Getting width of unicode characters
+use unicode_width::UnicodeWidthStr; // Getting width of unicode strings
+use crate::config::{LINE_NUMBER_FG, LINE_NUMBER_PADDING, RESET_FG}; // Config stuff
+use crate::util::{trim_start, trim_end, no_ansi_len}; // Bring in the utilities
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Clone)]
@@ -20,9 +22,21 @@ impl From<&str> for Row {
 
 // Add methods to the Row struct / class
 impl Row {
-    pub fn render(&self, start: usize, end: usize) -> String {
+    pub fn render(&self, start: usize, end: usize, index: usize, offset: usize) -> String {
         // Render the row by trimming it to the correct size
-        trim_end(&trim_start(&self.string, start), end)
+        let index = index.saturating_add(1);
+        let post_padding = offset.saturating_sub(index.to_string().len() + LINE_NUMBER_PADDING);
+        let line_number = format!(
+            "{}{}{}{}{}",
+            LINE_NUMBER_FG,
+            " ".repeat(post_padding),
+            index,
+            " ".repeat(LINE_NUMBER_PADDING.saturating_add(1)),
+            RESET_FG,
+        );
+        let line_number_len = no_ansi_len(&line_number);
+        let body = trim_end(&trim_start(&self.string, start), end.saturating_sub(line_number_len));
+        line_number + &body
     }
     pub fn length(&self) -> usize {
         // Get the current length of the row
@@ -74,55 +88,4 @@ impl Row {
         let after: String = self.string.graphemes(true).skip(1 + pos as usize).collect();
         self.string = before + &after;
     }
-}
-
-fn trim_start(text: &str, start: usize) -> String {
-    // Create a special vector with spaces inserted for trimming
-    let mut widths = Vec::new();
-    for i in text.chars() {
-        widths.push(UnicodeWidthChar::width(i).unwrap());
-    }
-    let chars: Vec<char> = text.chars().collect();
-    let mut result = Vec::new();
-    let mut count = 0;
-    for i in 0..chars.len() {
-        for c in 0..widths[i] {
-            if c == 0 {
-                result.push(chars[i].to_string());
-            } else if count <= start {
-                result.push(" ".to_string());
-            }
-            count += 1;
-        }
-    }
-    if let Some(result) = result.get(start..) {
-        result.join("")
-    } else {
-        String::new()
-    }
-}
-
-fn trim_end(text: &str, end: usize) -> String {
-    // Trim a string with unicode in it to fit into a specific length
-    let mut widths = Vec::new();
-    for i in text.chars() {
-        widths.push(UnicodeWidthChar::width(i).unwrap());
-    }
-    let chars: Vec<char> = text.chars().collect();
-    let mut result = Vec::new();
-    let mut length = 0;
-    for i in 0..chars.len() {
-        let chr = chars[i];
-        let wid = widths[i];
-        if length == end {
-            return result.join("");
-        } else if length + wid <= end {
-            result.push(chr.to_string());
-            length += wid;
-        } else if length + wid > end {
-            result.push(" ".to_string());
-            return result.join("");
-        }
-    }
-    result.join("")
 }

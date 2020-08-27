@@ -1,4 +1,5 @@
 // Document.rs - For managing external files
+use crate::config::LINE_NUMBER_PADDING; // Config stuff
 use crate::Row; // The Row struct
 use std::fs; // For managing file reading and writing
 
@@ -7,6 +8,7 @@ pub struct Document {
     pub rows: Vec<Row>, // For holding the contents of the document
     pub path: String,   // For holding the path to the document
     pub name: String,   // For holding the name of the document
+    pub line_offset: usize, // For holding a line number offset
 }
 
 // Add methods to the document struct
@@ -17,6 +19,7 @@ impl Document {
             rows: vec![Row::from("")],
             name: String::from("[No name]"),
             path: String::new(),
+            line_offset: 2,
         }
     }
     pub fn open(path: &str) -> Option<Self> {
@@ -29,6 +32,7 @@ impl Document {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: path.to_string(),
                 path: path.to_string(),
+                line_offset: 2,
             })
         } else {
             // File doesn't exist
@@ -45,8 +49,12 @@ impl Document {
                 rows: vec![Row::from("")],
                 name: path.to_string(),
                 path: path.to_string(),
+                line_offset: 2,
             }
         }
+    }
+    pub fn recalculate_offset(&mut self) {
+        self.line_offset = self.rows.len().to_string().len() + LINE_NUMBER_PADDING;
     }
     pub fn save(&self) -> std::io::Result<()> {
         // Save a file

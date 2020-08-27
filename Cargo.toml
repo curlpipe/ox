@@ -11,3 +11,4 @@ lto = true
 termion = "1"
 unicode-segmentation = "1"
 unicode-width = "0"
+regex = "1"
