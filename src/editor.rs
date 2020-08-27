@@ -1,5 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH}; // Bring in the configuration values
+use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH};
 use crate::util::title; // Bring in the title utility for text formatting
 use crate::{Document, Row, Terminal}; // Bringing in all the structs
 use std::time::Duration; // For implementing an FPS cap
@@ -167,7 +167,7 @@ impl Editor {
             self.dirty = false;
             self.cursor.y = 0;
             self.offset.y = 0;
-            self.move_cursor(Key::Home);
+            self.jump_cursor(Key::Home);
         }
     }
     fn open_document(&mut self) {
@@ -179,7 +179,7 @@ impl Editor {
                     self.dirty = false;
                     self.cursor.y = 0;
                     self.offset.y = 0;
-                    self.move_cursor(Key::Home);
+                    self.jump_cursor(Key::Home);
                 } else {
                     self.command_line = CommandLine {
                         text: "File couldn't be opened".to_string(),
@@ -249,7 +249,7 @@ impl Editor {
                 .rows
                 .insert(self.cursor.y + self.offset.y + 1, Row::from(""));
             self.move_cursor(Key::Down);
-            self.move_cursor(Key::Home);
+            self.jump_cursor(Key::Home);
             self.recalculate_graphemes();
         } else {
             // Return key pressed in the middle of the line
@@ -261,7 +261,7 @@ impl Editor {
                 .insert(self.cursor.y + self.offset.y + 1, after);
             self.doc.rows[self.cursor.y + self.offset.y] = before;
             self.move_cursor(Key::Down);
-            self.move_cursor(Key::Home);
+            self.jump_cursor(Key::Home);
         }
     }
     fn dirty_prompt(&mut self, key: char, subject: &str) -> bool {
@@ -455,8 +455,8 @@ impl Editor {
         let current = self.doc.rows[self.cursor.y + self.offset.y].clone();
         if current.length() <= self.cursor.x + self.offset.x {
             // If the cursor is out of bounds
-            self.move_cursor(Key::Home);
-            self.move_cursor(Key::End);
+            self.jump_cursor(Key::Home);
+            self.jump_cursor(Key::End);
         }
     }
     fn prevent_unicode_hell(&mut self) {
