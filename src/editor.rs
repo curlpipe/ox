@@ -110,7 +110,7 @@ impl Editor {
             Key::Ctrl('s') => self.save(),
             Key::Ctrl('w') => self.save_as(),
             Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
-            Key::PageDown | Key::PageUp | Key::Home | Key::End => self.jump_cursor(key),
+            Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
         }
     }
@@ -167,7 +167,7 @@ impl Editor {
             self.dirty = false;
             self.cursor.y = 0;
             self.offset.y = 0;
-            self.jump_cursor(Key::Home);
+            self.leap_cursor(Key::Home);
         }
     }
     fn open_document(&mut self) {
@@ -179,7 +179,7 @@ impl Editor {
                     self.dirty = false;
                     self.cursor.y = 0;
                     self.offset.y = 0;
-                    self.jump_cursor(Key::Home);
+                    self.leap_cursor(Key::Home);
                 } else {
                     self.command_line = CommandLine {
                         text: "File couldn't be opened".to_string(),
@@ -249,7 +249,7 @@ impl Editor {
                 .rows
                 .insert(self.cursor.y + self.offset.y + 1, Row::from(""));
             self.move_cursor(Key::Down);
-            self.jump_cursor(Key::Home);
+            self.leap_cursor(Key::Home);
             self.recalculate_graphemes();
         } else {
             // Return key pressed in the middle of the line
@@ -261,7 +261,7 @@ impl Editor {
                 .insert(self.cursor.y + self.offset.y + 1, after);
             self.doc.rows[self.cursor.y + self.offset.y] = before;
             self.move_cursor(Key::Down);
-            self.jump_cursor(Key::Home);
+            self.leap_cursor(Key::Home);
         }
     }
     fn dirty_prompt(&mut self, key: char, subject: &str) -> bool {
@@ -333,7 +333,7 @@ impl Editor {
         }
         Some(result)
     }
-    fn jump_cursor(&mut self, action: Key) {
+    fn leap_cursor(&mut self, action: Key) {
         match action {
             Key::PageUp => {
                 self.cursor.y = 0;
@@ -455,8 +455,8 @@ impl Editor {
         let current = self.doc.rows[self.cursor.y + self.offset.y].clone();
         if current.length() <= self.cursor.x + self.offset.x {
             // If the cursor is out of bounds
-            self.jump_cursor(Key::Home);
-            self.jump_cursor(Key::End);
+            self.leap_cursor(Key::Home);
+            self.leap_cursor(Key::End);
         }
     }
     fn prevent_unicode_hell(&mut self) {
