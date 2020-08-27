@@ -357,7 +357,9 @@ impl Editor {
             }
             Key::End => {
                 let line = &self.doc.rows[self.cursor.y + self.offset.y];
-                if line.length() >= self.term.width as usize {
+                if line.length()
+                    >= self.term.width.saturating_sub(self.doc.line_offset as u16) as usize
+                {
                     // Work out the width of the character to traverse
                     let mut jump = 1;
                     if let Some(chr) = line.ext_chars().get(line.length()) {
@@ -370,7 +372,7 @@ impl Editor {
                     self.cursor.x = self
                         .term
                         .width
-                        .saturating_sub((self.doc.line_offset + jump + 1) as u16)
+                        .saturating_sub((jump + self.doc.line_offset + 1) as u16)
                         as usize;
                 } else {
                     self.cursor.x = line.length();
@@ -413,15 +415,22 @@ impl Editor {
                 if let Some(chr) = line.ext_chars().get(self.cursor.x + self.offset.x) {
                     jump = UnicodeWidthStr::width(*chr);
                 }
+                // Check the proposed move is within the current line length
                 if line.length() > self.cursor.x + self.offset.x {
-                    // If the proposed move is within the current line length
+                    // Check for normal width character
                     let indicator1 = self.cursor.x
                         == self
                             .term
                             .width
                             .saturating_sub((self.doc.line_offset + jump + 1) as u16)
                             as usize;
-                    let indicator2 = self.cursor.x == self.term.width.saturating_sub(1) as usize;
+                    // Check for half broken unicode character
+                    let indicator2 = self.cursor.x
+                        == self
+                            .term
+                            .width
+                            .saturating_sub((self.doc.line_offset + jump) as u16)
+                            as usize;
                     if indicator1 || indicator2 {
                         self.offset.x = self.offset.x.saturating_add(jump);
                     } else {
