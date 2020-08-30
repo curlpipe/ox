@@ -11,8 +11,8 @@
     Ox is a fast text editor that runs in your terminal.
     <br><br>
     <div align="center" style="display:inline;">
-      <img src="https://i.postimg.cc/vByDNk5y/image.png" width="49%">
-      <img src="https://i.postimg.cc/V6zLRMcL/image.png" width="49%">
+      <img src="https://i.postimg.cc/N0tqYD40/image.png" width="49%">
+      <img src="https://i.postimg.cc/xC02G5JZ/image.png" width="49%">
     </div>
     <br>
 </p>
