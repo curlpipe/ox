@@ -2,7 +2,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/curlpipe/ox/">
-    <img src="assets/logo.png" alt="Logo" width="200" height="200">
+    <img src="assets/logo.png" alt="Logo" width="150" height="150">
   </a>
 
   <h1 align="center" style="font-size: 50px;">Ox editor</h1>
