@@ -1,6 +1,6 @@
 // Document.rs - For managing external files
 use crate::config::LINE_NUMBER_PADDING; // Config stuff
-use crate::Row; // The Row struct
+use crate::{Position, Row}; // The Row and Position struct
 use std::fs; // For managing file reading and writing
 
 // Document struct (class) to manage files and text
@@ -63,6 +63,15 @@ impl Document {
     pub fn save_as(&self, path: &str) -> std::io::Result<()> {
         // Save a file to a specific path
         fs::write(path, self.render())
+    }
+    pub fn find(&self, needle: &str) -> Option<Position> {
+        // Search the document
+        for (y, row) in self.rows.iter().enumerate() {
+            if let Some(x) = row.string.find(needle) {
+                return Some(Position { x, y });
+            }
+        }
+        None
     }
     fn render(&self) -> String {
         // Render the lines of a document for writing

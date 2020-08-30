@@ -109,6 +109,7 @@ impl Editor {
             Key::Ctrl('o') => self.open_document(),
             Key::Ctrl('s') => self.save(),
             Key::Ctrl('w') => self.save_as(),
+            Key::Ctrl('f') => self.search(),
             Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
             Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
@@ -173,7 +174,7 @@ impl Editor {
     fn open_document(&mut self) {
         // Handle new document event
         if self.dirty_prompt('o', "open") {
-            if let Some(result) = self.prompt("Open") {
+            if let Some(result) = self.prompt("Open", &|_, _| {}) {
                 if let Some(doc) = Document::open(&result[..]) {
                     self.doc = doc;
                     self.dirty = false;
@@ -211,7 +212,7 @@ impl Editor {
     }
     fn save_as(&mut self) {
         // Handle save as event
-        if let Some(result) = self.prompt("Save as") {
+        if let Some(result) = self.prompt("Save as", &|_, _| {}) {
             if self.doc.save_as(&result[..]).is_ok() {
                 self.dirty = false;
                 self.command_line = CommandLine {
@@ -231,6 +232,20 @@ impl Editor {
                 text: "Save as cancelled".to_string(),
                 msg: Type::Info,
             };
+        }
+    }
+    fn search(&mut self) {
+        // For searching the file
+        self.prompt("Search", &|s, x| {
+            if let Some(pos) = s.doc.find(x) {
+                s.cursor.y = pos.y;
+                s.cursor.x = pos.x;
+                s.recalculate_graphemes();
+            }
+        });
+        self.command_line = CommandLine {
+            msg: Type::Info,
+            text: "Search exited".to_string(),
         }
     }
     fn return_key(&mut self) {
@@ -301,7 +316,7 @@ impl Editor {
         }
         false
     }
-    fn prompt(&mut self, prompt: &str) -> Option<String> {
+    fn prompt(&mut self, prompt: &str, func: &dyn Fn(&mut Self, &str)) -> Option<String> {
         // Create a new prompt
         self.command_line = CommandLine {
             text: format!("{}: ", prompt),
@@ -330,6 +345,7 @@ impl Editor {
                 msg: Type::Info,
             };
             self.update();
+            func(self, &result);
         }
         Some(result)
     }
