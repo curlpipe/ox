@@ -514,8 +514,8 @@ impl Editor {
             (self.term.width.saturating_sub(1) as usize).saturating_sub(text.len() + pad.len()),
         );
         format!(
-            "{}~{}{}{}{}{}{}",
-            BG, pad, colour, text, RESET_FG, pad_right, RESET_BG,
+            "{}{}~{}{}{}{}{}{}{}",
+            BG, LINE_NUMBER_FG, RESET_FG, pad, colour, text, RESET_FG, pad_right, RESET_BG,
         )
     }
     fn status_line(&self) -> String {
