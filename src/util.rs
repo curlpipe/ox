@@ -1,9 +1,10 @@
-use regex::Regex;
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // Getting width of unicode characters // Fast regex engine
+use regex::Regex; // Regex engine
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // Getting width of unicode characters
 
 pub fn no_ansi_len(data: &str) -> usize {
+    // Find the length of a string without ANSI values
     let ansi_scanner = Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap();
-    let data = ansi_scanner.replace_all(data, "");
+    let data = ansi_scanner.replacen(data, 2, "");
     UnicodeWidthStr::width(&*data)
 }
 
