@@ -64,10 +64,22 @@ impl Document {
         // Save a file to a specific path
         fs::write(path, self.render())
     }
-    pub fn find(&self, needle: &str) -> Option<Position> {
-        // Search the document
-        for (y, row) in self.rows.iter().enumerate() {
+    pub fn find(&self, at: Position, needle: &str) -> Option<Position> {
+        // Search the document after a certain position
+        let start = at.clone();
+        let end = Position { x: self.rows.last().unwrap().string.len(), y: self.rows.len() };
+        let rows = self.rows.iter().enumerate().skip(start.y + 1).take(end.y);
+        for (y, row) in rows {
             if let Some(x) = row.string.find(needle) {
+                return Some(Position { x, y });
+            }
+        }
+        None
+    }
+    pub fn rfind(&self, at: Position, needle: &str) -> Option<Position> {
+        // Search the document before a certain position
+        for (y, row) in self.rows.iter().enumerate().take(at.y).rev() {
+            if let Some(x) = row.string.rfind(needle) {
                 return Some(Position { x, y });
             }
         }

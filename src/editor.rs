@@ -19,6 +19,12 @@ enum Type {
     Info,
 }
 
+// Enum for holding prompt events
+enum PromptEvent {
+    Update,
+    KeyPress(Key),
+}
+
 // For holding the info in the command line
 struct CommandLine {
     msg: Type,
@@ -26,6 +32,7 @@ struct CommandLine {
 }
 
 // For representing positions
+#[derive(Clone)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -174,7 +181,7 @@ impl Editor {
     fn open_document(&mut self) {
         // Handle new document event
         if self.dirty_prompt('o', "open") {
-            if let Some(result) = self.prompt("Open", &|_, _| {}) {
+            if let Some(result) = self.prompt("Open", &|_, _, _| {}) {
                 if let Some(doc) = Document::open(&result[..]) {
                     self.doc = doc;
                     self.dirty = false;
@@ -212,7 +219,7 @@ impl Editor {
     }
     fn save_as(&mut self) {
         // Handle save as event
-        if let Some(result) = self.prompt("Save as", &|_, _| {}) {
+        if let Some(result) = self.prompt("Save as", &|_, _, _| {}) {
             if self.doc.save_as(&result[..]).is_ok() {
                 self.dirty = false;
                 self.command_line = CommandLine {
@@ -236,17 +243,37 @@ impl Editor {
     }
     fn search(&mut self) {
         // For searching the file
-        self.prompt("Search", &|s, x| {
-            if let Some(pos) = s.doc.find(x) {
-                s.cursor.y = pos.y;
-                s.cursor.x = pos.x;
-                s.recalculate_graphemes();
+        let initial_position = self.cursor.clone();
+        self.prompt("Search", &|s, e, t| {
+            match e {
+                PromptEvent::KeyPress(k) => match k {
+                    Key::Left => {
+                        if let Some(pos) = s.doc.rfind(s.cursor.clone(), t) {
+                            s.cursor.y = pos.y;
+                            s.cursor.x = pos.x;
+                            s.recalculate_graphemes();
+                        }
+                    }
+                    Key::Right => {
+                        if let Some(pos) = s.doc.find(s.cursor.clone(), t) {
+                            s.cursor.y = pos.y;
+                            s.cursor.x = pos.x;
+                            s.recalculate_graphemes();
+                        }
+                    }
+                    Key::Esc => {
+                        s.cursor = initial_position.clone();
+                        s.recalculate_graphemes();
+                    }
+                    _ => (),
+                }
+                PromptEvent::Update => (),
+            }
+            s.command_line = CommandLine {
+                msg: Type::Info,
+                text: "Search exited".to_string(),
             }
         });
-        self.command_line = CommandLine {
-            msg: Type::Info,
-            text: "Search exited".to_string(),
-        }
     }
     fn return_key(&mut self) {
         // Return key
@@ -316,7 +343,7 @@ impl Editor {
         }
         false
     }
-    fn prompt(&mut self, prompt: &str, func: &dyn Fn(&mut Self, &str)) -> Option<String> {
+    fn prompt(&mut self, prompt: &str, func: &dyn Fn(&mut Self, PromptEvent, &str)) -> Option<String> {
         // Create a new prompt
         self.command_line = CommandLine {
             text: format!("{}: ", prompt),
@@ -337,15 +364,18 @@ impl Editor {
                 Key::Backspace => {
                     result.pop();
                 }
-                Key::Esc => return None,
-                _ => (),
+                Key::Esc => {
+                    func(self, PromptEvent::KeyPress(key), &result);
+                    return None;
+                }
+                _ => func(self, PromptEvent::KeyPress(key), &result),
             }
             self.command_line = CommandLine {
                 text: format!("{}: {}", prompt, result),
                 msg: Type::Info,
             };
+            func(self, PromptEvent::Update, &result);
             self.update();
-            func(self, &result);
         }
         Some(result)
     }
