@@ -248,14 +248,14 @@ impl Editor {
             match e {
                 PromptEvent::KeyPress(k) => match k {
                     Key::Left => {
-                        if let Some(pos) = s.doc.rfind(s.cursor.clone(), t) {
+                        if let Some(pos) = s.doc.rfind(&s.cursor, t) {
                             s.cursor.y = pos.y;
                             s.cursor.x = pos.x;
                             s.recalculate_graphemes();
                         }
                     }
                     Key::Right => {
-                        if let Some(pos) = s.doc.find(s.cursor.clone(), t) {
+                        if let Some(pos) = s.doc.find(&s.cursor, t) {
                             s.cursor.y = pos.y;
                             s.cursor.x = pos.x;
                             s.recalculate_graphemes();
@@ -266,7 +266,7 @@ impl Editor {
                         s.recalculate_graphemes();
                     }
                     _ => (),
-                }
+                },
                 PromptEvent::Update => (),
             }
             s.command_line = CommandLine {
@@ -343,7 +343,11 @@ impl Editor {
         }
         false
     }
-    fn prompt(&mut self, prompt: &str, func: &dyn Fn(&mut Self, PromptEvent, &str)) -> Option<String> {
+    fn prompt(
+        &mut self,
+        prompt: &str,
+        func: &dyn Fn(&mut Self, PromptEvent, &str),
+    ) -> Option<String> {
         // Create a new prompt
         self.command_line = CommandLine {
             text: format!("{}: ", prompt),

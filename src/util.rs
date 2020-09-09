@@ -20,7 +20,13 @@ pub fn trim_start(text: &str, start: usize) -> String {
     // Create a special vector with spaces inserted for trimming
     let widths: Vec<usize> = text
         .chars()
-        .map(|i| if let Some(i) = UnicodeWidthChar::width(i) { i } else { 0 })
+        .map(|i| {
+            if let Some(i) = UnicodeWidthChar::width(i) {
+                i
+            } else {
+                0
+            }
+        })
         .collect();
     let chars: Vec<char> = text.chars().collect();
     let mut result = Vec::new();
@@ -46,7 +52,11 @@ pub fn trim_end(text: &str, end: usize) -> String {
     // Trim a string with unicode in it to fit into a specific length
     let mut widths = Vec::new();
     for i in text.chars() {
-        widths.push(if let Some(i) = UnicodeWidthChar::width(i) { i } else { 0 });
+        widths.push(if let Some(i) = UnicodeWidthChar::width(i) {
+            i
+        } else {
+            0
+        });
     }
     let chars: Vec<char> = text.chars().collect();
     let mut result = Vec::new();
