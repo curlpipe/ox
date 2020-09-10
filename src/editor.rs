@@ -32,7 +32,7 @@ struct CommandLine {
 }
 
 // For representing positions
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -243,7 +243,7 @@ impl Editor {
     }
     fn search(&mut self) {
         // For searching the file
-        let initial_position = self.cursor.clone();
+        let initial_position = self.cursor;
         self.prompt("Search", &|s, e, t| {
             match e {
                 PromptEvent::KeyPress(k) => match k {
@@ -262,18 +262,18 @@ impl Editor {
                         }
                     }
                     Key::Esc => {
-                        s.cursor = initial_position.clone();
+                        s.cursor = initial_position;
                         s.recalculate_graphemes();
                     }
                     _ => (),
                 },
                 PromptEvent::Update => (),
             }
-            s.command_line = CommandLine {
-                msg: Type::Info,
-                text: "Search exited".to_string(),
-            }
         });
+        self.command_line = CommandLine {
+            msg: Type::Info,
+            text: "Search exited".to_string(),
+        }
     }
     fn return_key(&mut self) {
         // Return key
