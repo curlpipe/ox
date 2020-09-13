@@ -102,6 +102,7 @@ That's all there is to it!
 ## Usage
 
 #### Opening files in Ox
+
 At the moment, you can open ox by using the command
 ```
 ox
@@ -115,12 +116,12 @@ ox /path/to/file
 ```
 To open and edit a file.
 
-<!-- 
 You can also open a file from within Ox by using the <kbd>Ctrl + O</kbd> Key binding
+
 If at any time, you wish to create a new file, you can use <kbd>Ctrl + N</kbd> to do so.
--->
 
 #### Moving the cursor around
+
 You can use the arrow keys to move the cursor around
 
 You can also use:
@@ -130,15 +131,24 @@ You can also use:
  - <kbd>End</kbd> - Go to the end of the current line
 
 #### Editing the file
+
 You can use the keys <kbd>Backspace</kbd> and <kbd>Return</kbd> / <kbd>Enter</kbd> as well as all the characters on your keyboard to edit files!
 
 #### Saving the file
+
 The simple keyboard shortcut of <kbd>Ctrl + S</kbd> can be used to save the current file.
 
 The simple keyboard shortcut of <kbd>Ctrl + W</kbd> can be used to "save as" the current file to a specific path.
 
 #### Closing Ox
+
 You can use the keybinding <kbd>Ctrl + Q</kbd> to exit Ox.
+
+#### Searching a file in Ox
+
+You can search both back and forth by activating the search feature through <kbd>Ctrl + F</kbd>, typing out what you wish to search and then using <kbd>→</kbd> To search forward or <kbd>←</kbd> to search backwards. 
+
+If at any time you wish to exit the search feature and return to the location in the document that you were in before activating the search feature, you can press <kbd>esc</kbd> on your keyboard, otherwise you can press any other key to exit the search feature and start editing your document at the new location.
 
 ## Roadmap
 
@@ -149,6 +159,7 @@ You can see the `tasks.todo.md` file to see my plans for the future of the edito
 Distributed under the GNU GPLv2 License. See `LICENSE` for more information.
 
 ## Contact
+
 You can contact me on Discord at `curlpipe#1496`. I'll be happy to answer any questions you may have!
 
 ## Acknowledgements
