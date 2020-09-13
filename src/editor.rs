@@ -185,6 +185,7 @@ impl Editor {
                 if let Some(doc) = Document::open(&result[..]) {
                     self.doc = doc;
                     self.dirty = false;
+                    self.show_welcome = false;
                     self.cursor.y = 0;
                     self.offset.y = 0;
                     self.leap_cursor(Key::Home);
@@ -244,31 +245,29 @@ impl Editor {
     fn search(&mut self) {
         // For searching the file
         let initial_position = self.cursor;
-        self.prompt("Search", &|s, e, t| {
-            match e {
-                PromptEvent::KeyPress(k) => match k {
-                    Key::Left => {
-                        if let Some(pos) = s.doc.rfind(&s.cursor, t) {
-                            s.cursor.y = pos.y;
-                            s.cursor.x = pos.x;
-                            s.recalculate_graphemes();
-                        }
-                    }
-                    Key::Right => {
-                        if let Some(pos) = s.doc.find(&s.cursor, t) {
-                            s.cursor.y = pos.y;
-                            s.cursor.x = pos.x;
-                            s.recalculate_graphemes();
-                        }
-                    }
-                    Key::Esc => {
-                        s.cursor = initial_position;
+        self.prompt("Search", &|s, e, t| match e {
+            PromptEvent::KeyPress(k) => match k {
+                Key::Left => {
+                    if let Some(pos) = s.doc.rfind(&s.cursor, t) {
+                        s.cursor.y = pos.y;
+                        s.cursor.x = pos.x;
                         s.recalculate_graphemes();
                     }
-                    _ => (),
-                },
-                PromptEvent::Update => (),
-            }
+                }
+                Key::Right => {
+                    if let Some(pos) = s.doc.find(&s.cursor, t) {
+                        s.cursor.y = pos.y;
+                        s.cursor.x = pos.x;
+                        s.recalculate_graphemes();
+                    }
+                }
+                Key::Esc => {
+                    s.cursor = initial_position;
+                    s.recalculate_graphemes();
+                }
+                _ => (),
+            },
+            PromptEvent::Update => (),
         });
         self.command_line = CommandLine {
             msg: Type::Info,
@@ -646,7 +645,7 @@ impl Editor {
             } else if row == self.term.height / 4 && self.show_welcome {
                 frame.push(self.welcome_message(&format!("Ox editor  v{}", VERSION), FG));
             } else if row == (self.term.height / 4).saturating_add(1) && self.show_welcome {
-                frame.push(self.welcome_message("A Rust powered editor by Curlpipe", FG));
+                frame.push(self.welcome_message("A Rust powered editor by Luke", FG));
             } else if row == (self.term.height / 4).saturating_add(3) && self.show_welcome {
                 frame.push(self.welcome_message("Ctrl + Q: Exit   ", STATUS_FG));
             } else if row == (self.term.height / 4).saturating_add(4) && self.show_welcome {
