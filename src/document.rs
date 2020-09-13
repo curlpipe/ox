@@ -79,9 +79,17 @@ impl Document {
         }
         None
     }
-    pub fn rfind(&self, at: &Position, needle: &str) -> Option<Position> {
+    pub fn rfind(&mut self, at: &Position, needle: &str) -> Option<Position> {
         // Search the document before a certain position
-        for (y, row) in self.rows.iter().enumerate().take(at.y).rev() {
+        let mut rows = self.rows.get(..=at.y).unwrap().to_vec();
+        if let Some(elem) = rows.get_mut(at.y) {
+            *elem = Row::from(
+                elem.string
+                    .get(..at.x.saturating_sub(needle.len()))
+                    .unwrap(),
+            );
+        }
+        for (y, row) in rows.iter().enumerate().rev() {
             if let Some(x) = row.string.rfind(needle) {
                 return Some(Position { x, y });
             }

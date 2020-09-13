@@ -2,8 +2,8 @@
 0.2.0
 - [ ] Search feature
   - [ ] Searching on the same line as the cursor
-    - [ ] Backwards
     - [ ] Forwards
+    - [X] Backwards
   - [ ] Searching forward by default
 - [X] Line numbers
 - [X] Open document
