@@ -1,6 +1,6 @@
 // Row.rs - Handling the rows of a document
 use crate::config::{LINE_NUMBER_FG, LINE_NUMBER_PADDING, RESET_FG}; // Config stuff
-use crate::util::{no_ansi_len, trim_end, trim_start};
+use crate::util::{no_ansi_len, trim_end, trim_start}; // Utilities
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
 use unicode_width::UnicodeWidthStr; // Getting width of unicode strings // Bring in the utilities
 

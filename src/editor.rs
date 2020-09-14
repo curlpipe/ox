@@ -1,6 +1,6 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH};
-use crate::util::title; // Bring in the title utility for text formatting
+use crate::util::{title, is_behind, is_ahead}; // Bring in the utils
 use crate::{Document, Row, Terminal}; // Bringing in all the structs
 use std::time::Duration; // For implementing an FPS cap
 use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
@@ -244,30 +244,39 @@ impl Editor {
     }
     fn search(&mut self) {
         // For searching the file
-        let initial_position = self.cursor;
-        self.prompt("Search", &|s, e, t| match e {
-            PromptEvent::KeyPress(k) => match k {
-                Key::Left => {
-                    if let Some(pos) = s.doc.rfind(&s.cursor, t) {
-                        s.cursor.y = pos.y;
-                        s.cursor.x = pos.x;
+        let initial_cursor = self.cursor;
+        let initial_offset = self.offset;
+        self.prompt("Search", &|s, e, t| {
+            let search_points = s.doc.scan(t);
+            match e {
+                PromptEvent::KeyPress(k) => match k {
+                    Key::Left => {
+                        for p in search_points.iter().rev() {
+                            if is_behind(&s.cursor, &p) {
+                                s.cursor = Position { x: p.x, y: p.y };
+                                s.recalculate_graphemes();
+                                break;
+                            } 
+                        }
+                    }
+                    Key::Right => {
+                        for p in search_points {
+                            if is_ahead(&s.cursor, &p) {
+                                s.cursor = Position { x: p.x, y: p.y };
+                                s.recalculate_graphemes();
+                                break;
+                            } 
+                        }
+                    }
+                    Key::Esc => {
+                        s.cursor = initial_cursor;
+                        s.offset = initial_offset;
                         s.recalculate_graphemes();
                     }
-                }
-                Key::Right => {
-                    if let Some(pos) = s.doc.find(&s.cursor, t) {
-                        s.cursor.y = pos.y;
-                        s.cursor.x = pos.x;
-                        s.recalculate_graphemes();
-                    }
-                }
-                Key::Esc => {
-                    s.cursor = initial_position;
-                    s.recalculate_graphemes();
-                }
-                _ => (),
-            },
-            PromptEvent::Update => (),
+                    _ => (),
+                },
+                PromptEvent::Update => (),
+            }
         });
         self.command_line = CommandLine {
             msg: Type::Info,

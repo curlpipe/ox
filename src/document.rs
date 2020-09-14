@@ -64,37 +64,15 @@ impl Document {
         // Save a file to a specific path
         fs::write(path, self.render())
     }
-    pub fn find(&self, at: &Position, needle: &str) -> Option<Position> {
-        // Search the document after a certain position
-        let start = at;
-        let end = Position {
-            x: self.rows.last().unwrap().string.len(),
-            y: self.rows.len(),
-        };
-        let rows = self.rows.iter().enumerate().skip(start.y + 1).take(end.y);
-        for (y, row) in rows {
-            if let Some(x) = row.string.find(needle) {
-                return Some(Position { x, y });
+    pub fn scan(&self, needle: &str) -> Vec<Position> {
+        // Find all the points where "needle" occurs
+        let mut result = vec![];
+        for (i, row) in self.rows.iter().enumerate() {
+            for o in row.string.match_indices(needle).collect::<Vec<_>>() {
+                result.push( Position { x: o.0, y: i } );
             }
         }
-        None
-    }
-    pub fn rfind(&mut self, at: &Position, needle: &str) -> Option<Position> {
-        // Search the document before a certain position
-        let mut rows = self.rows.get(..=at.y).unwrap().to_vec();
-        if let Some(elem) = rows.get_mut(at.y) {
-            *elem = Row::from(
-                elem.string
-                    .get(..at.x.saturating_sub(needle.len()))
-                    .unwrap(),
-            );
-        }
-        for (y, row) in rows.iter().enumerate().rev() {
-            if let Some(x) = row.string.rfind(needle) {
-                return Some(Position { x, y });
-            }
-        }
-        None
+        result
     }
     fn render(&self) -> String {
         // Render the lines of a document for writing

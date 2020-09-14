@@ -1,10 +1,13 @@
  
 0.2.0
 - [ ] Search feature
-  - [ ] Searching on the same line as the cursor
-    - [ ] Forwards
-    - [X] Backwards
   - [ ] Searching forward by default
+  - [ ] Scroll offset with search
+    - [ ] Move the offset
+    - [X] Ensure the initial offset is saved
+  - [X] Searching on the same line as the cursor
+    - [X] Backwards
+    - [X] Forwards
 - [X] Line numbers
 - [X] Open document
 - [X] New document
