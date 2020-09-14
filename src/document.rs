@@ -69,7 +69,7 @@ impl Document {
         let mut result = vec![];
         for (i, row) in self.rows.iter().enumerate() {
             for o in row.string.match_indices(needle).collect::<Vec<_>>() {
-                result.push( Position { x: o.0, y: i } );
+                result.push(Position { x: o.0, y: i });
             }
         }
         result

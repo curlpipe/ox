@@ -1,6 +1,6 @@
+use crate::Position;
 use regex::Regex; // Regex engine
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // Getting width of unicode characters
-use crate::Position;
 
 pub fn no_ansi_len(data: &str) -> usize {
     // Find the length of a string without ANSI values
@@ -81,19 +81,15 @@ pub fn trim_end(text: &str, end: usize) -> String {
 pub fn is_behind(cursor: &Position, position: &Position) -> bool {
     if position.y > cursor.y {
         false
-    } else if position.y == cursor.y && cursor.x <= position.x {
-        false
     } else {
-        true
+        !(position.y == cursor.y && cursor.x <= position.x)
     }
 }
 
 pub fn is_ahead(cursor: &Position, position: &Position) -> bool {
     if position.y < cursor.y {
         false
-    } else if position.y == cursor.y && cursor.x >= position.x {
-        false
     } else {
-        true
+        !(position.y == cursor.y && cursor.x >= position.x)
     }
 }

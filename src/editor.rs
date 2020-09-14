@@ -1,6 +1,6 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH};
-use crate::util::{title, is_behind, is_ahead}; // Bring in the utils
+use crate::util::{is_ahead, is_behind, title}; // Bring in the utils
 use crate::{Document, Row, Terminal}; // Bringing in all the structs
 use std::time::Duration; // For implementing an FPS cap
 use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
@@ -256,7 +256,7 @@ impl Editor {
                                 s.cursor = Position { x: p.x, y: p.y };
                                 s.recalculate_graphemes();
                                 break;
-                            } 
+                            }
                         }
                     }
                     Key::Right => {
@@ -265,7 +265,7 @@ impl Editor {
                                 s.cursor = Position { x: p.x, y: p.y };
                                 s.recalculate_graphemes();
                                 break;
-                            } 
+                            }
                         }
                     }
                     Key::Esc => {
