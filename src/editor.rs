@@ -22,6 +22,7 @@ enum Type {
 // Enum for holding prompt events
 enum PromptEvent {
     Update,
+    CharPress,
     KeyPress(Key),
 }
 
@@ -275,6 +276,18 @@ impl Editor {
                     }
                     _ => (),
                 },
+                PromptEvent::CharPress => {
+                    s.cursor = initial_cursor;
+                    if t != "" {
+                        for p in search_points {
+                            if is_ahead(&s.cursor, &p) {
+                                s.cursor = Position { x: p.x, y: p.y };
+                                s.recalculate_graphemes();
+                                break;
+                            }
+                        }
+                    }
+                }
                 PromptEvent::Update => (),
             }
         });
@@ -372,9 +385,11 @@ impl Editor {
                     } else {
                         result.push(c);
                     }
+                    func(self, PromptEvent::CharPress, &result)
                 }
                 Key::Backspace => {
                     result.pop();
+                    func(self, PromptEvent::CharPress, &result)
                 }
                 Key::Esc => {
                     func(self, PromptEvent::KeyPress(key), &result);
