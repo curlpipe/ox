@@ -78,18 +78,18 @@ pub fn trim_end(text: &str, end: usize) -> String {
     result.join("")
 }
 
-pub fn is_behind(cursor: &Position, position: &Position) -> bool {
-    if position.y > cursor.y {
+pub fn is_behind(cursor: &Position, offset: &Position, position: &Position) -> bool {
+    if position.y > cursor.y + offset.y {
         false
     } else {
-        !(position.y == cursor.y && cursor.x <= position.x)
+        !(position.y == cursor.y + offset.y && cursor.x + offset.x <= position.x)
     }
 }
 
-pub fn is_ahead(cursor: &Position, position: &Position) -> bool {
-    if position.y < cursor.y {
+pub fn is_ahead(cursor: &Position, offset: &Position, position: &Position) -> bool {
+    if position.y < cursor.y + offset.y {
         false
     } else {
-        !(position.y == cursor.y && cursor.x >= position.x)
+        !(position.y == cursor.y + offset.y && cursor.x + offset.x >= position.x)
     }
 }

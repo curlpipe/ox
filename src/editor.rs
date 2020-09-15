@@ -253,8 +253,8 @@ impl Editor {
                 PromptEvent::KeyPress(k) => match k {
                     Key::Left => {
                         for p in search_points.iter().rev() {
-                            if is_behind(&s.cursor, &p) {
-                                s.cursor = Position { x: p.x, y: p.y };
+                            if is_behind(&s.cursor, &s.offset, &p) {
+                                s.goto_behind(&p);
                                 s.recalculate_graphemes();
                                 break;
                             }
@@ -262,8 +262,8 @@ impl Editor {
                     }
                     Key::Right => {
                         for p in search_points {
-                            if is_ahead(&s.cursor, &p) {
-                                s.cursor = Position { x: p.x, y: p.y };
+                            if is_ahead(&s.cursor, &s.offset, &p) {
+                                s.goto_ahead(&p);
                                 s.recalculate_graphemes();
                                 break;
                             }
@@ -278,10 +278,11 @@ impl Editor {
                 },
                 PromptEvent::CharPress => {
                     s.cursor = initial_cursor;
+                    s.offset = initial_offset;
                     if t != "" {
                         for p in search_points {
-                            if is_ahead(&s.cursor, &p) {
-                                s.cursor = Position { x: p.x, y: p.y };
+                            if is_ahead(&s.cursor, &s.offset, &p) {
+                                s.goto_ahead(&p);
                                 s.recalculate_graphemes();
                                 break;
                             }
@@ -568,6 +569,21 @@ impl Editor {
             counter2 += 1;
             self.graphemes = counter2;
             counter += i;
+        }
+    }
+    fn goto_behind(&mut self, position: &Position) {
+        // Adjust the offset to ensure that the cursor is in view
+        self.offset = *position;
+        self.cursor = Position { x: 0, y: 0 };
+    }
+    fn goto_ahead(&mut self, position: &Position) {
+        // Adjust the offset to ensure that the cursor is in view
+        let max_range = self.term.height.saturating_sub(3) as usize;
+        if self.offset.y == 0 && position.y < max_range {
+            self.cursor.y = position.y;
+        } else {
+            self.offset = *position;
+            self.cursor = Position { x: 0, y: 0 };
         }
     }
     fn update(&mut self) {
