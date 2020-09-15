@@ -251,7 +251,7 @@ impl Editor {
             let search_points = s.doc.scan(t);
             match e {
                 PromptEvent::KeyPress(k) => match k {
-                    Key::Left => {
+                    Key::Left | Key::Up => {
                         for p in search_points.iter().rev() {
                             if is_behind(&s.cursor, &s.offset, &p) {
                                 s.goto_behind(&p);
@@ -260,7 +260,7 @@ impl Editor {
                             }
                         }
                     }
-                    Key::Right => {
+                    Key::Right | Key::Down => {
                         for p in search_points {
                             if is_ahead(&s.cursor, &s.offset, &p) {
                                 s.goto_ahead(&p);
@@ -573,8 +573,24 @@ impl Editor {
     }
     fn goto_behind(&mut self, position: &Position) {
         // Adjust the offset to ensure that the cursor is in view
-        self.offset = *position;
-        self.cursor = Position { x: 0, y: 0 };
+        let max_range = self.term.height.saturating_sub(3) as usize;
+        let max_x = (self.term.width as usize).saturating_sub(self.doc.line_offset);
+        if self.offset.y == 0 && position.y < max_range {
+            self.cursor = *position;
+        } else {
+            if position.x > max_x {
+                self.offset.x = position.x;
+            } else {
+                self.cursor.x = position.x;
+            }
+            if position.y < max_range {
+                self.offset.y = 0;
+                self.cursor.y = position.y;
+            } else {
+                self.offset.y = position.y;
+                self.cursor.y = 0;
+            }
+        }
     }
     fn goto_ahead(&mut self, position: &Position) {
         // Adjust the offset to ensure that the cursor is in view

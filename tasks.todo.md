@@ -1,17 +1,3 @@
- 
-0.2.0
-- [ ] Search feature
-  - [ ] Scroll offset with search
-    - [ ] Move the offset
-    - [X] Ensure the initial offset is saved
-  - [X] Searching on the same line as the cursor
-    - [X] Backwards
-    - [X] Forwards
-  - [X] Searching forward by default
-- [X] Line numbers
-- [X] Open document
-- [X] New document
-
 0.2.1
 - [ ] Undo / Redo
   - [ ] Create diff tools
@@ -105,3 +91,17 @@
 - [X] Revamp theme
 - [X] Thorough commenting
 - [X] Privatisation
+
+0.2.0
+- [X] Line numbers
+- [X] Open document
+- [X] New document
+- [X] Search feature
+  - [X] Searching on the same line as the cursor
+    - [X] Backwards
+    - [X] Forwards
+  - [X] Searching forward by default
+  - [X] Scroll offset with search
+    - [X] Ensure the initial offset is saved
+    - [X] Move the offset
+

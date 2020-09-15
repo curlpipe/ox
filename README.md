@@ -146,7 +146,7 @@ You can use the keybinding <kbd>Ctrl + Q</kbd> to exit Ox.
 
 #### Searching a file in Ox
 
-You can search both back and forth by activating the search feature through <kbd>Ctrl + F</kbd>, typing out what you wish to search and then using <kbd>→</kbd> To search forward or <kbd>←</kbd> to search backwards. 
+You can search both back and forth by activating the search feature through <kbd>Ctrl + F</kbd>, typing out what you wish to search and then using <kbd>→</kbd> or <kbd>↓</kbd> To search forward and <kbd>←</kbd> or <kbd>↑</kbd> to search backwards. 
 
 If at any time you wish to exit the search feature and return to the location in the document that you were in before activating the search feature, you can press <kbd>esc</kbd> on your keyboard, otherwise you can press any other key to exit the search feature and start editing your document at the new location.
 
