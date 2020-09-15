@@ -579,11 +579,17 @@ impl Editor {
     fn goto_ahead(&mut self, position: &Position) {
         // Adjust the offset to ensure that the cursor is in view
         let max_range = self.term.height.saturating_sub(3) as usize;
+        let max_x = (self.term.width as usize).saturating_sub(self.doc.line_offset);
         if self.offset.y == 0 && position.y < max_range {
-            self.cursor.y = position.y;
+            self.cursor = *position;
         } else {
-            self.offset = *position;
-            self.cursor = Position { x: 0, y: 0 };
+            if position.x > max_x {
+                self.offset.x = position.x;
+            } else {
+                self.cursor.x = position.x;
+            }
+            self.offset.y = position.y.saturating_sub(max_range);
+            self.cursor.y = max_range;
         }
     }
     fn update(&mut self) {
