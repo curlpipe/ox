@@ -17,6 +17,10 @@
     <br>
 </p>
 
+[![Build Status](https://img.shields.io/github/forks/curlpipe/ox.svg?style=for-the-badge)](https://github.com/curlpipe/ox)
+[![Build Status](https://img.shields.io/github/stars/curlpipe/ox.svg?style=for-the-badge)](https://github.com/curlpipe/ox)
+[![License](https://img.shields.io/github/license/curlpipe/ox.svg?style=for-the-badge)](https://github.com/curlpipe/ox)
+
 ## About The Project
 
 Ox is a text editor that differs to many text editors that are already out there. 
