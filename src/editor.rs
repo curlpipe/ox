@@ -1,7 +1,7 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH};
 use crate::util::{is_ahead, is_behind, title}; // Bring in the utils
-use crate::{Document, Row, Terminal, Event}; // Bringing in all the structs
+use crate::{Document, Event, Row, Terminal}; // Bringing in all the structs
 use std::time::Duration; // For implementing an FPS cap
 use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
@@ -154,10 +154,13 @@ impl Editor {
             _ => {
                 // Other characters
                 self.doc.rows[self.cursor.y + self.offset.y].insert(c, self.graphemes);
-                self.doc.event_stack.push(Event::Insert(Position { 
-                    x: self.cursor.x + self.offset.x, 
-                    y: self.cursor.y + self.offset.y,
-                }, c));
+                self.doc.event_stack.push(Event::Insert(
+                    Position {
+                        x: self.cursor.x + self.offset.x,
+                        y: self.cursor.y + self.offset.y,
+                    },
+                    c,
+                ));
                 self.command_line = CommandLine {
                     text: "Added insert operation to stack".to_string(),
                     msg: Type::Info,
@@ -184,10 +187,13 @@ impl Editor {
             // Backspace in the middle of a line
             self.move_cursor(Key::Left);
             if let Some(c) = self.doc.rows[self.cursor.y + self.offset.y].delete(self.graphemes) {
-                self.doc.event_stack.push(Event::Delete(Position { 
-                    x: self.cursor.x + self.offset.x + 1, 
-                    y: self.cursor.y + self.offset.y,
-                }, c));
+                self.doc.event_stack.push(Event::Delete(
+                    Position {
+                        x: self.cursor.x + self.offset.x + 1,
+                        y: self.cursor.y + self.offset.y,
+                    },
+                    c,
+                ));
                 self.command_line = CommandLine {
                     text: "Added delete operation to stack".to_string(),
                     msg: Type::Info,

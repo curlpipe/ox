@@ -37,7 +37,7 @@ impl EventStack {
     pub fn undo(&mut self) -> Option<Event> {
         // Perform an undo operation
         if let Some(element) = self.pop() {
-            Some(self.reverse(element))
+            Some(EventStack::reverse(element))
         } else {
             None
         }
@@ -45,7 +45,7 @@ impl EventStack {
     pub fn redo(&mut self) {
         // Perform a redo operation
     }
-    pub fn reverse(&self, event: Event) -> Event {
+    pub fn reverse(event: Event) -> Event {
         // Reverse an event
         match event {
             Event::Insert(pos, ch) => Event::Delete(pos, ch),
@@ -55,4 +55,3 @@ impl EventStack {
         }
     }
 }
-
