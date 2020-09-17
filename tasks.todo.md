@@ -1,11 +1,18 @@
 0.2.1
 - [ ] Undo / Redo
-  - [ ] Create diff tools
-  - [ ] Create diff stack
+  - [ ] Set up EventStack
+    - [ ] Read NewLine
+    - [ ] Read DeleteLine
+    - [ ] Support for offsets
+    - [X] Read Insertion
+    - [X] Read Deletion
+    - [X] Add reverse event lookup
   - [ ] Undo
-    - [ ] Update diff stack every 5 second wait
+    - [ ] Add event executor
   - [ ] Redo
-    - [ ] Delete stack after redoing and changing
+    - [ ] Set up seperate redo stack
+    - [ ] Clear redo stack on change
+  - [ ] Set up smart undoing / redoing to undo by groups of common events
 
 0.2.2
 - [ ] Fix clipboard bug
@@ -14,6 +21,7 @@
 
 0.2.3
 - [ ] CLAP cli
+  - [ ] Update documentation
 - [ ] Config file
   - [ ] Add a default config path
   - [ ] Allow a config argument
@@ -23,9 +31,11 @@
 
 0.2.4
 - [ ] Syntax Highlighting
-  - [ ] Set up basic syntax highlighting
+  - [ ] Set up basic syntax highlighting regex
   - [ ] Add external file reading
+  - [ ] Add basic Rust syntax
   - [ ] Allow for multiline syntax highlighting
+  - [ ] Finish Rust highlighting
   - [ ] Add Javascript
   - [ ] Add Python
   - [ ] Add Ruby
@@ -33,9 +43,14 @@
 
 0.2.5
 - [ ] Tabs
-  - [ ] Allow holding buffers
+  - [ ] Allow holding several documents
+  - [ ] Set up current doc variable
+  - [ ] Rewrite editor to use documents from current doc
+  - [ ] Allow editor to move between different documents
   - [ ] Add tab line
 - [ ] Save all
+  - [ ] Write function
+  - [ ] Set up keybinding
 
 0.2.6
 - [ ] Macro system
@@ -45,24 +60,43 @@
 
 0.2.7
   - [ ] Mouse selection support
+    - [ ] Read mouse events
+    - [ ] Move the cursor when clicking with mouse
 
 0.3.0
 - [ ] Auto indentation 
 - [ ] Prettier
   - [ ] Find a way to access the prettier API
   - [ ] Add a confirmation
+- [ ] Linting
+  - [ ] Read output from cargo's JSON
+  - [ ] Display issues in the command line
+  - [ ] highlight different colors for errors and warnings
 
 0.3.1
 - [ ] Auto brackets
+  - [ ] Automatically insert brackets on opening pair
+    - [ ] <
+    - [ ] (
+    - [ ] [
+    - [ ] {
+    - [ ] "
+    - [ ] '
+  - [ ] Move them around when pressing enter
 
 0.3.2
 - [ ] Auto complete
+  - [ ] Get information from racer and display it in a menu
 
 0.3.4
 - [ ] File tree
+  - [ ] Allow the document to be shifted up a bit
+  - [ ] Render random text to the left of the document
 
 0.3.5
 - [ ] Start page
+  - [ ] Store recently used documents
+  - [ ] List them out
 
 0.1.1
 - [X] Go to the next line at end of line
