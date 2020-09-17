@@ -23,8 +23,9 @@
 
 ## About The Project
 
-Ox is a text editor that differs to many text editors that are already out there. 
-It is programmed in Rust to ensure that it is memory and thread safe as well as light and quick.
+Ox is a text editor with IDE-like features. It was written in Rust using ANSI escape sequences. It assists developers with programming by providing several tools to speed up and make programming easier. It is a refreshing alternative to heavily bloated and resource hungry editors such as VSCode and JetBrains. It is so lightweight that it can be used on even the older computers. 
+
+It runs in the terminal and runs on platforms like Linux and MacOS but doesn't work on Windows directly (it works if you use WSL) due to a lack of a good command line. There are many text editors out there and each one of them has their flaws and I hope to have a text editor that overcomes many of the burdens and issues.
 
 Ox is not based off any other editor and has been built from the ground up without any base at all.
 
@@ -32,30 +33,17 @@ Ox is not based off any other editor and has been built from the ground up witho
 
 Ox aims to be an editor that takes features from some of the most popular editors out there, gaining the best of all worlds.
 
-#### Ox vs Vim
+**Vim** http://vim.org: Vim provides a plugin system for adding features to it as it is very minimal and only provides basic text editing functionality by default. It is quite extensive and has its own programming language for configuring and writing plugins for it. It has a steep learning curve due to being a “modal” text editor, having special modes for editing text. Ox is easier to use then Vim because it doesn’t have modes where the keyboard is repurposed, however it takes the idea of being a keyboard-only editor and being able to act just like an IDE after some configuration.
 
-Vim is a text editor that came about in 1991 and derived from Vi.
+**Nano** https://www.nano-editor.org/: Nano is an editor that is very simple to grasp due to its intuitive key bindings such as “Ctrl+S” to save and “Ctrl+?” for the help menu etc. Ox took the idea for the keybindings from this editor, they are simple to remember, “Ctrl+F” for “Find”, “Ctrl+Q” for “Quit”, meaning that Ox doesn’t have as steep a learning curve. 
 
- - Vim has its own scripting language
-    - Ox doesn't have it's own scripting language in order to stay light and remain fast.
-    - Instead, modifications can be applied through editing the Rust code directly to take advantage of the optimisation. 
- - Vim has a plugin system
-    - Vim's plugin system is great but there is a major flaw with it because many plugins are poor quality and conflict with each other.
-    - Ox implements the majority of plugins that you'd need directly into the editor, ensuring that they work well and are effcient.
- - Vim is a modal editor
-    - Vim is modal text editor meaning that they have modes that repurpose your keyboard depending on what mode you are in.
-    - Ox isn't modal in the way Vim is because pressing <kbd>esc</kbd> over and over again can become incredibly labour intensive and doesn't flow very well.
+**Micro** https://micro-editor.github.io/: Micro has a plugin system that is programmed with a language called Lua however I can’t seem to find any up to date plugins for it and it lacks features such as a file tree. It is micro that inspired me to add mouse functionality and other features.
 
-#### Ox vs Nano
+**Emacs** https://www.gnu.org/software/emacs/: Emacs is still actively used today due to its freedom to modify and change the source code. Ox took the idea for the customization and extensibility of Emacs and made a configuration system where you can change the colours and appearance of the editor.
 
-Nano is an editor from around 1999 and has the advantage of being very easy to use.
+**Xi** https://xi-editor.io/: Xi is also written in Rust but is purely a backend at the moment, I decided to make Ox both a frontend and a backend because Xi has many frontends, but most of them are broken and it lacks a lot of features.
 
- - Nano is easy to use and intuitive
-    - Nano uses keybindings on Ctrl to manage the editor.
-    - Ox uses Ctrl keybindings that the majority of GUI text editors use, just like nano. This makes it easy to use.
- - Nano is simple
-    - Nano can be used to edit text and that's about it, it does one thing well.
-    - Ox is more modern than Nano because it implements many features that Nano is unable to get, making it a great and easy replacement for nano.
+**Kiro** https://github.com/rhysd/kiro-editor: Kiro is written in Rust and adds features such as unicode support, a nicer colour scheme and small things like resizing. Ox took the ideas for the improvements from Kiro, however implemented them differently. Kiro’s source code is also very difficult to understand at points, so I decided to keep Ox’s syntax simple and use a minimal set of the vast features that Rust has to offer.
 
 ### Built With
 
@@ -68,19 +56,21 @@ Ox is super minimal and aims to use as few dependencies as possible, allowing fo
 ## Getting Started
 
 You can currently only build Ox from source.
-While this may sound daunting to many people, it really isn't that hard!
+While this may sound daunting to many people, it really isn't that hard and takes 1 minute worst case scenario!
 
 ### Prerequisites
 
 Because Ox is written in Rust, you must have a modern and working version of `rustc` and `cargo`.
 On Arch Linux, you can run this command:
 ```sh
-sudo pacman -S rust
+sudo pacman -S rustup
+rustup toolchain install stable
 ```
 
 If you are not using Arch, you can easily set it up on other distros by running the distro-neutral command:
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+/usr/bin/rustup toolchain install stable
 ```
 You must have `curl` installed in order to run this command.
 
@@ -112,7 +102,7 @@ At the moment, you can open ox by using the command
 ox
 ```
 
-This will open up an empty buffer.
+This will open up an empty document.
 
 If you wish to open a file straight from the command line, you can run
 ```
@@ -140,9 +130,7 @@ You can use the keys <kbd>Backspace</kbd> and <kbd>Return</kbd> / <kbd>Enter</kb
 
 #### Saving the file
 
-The simple keyboard shortcut of <kbd>Ctrl + S</kbd> can be used to save the current file.
-
-The simple keyboard shortcut of <kbd>Ctrl + W</kbd> can be used to "save as" the current file to a specific path.
+The simple keyboard shortcut of <kbd>Ctrl + S</kbd> can be used to save the current file and <kbd>Ctrl + W</kbd> can be used to "save as" the current file to a specific path.
 
 #### Closing Ox
 
