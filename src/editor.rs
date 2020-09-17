@@ -124,18 +124,15 @@ impl Editor {
             _ => (),
         }
     }
+    fn set_command_line(&mut self, text: String, msg: Type) {
+        self.command_line = CommandLine { text, msg };
+    }
     fn undo(&mut self) {
         if let Some((pos, event)) = self.doc.undo() {
             self.cursor = Position { x: pos.x, y: pos.y };
-            self.command_line = CommandLine {
-                text: format!("Completed {:?} operation", event),
-                msg: Type::Info,
-            };
+            self.set_command_line(format!("Completed {:?} operation", event), Type::Info);
         } else {
-            self.command_line = CommandLine {
-                text: "Failed to Undo last action".to_string(),
-                msg: Type::Error,
-            };
+            self.set_command_line("Failed to Undo last action".to_string(), Type::Error);
         }
     }
     fn character(&mut self, c: char) {
@@ -161,10 +158,7 @@ impl Editor {
                     },
                     c,
                 ));
-                self.command_line = CommandLine {
-                    text: "Added insert operation to stack".to_string(),
-                    msg: Type::Info,
-                };
+                self.set_command_line("Added insert operation to stack".to_string(), Type::Info);
                 self.move_cursor(Key::Right);
             }
         }
@@ -194,10 +188,7 @@ impl Editor {
                     },
                     c,
                 ));
-                self.command_line = CommandLine {
-                    text: "Added delete operation to stack".to_string(),
-                    msg: Type::Info,
-                };
+                self.set_command_line("Added delete operation to stack".to_string(), Type::Info);
             }
         }
     }
@@ -229,32 +220,26 @@ impl Editor {
                     self.offset.y = 0;
                     self.leap_cursor(Key::Home);
                 } else {
-                    self.command_line = CommandLine {
-                        text: "File couldn't be opened".to_string(),
-                        msg: Type::Error,
-                    };
+                    self.set_command_line("File couldn't be opened".to_string(), Type::Error);
                 }
             }
         } else {
-            self.command_line = CommandLine {
-                text: "Open cancelled".to_string(),
-                msg: Type::Info,
-            };
+            self.set_command_line("Open cancelled".to_string(), Type::Info);
         }
     }
     fn save(&mut self) {
         // Handle save event
         if self.doc.save().is_ok() {
             self.dirty = false;
-            self.command_line = CommandLine {
-                text: format!("File saved to {} successfully", self.doc.path),
-                msg: Type::Info,
-            };
+            self.set_command_line(
+                format!("File saved to {} successfully", self.doc.path),
+                Type::Info,
+            );
         } else {
-            self.command_line = CommandLine {
-                text: format!("Failed to save file to {}", self.doc.path),
-                msg: Type::Error,
-            };
+            self.set_command_line(
+                format!("Failed to save file to {}", self.doc.path),
+                Type::Error,
+            );
         }
     }
     fn save_as(&mut self) {
@@ -262,23 +247,14 @@ impl Editor {
         if let Some(result) = self.prompt("Save as", &|_, _, _| {}) {
             if self.doc.save_as(&result[..]).is_ok() {
                 self.dirty = false;
-                self.command_line = CommandLine {
-                    text: format!("File saved to {} successfully", result),
-                    msg: Type::Info,
-                };
+                self.set_command_line(format!("File saved to {} successfully", result), Type::Info);
                 self.doc.name = result.clone();
                 self.doc.path = result;
             } else {
-                self.command_line = CommandLine {
-                    text: format!("Failed to save file to {}", result),
-                    msg: Type::Error,
-                };
+                self.set_command_line(format!("Failed to save file to {}", result), Type::Error);
             }
         } else {
-            self.command_line = CommandLine {
-                text: "Save as cancelled".to_string(),
-                msg: Type::Info,
-            };
+            self.set_command_line("Save as cancelled".to_string(), Type::Info);
         }
     }
     fn search(&mut self) {
@@ -330,10 +306,7 @@ impl Editor {
                 PromptEvent::Update => (),
             }
         });
-        self.command_line = CommandLine {
-            msg: Type::Info,
-            text: "Search exited".to_string(),
-        }
+        self.set_command_line("Search exited".to_string(), Type::Info);
     }
     fn return_key(&mut self) {
         // Return key
@@ -370,14 +343,14 @@ impl Editor {
         // For events that require changes to the document
         if self.dirty {
             // Handle unsaved changes
-            self.command_line = CommandLine {
-                text: format!(
+            self.set_command_line(
+                format!(
                     "Unsaved Changes! Ctrl + {} to force {}",
                     key.to_uppercase(),
                     subject
                 ),
-                msg: Type::Warning,
-            };
+                Type::Warning,
+            );
             self.update();
             match self.read_key() {
                 Key::Char('\n') => return true,
@@ -385,18 +358,10 @@ impl Editor {
                     if k == key {
                         return true;
                     } else {
-                        self.command_line = CommandLine {
-                            text: format!("{} cancelled", title(subject)),
-                            msg: Type::Info,
-                        }
+                        self.set_command_line(format!("{} cancelled", title(subject)), Type::Info);
                     }
                 }
-                _ => {
-                    self.command_line = CommandLine {
-                        text: format!("{} cancelled", title(subject)),
-                        msg: Type::Info,
-                    }
-                }
+                _ => self.set_command_line(format!("{} cancelled", title(subject)), Type::Info),
             }
         } else {
             return true;
@@ -409,10 +374,7 @@ impl Editor {
         func: &dyn Fn(&mut Self, PromptEvent, &str),
     ) -> Option<String> {
         // Create a new prompt
-        self.command_line = CommandLine {
-            text: format!("{}: ", prompt),
-            msg: Type::Info,
-        };
+        self.set_command_line(format!("{}: ", prompt), Type::Info);
         self.update();
         let mut result = String::new();
         'p: loop {
@@ -436,10 +398,7 @@ impl Editor {
                 }
                 _ => func(self, PromptEvent::KeyPress(key), &result),
             }
-            self.command_line = CommandLine {
-                text: format!("{}: {}", prompt, result),
-                msg: Type::Info,
-            };
+            self.set_command_line(format!("{}: {}", prompt, result), Type::Info);
             func(self, PromptEvent::Update, &result);
             self.update();
         }
