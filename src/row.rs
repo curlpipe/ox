@@ -85,10 +85,17 @@ impl Row {
         before.push_str(&after);
         self.string = before;
     }
-    pub fn delete(&mut self, pos: usize) {
+    pub fn delete(&mut self, pos: usize) -> Option<char> {
         // Remove a character
         let before: String = self.string.graphemes(true).take(pos as usize).collect();
         let after: String = self.string.graphemes(true).skip(1 + pos as usize).collect();
+        let result: Option<char>;
+        if let Some(c) = self.chars().get(pos) {
+            result = Some(c.parse().unwrap());
+        } else {
+            result = None;
+        }
         self.string = before + &after;
+        result
     }
 }

@@ -1,7 +1,7 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH};
 use crate::util::{is_ahead, is_behind, title}; // Bring in the utils
-use crate::{Document, Row, Terminal}; // Bringing in all the structs
+use crate::{Document, Row, Terminal, Event}; // Bringing in all the structs
 use std::time::Duration; // For implementing an FPS cap
 use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
@@ -33,7 +33,7 @@ struct CommandLine {
 }
 
 // For representing positions
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -118,9 +118,24 @@ impl Editor {
             Key::Ctrl('s') => self.save(),
             Key::Ctrl('w') => self.save_as(),
             Key::Ctrl('f') => self.search(),
+            Key::Ctrl('u') => self.undo(),
             Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
             Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
+        }
+    }
+    fn undo(&mut self) {
+        if let Some((pos, event)) = self.doc.undo() {
+            self.cursor = Position { x: pos.x, y: pos.y };
+            self.command_line = CommandLine {
+                text: format!("Completed {:?} operation", event),
+                msg: Type::Info,
+            };
+        } else {
+            self.command_line = CommandLine {
+                text: "Failed to Undo last action".to_string(),
+                msg: Type::Error,
+            };
         }
     }
     fn character(&mut self, c: char) {
@@ -139,6 +154,14 @@ impl Editor {
             _ => {
                 // Other characters
                 self.doc.rows[self.cursor.y + self.offset.y].insert(c, self.graphemes);
+                self.doc.event_stack.push(Event::Insert(Position { 
+                    x: self.cursor.x + self.offset.x, 
+                    y: self.cursor.y + self.offset.y,
+                }, c));
+                self.command_line = CommandLine {
+                    text: "Added insert operation to stack".to_string(),
+                    msg: Type::Info,
+                };
                 self.move_cursor(Key::Right);
             }
         }
@@ -160,7 +183,16 @@ impl Editor {
         } else {
             // Backspace in the middle of a line
             self.move_cursor(Key::Left);
-            self.doc.rows[self.cursor.y + self.offset.y].delete(self.graphemes);
+            if let Some(c) = self.doc.rows[self.cursor.y + self.offset.y].delete(self.graphemes) {
+                self.doc.event_stack.push(Event::Delete(Position { 
+                    x: self.cursor.x + self.offset.x + 1, 
+                    y: self.cursor.y + self.offset.y,
+                }, c));
+                self.command_line = CommandLine {
+                    text: "Added delete operation to stack".to_string(),
+                    msg: Type::Info,
+                };
+            }
         }
     }
     fn quit(&mut self) {

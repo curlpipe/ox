@@ -22,6 +22,7 @@ mod editor;
 mod row;
 mod terminal;
 mod util;
+mod undo;
 
 use document::Document;
 use editor::{Editor, Position};
@@ -29,6 +30,7 @@ use row::Row;
 use std::time::Duration;
 use std::{panic, thread};
 use terminal::Terminal;
+use undo::{Event, EventStack};
 
 fn main() {
     // Attempt to start an editor instance

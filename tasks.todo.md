@@ -19,14 +19,9 @@
   - [ ] Allow a config argument
   - [ ] Have a few example config files
   - [ ] Add hardcoded backup config file
+- [ ] Replace
 
 0.2.4
-- [ ] Macro system
-  - [ ] Allow special command mode
-  - [ ] Have a few example macros
-  - [ ] Allow binding of macros to some keys
-
-0.2.5
 - [ ] Syntax Highlighting
   - [ ] Set up basic syntax highlighting
   - [ ] Add external file reading
@@ -36,28 +31,37 @@
   - [ ] Add Ruby
   - [ ] Add C
 
-0.2.6
+0.2.5
 - [ ] Tabs
   - [ ] Allow holding buffers
   - [ ] Add tab line
 - [ ] Save all
 
+0.2.6
+- [ ] Macro system
+  - [ ] Allow special command mode
+  - [ ] Have a few example macros
+  - [ ] Allow binding of macros to some keys
+
+0.2.7
+  - [ ] Mouse selection support
+
 0.3.0
 - [ ] Auto indentation 
+- [ ] Prettier
+  - [ ] Find a way to access the prettier API
+  - [ ] Add a confirmation
 
 0.3.1
-- [ ] Prettier
-
-0.3.2
 - [ ] Auto brackets
 
-0.3.3
+0.3.2
 - [ ] Auto complete
 
-0.4.0
+0.3.4
 - [ ] File tree
 
-0.4.1
+0.3.5
 - [ ] Start page
 
 0.1.1

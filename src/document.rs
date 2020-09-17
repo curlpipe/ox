@@ -1,14 +1,15 @@
 // Document.rs - For managing external files
 use crate::config::LINE_NUMBER_PADDING; // Config stuff
-use crate::{Position, Row}; // The Row and Position struct
+use crate::{Position, Row, EventStack, Event}; // The Row and Position struct
 use std::fs; // For managing file reading and writing
 
 // Document struct (class) to manage files and text
 pub struct Document {
-    pub rows: Vec<Row>,     // For holding the contents of the document
-    pub path: String,       // For holding the path to the document
-    pub name: String,       // For holding the name of the document
-    pub line_offset: usize, // For holding a line number offset
+    pub rows: Vec<Row>,          // For holding the contents of the document
+    pub path: String,            // For holding the path to the document
+    pub name: String,            // For holding the name of the document
+    pub line_offset: usize,      // For holding a line number offset
+    pub event_stack: EventStack, // For holding the event stack
 }
 
 // Add methods to the document struct
@@ -20,6 +21,7 @@ impl Document {
             name: String::from("[No name]"),
             path: String::new(),
             line_offset: 2,
+            event_stack: EventStack::new(),
         }
     }
     pub fn open(path: &str) -> Option<Self> {
@@ -33,6 +35,7 @@ impl Document {
                 name: path.to_string(),
                 path: path.to_string(),
                 line_offset: 2,
+                event_stack: EventStack::new(),
             })
         } else {
             // File doesn't exist
@@ -50,6 +53,7 @@ impl Document {
                 name: path.to_string(),
                 path: path.to_string(),
                 line_offset: 2,
+                event_stack: EventStack::new(),
             }
         }
     }
@@ -73,6 +77,31 @@ impl Document {
             }
         }
         result
+    }
+    pub fn undo(&mut self) -> Option<(Position, Event)> {
+        // Reverse the previous event
+        if let Some(event) = self.event_stack.undo() {
+            if let Some(pos) = self.do_event(event) {
+                Some((pos, event))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+    fn do_event(&mut self, event: Event) -> Option<Position> {
+        match event {
+            Event::Delete(pos, _) => {
+                self.rows[pos.y].delete(pos.x);
+                Some(pos)
+            }
+            Event::Insert(pos, c) => {
+                self.rows[pos.y].insert(c, pos.x);
+                Some(pos)
+            }
+            _ => None,
+        }
     }
     fn render(&self) -> String {
         // Render the lines of a document for writing
