@@ -92,15 +92,34 @@ impl Document {
     }
     fn do_event(&mut self, event: Event) -> Option<Position> {
         match event {
-            Event::Delete(pos, _) => {
-                self.rows[pos.y].delete(pos.x);
-                Some(pos)
+            Event::Delete(pos, _, shift) => {
+                let x = (pos.x as i128).saturating_add(i128::from(shift)) as usize;
+                self.rows[pos.y].delete(x);
+                Some(Position { x, y: pos.y })
             }
-            Event::Insert(pos, c) => {
+            Event::Insert(pos, c, shift) => {
+                let x = (pos.x as i128).saturating_add(i128::from(shift)) as usize;
                 self.rows[pos.y].insert(c, pos.x);
-                Some(pos)
+                Some(Position { x, y: pos.y })
             }
-            _ => None,
+            Event::NewLine(pos, shift_action, shift_cursor) => {
+                let action_y = (pos.y as i128).saturating_add(i128::from(shift_action));
+                let cursor_y = (pos.y as i128).saturating_add(i128::from(shift_cursor));
+                self.rows.insert(action_y as usize, Row::from(""));
+                Some(Position {
+                    x: pos.x,
+                    y: cursor_y as usize,
+                })
+            }
+            Event::DeleteLine(pos, shift_action, shift_cursor) => {
+                let action_y = (pos.y as i128).saturating_add(i128::from(shift_action));
+                let cursor_y = (pos.y as i128).saturating_add(i128::from(shift_cursor));
+                self.rows.remove(action_y as usize);
+                Some(Position {
+                    x: pos.x,
+                    y: cursor_y as usize,
+                })
+            }
         }
     }
     fn render(&self) -> String {

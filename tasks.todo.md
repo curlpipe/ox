@@ -2,17 +2,22 @@
 - [ ] Undo / Redo
   - [ ] Set up EventStack
     - [ ] Read NewLine
+      - [ ] Middle of line
+      - [X] End of line
+      - [X] Start of line
     - [ ] Read DeleteLine
+      - [ ] Middle of line
+      - [X] Start of line
     - [ ] Support for offsets
     - [X] Read Insertion
     - [X] Read Deletion
     - [X] Add reverse event lookup
-  - [ ] Undo
-    - [ ] Add event executor
   - [ ] Redo
     - [ ] Set up seperate redo stack
     - [ ] Clear redo stack on change
   - [ ] Set up smart undoing / redoing to undo by groups of common events
+  - [X] Undo
+    - [X] Add event executor
 
 0.2.2
 - [ ] Fix clipboard bug

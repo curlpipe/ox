@@ -4,10 +4,10 @@ use crate::Position;
 // Event enum to store the types of events that occur
 #[derive(Clone, Copy, Debug)]
 pub enum Event {
-    Insert(Position, char),
-    Delete(Position, char),
-    NewLine(Position),
-    DeleteLine(Position),
+    Insert(Position, char, i8),
+    Delete(Position, char, i8),
+    NewLine(Position, i8, i8),
+    DeleteLine(Position, i8, i8),
 }
 
 // A struct for holding all the events taken by the user
@@ -48,10 +48,10 @@ impl EventStack {
     pub fn reverse(event: Event) -> Event {
         // Reverse an event
         match event {
-            Event::Insert(pos, ch) => Event::Delete(pos, ch),
-            Event::Delete(pos, ch) => Event::Insert(pos, ch),
-            Event::NewLine(pos) => Event::DeleteLine(pos),
-            Event::DeleteLine(pos) => Event::NewLine(pos),
+            Event::Insert(pos, ch, shift) => Event::Delete(pos, ch, shift),
+            Event::Delete(pos, ch, shift) => Event::Insert(pos, ch, shift),
+            Event::NewLine(pos, shift_a, shift_c) => Event::DeleteLine(pos, shift_a, shift_c),
+            Event::DeleteLine(pos, shift_a, shift_c) => Event::NewLine(pos, shift_a, shift_c),
         }
     }
 }

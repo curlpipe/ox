@@ -1,5 +1,9 @@
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::cast_possible_truncation, clippy::used_underscore_binding)]
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::used_underscore_binding,
+    clippy::cast_sign_loss
+)]
 
 /*
     Ox editor is a text editor written in the Rust programming language.
