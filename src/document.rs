@@ -29,7 +29,9 @@ impl Document {
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
             let mut file = file.split('\n').collect::<Vec<&str>>();
-            file.pop();
+            if file.iter().last().unwrap().is_empty() {
+                let _ = file.pop();
+            }
             Some(Self {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: path.to_string(),
