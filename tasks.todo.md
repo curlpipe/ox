@@ -1,17 +1,17 @@
-0.2.1
+0.2.1 (Undo & Redo)
 - [ ] Undo / Redo
   - [ ] Set up EventStack
-    - [ ] Read NewLine
-      - [ ] Middle of line
-      - [X] End of line
-      - [X] Start of line
-    - [ ] Read DeleteLine
-      - [ ] Middle of line
-      - [X] Start of line
     - [ ] Support for offsets
     - [X] Read Insertion
     - [X] Read Deletion
     - [X] Add reverse event lookup
+    - [X] Read NewLine
+      - [X] End of line
+      - [X] Start of line
+      - [X] Middle of line
+    - [X] Read DeleteLine
+      - [X] Start of line
+      - [X] Middle of line
   - [ ] Redo
     - [ ] Set up seperate redo stack
     - [ ] Clear redo stack on change
@@ -19,12 +19,12 @@
   - [X] Undo
     - [X] Add event executor
 
-0.2.2
+0.2.2 (Input bug solving)
 - [ ] Fix clipboard bug
   - [ ] Check using a log file whether it's the async
   - [ ] Keypress Queue
 
-0.2.3
+0.2.3 (Interface improvements)
 - [ ] CLAP cli
   - [ ] Update documentation
 - [ ] Config file
@@ -34,7 +34,7 @@
   - [ ] Add hardcoded backup config file
 - [ ] Replace
 
-0.2.4
+0.2.4 (Syntax highlighting)
 - [ ] Syntax Highlighting
   - [ ] Set up basic syntax highlighting regex
   - [ ] Add external file reading
@@ -46,7 +46,7 @@
   - [ ] Add Ruby
   - [ ] Add C
 
-0.2.5
+0.2.5 (Multitasking)
 - [ ] Tabs
   - [ ] Allow holding several documents
   - [ ] Set up current doc variable
@@ -57,18 +57,18 @@
   - [ ] Write function
   - [ ] Set up keybinding
 
-0.2.6
+0.2.6 (Extensibility)
 - [ ] Macro system
   - [ ] Allow special command mode
   - [ ] Have a few example macros
   - [ ] Allow binding of macros to some keys
 
-0.2.7
+0.2.7 (Mouse support)
   - [ ] Mouse selection support
     - [ ] Read mouse events
     - [ ] Move the cursor when clicking with mouse
 
-0.3.0
+0.3.0 (IDE level features)
 - [ ] Auto indentation 
 - [ ] Prettier
   - [ ] Find a way to access the prettier API
@@ -78,7 +78,7 @@
   - [ ] Display issues in the command line
   - [ ] highlight different colors for errors and warnings
 
-0.3.1
+0.3.1 (IDE level features #2)
 - [ ] Auto brackets
   - [ ] Automatically insert brackets on opening pair
     - [ ] <
@@ -87,18 +87,20 @@
     - [ ] {
     - [ ] "
     - [ ] '
+    - [ ] `
+    - [ ] |
   - [ ] Move them around when pressing enter
 
-0.3.2
+0.3.2 (IDE level features #3)
 - [ ] Auto complete
   - [ ] Get information from racer and display it in a menu
 
-0.3.4
+0.3.4 (Navigation)
 - [ ] File tree
   - [ ] Allow the document to be shifted up a bit
   - [ ] Render random text to the left of the document
 
-0.3.5
+0.3.5 (Start up experience improvenment)
 - [ ] Start page
   - [ ] Store recently used documents
   - [ ] List them out

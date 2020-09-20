@@ -1,7 +1,7 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH};
+use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG};
 use crate::util::{is_ahead, is_behind, title}; // Bring in the utils
-use crate::{Document, Event, Row, Terminal}; // Bringing in all the structs
+use crate::{Document, Event, Terminal}; // Bringing in all the structs
 use std::time::Duration; // For implementing an FPS cap
 use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
@@ -123,148 +123,61 @@ impl Editor {
             Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
         }
+        //fs::write("log.log", format!("{:#?}", self.doc.event_stack)).unwrap();
     }
     fn set_command_line(&mut self, text: String, msg: Type) {
         self.command_line = CommandLine { text, msg };
     }
     fn undo(&mut self) {
-        if let Some((pos, event)) = self.doc.undo() {
-            self.cursor = Position { x: pos.x, y: pos.y };
+        if let Some(event) = self.doc.event_stack.pop() {
+            self.set_command_line(format!("{:?}", event), Type::Info);
+            self.cursor = self.doc.reverse(event);
             self.recalculate_graphemes();
-            self.set_command_line(format!("Completed {:?} operation", event), Type::Info);
         } else {
-            self.set_command_line("Failed to Undo last action".to_string(), Type::Error);
+            self.set_command_line("Stack is empty".to_string(), Type::Error);
         }
     }
     fn character(&mut self, c: char) {
         // The user pressed a character key
         self.dirty = true;
         self.show_welcome = false;
-        match c {
-            '\n' => self.return_key(), // The user pressed the return key
-            '\t' => {
-                // The user pressed the tab key
-                for _ in 0..TAB_WIDTH {
-                    self.doc.rows[self.cursor.y + self.offset.y].insert(' ', self.graphemes);
-                    self.move_cursor(Key::Right);
-                }
-            }
-            _ => {
-                // Other characters
-                self.doc.rows[self.cursor.y + self.offset.y].insert(c, self.graphemes);
-                self.doc.event_stack.push(Event::Insert(
-                    Position {
-                        x: self.cursor.x + self.offset.x,
-                        y: self.cursor.y + self.offset.y,
-                    },
-                    c,
-                    0,
-                ));
-                self.set_command_line("Added insert operation to stack".to_string(), Type::Info);
-                self.move_cursor(Key::Right);
-            }
-        }
+        let event = Event::Insert(
+            Position {
+                x: self.cursor.x + self.offset.x,
+                y: self.cursor.y + self.offset.y,
+            },
+            self.graphemes,
+            c,
+            self.cursor.x + self.offset.x,
+        );
+        self.cursor = self.doc.register_event(event);
+        self.snap_cursor();
+        self.recalculate_graphemes();
+        self.prevent_unicode_hell();
     }
-    fn return_key(&mut self) {
-        // Return key
-        if self.cursor.x + self.offset.x == 0 {
-            // Return key pressed at the start of the line
-            self.doc
-                .rows
-                .insert(self.cursor.y + self.offset.y, Row::from(""));
-            self.move_cursor(Key::Down);
-            self.doc.event_stack.push(Event::NewLine(
-                Position {
-                    x: self.cursor.x + self.offset.x,
-                    y: (self.cursor.y + self.offset.y).saturating_sub(1),
-                },
-                0,
-                0,
-            ));
-            self.set_command_line("Added newline (start) to stack".to_string(), Type::Info);
-        } else if self.cursor.x + self.offset.x
-            == self.doc.rows[self.cursor.y + self.offset.y].length()
-        {
-            // Return key pressed at the end of the line
-            self.doc
-                .rows
-                .insert(self.cursor.y + self.offset.y + 1, Row::from(""));
-            self.doc.event_stack.push(Event::NewLine(
+    fn backspace(&mut self) {
+        // Handling the backspace key
+        if self.cursor.x + self.cursor.y + self.offset.x + self.offset.y != 0 {
+            self.dirty = true;
+            self.show_welcome = false;
+            let ch = if let Some(c) = self.doc.rows[self.cursor.y + self.offset.y]
+                .chars().get(self.graphemes.saturating_sub(1)) 
+            {
+                c.parse().unwrap()
+            } else {
+                '\n'
+            };
+            let event = Event::Delete(
                 Position {
                     x: self.cursor.x + self.offset.x,
                     y: self.cursor.y + self.offset.y,
                 },
-                1,
-                0,
-            ));
-            self.set_command_line("Added newline (end) to stack".to_string(), Type::Info);
-            self.move_cursor(Key::Down);
-            self.leap_cursor(Key::Home);
+                self.graphemes,
+                ch,
+                self.doc.rows[(self.cursor.y + self.offset.y).saturating_sub(1)].length(),
+            );
+                self.cursor = self.doc.register_event(event);
             self.recalculate_graphemes();
-        } else {
-            // Return key pressed in the middle of the line
-            let current = self.doc.rows[self.cursor.y + self.offset.y].chars();
-            let before = Row::from(&current[..self.graphemes].join("")[..]);
-            let after = Row::from(&current[self.graphemes..].join("")[..]);
-            self.doc
-                .rows
-                .insert(self.cursor.y + self.offset.y + 1, after);
-            self.doc.rows[self.cursor.y + self.offset.y] = before;
-            self.move_cursor(Key::Down);
-            self.leap_cursor(Key::Home);
-        }
-    }
-    fn backspace(&mut self) {
-        // Handling the backspace key
-        self.dirty = true;
-        self.show_welcome = false;
-        if self.cursor.x + self.offset.x == 0 && self.cursor.y + self.offset.y != 0 {
-            // Backspace at the start of a line
-            let current = self.doc.rows[self.cursor.y + self.offset.y].string.clone();
-            let prev = self.doc.rows[self.cursor.y + self.offset.y - 1].clone();
-            self.doc.rows[self.cursor.y + self.offset.y - 1] =
-                Row::from(&(prev.string.clone() + &current)[..]);
-            if self.doc.rows[self.cursor.y + self.offset.y]
-                .string
-                .is_empty()
-            {
-                self.doc.event_stack.push(Event::DeleteLine(
-                    Position {
-                        x: self.cursor.x + self.offset.x,
-                        y: self.cursor.y + self.offset.y,
-                    },
-                    0,
-                    0,
-                ));
-            } else {
-                self.doc.event_stack.push(Event::DeleteLine(
-                    Position {
-                        x: self.cursor.x + self.offset.x,
-                        y: self.cursor.y + self.offset.y,
-                    },
-                    -1,
-                    0,
-                ));
-            }
-            self.set_command_line("Added delete line (start) to stack".to_string(), Type::Info);
-            self.doc.rows.remove(self.cursor.y + self.offset.y);
-            self.move_cursor(Key::Up);
-            self.cursor.x = prev.length();
-            self.recalculate_graphemes();
-        } else if self.cursor.y + self.offset.y + self.cursor.x + self.offset.x != 0 {
-            // Backspace in the middle of a line
-            self.move_cursor(Key::Left);
-            if let Some(c) = self.doc.rows[self.cursor.y + self.offset.y].delete(self.graphemes) {
-                self.doc.event_stack.push(Event::Delete(
-                    Position {
-                        x: self.cursor.x + self.offset.x,
-                        y: self.cursor.y + self.offset.y,
-                    },
-                    c,
-                    1,
-                ));
-                self.set_command_line("Added delete (mid) to stack".to_string(), Type::Info);
-            }
         }
     }
     fn quit(&mut self) {

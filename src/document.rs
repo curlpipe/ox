@@ -1,7 +1,8 @@
 // Document.rs - For managing external files
-use crate::config::LINE_NUMBER_PADDING; // Config stuff
+use crate::config::{LINE_NUMBER_PADDING, TAB_WIDTH}; // Config stuff
 use crate::{Event, EventStack, Position, Row}; // The Row and Position struct
-use std::fs; // For managing file reading and writing
+use std::fs;
+use unicode_width::UnicodeWidthChar; // For getting the length of unicode chars // For managing file reading and writing
 
 // Document struct (class) to manage files and text
 pub struct Document {
@@ -78,47 +79,151 @@ impl Document {
         }
         result
     }
-    pub fn undo(&mut self) -> Option<(Position, Event)> {
-        // Reverse the previous event
-        if let Some(event) = self.event_stack.undo() {
-            if let Some(pos) = self.do_event(event) {
-                Some((pos, event))
-            } else {
-                None
+    pub fn register_event(&mut self, event: Event) -> Position {
+        self.event_stack.push(event);
+        self.do_event(event)
+    }
+    pub fn do_event(&mut self, event: Event) -> Position {
+        match event {
+            Event::Insert(pos, graphemes, c, _) => {
+                match c {
+                    '\n' => {
+                        if pos.x == 0 {
+                            // Return key pressed at the start of the line
+                            self.rows.insert(pos.y, Row::from(""));
+                            Position {
+                                x: pos.x,
+                                y: pos.y.saturating_add(1),
+                            }
+                        } else if pos.x == self.rows[pos.y].length() {
+                            // Return key pressed at the end of the line
+                            self.rows.insert(pos.y + 1, Row::from(""));
+                            Position {
+                                x: 0,
+                                y: pos.y.saturating_add(1),
+                            }
+                        } else {
+                            // Return key pressed in the middle of the line
+                            let current = self.rows[pos.y].chars();
+                            let before = Row::from(&current[..graphemes].join("")[..]);
+                            let after = Row::from(&current[graphemes..].join("")[..]);
+                            self.rows.insert(pos.y + 1, after);
+                            self.rows[pos.y] = before;
+                            Position {
+                                x: 0,
+                                y: pos.y.saturating_add(1),
+                            }
+                        }
+                    }
+                    '\t' => {
+                        // Tab key
+                        for i in 0..TAB_WIDTH {
+                            self.do_event(Event::Insert(
+                                Position {
+                                    x: pos.x + i,
+                                    y: pos.y,
+                                },
+                                graphemes,
+                                ' ',
+                                pos.x + i,
+                            ));
+                        }
+                        Position {
+                            x: pos.x + TAB_WIDTH,
+                            y: pos.y,
+                        }
+                    }
+                    _ => {
+                        self.rows[pos.y].insert(c, graphemes);
+                        Position {
+                            x: pos
+                                .x
+                                .saturating_add(if let Some(i) = UnicodeWidthChar::width(c) {
+                                    i
+                                } else {
+                                    0
+                                }),
+                            y: pos.y,
+                        }
+                    }
+                }
             }
-        } else {
-            None
+            Event::Delete(pos, graphemes, c, px) => {
+                if pos.x == 0 && pos.y != 0 {
+                    // Backspace at the start of a line
+                    let current = self.rows[pos.y].string.clone();
+                    let prev = self.rows[pos.y - 1].clone();
+                    self.rows[pos.y - 1] = Row::from(&(prev.string.clone() + &current)[..]);
+                    self.rows.remove(pos.y);
+                    Position {
+                        x: prev.length(),
+                        y: pos.y.saturating_sub(1),
+                    }
+                } else if pos.y + pos.x != 0 {
+                    // Backspace in the middle of a line
+                    self.rows[pos.y].delete(graphemes - 1);
+                    Position {
+                        x: pos
+                            .x
+                            .saturating_sub(if let Some(i) = UnicodeWidthChar::width(c) {
+                                i
+                            } else {
+                                0
+                            }),
+                        y: pos.y,
+                    }
+                } else {
+                    pos
+                }
+            }
         }
     }
-    fn do_event(&mut self, event: Event) -> Option<Position> {
+    pub fn reverse(&mut self, event: Event) -> Position {
         match event {
-            Event::Delete(pos, _, shift) => {
-                let x = (pos.x as i128).saturating_add(i128::from(shift)) as usize;
-                self.rows[pos.y].delete(x);
-                Some(Position { x, y: pos.y })
+            Event::Insert(pos, graphemes, c, _) => {
+                match c {
+                    '\n' => {
+                        if pos.x == 0 {
+                            // Return key pressed at the start of the line
+                            // CHECK
+                            self.rows.remove(pos.y);
+                        } else {
+                            // Return key pressed at the end of the line
+                            // CHECK
+                            let current = self.rows[pos.y + 1].string.clone();
+                            let before = self.rows[pos.y].string.clone();
+                            self.rows[pos.y] = Row::from(&(before + &current)[..]);
+                            self.rows.remove(pos.y + 1);
+                        }
+                    }
+                    '\t' => {
+                        // Tab key
+                        // CHECK
+                        for i in 1..=TAB_WIDTH {
+                            self.rows[pos.y].delete(graphemes + TAB_WIDTH.saturating_sub(i));
+                        }
+                    }
+                    _ => {
+                        // CHECK
+                        self.rows[pos.y].delete(graphemes);
+                    }
+                }
+                pos
             }
-            Event::Insert(pos, c, shift) => {
-                let x = (pos.x as i128).saturating_add(i128::from(shift)) as usize;
-                self.rows[pos.y].insert(c, pos.x);
-                Some(Position { x, y: pos.y })
-            }
-            Event::NewLine(pos, shift_action, shift_cursor) => {
-                let action_y = (pos.y as i128).saturating_add(i128::from(shift_action));
-                let cursor_y = (pos.y as i128).saturating_add(i128::from(shift_cursor));
-                self.rows.insert(action_y as usize, Row::from(""));
-                Some(Position {
-                    x: pos.x,
-                    y: cursor_y as usize,
-                })
-            }
-            Event::DeleteLine(pos, shift_action, shift_cursor) => {
-                let action_y = (pos.y as i128).saturating_add(i128::from(shift_action));
-                let cursor_y = (pos.y as i128).saturating_add(i128::from(shift_cursor));
-                self.rows.remove(action_y as usize);
-                Some(Position {
-                    x: pos.x,
-                    y: cursor_y as usize,
-                })
+            Event::Delete(pos, graphemes, c, px) => {
+                if pos.x == 0 && pos.y != 0 {
+                    // Backspace at the start of a line
+                    let current = self.rows[pos.y - 1].string.clone();
+                    let before = Row::from(&current[..px]);
+                    let after = Row::from(&current[px..]);
+                    self.rows.insert(pos.y, after);
+                    self.rows[pos.y - 1] = before;
+                } else {
+                    // Backspace in the middle of a line
+                    // CHECK
+                    self.rows[pos.y].insert(c, graphemes - 1);
+                }
+                pos
             }
         }
     }
