@@ -3,7 +3,7 @@ use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATU
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal}; // Bringing in all the structs
 use std::time::Duration; // For implementing an FPS cap
-use std::{cmp, env, fs, thread}; // Managing threads, arguments and comparisons.
+use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
 use termion::input::TermRead; // To allow reading from the terminal
 use termion::{color, style}; // For managing colors and styles of text
@@ -123,7 +123,7 @@ impl Editor {
             Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
         }
-        fs::write("log.log", format!("{:#?}", self.doc.event_stack)).unwrap();
+        //fs::write("log.log", format!("{:#?}", self.doc.event_stack)).unwrap();
     }
     fn undo(&mut self) {
         if let Some(event) = self.doc.event_stack.pop() {
@@ -173,7 +173,7 @@ impl Editor {
                         self.move_cursor(Key::Right);
                     }
                 }
-                Event::BackspaceStart(pos) => {}
+                Event::BackspaceStart(_) => {}
             }
             self.set_command_line(format!("{:?}", event), Type::Info);
         } else {
