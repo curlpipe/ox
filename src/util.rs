@@ -1,4 +1,4 @@
-use crate::Position;
+use crate::{Position, Row};
 use regex::Regex; // Regex engine
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // Getting width of unicode characters
 
@@ -92,4 +92,20 @@ pub fn is_ahead(cursor: &Position, offset: &Position, position: &Position) -> bo
     } else {
         !(position.y == cursor.y + offset.y && cursor.x + offset.x >= position.x)
     }
+}
+
+pub fn raw_to_grapheme(x: usize, string: &str) -> usize {
+    let mut graphemes = 0;
+    let current = Row::from(string);
+    let jumps = current.get_jumps();
+    let mut counter = 0;
+    for (mut counter2, i) in jumps.into_iter().enumerate() {
+        if counter == x {
+            break;
+        }
+        counter2 += 1;
+        graphemes = counter2;
+        counter += i;
+    }
+    graphemes
 }

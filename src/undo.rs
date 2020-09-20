@@ -4,9 +4,13 @@ use crate::Position;
 // Event enum to store the types of events that occur
 #[derive(Clone, Copy, Debug)]
 pub enum Event {
-    // Cursor & Offset, Grapheme, Character, Previous x
-    Insert(Position, usize, char, usize),
-    Delete(Position, usize, char, usize),
+    InsertTab(Position),          // Insert Tab
+    InsertMid(Position, char),    // Insert character
+    BackspaceStart(Position),     // Delete from start
+    BackspaceMid(Position, char), // Delete from middle
+    ReturnStart(Position),        // Return key in the middle of line
+    ReturnMid(Position, usize),   // Return from middle of the line
+    ReturnEnd(Position),          // Return on the end of line
 }
 
 // A struct for holding all the events taken by the user
@@ -32,23 +36,5 @@ impl EventStack {
     pub fn empty(&mut self) {
         // Clear the event stack
         self.history.clear();
-    }
-    pub fn undo(&mut self) -> Option<Event> {
-        // Perform an undo operation
-        if let Some(element) = self.pop() {
-            Some(EventStack::reverse(element))
-        } else {
-            None
-        }
-    }
-    pub fn redo(&mut self) {
-        // Perform a redo operation
-    }
-    pub fn reverse(event: Event) -> Event {
-        // Reverse an event
-        match event {
-            Event::Insert(pos, graphemes, ch, px) => Event::Delete(pos, graphemes, ch, px),
-            Event::Delete(pos, graphemes, ch, px) => Event::Insert(pos, graphemes, ch, px),
-        }
     }
 }

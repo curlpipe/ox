@@ -1,7 +1,9 @@
 0.2.1 (Undo & Redo)
 - [ ] Undo / Redo
   - [ ] Set up EventStack
-    - [ ] Support for offsets
+    - [ ] Read DeleteLine
+      - [ ] Start of line
+      - [X] Middle of line
     - [X] Read Insertion
     - [X] Read Deletion
     - [X] Add reverse event lookup
@@ -9,9 +11,7 @@
       - [X] End of line
       - [X] Start of line
       - [X] Middle of line
-    - [X] Read DeleteLine
-      - [X] Start of line
-      - [X] Middle of line
+    - [X] Support for offsets
   - [ ] Redo
     - [ ] Set up seperate redo stack
     - [ ] Clear redo stack on change
