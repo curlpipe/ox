@@ -135,11 +135,7 @@ impl Editor {
                     }
                 }
                 Event::InsertMid(pos, c) => {
-                    let c_len = if let Some(c) = UnicodeWidthChar::width(c) {
-                        c
-                    } else {
-                        0
-                    };
+                    let c_len = UnicodeWidthChar::width(c).map_or(0, |c| c);
                     self.cursor.y = pos.y - self.offset.y;
                     self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
                     self.recalculate_graphemes();

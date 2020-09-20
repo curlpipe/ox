@@ -10,24 +10,16 @@ pub fn no_ansi_len(data: &str) -> usize {
 }
 
 pub fn title(c: &str) -> String {
-    if let Some(f) = c.chars().next() {
+    c.chars().next().map_or(String::new(), |f| {
         f.to_uppercase().collect::<String>() + &c[1..]
-    } else {
-        String::new()
-    }
+    })
 }
 
 pub fn trim_start(text: &str, start: usize) -> String {
     // Create a special vector with spaces inserted for trimming
     let widths: Vec<usize> = text
         .chars()
-        .map(|i| {
-            if let Some(i) = UnicodeWidthChar::width(i) {
-                i
-            } else {
-                0
-            }
-        })
+        .map(|i| UnicodeWidthChar::width(i).map_or(0, |i| i))
         .collect();
     let chars: Vec<char> = text.chars().collect();
     let mut result = Vec::new();
@@ -42,22 +34,16 @@ pub fn trim_start(text: &str, start: usize) -> String {
             count += 1;
         }
     }
-    if let Some(result) = result.get(start..) {
-        result.join("")
-    } else {
-        String::new()
-    }
+    result
+        .get(start..)
+        .map_or(String::new(), |result| result.join(""))
 }
 
 pub fn trim_end(text: &str, end: usize) -> String {
     // Trim a string with unicode in it to fit into a specific length
     let mut widths = Vec::new();
     for i in text.chars() {
-        widths.push(if let Some(i) = UnicodeWidthChar::width(i) {
-            i
-        } else {
-            0
-        });
+        widths.push(UnicodeWidthChar::width(i).map_or(0, |i| i));
     }
     let chars: Vec<char> = text.chars().collect();
     let mut result = Vec::new();

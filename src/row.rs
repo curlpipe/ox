@@ -53,9 +53,7 @@ impl Row {
         // Produce a special list of characters depending on the widths of characters
         let mut result = Vec::new();
         for i in self.chars() {
-            for _ in 0..UnicodeWidthStr::width(i) {
-                result.push(i);
-            }
+            result.resize(result.len() + UnicodeWidthStr::width(i), i);
         }
         result
     }
