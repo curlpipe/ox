@@ -169,7 +169,14 @@ impl Editor {
                         self.move_cursor(Key::Right);
                     }
                 }
-                Event::BackspaceStart(_) => {}
+                Event::BackspaceStart(pos) => {
+                    let before = Row::from(&self.doc.rows[pos.y].string[..pos.x]);
+                    let after = Row::from(&self.doc.rows[pos.y].string[pos.x..]);
+                    self.doc.rows[pos.y] = after;
+                    self.doc.rows.insert(pos.y, before);
+                    self.move_cursor(Key::Down);
+                    self.leap_cursor(Key::Home);
+                }
             }
             self.set_command_line(format!("{:?}", event), Type::Info);
         } else {
