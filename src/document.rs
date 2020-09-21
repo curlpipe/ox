@@ -9,7 +9,8 @@ pub struct Document {
     pub path: String,            // For holding the path to the document
     pub name: String,            // For holding the name of the document
     pub line_offset: usize,      // For holding a line number offset
-    pub event_stack: EventStack, // For holding the event stack
+    pub undo_stack: EventStack, // For holding the undo event stack
+    pub redo_stack: EventStack, // For holding the redo event stack
 }
 
 // Add methods to the document struct
@@ -21,7 +22,8 @@ impl Document {
             name: String::from("[No name]"),
             path: String::new(),
             line_offset: 2,
-            event_stack: EventStack::new(),
+            undo_stack: EventStack::new(),
+            redo_stack: EventStack::new(),
         }
     }
     pub fn open(path: &str) -> Option<Self> {
@@ -37,7 +39,8 @@ impl Document {
                 name: path.to_string(),
                 path: path.to_string(),
                 line_offset: 2,
-                event_stack: EventStack::new(),
+                undo_stack: EventStack::new(),
+                redo_stack: EventStack::new(),
             })
         } else {
             // File doesn't exist
@@ -55,7 +58,8 @@ impl Document {
                 name: path.to_string(),
                 path: path.to_string(),
                 line_offset: 2,
-                event_stack: EventStack::new(),
+                undo_stack: EventStack::new(),
+                redo_stack: EventStack::new(),
             }
         }
     }

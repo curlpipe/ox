@@ -33,4 +33,7 @@ impl EventStack {
         // Take an event off the event stack
         self.history.pop()
     }
+    pub fn empty(&mut self) {
+        self.history.clear();
+    }
 }

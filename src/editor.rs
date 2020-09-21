@@ -113,20 +113,43 @@ impl Editor {
             Key::Char(c) => self.character(c),
             Key::Backspace => self.backspace(),
             Key::Ctrl('q') => self.quit(),
-            Key::Ctrl('n') => self.new_document(),
-            Key::Ctrl('o') => self.open_document(),
             Key::Ctrl('s') => self.save(),
             Key::Ctrl('w') => self.save_as(),
+            Key::Ctrl('n') => self.new_document(),
+            Key::Ctrl('o') => self.open_document(),
             Key::Ctrl('f') => self.search(),
             Key::Ctrl('u') => self.undo(),
+            Key::Ctrl('y') => self.redo(),
             Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
             Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
         }
-        //fs::write("log.log", format!("{:#?}", self.doc.event_stack)).unwrap();
+    }
+    fn redo(&mut self) {
+        if let Some(event) = self.doc.redo_stack.pop() {
+            self.doc.undo_stack.push(event);
+            match event {
+                Event::InsertTab(pos) => {
+                    self.cursor.y = pos.y - self.offset.y;
+                    self.cursor.x = pos.x.saturating_sub(TAB_WIDTH) - self.offset.x;
+                    self.recalculate_graphemes();
+                    self.tab();
+                },
+                Event::InsertMid(pos, c) => {
+                    let c_len = UnicodeWidthChar::width(c).map_or(0, |c| c);
+                    self.cursor.y = pos.y - self.offset.y;
+                    self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
+                    self.doc.rows[pos.y].insert(c, pos.x);
+                }
+                _ => (),
+            }
+            self.set_command_line(format!("{:?}", event), Type::Info);
+        } else {
+            self.set_command_line("Empty Redo Stack".to_string(), Type::Error);
+        }
     }
     fn undo(&mut self) {
-        if let Some(event) = self.doc.event_stack.pop() {
+        if let Some(event) = self.doc.undo_stack.pop() {
             match event {
                 Event::InsertTab(pos) => {
                     for i in 1..=TAB_WIDTH {
@@ -178,9 +201,10 @@ impl Editor {
                     self.leap_cursor(Key::Home);
                 }
             }
+            self.doc.redo_stack.push(event);
             self.set_command_line(format!("{:?}", event), Type::Info);
         } else {
-            self.set_command_line("Empty Stack".to_string(), Type::Error);
+            self.set_command_line("Empty Undo Stack".to_string(), Type::Error);
         }
     }
     fn set_command_line(&mut self, text: String, msg: Type) {
@@ -194,19 +218,18 @@ impl Editor {
             '\n' => self.return_key(), // The user pressed the return key
             '\t' => {
                 // The user pressed the tab key
-                for _ in 0..TAB_WIDTH {
-                    self.doc.rows[self.cursor.y + self.offset.y].insert(' ', self.graphemes);
-                    self.move_cursor(Key::Right);
-                }
-                self.doc.event_stack.push(Event::InsertTab(Position {
+                self.tab();
+                self.doc.undo_stack.push(Event::InsertTab(Position {
                     x: self.cursor.x + self.offset.x,
                     y: self.cursor.y + self.offset.y,
                 }));
             }
             _ => {
                 // Other characters
+                self.dirty = true;
+                self.show_welcome = false;
                 self.doc.rows[self.cursor.y + self.offset.y].insert(c, self.graphemes);
-                self.doc.event_stack.push(Event::InsertMid(
+                self.doc.undo_stack.push(Event::InsertMid(
                     Position {
                         x: self.cursor.x + self.offset.x,
                         y: self.cursor.y + self.offset.y,
@@ -215,6 +238,13 @@ impl Editor {
                 ));
                 self.move_cursor(Key::Right);
             }
+        }
+        self.doc.redo_stack.empty();
+    }
+    fn tab(&mut self) {
+        for _ in 0..TAB_WIDTH {
+            self.doc.rows[self.cursor.y + self.offset.y].insert(' ', self.graphemes);
+            self.move_cursor(Key::Right);
         }
     }
     fn backspace(&mut self) {
@@ -231,7 +261,7 @@ impl Editor {
             self.move_cursor(Key::Up);
             self.cursor.x = prev.length();
             self.recalculate_graphemes();
-            self.doc.event_stack.push(Event::BackspaceStart(Position {
+            self.doc.undo_stack.push(Event::BackspaceStart(Position {
                 x: self.cursor.x + self.offset.x,
                 y: self.cursor.y + self.offset.y,
             }));
@@ -241,7 +271,7 @@ impl Editor {
             let ch = self.doc.rows[self.cursor.y + self.offset.y].clone();
             self.doc.rows[self.cursor.y + self.offset.y].delete(self.graphemes);
             if let Some(ch) = ch.chars().get(self.graphemes) {
-                self.doc.event_stack.push(Event::BackspaceMid(
+                self.doc.undo_stack.push(Event::BackspaceMid(
                     Position {
                         x: self.cursor.x + self.offset.x,
                         y: self.cursor.y + self.offset.y,
@@ -369,12 +399,14 @@ impl Editor {
     }
     fn return_key(&mut self) {
         // Return key
+        self.dirty = true;
+        self.show_welcome = false;
         if self.cursor.x + self.offset.x == 0 {
             // Return key pressed at the start of the line
             self.doc
                 .rows
                 .insert(self.cursor.y + self.offset.y, Row::from(""));
-            self.doc.event_stack.push(Event::ReturnStart(Position {
+            self.doc.undo_stack.push(Event::ReturnStart(Position {
                 x: self.cursor.x + self.offset.x,
                 y: self.cursor.y + self.offset.y,
             }));
@@ -386,7 +418,7 @@ impl Editor {
             self.doc
                 .rows
                 .insert(self.cursor.y + self.offset.y + 1, Row::from(""));
-            self.doc.event_stack.push(Event::ReturnEnd(Position {
+            self.doc.undo_stack.push(Event::ReturnEnd(Position {
                 x: self.cursor.x + self.offset.x,
                 y: self.cursor.y + self.offset.y,
             }));
@@ -402,7 +434,7 @@ impl Editor {
                 .rows
                 .insert(self.cursor.y + self.offset.y + 1, after);
             self.doc.rows[self.cursor.y + self.offset.y] = before.clone();
-            self.doc.event_stack.push(Event::ReturnMid(
+            self.doc.undo_stack.push(Event::ReturnMid(
                 Position {
                     x: self.cursor.x + self.offset.x,
                     y: self.cursor.y + self.offset.y,
