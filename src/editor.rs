@@ -1,8 +1,8 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH};
+use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH, UNDO_INACTIVITY_PERIOD}; // Configuration values
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal}; // Bringing in all the structs
-use std::time::Duration; // For implementing an FPS cap
+use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
 use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
 use termion::input::TermRead; // To allow reading from the terminal
@@ -41,15 +41,16 @@ pub struct Position {
 
 // The main editor struct
 pub struct Editor {
-    quit: bool,                // Toggle for cleanly quitting the editor
-    show_welcome: bool,        // Toggle for showing the welcome message
-    dirty: bool,               // True if the current document has been edited
-    graphemes: usize,          // For holding the special grapheme cursor
-    command_line: CommandLine, // For holding the command line
-    term: Terminal,            // For the handling of the terminal
-    cursor: Position,          // For holding the raw cursor location
-    doc: Document,             // For holding our document
-    offset: Position,          // For holding the offset on the X and Y axes
+    quit: bool,                     // Toggle for cleanly quitting the editor
+    show_welcome: bool,             // Toggle for showing the welcome message
+    dirty: bool,                    // True if the current document has been edited
+    graphemes: usize,               // For holding the special grapheme cursor
+    command_line: CommandLine,      // For holding the command line
+    term: Terminal,                 // For the handling of the terminal
+    cursor: Position,               // For holding the raw cursor location
+    doc: Document,                  // For holding our document
+    offset: Position,               // For holding the offset on the X and Y axes
+    last_keypress: Option<Instant>, // For holding the time of the last input event
 }
 
 // Implementing methods for our editor struct / class
@@ -74,6 +75,7 @@ impl Editor {
             } else {
                 Document::new()
             },
+            last_keypress: None,
         }
     }
     pub fn run(&mut self) {
@@ -89,6 +91,7 @@ impl Editor {
             let stdin = &mut self.term.stdin;
             if let Some(key) = stdin.keys().next() {
                 // When a keypress was detected
+                self.last_keypress = Some(Instant::now());
                 return key.unwrap();
             } else {
                 // Run code that we want to run when the key isn't pressed
@@ -100,6 +103,13 @@ impl Editor {
                     }
                     // Re-render everything to the new size
                     self.update();
+                }
+                // Check for a period of inactivity
+                if let Some(time) = self.last_keypress {
+                    if time.elapsed().as_secs() >= UNDO_INACTIVITY_PERIOD {
+                        self.doc.undo_stack.commit();
+                        self.last_keypress = None;
+                    }
                 }
                 // FPS cap to stop using the entire CPU
                 thread::sleep(Duration::from_millis(16));

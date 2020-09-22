@@ -1,6 +1,6 @@
 0.2.1 (Undo & Redo)
 - [ ] Undo / Redo
-  - [ ] Commit changes after inactivity period
+  - [ ] Refactor
   - [X] Undo
     - [X] Add event executor
   - [X] Set up EventStack
@@ -20,6 +20,7 @@
     - [X] Clear redo stack on change
     - [X] Link up operations
   - [X] Set up smart undoing / redoing to undo by groups of common events
+  - [X] Commit changes after inactivity period
 
 0.2.2 (Input bug solving)
 - [ ] Fix clipboard bug
