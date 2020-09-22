@@ -144,7 +144,29 @@ If at any time you wish to exit the search feature and return to the location in
 
 ## Roadmap
 
-You can see the `tasks.todo.md` file to see my plans for the future of the editor!
+You can see the `tasks.todo.md` file to see my full plans for the future of the editor!
+
+Here is the current summary
+ - [X] Initial Research (0.1.0, 0.1.1)
+ - [X] Basic editing functions (0.2.0)
+ - [X] Line numbers (0.2.0)
+ - [X] Searching (0.2.0)
+ - [ ] Undo and Redo (0.2.1)
+ - [ ] Clipboard support (0.2.2)
+ - [ ] Good command line interface (0.2.3)
+ - [ ] Config files (0.2.3)
+ - [ ] Replacing text (0.2.3)
+ - [ ] Syntax highlighting (0.2.4)
+ - [ ] Tabs for multitasking (0.2.5)
+ - [ ] Macros (0.2.6)
+ - [ ] Mouse support (0.2.7)
+ - [ ] Auto indentation (0.3.0)
+ - [ ] Prettifier / Automatic code formatter (0.3.0)
+ - [ ] Built In linter (0.3.0)
+ - [ ] Auto brackets (0.3.1)
+ - [ ] Auto complete (0.3.2)
+ - [ ] File tree (0.3.4)
+ - [ ] Start page (0.3.5)
 
 ## License
 
