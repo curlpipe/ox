@@ -1,13 +1,5 @@
 use crate::{Position, Row};
-use regex::Regex; // Regex engine
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // Getting width of unicode characters
-
-pub fn no_ansi_len(data: &str) -> usize {
-    // Find the length of a string without ANSI values
-    let ansi_scanner = Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap();
-    let data = ansi_scanner.replacen(data, 2, "");
-    UnicodeWidthStr::width(&*data)
-}
+use unicode_width::UnicodeWidthChar; // Getting width of unicode characters
 
 pub fn title(c: &str) -> String {
     c.chars().next().map_or(String::new(), |f| {

@@ -1,13 +1,15 @@
 // Row.rs - Handling the rows of a document
 use crate::config::{LINE_NUMBER_FG, LINE_NUMBER_PADDING, RESET_FG}; // Config stuff
-use crate::util::{no_ansi_len, trim_end, trim_start}; // Utilities
+use crate::util::{trim_end, trim_start}; // Utilities
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
-use unicode_width::UnicodeWidthStr; // Getting width of unicode strings // Bring in the utilities
+use unicode_width::{UnicodeWidthStr}; // Getting width of unicode characters
+use regex::Regex; // Regex engine
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Clone)]
 pub struct Row {
     pub string: String, // For holding the contents of the row
+    ansi_regex: Regex, // For holding the regex expression
 }
 
 // Implement a trait (similar method to inheritance) into the row
@@ -16,6 +18,7 @@ impl From<&str> for Row {
         // Initialise a row from a string
         Self {
             string: s.to_string(),
+            ansi_regex: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
         }
     }
 }
@@ -34,7 +37,7 @@ impl Row {
             " ".repeat(LINE_NUMBER_PADDING.saturating_add(1)),
             RESET_FG,
         );
-        let line_number_len = no_ansi_len(&line_number);
+        let line_number_len = self.no_ansi_len(&line_number);
         let body = trim_end(
             &trim_start(&self.string, start),
             end.saturating_sub(line_number_len),
@@ -95,5 +98,10 @@ impl Row {
         }
         self.string = before + &after;
         result
+    }
+    fn no_ansi_len(&self, data: &str) -> usize {
+        // Find the length of a string without ANSI values
+        let data = self.ansi_regex.replacen(data, 2, "");
+        UnicodeWidthStr::width(&*data)
     }
 }

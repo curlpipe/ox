@@ -1,5 +1,5 @@
 // Terminal.rs - Handling low level terminal operations
-use crate::util::no_ansi_len; // To strip ansi values
+use regex::Regex; // Regular expression engine
 use crate::Position; // Allow use and handling of positions
 use std::io::{stdout, Stdout, Write}; // For writing to the stdout
 use termion::raw::{IntoRawMode, RawTerminal}; // To access raw mode
@@ -14,6 +14,7 @@ pub struct Terminal {
     pub stdin: AsyncReader,                   // Asynchronous stdin
     pub width: u16,                           // Width of the terminal
     pub height: u16,                          // Height of the terminal
+    ansi_regex: Regex,                        // For holding the regex expression
 }
 
 // Implement methods into the terminal struct / class
@@ -27,6 +28,7 @@ impl Terminal {
             stdin: async_stdin(),
             width: size.0,
             height: size.1,
+            ansi_regex: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
         }
     }
     pub fn goto(&mut self, p: &Position) {
@@ -51,7 +53,7 @@ impl Terminal {
     }
     pub fn align_left(&self, text: &str) -> String {
         // Align items to the left
-        let length = no_ansi_len(text);
+        let length = self.no_ansi_len(text);
         let padding = (self.width as usize).saturating_sub(length);
         " ".repeat(padding as usize)
     }
@@ -65,5 +67,10 @@ impl Terminal {
             self.height = size.1;
             true
         }
+    }
+    fn no_ansi_len(&self, data: &str) -> usize {
+        // Find the length of a string without ANSI values
+        let data = self.ansi_regex.replacen(data, 2, "");
+        UnicodeWidthStr::width(&*data)
     }
 }
