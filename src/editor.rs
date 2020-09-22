@@ -176,7 +176,17 @@ impl Editor {
                     self.move_cursor(Key::Down);
                     self.leap_cursor(Key::Home);
                 }
-                _ => (),
+                Event::BackspaceStart(pos) => {
+                    self.cursor.y = pos.y - self.offset.y;
+                    self.recalculate_graphemes();
+                    let current = self.doc.rows[pos.y + 1].string.clone();
+                    let prev = self.doc.rows[pos.y].clone();
+                    self.doc.rows[pos.y + 1] = Row::from(&(prev.string.clone() + &current)[..]);
+                    self.doc.rows.remove(pos.y);
+                    self.move_cursor(Key::Up);
+                    self.cursor.x = prev.length();
+                    self.recalculate_graphemes();
+                }
             }
             self.set_command_line(format!("{:?}", event), Type::Info);
         } else {
