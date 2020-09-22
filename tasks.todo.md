@@ -1,9 +1,5 @@
 0.2.1 (Undo & Redo)
 - [ ] Undo / Redo
-  - [ ] Redo
-    - [ ] Link up operations
-    - [X] Set up seperate redo stack
-    - [X] Clear redo stack on change
   - [ ] Set up smart undoing / redoing to undo by groups of common events
   - [X] Undo
     - [X] Add event executor
@@ -19,6 +15,10 @@
     - [X] Read DeleteLine
       - [X] Middle of line
       - [X] Start of line
+  - [X] Redo
+    - [X] Set up seperate redo stack
+    - [X] Clear redo stack on change
+    - [X] Link up operations
 
 0.2.2 (Input bug solving)
 - [ ] Fix clipboard bug

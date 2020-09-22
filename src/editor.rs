@@ -172,7 +172,7 @@ impl Editor {
                     let before = Row::from(&current[..breakpoint]);
                     let after = Row::from(&current[breakpoint..]);
                     self.doc.rows.insert(pos.y + 1, after);
-                    self.doc.rows[pos.y] = before.clone();
+                    self.doc.rows[pos.y] = before;
                     self.move_cursor(Key::Down);
                     self.leap_cursor(Key::Home);
                 }
