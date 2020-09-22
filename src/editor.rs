@@ -153,8 +153,28 @@ impl Editor {
                 Event::ReturnEnd(pos) => {
                     self.cursor.y = pos.y - self.offset.y;
                     self.cursor.x = pos.x - self.offset.x;
+                    self.recalculate_graphemes();
                     self.doc.rows.insert(pos.y + 1, Row::from(""));
                     self.move_cursor(Key::Down);
+                }
+                Event::ReturnStart(pos) => {
+                    self.cursor.y = pos.y - self.offset.y;
+                    self.cursor.x = pos.x - self.offset.x;
+                    self.recalculate_graphemes();
+                    self.doc.rows.insert(pos.y, Row::from(""));
+                    self.move_cursor(Key::Down);
+                }
+                Event::ReturnMid(pos, breakpoint) => {
+                    self.cursor.y = pos.y - self.offset.y;
+                    self.cursor.x = pos.x - self.offset.x;
+                    self.recalculate_graphemes();
+                    let current = self.doc.rows[pos.y].string.clone();
+                    let before = Row::from(&current[..breakpoint]);
+                    let after = Row::from(&current[breakpoint..]);
+                    self.doc.rows.insert(pos.y + 1, after);
+                    self.doc.rows[pos.y] = before.clone();
+                    self.move_cursor(Key::Down);
+                    self.leap_cursor(Key::Home);
                 }
                 _ => (),
             }
