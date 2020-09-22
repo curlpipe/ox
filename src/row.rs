@@ -1,15 +1,15 @@
 // Row.rs - Handling the rows of a document
 use crate::config::{LINE_NUMBER_FG, LINE_NUMBER_PADDING, RESET_FG}; // Config stuff
 use crate::util::{trim_end, trim_start}; // Utilities
+use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
-use unicode_width::{UnicodeWidthStr}; // Getting width of unicode characters
-use regex::Regex; // Regex engine
+use unicode_width::UnicodeWidthStr; // Getting width of unicode characters // Regex engine
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Clone)]
 pub struct Row {
     pub string: String, // For holding the contents of the row
-    ansi_regex: Regex, // For holding the regex expression
+    ansi_regex: Regex,  // For holding the regex expression
 }
 
 // Implement a trait (similar method to inheritance) into the row

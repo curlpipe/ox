@@ -1,6 +1,6 @@
 // Terminal.rs - Handling low level terminal operations
-use regex::Regex; // Regular expression engine
 use crate::Position; // Allow use and handling of positions
+use regex::Regex; // Regular expression engine
 use std::io::{stdout, Stdout, Write}; // For writing to the stdout
 use termion::raw::{IntoRawMode, RawTerminal}; // To access raw mode
 use termion::screen::AlternateScreen; // To render to a separate screen
