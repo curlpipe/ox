@@ -10,7 +10,7 @@ readme = "README.md"
 include = ["src/*.rs", "Cargo.toml"]
 categories = ["text-editors"]
 keywords = ["text-editor", "editor", "terminal", "tui"]
-license = "MIT"
+license = "GPL-2.0"
 
 [profile.release]
 lto = true
