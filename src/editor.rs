@@ -4,16 +4,14 @@ use crate::config::{
     UNDO_INACTIVITY_PERIOD,
 }; // Configuration values
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title}; // Bring in the utils
-use crate::{Document, Event, Row, Terminal}; // Bringing in all the structs
+use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
+use clap::App; // For a nice command line interface
 use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
-use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
+use std::{cmp, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
 use termion::input::{Keys, TermRead}; // To allow reading from the terminal
 use termion::{async_stdin, color, style, AsyncReader}; // For managing the terminal
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // For calculating unicode character widths
-
-// Get the current version of Ox
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Enum for the kinds of status messages
 enum Type {
@@ -59,12 +57,13 @@ pub struct Editor {
 
 // Implementing methods for our editor struct / class
 impl Editor {
-    pub fn new() -> Self {
+    pub fn new(args: App) -> Self {
         // Create a new editor instance
-        let args: Vec<String> = env::args().collect();
+        let args = args.get_matches();
+        let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
         Self {
             quit: false,
-            show_welcome: args.len() < 2,
+            show_welcome: files.len() == 0,
             dirty: false,
             command_line: CommandLine {
                 text: "Welcome to Ox!".to_string(),
@@ -74,8 +73,8 @@ impl Editor {
             graphemes: 0,
             cursor: Position { x: 0, y: 0 },
             offset: Position { x: 0, y: 0 },
-            doc: if args.len() >= 2 {
-                Document::from(args[1].trim())
+            doc: if files.len() >= 1 {
+                Document::from(files[0])
             } else {
                 Document::new()
             },

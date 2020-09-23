@@ -24,6 +24,7 @@ mod terminal;
 mod undo;
 mod util;
 
+use clap::{App, Arg};
 use document::Document;
 use editor::{Editor, Position};
 use row::Row;
@@ -32,10 +33,19 @@ use std::{panic, thread};
 use terminal::Terminal;
 use undo::{Event, EventStack};
 
+// Get the current version of Ox
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 fn main() {
     // Attempt to start an editor instance
     let result = panic::catch_unwind(|| {
-        let mut editor = Editor::new();
+        // Gather the command line arguments
+        let cli = App::new("Ox")
+            .version(VERSION)
+            .author("Luke")
+            .about("An independent Rust powered text editor")
+            .arg(Arg::with_name("files").multiple(true).takes_value(true));
+        let mut editor = Editor::new(cli);
         editor.run();
     });
     // Check to see if the editor exited because of a runtime issue
