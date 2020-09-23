@@ -1,9 +1,3 @@
-0.2.2 (Input bug solving and log file)
-- [ ] Set up a log file
-  - [ ] Add bool in config.rs
-  - [ ] Add functions for writing to it
-- [X] Fix clipboard bug
-
 0.2.3 (Interface improvements)
 - [ ] CLAP cli
   - [ ] Update documentation
@@ -153,4 +147,7 @@
   - [X] Set up smart undoing / redoing to undo by groups of common events
   - [X] Commit changes after inactivity period
   - [X] Refactor
+
+0.2.2 (Input bug solving)
+- [X] Fix clipboard bug
 

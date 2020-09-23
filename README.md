@@ -152,12 +152,12 @@ Undoing and Redoing in Ox is as simple as <kbd>Ctrl + U</kbd> to undo and <kbd>C
 You can see the `tasks.todo.md` file to see my full plans for the future of the editor!
 
 Here is the current summary
- - [X] Initial Research (0.1.0, 0.1.1) [62 commits]
+ - [X] Initial Research (0.1.0, 0.1.1) [741 lines]
  - [X] Basic editing functions (0.2.0)
  - [X] Line numbers (0.2.0)
- - [X] Searching (0.2.0) [33 commits]
- - [X] Undo and Redo (0.2.1) [30 commits]
- - [ ] Clipboard support (0.2.2)
+ - [X] Searching (0.2.0) [1040 lines]
+ - [X] Undo and Redo (0.2.1) [1282 lines]
+ - [X] Input bug (0.2.2) [1278 lines]
  - [ ] Good command line interface (0.2.3)
  - [ ] Config files (0.2.3)
  - [ ] Replacing text (0.2.3)
