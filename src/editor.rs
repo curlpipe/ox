@@ -8,8 +8,8 @@ use crate::{Document, Event, Row, Terminal}; // Bringing in all the structs
 use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
 use std::{cmp, env, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
-use termion::input::TermRead; // To allow reading from the terminal
-use termion::{color, style}; // For managing colors and styles of text
+use termion::input::{Keys, TermRead}; // To allow reading from the terminal
+use termion::{async_stdin, color, style, AsyncReader}; // For managing the terminal
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // For calculating unicode character widths
 
 // Get the current version of Ox
@@ -54,6 +54,7 @@ pub struct Editor {
     doc: Document,                  // For holding our document
     offset: Position,               // For holding the offset on the X and Y axes
     last_keypress: Option<Instant>, // For holding the time of the last input event
+    stdin: Keys<AsyncReader>,       // Asynchronous stdin
 }
 
 // Implementing methods for our editor struct / class
@@ -79,6 +80,7 @@ impl Editor {
                 Document::new()
             },
             last_keypress: None,
+            stdin: async_stdin().keys(),
         }
     }
     pub fn run(&mut self) {
@@ -91,8 +93,7 @@ impl Editor {
     fn read_key(&mut self) -> Key {
         // Wait until a key is pressed and then return it
         loop {
-            let stdin = &mut self.term.stdin;
-            if let Some(key) = stdin.keys().next() {
+            if let Some(key) = self.stdin.next() {
                 // When a keypress was detected
                 self.last_keypress = Some(Instant::now());
                 return key.unwrap();

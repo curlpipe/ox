@@ -4,14 +4,12 @@ use regex::Regex; // Regular expression engine
 use std::io::{stdout, Stdout, Write}; // For writing to the stdout
 use termion::raw::{IntoRawMode, RawTerminal}; // To access raw mode
 use termion::screen::AlternateScreen; // To render to a separate screen
-use termion::{async_stdin, AsyncReader}; // To read keys asynchronously
 use unicode_width::UnicodeWidthStr; // To find the width of unicode strings
 
 // Our terminal struct
 pub struct Terminal {
     screen: AlternateScreen<std::io::Stdout>, // Holds the screen
     _stdout: RawTerminal<Stdout>,             // Ensures we're in raw mode for total control
-    pub stdin: AsyncReader,                   // Asynchronous stdin
     pub width: u16,                           // Width of the terminal
     pub height: u16,                          // Height of the terminal
     ansi_regex: Regex,                        // For holding the regex expression
@@ -25,7 +23,6 @@ impl Terminal {
         Self {
             screen: AlternateScreen::from(stdout()),
             _stdout: stdout().into_raw_mode().unwrap(),
-            stdin: async_stdin(),
             width: size.0,
             height: size.1,
             ansi_regex: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),

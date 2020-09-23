@@ -1,10 +1,8 @@
 0.2.2 (Input bug solving and log file)
-- [ ] Fix clipboard bug
-  - [ ] Set up a log file
-    - [ ] Add bool in config.rs
-    - [ ] Add functions for writing to it
-  - [ ] Check using a log file whether it's the async
-  - [ ] Use a different async stdin library ? 
+- [ ] Set up a log file
+  - [ ] Add bool in config.rs
+  - [ ] Add functions for writing to it
+- [X] Fix clipboard bug
 
 0.2.3 (Interface improvements)
 - [ ] CLAP cli
