@@ -155,7 +155,7 @@ Here is the current summary
  - [X] Basic editing functions (0.2.0)
  - [X] Line numbers (0.2.0)
  - [X] Searching (0.2.0) [33 commits]
- - [X] Undo and Redo (0.2.1) [28 commits]
+ - [X] Undo and Redo (0.2.1) [30 commits]
  - [ ] Clipboard support (0.2.2)
  - [ ] Good command line interface (0.2.3)
  - [ ] Config files (0.2.3)
