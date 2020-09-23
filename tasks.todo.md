@@ -1,27 +1,3 @@
-0.2.1 (Undo & Redo)
-- [ ] Undo / Redo
-  - [ ] Refactor
-  - [X] Undo
-    - [X] Add event executor
-  - [X] Set up EventStack
-    - [X] Read Insertion
-    - [X] Read Deletion
-    - [X] Add reverse event lookup
-    - [X] Read NewLine
-      - [X] End of line
-      - [X] Start of line
-      - [X] Middle of line
-    - [X] Support for offsets
-    - [X] Read DeleteLine
-      - [X] Middle of line
-      - [X] Start of line
-  - [X] Redo
-    - [X] Set up seperate redo stack
-    - [X] Clear redo stack on change
-    - [X] Link up operations
-  - [X] Set up smart undoing / redoing to undo by groups of common events
-  - [X] Commit changes after inactivity period
-
 0.2.2 (Input bug solving)
 - [ ] Fix clipboard bug
   - [ ] Check using a log file whether it's the async
@@ -152,4 +128,28 @@
   - [X] Scroll offset with search
     - [X] Ensure the initial offset is saved
     - [X] Move the offset
+
+0.2.1 (Undo & Redo)
+- [X] Undo / Redo
+  - [X] Undo
+    - [X] Add event executor
+  - [X] Set up EventStack
+    - [X] Read Insertion
+    - [X] Read Deletion
+    - [X] Add reverse event lookup
+    - [X] Read NewLine
+      - [X] End of line
+      - [X] Start of line
+      - [X] Middle of line
+    - [X] Support for offsets
+    - [X] Read DeleteLine
+      - [X] Middle of line
+      - [X] Start of line
+  - [X] Redo
+    - [X] Set up seperate redo stack
+    - [X] Clear redo stack on change
+    - [X] Link up operations
+  - [X] Set up smart undoing / redoing to undo by groups of common events
+  - [X] Commit changes after inactivity period
+  - [X] Refactor
 

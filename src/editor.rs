@@ -1,5 +1,8 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH, UNDO_INACTIVITY_PERIOD}; // Configuration values
+use crate::config::{
+    BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH,
+    UNDO_INACTIVITY_PERIOD,
+}; // Configuration values
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal}; // Bringing in all the structs
 use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
