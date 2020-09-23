@@ -139,8 +139,6 @@ impl Editor {
         }
     }
     fn redo(&mut self) {
-        self.dirty = true;
-        self.show_welcome = false;
         if let Some(events) = self.doc.redo_stack.pop() {
             for event in events.iter().rev() {
                 match event {
@@ -201,7 +199,8 @@ impl Editor {
                         self.recalculate_graphemes();
                     }
                 }
-                self.set_command_line(format!("{:?}", event), Type::Info);
+                self.dirty = true;
+                self.show_welcome = false;
             }
             self.doc.undo_stack.append(events);
         } else {
@@ -209,8 +208,6 @@ impl Editor {
         }
     }
     fn undo(&mut self) {
-        self.dirty = true;
-        self.show_welcome = false;
         self.doc.undo_stack.commit();
         if let Some(events) = self.doc.undo_stack.pop() {
             for event in &events {
@@ -265,7 +262,8 @@ impl Editor {
                         self.leap_cursor(Key::Home);
                     }
                 }
-                self.set_command_line(format!("{:?}", event), Type::Info);
+                self.dirty = true;
+                self.show_welcome = false;
             }
             self.doc.redo_stack.append(events);
         } else {
@@ -310,6 +308,7 @@ impl Editor {
         self.doc.redo_stack.empty();
     }
     fn tab(&mut self) {
+        // Insert a tab
         for _ in 0..TAB_WIDTH {
             self.doc.rows[self.cursor.y + self.offset.y].insert(' ', self.graphemes);
             self.move_cursor(Key::Right);

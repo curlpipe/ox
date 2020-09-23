@@ -43,7 +43,7 @@ Ox aims to be an editor that takes features from some of the most popular editor
 
 **Xi** https://xi-editor.io/: Xi is also written in Rust but is purely a backend at the moment, I decided to make Ox both a frontend and a backend because Xi has many frontends, but most of them are broken and it lacks a lot of features.
 
-**Kiro** https://github.com/rhysd/kiro-editor: Kiro is written in Rust and adds features such as unicode support, a nicer colour scheme and small things like resizing. Ox took the ideas for the improvements from Kiro, however implemented them differently. Kiro’s source code is also very difficult to understand at points, so I decided to keep Ox’s syntax simple and use a minimal set of the vast features that Rust has to offer.
+**Kiro** https://github.com/rhysd/kiro-editor: Kiro is an amazing text editor written in Rust and adds features such as unicode support, a nicer colour scheme and small things like resizing and it is a very inspiring editor. Ox took the ideas for the improvements from Kiro, however implemented them differently. Kiro’s source code also seems to be quite advanced in some areas so I decided to keep Ox as simple as I could. 
 
 ### Built With
 
@@ -51,6 +51,7 @@ Ox is super minimal and aims to use as few dependencies as possible, allowing fo
 
 * [Rust language](https://rust-lang.org)
 * [Termion](https://github.com/redox-os/termion)
+* [Unicode-rs](https://unicode-rs.github.io/)
 
 <!-- GETTING STARTED -->
 ## Getting Started
