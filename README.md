@@ -163,7 +163,7 @@ Here is the current summary
  - [X] Searching (0.2.0) [1040 lines]
  - [X] Undo and Redo (0.2.1) [1282 lines]
  - [X] Input bug (0.2.2) [1278 lines]
- - [ ] Good command line interface (0.2.3)
+ - [X] Good command line interface (0.2.3)
  - [ ] Config files (0.2.3)
  - [ ] Replacing text (0.2.3)
  - [ ] Syntax highlighting (0.2.4)
