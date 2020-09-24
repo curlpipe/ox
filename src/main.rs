@@ -39,12 +39,6 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() {
     // Attempt to start an editor instance
     let result = panic::catch_unwind(|| {
-        // Work out the default config location
-        let default_config = if let Ok(home) = env::var("HOME") {
-            format!("{}/.config/ox/ox.toml", home)
-        } else {
-            "ox.toml".to_string()
-        };
         // Gather the command line arguments
         let cli = App::new("Ox")
             .version(VERSION)
@@ -61,7 +55,7 @@ fn main() {
                     .long("config")
                     .short("c")
                     .takes_value(true)
-                    .default_value(&default_config)
+                    .default_value("~/.config/ox/ox.toml")
                     .help("The directory of the config file"),
             );
         let mut editor = Editor::new(cli);
