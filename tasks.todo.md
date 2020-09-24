@@ -1,13 +1,13 @@
 0.2.3 (Interface improvements)
-- [ ] Config file
-  - [ ] Read a config file and populate values
-  - [ ] Have a few example config files
-  - [X] Add a default config path
-  - [X] Allow a config argument
-  - [X] Add hardcoded backup config file
 - [ ] Replace
 - [X] CLAP cli
   - [X] Update documentation
+- [X] Config file
+  - [X] Add a default config path
+  - [X] Allow a config argument
+  - [X] Add hardcoded backup config file
+  - [X] Read a config file and populate values
+  - [X] Have a few example config files
 
 0.2.4 (Syntax highlighting)
 - [ ] Syntax Highlighting

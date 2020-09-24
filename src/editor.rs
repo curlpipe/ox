@@ -1,5 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::ConfigReader;
+use crate::config::Reader;
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
 use clap::App; // For a nice command line interface
@@ -43,7 +43,7 @@ pub struct Position {
 
 // The main editor struct
 pub struct Editor {
-    pub config: ConfigReader,       // Storage for configuration
+    pub config: Reader,             // Storage for configuration
     quit: bool,                     // Toggle for cleanly quitting the editor
     show_welcome: bool,             // Toggle for showing the welcome message
     dirty: bool,                    // True if the current document has been edited
@@ -62,13 +62,10 @@ impl Editor {
     pub fn new(args: App) -> Self {
         // Create a new editor instance
         let args = args.get_matches();
-        let files: Vec<&str> = args
-            .values_of("files")
-            .unwrap_or_default()
-            .collect();
+        let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
         Self {
             quit: false,
-            show_welcome: files.len() == 0,
+            show_welcome: files.is_empty(),
             dirty: false,
             command_line: CommandLine {
                 text: "Welcome to Ox!".to_string(),
@@ -78,18 +75,19 @@ impl Editor {
             graphemes: 0,
             cursor: Position { x: 0, y: 0 },
             offset: Position { x: 0, y: 0 },
-            doc: if files.len() >= 1 {
-                Document::from(files[0])
-            } else {
+            doc: if files.is_empty() {
                 Document::new()
+            } else {
+                Document::from(files[0])
             },
             last_keypress: None,
             stdin: async_stdin().keys(),
-            config: ConfigReader::new(args.value_of("config").unwrap_or_default().to_string()),
+            config: Reader::new(args.value_of("config").unwrap_or_default().to_string()),
         }
     }
     pub fn run(&mut self) {
         // Run the editor instance
+        self.config.read_config();
         while !self.quit {
             self.update();
             self.process_input();
@@ -115,7 +113,7 @@ impl Editor {
                 }
                 // Check for a period of inactivity
                 if let Some(time) = self.last_keypress {
-                    if time.elapsed().as_secs() >= self.config.undo_time {
+                    if time.elapsed().as_secs() >= self.config.undo_period {
                         self.doc.undo_stack.commit();
                         self.last_keypress = None;
                     }
@@ -806,14 +804,14 @@ impl Editor {
         );
         format!(
             "{}{}~{}{}{}{}{}{}{}",
-            self.config.window_bg, 
-            self.config.lineno_fg, 
-            RESET_FG, 
-            pad, 
-            colour, 
-            text, 
-            RESET_FG, 
-            pad_right, 
+            self.config.window_bg,
+            self.config.line_number_fg,
+            RESET_FG,
+            pad,
+            colour,
+            text,
+            RESET_FG,
+            pad_right,
             RESET_BG,
         )
     }
@@ -856,7 +854,13 @@ impl Editor {
     }
     fn add_background(&self, text: &str) -> String {
         // Add a background colour to a line
-        format!("{}{}{}{}", self.config.window_bg, text, self.term.align_left(text), RESET_BG)
+        format!(
+            "{}{}{}{}",
+            self.config.window_bg,
+            text,
+            self.term.align_left(text),
+            RESET_BG
+        )
     }
     fn command_line(&self) -> String {
         // Render the command line
@@ -893,9 +897,16 @@ impl Editor {
                 // Render status line
                 frame.push(self.status_line());
             } else if row == self.term.height / 4 && self.show_welcome {
-                frame.push(self.welcome_message(&format!("Ox editor  v{}", VERSION), self.config.window_fg));
+                frame.push(
+                    self.welcome_message(
+                        &format!("Ox editor  v{}", VERSION),
+                        self.config.window_fg,
+                    ),
+                );
             } else if row == (self.term.height / 4).saturating_add(1) && self.show_welcome {
-                frame.push(self.welcome_message("A Rust powered editor by Luke", self.config.window_fg));
+                frame.push(
+                    self.welcome_message("A Rust powered editor by Luke", self.config.window_fg),
+                );
             } else if row == (self.term.height / 4).saturating_add(3) && self.show_welcome {
                 frame.push(self.welcome_message("Ctrl + Q: Exit   ", self.config.status_fg));
             } else if row == (self.term.height / 4).saturating_add(4) && self.show_welcome {
@@ -915,7 +926,7 @@ impl Editor {
                 // Render empty lines
                 frame.push(format!(
                     "{}{}{}",
-                    self.config.lineno_fg,
+                    self.config.line_number_fg,
                     self.add_background("~"),
                     RESET_FG
                 ));

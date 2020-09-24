@@ -29,7 +29,7 @@ use document::Document;
 use editor::{Editor, Position};
 use row::Row;
 use std::time::Duration;
-use std::{panic, thread};
+use std::{env, panic, thread};
 use terminal::Terminal;
 use undo::{Event, EventStack};
 
@@ -39,21 +39,31 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() {
     // Attempt to start an editor instance
     let result = panic::catch_unwind(|| {
+        // Work out the default config location
+        let default_config = if let Ok(home) = env::var("HOME") {
+            format!("{}/.config/ox/ox.toml", home)
+        } else {
+            "ox.toml".to_string()
+        };
         // Gather the command line arguments
         let cli = App::new("Ox")
             .version(VERSION)
             .author("Author: Luke <https://github.com/curlpipe>")
             .about("An independent Rust powered text editor")
-            .arg(Arg::with_name("files")
-                 .multiple(true)
-                 .takes_value(true)
-                 .help("The files you wish to edit"))
-            .arg(Arg::with_name("config")
-                 .long("config")
-                 .short("c")
-                 .takes_value(true)
-                 .default_value("~/.config/ox/ox.toml")
-                 .help("The directory of the config file"));
+            .arg(
+                Arg::with_name("files")
+                    .multiple(true)
+                    .takes_value(true)
+                    .help("The files you wish to edit"),
+            )
+            .arg(
+                Arg::with_name("config")
+                    .long("config")
+                    .short("c")
+                    .takes_value(true)
+                    .default_value(&default_config)
+                    .help("The directory of the config file"),
+            );
         let mut editor = Editor::new(cli);
         editor.run();
     });
