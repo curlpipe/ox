@@ -15,7 +15,7 @@ pub const RESET_FG: color::Fg<color::Reset> = color::Fg(color::Reset);
 pub const TAB_WIDTH: usize = 4;
 
 // Line numbers
-pub const LINE_NUMBER_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(48, 57, 102));
+pub const LINE_NUMBER_FG: color::Fg<color::Rgb> = color::Fg(color::Rgb(51, 51, 72));
 pub const LINE_NUMBER_PADDING: usize = 1;
 
 // Undo features
