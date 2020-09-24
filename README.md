@@ -11,8 +11,8 @@
     Ox is a fast text editor that runs in your terminal.
     <br><br>
     <div align="center" style="display:inline;">
-      <img src="https://i.postimg.cc/bwdk6HHX/image.png" width="49%">
-      <img src="https://i.postimg.cc/wM6sDhTG/image.png" width="49%">
+      <img src="https://i.postimg.cc/CLJ5W43x/image.png" width="49%">
+      <img src="https://i.postimg.cc/XNfpgWxF/image.png" width="49%">
     </div>
     <br>
 </p>
@@ -152,6 +152,23 @@ If at any time you wish to exit the search feature and return to the location in
 
 Undoing and Redoing in Ox is as simple as <kbd>Ctrl + U</kbd> to undo and <kbd>Ctrl + Y</kbd> to redo. The changes are commited to the undo stack every time you press the space bar, create / destroy a new line and when there is inactivity longer than a specific period of time. (e.g. Ox will commit to the undo stack after 10 seconds of inactivity, possibly while you pause for thought or a break)
 
+#### Configuring Ox
+
+Ox features a configuration system that allows modification and personalisation of the editor.
+
+By default, Ox will look for a file here: `~/.config/ox/ox.toml`.
+
+Ox's configuration language is [TOML](https://toml.io).
+
+There are several default configs in the `config` folder. You will have to either download one and place it in the default config directory or create your own using the example ones as a reference. The config folder includs the older theme that Ox had before 0.2.3 and the default modern one.
+If you don't have a config file, don't worry :), Ox will just ignore it if you don't have one and it can ignore individual fields should you just want to use the default values.
+
+If you wish to specify the configuration directory, you can do so using the `--config` option (or `-c` if you prefer). For Example:
+
+```
+ox --config /path/to/my_config.toml file_to_edit.txt
+```
+
 ## Roadmap
 
 You can see the `tasks.todo.md` file to see my full plans for the future of the editor!
@@ -164,7 +181,7 @@ Here is the current summary
  - [X] Undo and Redo (0.2.1) [1282 lines]
  - [X] Input bug (0.2.2) [1278 lines]
  - [X] Good command line interface (0.2.3)
- - [ ] Config files (0.2.3)
+ - [X] Config files (0.2.3)
  - [ ] Replacing text (0.2.3)
  - [ ] Syntax highlighting (0.2.4)
  - [ ] Tabs for multitasking (0.2.5)
