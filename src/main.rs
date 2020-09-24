@@ -42,9 +42,18 @@ fn main() {
         // Gather the command line arguments
         let cli = App::new("Ox")
             .version(VERSION)
-            .author("Luke")
+            .author("Author: Luke <https://github.com/curlpipe>")
             .about("An independent Rust powered text editor")
-            .arg(Arg::with_name("files").multiple(true).takes_value(true));
+            .arg(Arg::with_name("files")
+                 .multiple(true)
+                 .takes_value(true)
+                 .help("The files you wish to edit"))
+            .arg(Arg::with_name("config")
+                 .long("config")
+                 .short("c")
+                 .takes_value(true)
+                 .default_value("~/.config/ox/ox.toml")
+                 .help("The directory of the config file"));
         let mut editor = Editor::new(cli);
         editor.run();
     });

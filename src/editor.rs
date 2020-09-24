@@ -1,8 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{
-    BG, FG, LINE_NUMBER_FG, RESET_BG, RESET_FG, STATUS_BG, STATUS_FG, TAB_WIDTH,
-    UNDO_INACTIVITY_PERIOD,
-}; // Configuration values
+use crate::config::ConfigReader;
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
 use clap::App; // For a nice command line interface
@@ -12,6 +9,10 @@ use termion::event::Key; // For reading Keys and shortcuts
 use termion::input::{Keys, TermRead}; // To allow reading from the terminal
 use termion::{async_stdin, color, style, AsyncReader}; // For managing the terminal
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // For calculating unicode character widths
+
+// Set up color resets
+pub const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
+pub const RESET_FG: color::Fg<color::Reset> = color::Fg(color::Reset);
 
 // Enum for the kinds of status messages
 enum Type {
@@ -42,6 +43,7 @@ pub struct Position {
 
 // The main editor struct
 pub struct Editor {
+    pub config: ConfigReader,       // Storage for configuration
     quit: bool,                     // Toggle for cleanly quitting the editor
     show_welcome: bool,             // Toggle for showing the welcome message
     dirty: bool,                    // True if the current document has been edited
@@ -60,7 +62,10 @@ impl Editor {
     pub fn new(args: App) -> Self {
         // Create a new editor instance
         let args = args.get_matches();
-        let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
+        let files: Vec<&str> = args
+            .values_of("files")
+            .unwrap_or_default()
+            .collect();
         Self {
             quit: false,
             show_welcome: files.len() == 0,
@@ -80,6 +85,7 @@ impl Editor {
             },
             last_keypress: None,
             stdin: async_stdin().keys(),
+            config: ConfigReader::new(args.value_of("config").unwrap_or_default().to_string()),
         }
     }
     pub fn run(&mut self) {
@@ -109,7 +115,7 @@ impl Editor {
                 }
                 // Check for a period of inactivity
                 if let Some(time) = self.last_keypress {
-                    if time.elapsed().as_secs() >= UNDO_INACTIVITY_PERIOD {
+                    if time.elapsed().as_secs() >= self.config.undo_time {
                         self.doc.undo_stack.commit();
                         self.last_keypress = None;
                     }
@@ -144,7 +150,7 @@ impl Editor {
                 match event {
                     Event::InsertTab(pos) => {
                         self.cursor.y = pos.y - self.offset.y;
-                        self.cursor.x = pos.x.saturating_sub(TAB_WIDTH) - self.offset.x;
+                        self.cursor.x = pos.x.saturating_sub(self.config.tab_width) - self.offset.x;
                         self.recalculate_graphemes();
                         self.tab();
                     }
@@ -213,7 +219,7 @@ impl Editor {
             for event in &events {
                 match event {
                     Event::InsertTab(pos) => {
-                        for i in 1..=TAB_WIDTH {
+                        for i in 1..=self.config.tab_width {
                             self.doc.rows[pos.y].delete(pos.x - i);
                             self.move_cursor(Key::Left);
                         }
@@ -309,7 +315,7 @@ impl Editor {
     }
     fn tab(&mut self) {
         // Insert a tab
-        for _ in 0..TAB_WIDTH {
+        for _ in 0..self.config.tab_width {
             self.doc.rows[self.cursor.y + self.offset.y].insert(' ', self.graphemes);
             self.move_cursor(Key::Right);
         }
@@ -785,7 +791,7 @@ impl Editor {
     fn update(&mut self) {
         // Move the cursor and render the screen
         self.term.goto(&Position { x: 0, y: 0 });
-        self.doc.recalculate_offset();
+        self.doc.recalculate_offset(&self.config);
         self.render();
         self.term.goto(&Position {
             x: self.cursor.x.saturating_add(self.doc.line_offset + 1),
@@ -800,7 +806,15 @@ impl Editor {
         );
         format!(
             "{}{}~{}{}{}{}{}{}{}",
-            BG, LINE_NUMBER_FG, RESET_FG, pad, colour, text, RESET_FG, pad_right, RESET_BG,
+            self.config.window_bg, 
+            self.config.lineno_fg, 
+            RESET_FG, 
+            pad, 
+            colour, 
+            text, 
+            RESET_FG, 
+            pad_right, 
+            RESET_BG,
         )
     }
     fn status_line(&self) -> String {
@@ -830,8 +844,8 @@ impl Editor {
         format!(
             "{}{}{}{}{}{}{}{}{}",
             style::Bold,
-            STATUS_FG,
-            STATUS_BG,
+            self.config.status_fg,
+            self.config.status_bg,
             left,
             padding,
             right,
@@ -842,7 +856,7 @@ impl Editor {
     }
     fn add_background(&self, text: &str) -> String {
         // Add a background colour to a line
-        format!("{}{}{}{}", BG, text, self.term.align_left(text), RESET_BG)
+        format!("{}{}{}{}", self.config.window_bg, text, self.term.align_left(text), RESET_BG)
     }
     fn command_line(&self) -> String {
         // Render the command line
@@ -879,15 +893,15 @@ impl Editor {
                 // Render status line
                 frame.push(self.status_line());
             } else if row == self.term.height / 4 && self.show_welcome {
-                frame.push(self.welcome_message(&format!("Ox editor  v{}", VERSION), FG));
+                frame.push(self.welcome_message(&format!("Ox editor  v{}", VERSION), self.config.window_fg));
             } else if row == (self.term.height / 4).saturating_add(1) && self.show_welcome {
-                frame.push(self.welcome_message("A Rust powered editor by Luke", FG));
+                frame.push(self.welcome_message("A Rust powered editor by Luke", self.config.window_fg));
             } else if row == (self.term.height / 4).saturating_add(3) && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + Q: Exit   ", STATUS_FG));
+                frame.push(self.welcome_message("Ctrl + Q: Exit   ", self.config.status_fg));
             } else if row == (self.term.height / 4).saturating_add(4) && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + S: Save   ", STATUS_FG));
+                frame.push(self.welcome_message("Ctrl + S: Save   ", self.config.status_fg));
             } else if row == (self.term.height / 4).saturating_add(5) && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + W: Save as", STATUS_FG));
+                frame.push(self.welcome_message("Ctrl + W: Save as", self.config.status_fg));
             } else if let Some(line) = self.doc.rows.get(self.offset.y + row as usize) {
                 // Render lines of code
                 frame.push(self.add_background(&line.render(
@@ -895,12 +909,13 @@ impl Editor {
                     self.term.width as usize,
                     self.offset.y + row as usize,
                     self.doc.line_offset,
+                    &self.config,
                 )));
             } else {
                 // Render empty lines
                 frame.push(format!(
                     "{}{}{}",
-                    LINE_NUMBER_FG,
+                    self.config.lineno_fg,
                     self.add_background("~"),
                     RESET_FG
                 ));

@@ -1,5 +1,6 @@
 // Row.rs - Handling the rows of a document
-use crate::config::{LINE_NUMBER_FG, LINE_NUMBER_PADDING, RESET_FG}; // Config stuff
+use crate::editor::RESET_FG; // Reset colours
+use crate::config::ConfigReader; // For configuration
 use crate::util::{trim_end, trim_start}; // Utilities
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
@@ -25,16 +26,16 @@ impl From<&str> for Row {
 
 // Add methods to the Row struct / class
 impl Row {
-    pub fn render(&self, start: usize, end: usize, index: usize, offset: usize) -> String {
+    pub fn render(&self, start: usize, end: usize, index: usize, offset: usize, config: &ConfigReader) -> String {
         // Render the row by trimming it to the correct size
         let index = index.saturating_add(1);
-        let post_padding = offset.saturating_sub(index.to_string().len() + LINE_NUMBER_PADDING);
+        let post_padding = offset.saturating_sub(index.to_string().len() + config.lineno_pd);
         let line_number = format!(
             "{}{}{}{}{}",
-            LINE_NUMBER_FG,
+            config.lineno_fg,
             " ".repeat(post_padding),
             index,
-            " ".repeat(LINE_NUMBER_PADDING.saturating_add(1)),
+            " ".repeat(config.lineno_pd.saturating_add(1)),
             RESET_FG,
         );
         let line_number_len = self.no_ansi_len(&line_number);

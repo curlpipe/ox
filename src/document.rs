@@ -1,5 +1,5 @@
 // Document.rs - For managing external files
-use crate::config::LINE_NUMBER_PADDING; // Config stuff
+use crate::config::ConfigReader; // Config stuff
 use crate::{EventStack, Position, Row}; // The Row and Position struct
 use std::fs; // For managing file reading and writing
 
@@ -63,8 +63,8 @@ impl Document {
             }
         }
     }
-    pub fn recalculate_offset(&mut self) {
-        self.line_offset = self.rows.len().to_string().len() + LINE_NUMBER_PADDING;
+    pub fn recalculate_offset(&mut self, config: &ConfigReader) {
+        self.line_offset = self.rows.len().to_string().len() + config.lineno_pd;
     }
     pub fn save(&self) -> std::io::Result<()> {
         // Save a file
