@@ -1,5 +1,9 @@
 0.2.3 (Interface improvements)
 - [ ] Replace
+  - [ ] Fix X offset jumping
+  - [ ] Create replace all command
+  - [ ] Create replace some command
+  - [ ] Allow Regex expressions to be used?
 - [X] CLAP cli
   - [X] Update documentation
 - [X] Config file
@@ -42,9 +46,14 @@
   - [ ] Mouse selection support
     - [ ] Read mouse events
     - [ ] Move the cursor when clicking with mouse
+    - [ ] Add selection mode to document
+    - [ ] Allow text selection with the mouse cursor
 
 0.3.0 (IDE level features)
 - [ ] Auto indentation 
+  - [ ] Detect when to auto indent
+  - [ ] Find the amount of tabs needed
+  - [ ] Insert tabs there
 - [ ] Prettier
   - [ ] Find a way to access the prettier API
   - [ ] Add a confirmation
@@ -52,6 +61,7 @@
   - [ ] Read output from cargo's JSON
   - [ ] Display issues in the command line
   - [ ] highlight different colors for errors and warnings
+  - [ ] Add support for Pylint readings
 
 0.3.1 (IDE level features #2)
 - [ ] Auto brackets
@@ -69,16 +79,48 @@
 0.3.2 (IDE level features #3)
 - [ ] Auto complete
   - [ ] Get information from racer and display it in a menu
+  - [ ] Add configuration entries for the autocomplete
+  - [ ] Add support for file autocomplete too
 
 0.3.4 (Navigation)
 - [ ] File tree
   - [ ] Allow the document to be shifted up a bit
   - [ ] Render random text to the left of the document
+  - [ ] List directory
+  - [ ] Add cursor focus variable
+  - [ ] Add mutable flags
+  - [ ] Allow opening of files
+  - [ ] Allow collapse and expand of files
+  - [ ] Add sorting
+  - [ ] Add file operations
+    - [ ] New directory
+    - [ ] New file
+    - [ ] Delete directory
+    - [ ] Delete file
+    - [ ] Move file
+    - [ ] Copy file
 
-0.3.5 (Start up experience improvenment)
+0.3.5 (Start up experience improvements)
 - [ ] Start page
   - [ ] Store recently used documents
   - [ ] List them out
+- [ ] Add ability to save sessions and load them from cli and start page
+
+Further ideas
+- [ ] Split editors
+- [ ] Terminal integration
+- [ ] Package manager
+- [ ] Stack overflow searcher
+- [ ] Cheatsheet downloader
+- [ ] Discord rich presence
+- [ ] Live HTML editor
+- [ ] Documentation viewer
+- [ ] Todo list
+- [ ] Pomodoro timer for work / rest balance
+- [ ] Easter eggs
+- [ ] Automated tests
+- [ ] Theme builder
+- [ ] Typing speed tests / statistics
 
 0.1.1
 - [X] Go to the next line at end of line
