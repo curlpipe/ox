@@ -13,13 +13,13 @@
   fg = [255, 255, 255]
 
   # The background colour of the status bar
-  status_bg = [51, 51, 72]
+  status_bg = [59, 59, 84]
 
   # The text color of the status bar
   status_fg = [35, 240, 144]
 
   # For holding the text colour of the line numbers
-  line_number_fg = [51, 51, 72]
+  line_number_fg = [65, 65, 98]
 
 [general]
   # General text editing configuraton
