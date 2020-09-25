@@ -58,8 +58,10 @@ fn main() {
                     .default_value("~/.config/ox/ox.toml")
                     .help("The directory of the config file"),
             );
-        let mut editor = Editor::new(cli);
-        editor.run();
+        // Fire up the editor, ensuring that no start up problems occured
+        if let Ok(mut editor) = Editor::new(cli) {
+            editor.run();
+        }
     });
     // Check to see if the editor exited because of a runtime issue
     if result.is_err() {

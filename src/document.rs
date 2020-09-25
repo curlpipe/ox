@@ -31,8 +31,10 @@ impl Document {
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
             let mut file = file.split('\n').collect::<Vec<&str>>();
-            if file.iter().last().unwrap().is_empty() {
-                let _ = file.pop();
+            if let Some(line) = file.iter().last() {
+                if line.is_empty() {
+                    let _ = file.pop();
+                }
             }
             Some(Self {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
@@ -96,52 +98,55 @@ impl Document {
     pub fn identify(&self) -> &str {
         // Identify which type of file the current buffer is
         let extension = self.name.split('.').last();
-        match extension.unwrap() {
-            "asm" => "Assembly \u{f471} ",
-            "b" => "B \u{e7a3} ",
-            "bf" => "Brainfuck \u{e28c} ",
-            "bas" => "Basic \u{e7a3} ",
-            "bat" => "Batch file \u{e795} ",
-            "bash" => "Bash \u{e795} ",
-            "c" => "C \u{e61e} ",
-            "cr" => "Crystal \u{e7a3} ",
-            "cs" => "C# \u{f81a} ",
-            "cpp" => "C++ \u{e61d} ",
-            "css" => "CSS \u{e749} ",
-            "csv" => "CSV \u{f1c0} ",
-            "class" | "java" => "Java \u{e738} ",
-            "d" => "D \u{e7af} ",
-            "db" => "Database \u{f1c0} ",
-            "erb" => "ERB \u{e739} ",
-            "fish" => "Fish shell \u{f739} ",
-            "go" => "Go \u{e724} ",
-            "gds" => "Godot Script \u{fba7} ",
-            "gitignore" => "Gitignore \u{e702} ",
-            "hs" => "Haskell \u{e777} ",
-            "html" => "HTML \u{e736} ",
-            "js" => "JavaScript \u{e74e} ",
-            "json" => "JSON \u{e60b} ",
-            "lua" => "LUA \u{e620} ",
-            "log" => "Log file \u{f15c} ",
-            "md" => "Markdown \u{e73e} ",
-            "nim" => "Nim \u{e26e} ",
-            "py" | "pyc" => "Python \u{e73c} ",
-            "php" => "PHP \u{f81e} ",
-            "r" => "R \u{f1c0} ",
-            "rs" => "Rust \u{e7a8} ",
-            "rb" => "Ruby \u{e739} ",
-            "sh" => "Shell \u{e795} ",
-            "sql" => "SQL \u{f1c0} ",
-            "swift" => "Swift \u{e755} ",
-            "sqlite" => "SQLite \u{f1c0} ",
-            "txt" => "Plain Text \u{f15c} ",
-            "toml" => "Toml \u{f669} ",
-            "xml" => "XML \u{f72d} ",
-            "vb" => "VB Script \u{4eae}",
-            "vim" => "VimScript \u{e7c5} ",
-            "yml" | "yaml" => "YAML \u{e7a3} ",
-            "zsh" => "Z Shell \u{e795} ",
-            _ => "Unknown \u{f128}",
+        match extension {
+            Some(ext) => match ext {
+                "asm" => "Assembly \u{f471} ",
+                "b" => "B \u{e7a3} ",
+                "bf" => "Brainfuck \u{e28c} ",
+                "bas" => "Basic \u{e7a3} ",
+                "bat" => "Batch file \u{e795} ",
+                "bash" => "Bash \u{e795} ",
+                "c" => "C \u{e61e} ",
+                "cr" => "Crystal \u{e7a3} ",
+                "cs" => "C# \u{f81a} ",
+                "cpp" => "C++ \u{e61d} ",
+                "css" => "CSS \u{e749} ",
+                "csv" => "CSV \u{f1c0} ",
+                "class" | "java" => "Java \u{e738} ",
+                "d" => "D \u{e7af} ",
+                "db" => "Database \u{f1c0} ",
+                "erb" => "ERB \u{e739} ",
+                "fish" => "Fish shell \u{f739} ",
+                "go" => "Go \u{e724} ",
+                "gds" => "Godot Script \u{fba7} ",
+                "gitignore" => "Gitignore \u{e702} ",
+                "hs" => "Haskell \u{e777} ",
+                "html" => "HTML \u{e736} ",
+                "js" => "JavaScript \u{e74e} ",
+                "json" => "JSON \u{e60b} ",
+                "lua" => "LUA \u{e620} ",
+                "log" => "Log file \u{f15c} ",
+                "md" => "Markdown \u{e73e} ",
+                "nim" => "Nim \u{e26e} ",
+                "py" | "pyc" => "Python \u{e73c} ",
+                "php" => "PHP \u{f81e} ",
+                "r" => "R \u{f1c0} ",
+                "rs" => "Rust \u{e7a8} ",
+                "rb" => "Ruby \u{e739} ",
+                "sh" => "Shell \u{e795} ",
+                "sql" => "SQL \u{f1c0} ",
+                "swift" => "Swift \u{e755} ",
+                "sqlite" => "SQLite \u{f1c0} ",
+                "txt" => "Plain Text \u{f15c} ",
+                "toml" => "Toml \u{f669} ",
+                "xml" => "XML \u{f72d} ",
+                "vb" => "VB Script \u{4eae}",
+                "vim" => "VimScript \u{e7c5} ",
+                "yml" | "yaml" => "YAML \u{e7a3} ",
+                "zsh" => "Z Shell \u{e795} ",
+                _ => "Unknown \u{f128}",
+            }
+            None => "Unknown \u{f128}",
         }
     }
 }

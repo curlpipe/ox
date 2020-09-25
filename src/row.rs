@@ -101,7 +101,11 @@ impl Row {
         let after: String = self.string.graphemes(true).skip(1 + pos as usize).collect();
         let result: Option<char>;
         if let Some(c) = self.chars().get(pos) {
-            result = Some(c.parse().unwrap());
+            if let Ok(c) = c.parse() {
+                result = Some(c);
+            } else {
+                result = None;
+            }
         } else {
             result = None;
         }

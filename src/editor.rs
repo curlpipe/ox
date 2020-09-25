@@ -4,7 +4,7 @@ use crate::util::{is_ahead, is_behind, raw_to_grapheme, title}; // Bring in the 
 use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
 use clap::App; // For a nice command line interface
 use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
-use std::{cmp, thread}; // Managing threads, arguments and comparisons.
+use std::{cmp, thread, io::Error}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
 use termion::input::{Keys, TermRead}; // To allow reading from the terminal
 use termion::{async_stdin, color, style, AsyncReader}; // For managing the terminal
@@ -59,11 +59,11 @@ pub struct Editor {
 
 // Implementing methods for our editor struct / class
 impl Editor {
-    pub fn new(args: App) -> Self {
+    pub fn new(args: App) -> Result<Self, Error> {
         // Create a new editor instance
         let args = args.get_matches();
         let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
-        Self {
+        Ok(Self {
             quit: false,
             show_welcome: files.is_empty(),
             dirty: false,
@@ -71,7 +71,7 @@ impl Editor {
                 text: "Welcome to Ox!".to_string(),
                 msg: Type::Info,
             },
-            term: Terminal::new(),
+            term: Terminal::new()?,
             graphemes: 0,
             cursor: Position { x: 0, y: 0 },
             offset: Position { x: 0, y: 0 },
@@ -83,7 +83,7 @@ impl Editor {
             last_keypress: None,
             stdin: async_stdin().keys(),
             config: Reader::new(args.value_of("config").unwrap_or_default().to_string()),
-        }
+        })
     }
     pub fn run(&mut self) {
         // Run the editor instance
@@ -99,7 +99,11 @@ impl Editor {
             if let Some(key) = self.stdin.next() {
                 // When a keypress was detected
                 self.last_keypress = Some(Instant::now());
-                return key.unwrap();
+                if let Ok(key) = key {
+                    return key;
+                } else {
+                    continue;
+                }
             } else {
                 // Run code that we want to run when the key isn't pressed
                 if self.term.check_resize() {
@@ -392,13 +396,15 @@ impl Editor {
             let ch = self.doc.rows[self.cursor.y + self.offset.y].clone();
             self.doc.rows[self.cursor.y + self.offset.y].delete(self.graphemes);
             if let Some(ch) = ch.chars().get(self.graphemes) {
-                self.doc.undo_stack.push(Event::BackspaceMid(
-                    Position {
-                        x: self.cursor.x + self.offset.x,
-                        y: self.cursor.y + self.offset.y,
-                    },
-                    ch.parse().unwrap(),
-                ));
+                if let Ok(ch) = ch.parse() {
+                    self.doc.undo_stack.push(Event::BackspaceMid(
+                        Position {
+                            x: self.cursor.x + self.offset.x,
+                            y: self.cursor.y + self.offset.y,
+                        },
+                        ch,
+                    ));
+                }
             }
         }
     }

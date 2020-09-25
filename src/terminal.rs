@@ -1,7 +1,7 @@
 // Terminal.rs - Handling low level terminal operations
 use crate::Position; // Allow use and handling of positions
 use regex::Regex; // Regular expression engine
-use std::io::{stdout, Stdout, Write}; // For writing to the stdout
+use std::io::{stdout, Stdout, Write, Error}; // For writing to the stdout
 use termion::raw::{IntoRawMode, RawTerminal}; // To access raw mode
 use termion::screen::AlternateScreen; // To render to a separate screen
 use unicode_width::UnicodeWidthStr; // To find the width of unicode strings
@@ -17,16 +17,16 @@ pub struct Terminal {
 
 // Implement methods into the terminal struct / class
 impl Terminal {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, Error> {
         // Create a new terminal and switch into raw mode
-        let size = termion::terminal_size().unwrap();
-        Self {
+        let size = termion::terminal_size()?;
+        Ok(Self {
             screen: AlternateScreen::from(stdout()),
-            _stdout: stdout().into_raw_mode().unwrap(),
+            _stdout: stdout().into_raw_mode()?,
             width: size.0,
             height: size.1,
             ansi_regex: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
-        }
+        })
     }
     pub fn goto(&mut self, p: &Position) {
         // Move the cursor to a position
@@ -34,8 +34,7 @@ impl Terminal {
             self.screen,
             "{}",
             termion::cursor::Goto(p.x.saturating_add(1) as u16, p.y.saturating_add(1) as u16)
-        )
-        .unwrap();
+        ).unwrap();
     }
     pub fn flush(&mut self) {
         // Flush the screen to prevent weird behaviour
