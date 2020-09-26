@@ -807,12 +807,15 @@ impl Editor {
     fn welcome_message(&self, text: &str, colour: color::Fg<color::Rgb>) -> String {
         let pad = " ".repeat((self.term.width as usize / 2).saturating_sub(text.len() / 2));
         let pad_right = " ".repeat(
-            (self.term.width.saturating_sub(1) as usize).saturating_sub(text.len() + pad.len()),
+            (self.term.width.saturating_sub(1) as usize)
+                .saturating_sub(text.len() + pad.len())
+                .saturating_sub(self.config.line_number_padding_left),
         );
         format!(
-            "{}{}~{}{}{}{}{}{}",
+            "{}{}{}~{}{}{}{}{}{}",
             self.config.window_bg,
             self.config.line_number_fg,
+            " ".repeat(self.config.line_number_padding_left),
             RESET_FG,
             colour,
             trim_end(
@@ -881,7 +884,7 @@ impl Editor {
                 "{}{}{}{}{}",
                 style::Bold,
                 color::Fg(color::Red),
-                trim_end(&line, self.term.width as usize),
+                self.add_background(&trim_end(&line, self.term.width as usize)),
                 color::Fg(color::Reset),
                 style::Reset
             )),
@@ -889,7 +892,7 @@ impl Editor {
                 "{}{}{}{}{}",
                 style::Bold,
                 color::Fg(color::Yellow),
-                trim_end(&line, self.term.width as usize),
+                self.add_background(&trim_end(&line, self.term.width as usize)),
                 color::Fg(color::Reset),
                 style::Reset
             )),
@@ -937,7 +940,10 @@ impl Editor {
                 frame.push(format!(
                     "{}{}{}",
                     self.config.line_number_fg,
-                    self.add_background("~"),
+                    self.add_background(&format!(
+                        "{}~",
+                        " ".repeat(self.config.line_number_padding_left)
+                    )),
                     RESET_FG
                 ));
             }

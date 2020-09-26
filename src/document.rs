@@ -21,7 +21,7 @@ impl Document {
             rows: vec![Row::from("")],
             name: String::from("[No name]"),
             path: String::new(),
-            line_offset: config.line_number_padding_right,
+            line_offset: config.line_number_padding_right + config.line_number_padding_left,
             undo_stack: EventStack::new(),
             redo_stack: EventStack::new(),
         }
@@ -40,7 +40,7 @@ impl Document {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: path.to_string(),
                 path: path.to_string(),
-                line_offset: config.line_number_padding_right,
+                line_offset: config.line_number_padding_right + config.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
             })
@@ -59,14 +59,16 @@ impl Document {
                 rows: vec![Row::from("")],
                 name: path.to_string(),
                 path: path.to_string(),
-                line_offset: config.line_number_padding_right,
+                line_offset: config.line_number_padding_right + config.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
             }
         }
     }
     pub fn recalculate_offset(&mut self, config: &Reader) {
-        self.line_offset = self.rows.len().to_string().len() + config.line_number_padding_right;
+        self.line_offset = self.rows.len().to_string().len()
+            + config.line_number_padding_right
+            + config.line_number_padding_left;
     }
     pub fn save(&self) -> std::io::Result<()> {
         // Save a file

@@ -12,6 +12,7 @@
   - [X] Add hardcoded backup config file
   - [X] Read a config file and populate values
   - [X] Have a few example config files
+  - [X] Left line number padding
 
 0.2.4 (Syntax highlighting)
 - [ ] Syntax Highlighting

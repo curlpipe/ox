@@ -12,6 +12,7 @@ pub struct Reader {
     pub window_fg: color::Fg<color::Rgb>,
     pub line_number_fg: color::Fg<color::Rgb>,
     pub line_number_padding_right: usize,
+    pub line_number_padding_left: usize,
     pub tab_width: usize,
     pub undo_period: u64,
 }
@@ -31,7 +32,8 @@ impl Reader {
             status_bg: color::Bg(color::Rgb(59, 59, 84)),
             status_fg: color::Fg(color::Rgb(35, 240, 144)),
             line_number_fg: color::Fg(color::Rgb(65, 65, 98)),
-            line_number_padding_right: 1,
+            line_number_padding_right: 2,
+            line_number_padding_left: 1,
             tab_width: 4,
             undo_period: 5,
         }
@@ -65,6 +67,11 @@ impl Reader {
                     if let Some(raw) = general.get("line_number_padding_right") {
                         if let Some(num) = raw.as_integer() {
                             self.line_number_padding_right = num as usize;
+                        }
+                    }
+                    if let Some(raw) = general.get("line_number_padding_left") {
+                        if let Some(num) = raw.as_integer() {
+                            self.line_number_padding_left = num as usize;
                         }
                     }
                     if let Some(raw) = general.get("tab_width") {
