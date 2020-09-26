@@ -3,6 +3,7 @@ use crate::config::Reader;
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
 use clap::App; // For a nice command line interface
+use regex::Regex; // Regex for replacement
 use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
 use std::{cmp, io::Error, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
@@ -142,10 +143,32 @@ impl Editor {
             Key::Ctrl('f') => self.search(),
             Key::Ctrl('u') => self.undo(),
             Key::Ctrl('y') => self.redo(),
+            Key::Ctrl('r') => self.replace_all(),
             Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
             Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
         }
+    }
+    fn replace_all(&mut self) {
+        if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
+            if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
+                let re = Regex::new(&target).unwrap();
+                let lines = self.doc.rows.clone();
+                for (c, line) in lines.iter().enumerate() {
+                    let before = self.doc.rows[c].clone();
+                    let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
+                    if before.string != after.string {
+                        self.doc.undo_stack.push(Event::UpdateLine(
+                            c,
+                            before.clone(),
+                            after.clone(),
+                        ));
+                        self.doc.rows[c] = after;
+                    }
+                }
+            }
+        }
+        self.set_command_line("Replaced targets".to_string(), Type::Info);
     }
     fn redo(&mut self) {
         if let Some(events) = self.doc.redo_stack.pop() {
@@ -206,6 +229,9 @@ impl Editor {
                         self.move_cursor(Key::Up);
                         self.cursor.x = prev.length();
                         self.recalculate_graphemes();
+                    }
+                    Event::UpdateLine(pos, _, after) => {
+                        self.doc.rows[*pos] = after.clone();
                     }
                 }
                 self.dirty = true;
@@ -269,6 +295,9 @@ impl Editor {
                         self.doc.rows.insert(pos.y, before);
                         self.move_cursor(Key::Down);
                         self.leap_cursor(Key::Home);
+                    }
+                    Event::UpdateLine(pos, before, _) => {
+                        self.doc.rows[*pos] = before.clone();
                     }
                 }
                 self.dirty = true;

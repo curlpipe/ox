@@ -1,8 +1,8 @@
 // Undo.rs - Utilities for undoing, redoing and storing events
-use crate::Position;
+use crate::{Position, Row};
 
 // Event enum to store the types of events that occur
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Clone)]
 pub enum Event {
     InsertTab(Position),          // Insert Tab
     InsertMid(Position, char),    // Insert character
@@ -11,6 +11,7 @@ pub enum Event {
     ReturnStart(Position),        // Return key in the middle of line
     ReturnMid(Position, usize),   // Return from middle of the line
     ReturnEnd(Position),          // Return on the end of line
+    UpdateLine(usize, Row, Row),  // For holding entire line updates
 }
 
 // A struct for holding all the events taken by the user

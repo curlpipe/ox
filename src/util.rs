@@ -2,7 +2,7 @@ use crate::{Position, Row};
 use regex::Regex;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Exp {
     ansi: Regex,
 }

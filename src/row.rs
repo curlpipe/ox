@@ -6,7 +6,7 @@ use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
 use unicode_width::UnicodeWidthStr; // Getting width of unicode characters // Regex engine
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Row {
     pub string: String, // For holding the contents of the row
     regex: Exp,         // For holding the regex expression
