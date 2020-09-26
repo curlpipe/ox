@@ -18,11 +18,14 @@ pub struct Reader {
 
 #[allow(clippy::cast_sign_loss)]
 impl Reader {
-    pub fn new(config: String) -> Self {
+    pub fn new(config: &str) -> Self {
         // Initialise a config reader with default values
-        let config = shellexpand::full(&config).unwrap();
         Self {
-            file: (*config).to_string(),
+            file: if let Ok(config) = shellexpand::full(config) {
+                (*config).to_string()
+            } else {
+                config.to_string()
+            },
             window_bg: color::Bg(color::Rgb(41, 41, 61)),
             window_fg: color::Fg(color::Rgb(255, 255, 255)),
             status_bg: color::Bg(color::Rgb(59, 59, 84)),

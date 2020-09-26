@@ -1,6 +1,6 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::Reader;
-use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end, Exp}; // Bring in the utils
+use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
 use clap::App; // For a nice command line interface
 use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
@@ -55,7 +55,6 @@ pub struct Editor {
     offset: Position,               // For holding the offset on the X and Y axes
     last_keypress: Option<Instant>, // For holding the time of the last input event
     stdin: Keys<AsyncReader>,       // Asynchronous stdin
-    regex: Exp,                     // For regex
 }
 
 // Implementing methods for our editor struct / class
@@ -64,7 +63,7 @@ impl Editor {
         // Create a new editor instance
         let args = args.get_matches();
         let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
-        let config = Reader::new(args.value_of("config").unwrap_or_default().to_string());
+        let config = Reader::new(args.value_of("config").unwrap_or_default());
         Ok(Self {
             quit: false,
             show_welcome: files.is_empty(),
@@ -85,7 +84,6 @@ impl Editor {
             last_keypress: None,
             stdin: async_stdin().keys(),
             config,
-            regex: Exp::new(),
         })
     }
     pub fn run(&mut self) {
