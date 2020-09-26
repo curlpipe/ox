@@ -11,7 +11,7 @@ pub struct Reader {
     pub status_fg: color::Fg<color::Rgb>,
     pub window_fg: color::Fg<color::Rgb>,
     pub line_number_fg: color::Fg<color::Rgb>,
-    pub line_number_padding: usize,
+    pub line_number_padding_right: usize,
     pub tab_width: usize,
     pub undo_period: u64,
 }
@@ -20,14 +20,15 @@ pub struct Reader {
 impl Reader {
     pub fn new(config: String) -> Self {
         // Initialise a config reader with default values
+        let config = shellexpand::full(&config).unwrap();
         Self {
-            file: config,
+            file: (*config).to_string(),
             window_bg: color::Bg(color::Rgb(41, 41, 61)),
             window_fg: color::Fg(color::Rgb(255, 255, 255)),
             status_bg: color::Bg(color::Rgb(59, 59, 84)),
             status_fg: color::Fg(color::Rgb(35, 240, 144)),
             line_number_fg: color::Fg(color::Rgb(65, 65, 98)),
-            line_number_padding: 1,
+            line_number_padding_right: 1,
             tab_width: 4,
             undo_period: 5,
         }
@@ -60,7 +61,7 @@ impl Reader {
                     // Collect the general values
                     if let Some(raw) = general.get("line_number_padding_right") {
                         if let Some(num) = raw.as_integer() {
-                            self.line_number_padding = num as usize;
+                            self.line_number_padding_right = num as usize;
                         }
                     }
                     if let Some(raw) = general.get("tab_width") {

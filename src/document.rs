@@ -15,18 +15,18 @@ pub struct Document {
 
 // Add methods to the document struct
 impl Document {
-    pub fn new() -> Self {
+    pub fn new(config: &Reader) -> Self {
         // Create a new, empty document
         Self {
             rows: vec![Row::from("")],
             name: String::from("[No name]"),
             path: String::new(),
-            line_offset: 2,
+            line_offset: config.line_number_padding_right,
             undo_stack: EventStack::new(),
             redo_stack: EventStack::new(),
         }
     }
-    pub fn open(path: &str) -> Option<Self> {
+    pub fn open(config: &Reader, path: &str) -> Option<Self> {
         // Create a new document from a path
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
@@ -40,7 +40,7 @@ impl Document {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: path.to_string(),
                 path: path.to_string(),
-                line_offset: 2,
+                line_offset: config.line_number_padding_right,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
             })
@@ -49,9 +49,9 @@ impl Document {
             None
         }
     }
-    pub fn from(path: &str) -> Self {
+    pub fn from(config: &Reader, path: &str) -> Self {
         // Create a new document from a path with empty document on error
-        if let Some(doc) = Document::open(path) {
+        if let Some(doc) = Document::open(&config, path) {
             doc
         } else {
             // Create blank document
@@ -59,14 +59,14 @@ impl Document {
                 rows: vec![Row::from("")],
                 name: path.to_string(),
                 path: path.to_string(),
-                line_offset: 2,
+                line_offset: config.line_number_padding_right,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
             }
         }
     }
     pub fn recalculate_offset(&mut self, config: &Reader) {
-        self.line_offset = self.rows.len().to_string().len() + config.line_number_padding;
+        self.line_offset = self.rows.len().to_string().len() + config.line_number_padding_right;
     }
     pub fn save(&self) -> std::io::Result<()> {
         // Save a file
@@ -145,7 +145,7 @@ impl Document {
                 "yml" | "yaml" => "YAML \u{e7a3} ",
                 "zsh" => "Z Shell \u{e795} ",
                 _ => "Unknown \u{f128}",
-            }
+            },
             None => "Unknown \u{f128}",
         }
     }

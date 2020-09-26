@@ -1,10 +1,10 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::Reader;
-use crate::util::{is_ahead, is_behind, raw_to_grapheme, title}; // Bring in the utils
+use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end, Exp}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
 use clap::App; // For a nice command line interface
 use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
-use std::{cmp, thread, io::Error}; // Managing threads, arguments and comparisons.
+use std::{cmp, io::Error, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
 use termion::input::{Keys, TermRead}; // To allow reading from the terminal
 use termion::{async_stdin, color, style, AsyncReader}; // For managing the terminal
@@ -55,6 +55,7 @@ pub struct Editor {
     offset: Position,               // For holding the offset on the X and Y axes
     last_keypress: Option<Instant>, // For holding the time of the last input event
     stdin: Keys<AsyncReader>,       // Asynchronous stdin
+    regex: Exp,                     // For regex
 }
 
 // Implementing methods for our editor struct / class
@@ -63,6 +64,7 @@ impl Editor {
         // Create a new editor instance
         let args = args.get_matches();
         let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
+        let config = Reader::new(args.value_of("config").unwrap_or_default().to_string());
         Ok(Self {
             quit: false,
             show_welcome: files.is_empty(),
@@ -76,13 +78,14 @@ impl Editor {
             cursor: Position { x: 0, y: 0 },
             offset: Position { x: 0, y: 0 },
             doc: if files.is_empty() {
-                Document::new()
+                Document::new(&config)
             } else {
-                Document::from(files[0])
+                Document::from(&config, files[0])
             },
             last_keypress: None,
             stdin: async_stdin().keys(),
-            config: Reader::new(args.value_of("config").unwrap_or_default().to_string()),
+            config,
+            regex: Exp::new(),
         })
     }
     pub fn run(&mut self) {
@@ -417,7 +420,7 @@ impl Editor {
     fn new_document(&mut self) {
         // Handle new document event
         if self.dirty_prompt('n', "new") {
-            self.doc = Document::new();
+            self.doc = Document::new(&self.config);
             self.dirty = false;
             self.cursor.y = 0;
             self.offset.y = 0;
@@ -428,7 +431,7 @@ impl Editor {
         // Handle new document event
         if self.dirty_prompt('o', "open") {
             if let Some(result) = self.prompt("Open", &|_, _, _| {}) {
-                if let Some(doc) = Document::open(&result[..]) {
+                if let Some(doc) = Document::open(&self.config, &result[..]) {
                     self.doc = doc;
                     self.dirty = false;
                     self.show_welcome = false;
@@ -798,7 +801,7 @@ impl Editor {
         self.doc.recalculate_offset(&self.config);
         self.render();
         self.term.goto(&Position {
-            x: self.cursor.x.saturating_add(self.doc.line_offset + 1),
+            x: self.cursor.x.saturating_add(self.doc.line_offset),
             y: self.cursor.y,
         });
         self.term.flush();
@@ -809,23 +812,25 @@ impl Editor {
             (self.term.width.saturating_sub(1) as usize).saturating_sub(text.len() + pad.len()),
         );
         format!(
-            "{}{}~{}{}{}{}{}{}{}",
+            "{}{}~{}{}{}{}{}{}",
             self.config.window_bg,
             self.config.line_number_fg,
             RESET_FG,
-            pad,
             colour,
-            text,
-            RESET_FG,
+            trim_end(
+                &format!("{}{}", pad, text),
+                self.term.width.saturating_sub(1) as usize
+            ),
             pad_right,
+            RESET_FG,
             RESET_BG,
         )
     }
-    fn status_line(&self) -> String {
+    fn status_line(&mut self) -> String {
         // Produce the status line
         // Create the left part of the status line
         let left = format!(
-            " {}{} \u{2502} {}",
+            " {}{} \u{2502} {} ",
             self.doc.name,
             if self.dirty {
                 "[+] \u{fb12} "
@@ -836,7 +841,7 @@ impl Editor {
         );
         // Create the right part of the status line
         let right = format!(
-            "\u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
+            " \u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
             self.cursor.y + self.offset.y + 1,
             self.doc.rows.len(),
             self.cursor.x,
@@ -846,13 +851,14 @@ impl Editor {
         let padding = self.term.align_break(&left, &right);
         // Generate it
         format!(
-            "{}{}{}{}{}{}{}{}{}",
+            "{}{}{}{}{}{}{}",
             style::Bold,
             self.config.status_fg,
             self.config.status_bg,
-            left,
-            padding,
-            right,
+            trim_end(
+                &format!("{}{}{}", left, padding, right),
+                self.term.width as usize
+            ),
             RESET_BG,
             RESET_FG,
             style::Reset,
@@ -870,26 +876,26 @@ impl Editor {
     }
     fn command_line(&self) -> String {
         // Render the command line
-        let line = self.add_background(&self.command_line.text);
+        let line = &self.command_line.text;
         // Add the correct styling
         match self.command_line.msg {
-            Type::Error => format!(
+            Type::Error => self.add_background(&format!(
                 "{}{}{}{}{}",
                 style::Bold,
                 color::Fg(color::Red),
-                line,
+                trim_end(&line, self.term.width as usize),
                 color::Fg(color::Reset),
                 style::Reset
-            ),
-            Type::Warning => format!(
+            )),
+            Type::Warning => self.add_background(&format!(
                 "{}{}{}{}{}",
                 style::Bold,
                 color::Fg(color::Yellow),
-                line,
+                trim_end(&line, self.term.width as usize),
                 color::Fg(color::Reset),
                 style::Reset
-            ),
-            Type::Info => line,
+            )),
+            Type::Info => self.add_background(&trim_end(&line, self.term.width as usize)),
         }
     }
     fn render(&mut self) {

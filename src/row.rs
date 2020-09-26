@@ -1,8 +1,7 @@
 // Row.rs - Handling the rows of a document
 use crate::config::Reader; // For configuration
 use crate::editor::RESET_FG; // Reset colours
-use crate::util::{trim_end, trim_start}; // Utilities
-use regex::Regex;
+use crate::util::{trim_end, trim_start, Exp}; // Utilities
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
 use unicode_width::UnicodeWidthStr; // Getting width of unicode characters // Regex engine
 
@@ -10,7 +9,7 @@ use unicode_width::UnicodeWidthStr; // Getting width of unicode characters // Re
 #[derive(Clone)]
 pub struct Row {
     pub string: String, // For holding the contents of the row
-    ansi_regex: Regex,  // For holding the regex expression
+    regex: Exp,         // For holding the regex expression
 }
 
 // Implement a trait (similar method to inheritance) into the row
@@ -19,7 +18,7 @@ impl From<&str> for Row {
         // Initialise a row from a string
         Self {
             string: s.to_string(),
-            ansi_regex: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
+            regex: Exp::new(),
         }
     }
 }
@@ -36,21 +35,28 @@ impl Row {
     ) -> String {
         // Render the row by trimming it to the correct size
         let index = index.saturating_add(1);
-        let post_padding =
-            offset.saturating_sub(index.to_string().len() + config.line_number_padding);
+        // Padding to align line numbers to the right
+        let post_padding = offset.saturating_sub(
+            index.to_string().len() +         // Length of the number
+            config.line_number_padding_right, // Length of the padding
+        );
+        // Assemble the line number data
         let line_number = format!(
             "{}{}{}{}{}",
             config.line_number_fg,
             " ".repeat(post_padding),
             index,
-            " ".repeat(config.line_number_padding.saturating_add(1)),
+            " ".repeat(config.line_number_padding_right),
             RESET_FG,
         );
-        let line_number_len = self.no_ansi_len(&line_number);
+        // Strip ANSI values from the line
+        let line_number_len = self.regex.ansi_len(&line_number);
+        // Trim the line to fit into the terminal width
         let body = trim_end(
             &trim_start(&self.string, start),
             end.saturating_sub(line_number_len),
         );
+        // Return the full line string to be rendered
         line_number + &body
     }
     pub fn length(&self) -> usize {
@@ -111,10 +117,5 @@ impl Row {
         }
         self.string = before + &after;
         result
-    }
-    fn no_ansi_len(&self, data: &str) -> usize {
-        // Find the length of a string without ANSI values
-        let data = self.ansi_regex.replacen(data, 2, "");
-        UnicodeWidthStr::width(&*data)
     }
 }

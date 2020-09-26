@@ -1,7 +1,7 @@
 // Terminal.rs - Handling low level terminal operations
+use crate::util::Exp;
 use crate::Position; // Allow use and handling of positions
-use regex::Regex; // Regular expression engine
-use std::io::{stdout, Stdout, Write, Error}; // For writing to the stdout
+use std::io::{stdout, Error, Stdout, Write}; // For writing to the stdout
 use termion::raw::{IntoRawMode, RawTerminal}; // To access raw mode
 use termion::screen::AlternateScreen; // To render to a separate screen
 use unicode_width::UnicodeWidthStr; // To find the width of unicode strings
@@ -12,7 +12,7 @@ pub struct Terminal {
     _stdout: RawTerminal<Stdout>,             // Ensures we're in raw mode for total control
     pub width: u16,                           // Width of the terminal
     pub height: u16,                          // Height of the terminal
-    ansi_regex: Regex,                        // For holding the regex expression
+    regex: Exp,                               // For holding the regex
 }
 
 // Implement methods into the terminal struct / class
@@ -25,7 +25,7 @@ impl Terminal {
             _stdout: stdout().into_raw_mode()?,
             width: size.0,
             height: size.1,
-            ansi_regex: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
+            regex: Exp::new(),
         })
     }
     pub fn goto(&mut self, p: &Position) {
@@ -34,7 +34,8 @@ impl Terminal {
             self.screen,
             "{}",
             termion::cursor::Goto(p.x.saturating_add(1) as u16, p.y.saturating_add(1) as u16)
-        ).unwrap();
+        )
+        .unwrap();
     }
     pub fn flush(&mut self) {
         // Flush the screen to prevent weird behaviour
@@ -49,7 +50,7 @@ impl Terminal {
     }
     pub fn align_left(&self, text: &str) -> String {
         // Align items to the left
-        let length = self.no_ansi_len(text);
+        let length = self.regex.ansi_len(text);
         let padding = (self.width as usize).saturating_sub(length);
         " ".repeat(padding as usize)
     }
@@ -63,10 +64,5 @@ impl Terminal {
             self.height = size.1;
             true
         }
-    }
-    fn no_ansi_len(&self, data: &str) -> usize {
-        // Find the length of a string without ANSI values
-        let data = self.ansi_regex.replacen(data, 2, "");
-        UnicodeWidthStr::width(&*data)
     }
 }

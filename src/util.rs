@@ -1,5 +1,27 @@
 use crate::{Position, Row};
-use unicode_width::UnicodeWidthChar; // Getting width of unicode characters
+use regex::Regex;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+
+#[derive(Clone)]
+pub struct Exp {
+    ansi: Regex,
+}
+
+impl Exp {
+    pub fn new() -> Self {
+        Self {
+            ansi: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
+        }
+    }
+    pub fn ansi(&self, string: &str) -> String {
+        // Find the length of a string without ANSI values
+        (*self.ansi.replace(string, "")).to_string()
+    }
+    pub fn ansi_len(&self, string: &str) -> usize {
+        // Find the length of a string without ANSI values
+        UnicodeWidthStr::width(&*self.ansi.replacen(string, 2, ""))
+    }
+}
 
 pub fn title(c: &str) -> String {
     c.chars().next().map_or(String::new(), |f| {
