@@ -487,7 +487,7 @@ impl Editor {
                     Key::Left | Key::Up => {
                         for p in search_points.iter().rev() {
                             if is_behind(&s.cursor, &s.offset, &p) {
-                                s.goto_behind(&p);
+                                s.goto(&p);
                                 s.recalculate_graphemes();
                                 break;
                             }
@@ -496,7 +496,7 @@ impl Editor {
                     Key::Right | Key::Down => {
                         for p in search_points {
                             if is_ahead(&s.cursor, &s.offset, &p) {
-                                s.goto_ahead(&p);
+                                s.goto(&p);
                                 s.recalculate_graphemes();
                                 break;
                             }
@@ -515,7 +515,7 @@ impl Editor {
                     if t != "" {
                         for p in search_points {
                             if is_ahead(&s.cursor, &s.offset, &p) {
-                                s.goto_ahead(&p);
+                                s.goto(&p);
                                 s.recalculate_graphemes();
                                 break;
                             }
@@ -756,41 +756,36 @@ impl Editor {
             counter += i;
         }
     }
-    fn goto_behind(&mut self, position: &Position) {
-        // Adjust the offset to ensure that the cursor is in view
-        let max_range = self.term.height.saturating_sub(3) as usize;
+    fn goto(&mut self, pos: &Position) {
+        // Move the cursor to a specific location
+        let max_y = self.term.height.saturating_sub(3) as usize;
         let max_x = (self.term.width as usize).saturating_sub(self.doc.line_offset);
-        if self.offset.y == 0 && position.y < max_range {
-            self.cursor = *position;
+        let halfway_y = max_y / 2;
+        let halfway_x = max_x / 2;
+        if self.offset.x == 0 && pos.y < max_y && pos.x < max_x {
+            // Cursor is on the screen
+            self.offset = Position { x: 0, y: 0 };
+            self.cursor = *pos;
         } else {
-            if position.x > max_x {
-                self.offset.x = position.x;
-            } else {
-                self.cursor.x = position.x;
+            // Cursor is off the screen, move to the Y position
+            self.offset.y = pos.y.saturating_sub(halfway_y);
+            self.cursor.y = halfway_y;
+            if self.offset.y + self.cursor.y != pos.y {
+                // Fix cursor misplacement
+                self.offset = Position { x: 0, y: 0 };
+                self.cursor = *pos;
+                return;
             }
-            if position.y < max_range {
-                self.offset.y = 0;
-                self.cursor.y = position.y;
+            // Change the X
+            if pos.x >= max_x {
+                // Move to the center
+                self.offset.x = pos.x.saturating_sub(halfway_x);
+                self.cursor.x = halfway_x;
             } else {
-                self.offset.y = position.y;
-                self.cursor.y = 0;
+                // No offset
+                self.offset.x = 0;
+                self.cursor.x = pos.x;
             }
-        }
-    }
-    fn goto_ahead(&mut self, position: &Position) {
-        // Adjust the offset to ensure that the cursor is in view
-        let max_range = self.term.height.saturating_sub(3) as usize;
-        let max_x = (self.term.width as usize).saturating_sub(self.doc.line_offset);
-        if self.offset.y == 0 && position.y < max_range {
-            self.cursor = *position;
-        } else {
-            if position.x > max_x {
-                self.offset.x = position.x;
-            } else {
-                self.cursor.x = position.x;
-            }
-            self.offset.y = position.y.saturating_sub(max_range);
-            self.cursor.y = max_range;
         }
     }
     fn update(&mut self) {
