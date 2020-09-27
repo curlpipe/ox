@@ -1,9 +1,9 @@
 0.2.3 (Interface improvements)
 - [ ] Replace
-  - [ ] Fix X offset jumping
-  - [ ] Create replace all command
   - [ ] Create replace some command
-  - [ ] Allow Regex expressions to be used?
+  - [X] Fix X offset jumping
+  - [X] Create replace all command
+  - [X] Allow Regex expressions to be used?
 - [X] CLAP cli
   - [X] Update documentation
 - [X] Config file
@@ -13,6 +13,13 @@
   - [X] Read a config file and populate values
   - [X] Have a few example config files
   - [X] Left line number padding
+- [X] Change default theme
+- [X] Updated logo
+- [X] Performance optimizations
+- [X] No unwrap calls to reduce runtime errors
+- [X] Proper status line and welcome message wrapping
+- [X] Added left line number padding
+- [X] Improved search command to show results in the middle of screen
 
 0.2.4 (Syntax highlighting)
 - [ ] Syntax Highlighting
@@ -36,12 +43,23 @@
 - [ ] Save all
   - [ ] Write function
   - [ ] Set up keybinding
+- [ ] Minor tweaks
+  - [ ] Rewrite using crossterm for better bindings
+    - [ ] Build RGB ansi code function
+    - [ ] Fix unwrap on terminal size
+    - [ ] Properly implement terminal resizing
 
 0.2.6 (Extensibility)
 - [ ] Macro system
   - [ ] Allow special command mode
   - [ ] Have a few example macros
   - [ ] Allow binding of macros to some keys
+- [ ] More minor tweaks
+  - [ ] Transparent background
+  - [ ] Undoing to origin makes file not dirty
+  - [ ] Exit search when typing characters and catch up with events
+  - [ ] Better config.rs using reading to structs directly
+  - [ ] Undo / Redo patch limit to prevent high memory usage
 
 0.2.7 (Mouse support)
   - [ ] Mouse selection support
@@ -108,6 +126,7 @@
 - [ ] Add ability to save sessions and load them from cli and start page
 
 Further ideas
+- [ ] Automatically closing status line
 - [ ] Split editors
 - [ ] Terminal integration
 - [ ] Package manager
@@ -115,6 +134,7 @@ Further ideas
 - [ ] Cheatsheet downloader
 - [ ] Discord rich presence
 - [ ] Live HTML editor
+- [ ] HTML expansion like emmet
 - [ ] Documentation viewer
 - [ ] Todo list
 - [ ] Pomodoro timer for work / rest balance

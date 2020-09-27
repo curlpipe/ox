@@ -143,32 +143,12 @@ impl Editor {
             Key::Ctrl('f') => self.search(),
             Key::Ctrl('u') => self.undo(),
             Key::Ctrl('y') => self.redo(),
-            Key::Ctrl('r') => self.replace_all(),
+            Key::Ctrl('r') => self.replace(),
+            Key::Ctrl('a') => self.replace_all(),
             Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
             Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
         }
-    }
-    fn replace_all(&mut self) {
-        if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
-            if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
-                let re = Regex::new(&target).unwrap();
-                let lines = self.doc.rows.clone();
-                for (c, line) in lines.iter().enumerate() {
-                    let before = self.doc.rows[c].clone();
-                    let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
-                    if before.string != after.string {
-                        self.doc.undo_stack.push(Event::UpdateLine(
-                            c,
-                            before.clone(),
-                            after.clone(),
-                        ));
-                        self.doc.rows[c] = after;
-                    }
-                }
-            }
-        }
-        self.set_command_line("Replaced targets".to_string(), Type::Info);
     }
     fn redo(&mut self) {
         if let Some(events) = self.doc.redo_stack.pop() {
@@ -232,6 +212,9 @@ impl Editor {
                     }
                     Event::UpdateLine(pos, _, after) => {
                         self.doc.rows[*pos] = after.clone();
+                        self.snap_cursor();
+                        self.prevent_unicode_hell();
+                        self.recalculate_graphemes();
                     }
                 }
                 self.dirty = true;
@@ -298,6 +281,9 @@ impl Editor {
                     }
                     Event::UpdateLine(pos, before, _) => {
                         self.doc.rows[*pos] = before.clone();
+                        self.snap_cursor();
+                        self.prevent_unicode_hell();
+                        self.recalculate_graphemes();
                     }
                 }
                 self.dirty = true;
@@ -555,6 +541,98 @@ impl Editor {
             }
         });
         self.set_command_line("Search exited".to_string(), Type::Info);
+    }
+    fn replace(&mut self) {
+        let initial_cursor = self.cursor;
+        let initial_offset = self.offset;
+        if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
+            if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
+                let re = Regex::new(&target).unwrap();
+                let mut search_points = self.doc.scan(&target);
+                for p in &search_points {
+                    if is_ahead(&self.cursor, &self.offset, &p) {
+                        self.goto(&p);
+                        self.recalculate_graphemes();
+                        self.update();
+                        break;
+                    }
+                }
+                loop {
+                    let key = self.read_key();
+                    match key {
+                        Key::Up | Key::Left => {
+                            for p in (&search_points).iter().rev() {
+                                if is_behind(&self.cursor, &self.offset, &p) {
+                                    self.goto(&p);
+                                    self.recalculate_graphemes();
+                                    self.update();
+                                    break;
+                                }
+                            }
+                        }
+                        Key::Down | Key::Right => {
+                            for p in &search_points {
+                                if is_ahead(&self.cursor, &self.offset, &p) {
+                                    self.goto(&p);
+                                    self.recalculate_graphemes();
+                                    self.update();
+                                    break;
+                                }
+                            }
+                        }
+                        Key::Char('\n') | Key::Char('y') | Key::Char(' ') => {
+                            self.doc.undo_stack.commit();
+                            let line = self.doc.rows[self.cursor.y + self.offset.y].clone();
+                            let before = self.doc.rows[self.cursor.y + self.offset.y].clone();
+                            let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
+                            if before.string != after.string {
+                                self.doc.undo_stack.push(Event::UpdateLine(
+                                    self.cursor.y + self.offset.y,
+                                    before.clone(),
+                                    after.clone(),
+                                ));
+                                self.doc.rows[self.cursor.y + self.offset.y] = after;
+                            }
+                            self.update();
+                            self.snap_cursor();
+                            self.prevent_unicode_hell();
+                            self.recalculate_graphemes();
+                            search_points = self.doc.scan(&target);
+                        }
+                        Key::Esc => break,
+                        _ => (),
+                    }
+                }
+                self.cursor = initial_cursor;
+                self.offset = initial_offset;
+                self.set_command_line("Replace finished".to_string(), Type::Info);
+            }
+        }
+    }
+    fn replace_all(&mut self) {
+        if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
+            if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
+                self.doc.undo_stack.commit();
+                let re = Regex::new(&target).unwrap();
+                let lines = self.doc.rows.clone();
+                for (c, line) in lines.iter().enumerate() {
+                    let before = self.doc.rows[c].clone();
+                    let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
+                    if before.string != after.string {
+                        self.doc.undo_stack.push(Event::UpdateLine(
+                            c,
+                            before.clone(),
+                            after.clone(),
+                        ));
+                        self.doc.rows[c] = after;
+                    }
+                }
+            }
+        }
+        self.snap_cursor();
+        self.prevent_unicode_hell();
+        self.recalculate_graphemes();
+        self.set_command_line("Replaced targets".to_string(), Type::Info);
     }
     fn dirty_prompt(&mut self, key: char, subject: &str) -> bool {
         // For events that require changes to the document
