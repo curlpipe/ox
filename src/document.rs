@@ -1,4 +1,5 @@
 // Document.rs - For managing external files
+use regex::Regex; // For searching and replacing
 use crate::config::Reader; // Config stuff
 use crate::{EventStack, Position, Row}; // The Row and Position struct
 use std::fs; // For managing file reading and writing
@@ -81,9 +82,11 @@ impl Document {
     pub fn scan(&self, needle: &str) -> Vec<Position> {
         // Find all the points where "needle" occurs
         let mut result = vec![];
-        for (i, row) in self.rows.iter().enumerate() {
-            for o in row.string.match_indices(needle).collect::<Vec<_>>() {
-                result.push(Position { x: o.0, y: i });
+        if let Ok(re) = Regex::new(needle) {
+            for (i, row) in self.rows.iter().enumerate() {
+                for o in re.find_iter(&row.string) {
+                    result.push(Position { x: o.start(), y: i });
+                }
             }
         }
         result

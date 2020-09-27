@@ -1,26 +1,3 @@
-0.2.3 (Interface improvements)
-- [ ] Replace
-  - [ ] Create replace some command
-  - [X] Fix X offset jumping
-  - [X] Create replace all command
-  - [X] Allow Regex expressions to be used?
-- [X] CLAP cli
-  - [X] Update documentation
-- [X] Config file
-  - [X] Add a default config path
-  - [X] Allow a config argument
-  - [X] Add hardcoded backup config file
-  - [X] Read a config file and populate values
-  - [X] Have a few example config files
-  - [X] Left line number padding
-- [X] Change default theme
-- [X] Updated logo
-- [X] Performance optimizations
-- [X] No unwrap calls to reduce runtime errors
-- [X] Proper status line and welcome message wrapping
-- [X] Added left line number padding
-- [X] Improved search command to show results in the middle of screen
-
 0.2.4 (Syntax highlighting)
 - [ ] Syntax Highlighting
   - [ ] Set up basic syntax highlighting regex
@@ -214,4 +191,27 @@ Further ideas
 
 0.2.2 (Input bug solving)
 - [X] Fix clipboard bug
+
+0.2.3 (Interface improvements)
+- [X] CLAP cli
+  - [X] Update documentation
+- [X] Config file
+  - [X] Add a default config path
+  - [X] Allow a config argument
+  - [X] Add hardcoded backup config file
+  - [X] Read a config file and populate values
+  - [X] Have a few example config files
+  - [X] Left line number padding
+- [X] Change default theme
+- [X] Updated logo
+- [X] Performance optimizations
+- [X] No unwrap calls to reduce runtime errors
+- [X] Proper status line and welcome message wrapping
+- [X] Added left line number padding
+- [X] Improved search command to show results in the middle of screen
+- [X] Replace
+  - [X] Fix X offset jumping
+  - [X] Create replace all command
+  - [X] Create replace some command
+  - [X] Allow Regex expressions to be used?
 

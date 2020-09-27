@@ -52,6 +52,10 @@ Ox is super minimal and aims to use as few dependencies as possible, allowing fo
 * [Rust language](https://rust-lang.org)
 * [Termion](https://github.com/redox-os/termion)
 * [Unicode-rs](https://unicode-rs.github.io/)
+* [Clap](https://clap.rs/)
+* [Regex](https://docs.rs/regex/1.3.9/regex/)
+* [Toml](https://docs.rs/toml/0.5.6/toml/)
+* [Shellexpand](https://github.com/netvl/shellexpand)
 
 <!-- GETTING STARTED -->
 ## Getting Started
@@ -148,6 +152,10 @@ You can search both back and forth by activating the search feature through <kbd
 
 If at any time you wish to exit the search feature and return to the location in the document that you were in before activating the search feature, you can press <kbd>esc</kbd> on your keyboard, otherwise you can press any other key to exit the search feature and start editing your document at the new location.
 
+#### Replacing
+
+As with most text editors, Ox provides a replace / replace all feature <kbd>Ctrl + R</kbd> to replace individual occurances and <kbd>Ctrl + A</kbd> to replace all occurances at once. Regular expressions are supported in both commands.
+
 #### Undoing / Redoing
 
 Undoing and Redoing in Ox is as simple as <kbd>Ctrl + U</kbd> to undo and <kbd>Ctrl + Y</kbd> to redo. The changes are commited to the undo stack every time you press the space bar, create / destroy a new line and when there is inactivity longer than a specific period of time. (e.g. Ox will commit to the undo stack after 10 seconds of inactivity, possibly while you pause for thought or a break)
@@ -182,7 +190,7 @@ Here is the current summary
  - [X] Input bug (0.2.2) [1278 lines]
  - [X] Good command line interface (0.2.3)
  - [X] Config files (0.2.3)
- - [ ] Replacing text (0.2.3)
+ - [X] Replacing text (0.2.3) [1549 lines]
  - [ ] Syntax highlighting (0.2.4)
  - [ ] Tabs for multitasking (0.2.5)
  - [ ] Macros (0.2.6)
