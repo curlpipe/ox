@@ -1,7 +1,7 @@
 // Document.rs - For managing external files
-use regex::Regex; // For searching and replacing
 use crate::config::Reader; // Config stuff
 use crate::{EventStack, Position, Row}; // The Row and Position struct
+use regex::Regex; // For searching and replacing
 use std::fs; // For managing file reading and writing
 
 // Document struct (class) to manage files and text
