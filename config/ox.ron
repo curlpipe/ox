@@ -1,0 +1,70 @@
+/*
+    My very own (awesome) Ox configuration file!
+    
+    Ox uses RON. RON is an object notation similar to JSON.
+    It makes it easy and quick for Ox to parse.
+
+    Config name: NAME
+    Author:      AUTHOR
+    YEAR:        YEAR
+*/
+
+// General settings for Ox
+(
+    general: General(
+        line_number_padding_right: 2, // Line number padding on the right
+        line_number_padding_left:  1, // Line number padding on the left
+        tab_width:                 4, // The amount of spaces for a tab
+        undo_period:               5, // Seconds of inactivity for undo
+    ),
+
+    // RGB values for the colours of Ox
+    theme: Theme(
+        editor_bg:      (41, 41, 61), // The main background color
+        editor_fg:      (255, 255, 255), // The default text color
+        status_bg:      (59, 59, 84), // The background color of the status line
+        status_fg:      (35, 240, 144), // The text color of the status line
+        line_number_fg: (65, 65, 98), // The text color of the line numbers
+    ),
+
+    // Syntax highlighting definitions
+    syntax: Syntax(
+        // RGB colours of the syntax
+        highlights: {
+            "comments":   (113, 113, 169),
+            "keywords":   (134, 76, 232),
+            "strings":    (39, 222, 145),
+            "characters": (40, 198, 232),
+            "digits":     (134, 76, 232),
+            "booleans":   (86, 217, 178),
+            "functions":  (134, 76, 232),
+        },
+        // Definition of a language and their syntax
+        languages: [
+            Language(
+                name: "Rust", // Name of the language
+                icon: " ", // Icon of the language
+                extensions: ["rs"], // File extensions of the language
+                // On the left is the name and the right is the expression(s) to use, 
+                // These are arrays because you can use multiple regexes to highlight.
+                definitions: {
+                    "comments":   ["(//.*$)"], // Rust comments
+                    "keywords":   [
+                        "as", "break", "const", "continue", "crate", "else", "enum", 
+                        "extern", "fn", "for", "if", "impl", "in", "let", "loop", "match", 
+                        "mod", "move", "mut", "pub", "ref", "return", "self", "Self", 
+                        "static", "struct", "super", "trait", "type", "unsafe", "use", 
+                        "where", "while", "async", "await", "dyn", "abstract", "become", 
+                        "box", "do", "final", "macro", "override", "priv", "typeof", 
+                        "unsized", "virtual", "yield", "try", "'static"
+                    ], // Keywords in the Rust language
+                    "strings":    ["(\".*?\")"], // Strings
+                    "characters": ["('.')"], // Characters
+                    "digits":     ["(\\d+.\\d+|\\d)"], // Digits
+                    "booleans":   ["true", "false"], // Booleans
+                    "functions":  ["fn (.*)\\s*(", "\\s(.*)("], // Function identifiers
+                }
+            ),
+        ],
+    )
+)
