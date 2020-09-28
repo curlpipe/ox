@@ -32,7 +32,7 @@ impl Reader {
             "'static",
         ]
         .iter()
-        .map(|x| x.to_string())
+        .map(|x| (*x).to_string())
         .collect();
         let default = Self {
             general: General {
@@ -63,7 +63,7 @@ impl Reader {
                 .collect(),
                 languages: vec![Language {
                     name: "Rust".to_string(),
-                    icon: " ".to_string(),
+                    icon: "\u{e7a8} ".to_string(),
                     extensions: vec!["rs".to_string()],
                     definitions: [
                         ("comments".to_string(), vec!["(//.*$)".to_string()]), // Rust comments

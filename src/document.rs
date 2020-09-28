@@ -6,12 +6,13 @@ use std::fs; // For managing file reading and writing
 
 // Document struct (class) to manage files and text
 pub struct Document {
-    pub rows: Vec<Row>,         // For holding the contents of the document
-    pub path: String,           // For holding the path to the document
-    pub name: String,           // For holding the name of the document
-    pub line_offset: usize,     // For holding a line number offset
-    pub undo_stack: EventStack, // For holding the undo event stack
-    pub redo_stack: EventStack, // For holding the redo event stack
+    pub rows: Vec<Row>,           // For holding the contents of the document
+    pub path: String,             // For holding the path to the document
+    pub name: String,             // For holding the name of the document
+    pub line_offset: usize,       // For holding a line number offset
+    pub undo_stack: EventStack,   // For holding the undo event stack
+    pub redo_stack: EventStack,   // For holding the redo event stack
+    pub syntax_regex: Vec<Regex>, // For holding the regex of syntax
 }
 
 // Add methods to the document struct
@@ -22,9 +23,11 @@ impl Document {
             rows: vec![Row::from("")],
             name: String::from("[No name]"),
             path: String::new(),
-            line_offset: config.general.line_number_padding_right + config.general.line_number_padding_left,
+            line_offset: config.general.line_number_padding_right
+                + config.general.line_number_padding_left,
             undo_stack: EventStack::new(),
             redo_stack: EventStack::new(),
+            syntax_regex: vec![], // TODO: load regex from config file
         }
     }
     pub fn open(config: &Reader, path: &str) -> Option<Self> {
@@ -41,9 +44,11 @@ impl Document {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: path.to_string(),
                 path: path.to_string(),
-                line_offset: config.general.line_number_padding_right + config.general.line_number_padding_left,
+                line_offset: config.general.line_number_padding_right
+                    + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
+                syntax_regex: vec![], // TODO: load regex from config file
             })
         } else {
             // File doesn't exist
@@ -60,9 +65,11 @@ impl Document {
                 rows: vec![Row::from("")],
                 name: path.to_string(),
                 path: path.to_string(),
-                line_offset: config.general.line_number_padding_right + config.general.line_number_padding_left,
+                line_offset: config.general.line_number_padding_right
+                    + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
+                syntax_regex: vec![], // TODO: load regex from config file
             }
         }
     }

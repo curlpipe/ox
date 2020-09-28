@@ -3,7 +3,8 @@ use crate::config::Reader; // For configuration
 use crate::editor::RESET_FG; // Reset colours
 use crate::util::{trim_end, trim_start, Exp}; // Utilities
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
-use unicode_width::UnicodeWidthStr; // Getting width of unicode characters // Regex engine
+use unicode_width::UnicodeWidthStr; // Getting width of unicode characters
+use regex::Regex; // Regex for syntax highlighting
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Debug, Clone)]

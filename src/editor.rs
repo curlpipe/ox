@@ -1,5 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{Status, Reader};
+use crate::config::{Reader, Status};
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
 use clap::App; // For a nice command line interface
@@ -71,13 +71,14 @@ impl Editor {
             dirty: false,
             command_line: CommandLine {
                 text: match &config.1 {
-                    Status::Success => "Successfully loaded configuration :)".to_string(),
+                    Status::Success => "Welcome to Ox :)".to_string(),
                     Status::File => "Config file not found, using default values".to_string(),
                     Status::Parse(error) => format!("Failed to parse: {:?}", error),
                 },
                 msg: match &config.1 {
                     Status::Success => Type::Info,
-                    _ => Type::Error,
+                    Status::File => Type::Warning,
+                    Status::Parse(_) => Type::Error,
                 },
             },
             term: Terminal::new()?,
