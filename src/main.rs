@@ -55,7 +55,7 @@ fn main() {
                     .long("config")
                     .short("c")
                     .takes_value(true)
-                    .default_value("~/.config/ox/ox.toml")
+                    .default_value("~/.config/ox/ox.ron")
                     .help("The directory of the config file"),
             );
         // Fire up the editor, ensuring that no start up problems occured

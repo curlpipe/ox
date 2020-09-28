@@ -1,14 +1,14 @@
 0.2.4 (Syntax highlighting)
 - [ ] Syntax Highlighting
   - [ ] Set up basic syntax highlighting regex
-  - [ ] Add external file reading
   - [ ] Add basic Rust syntax
-  - [ ] Allow for multiline syntax highlighting
   - [ ] Finish Rust highlighting
-  - [ ] Add Javascript
-  - [ ] Add Python
-  - [ ] Add Ruby
   - [ ] Add C
+  - [ ] Add Ruby
+  - [ ] Add Python
+  - [ ] Add Javascript
+  - [ ] Allow for multiline syntax highlighting
+  - [X] Add external file reading
 
 0.2.5 (Multitasking)
 - [ ] Tabs

@@ -1,5 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::Reader;
+use crate::config::{Status, Reader};
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end}; // Bring in the utils
 use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
 use clap::App; // For a nice command line interface
@@ -64,32 +64,38 @@ impl Editor {
         // Create a new editor instance
         let args = args.get_matches();
         let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
-        let config = Reader::new(args.value_of("config").unwrap_or_default());
+        let config = Reader::read(args.value_of("config").unwrap_or_default());
         Ok(Self {
             quit: false,
             show_welcome: files.is_empty(),
             dirty: false,
             command_line: CommandLine {
-                text: "Welcome to Ox!".to_string(),
-                msg: Type::Info,
+                text: match &config.1 {
+                    Status::Success => "Successfully loaded configuration :)".to_string(),
+                    Status::File => "Config file not found, using default values".to_string(),
+                    Status::Parse(error) => format!("Failed to parse: {:?}", error),
+                },
+                msg: match &config.1 {
+                    Status::Success => Type::Info,
+                    _ => Type::Error,
+                },
             },
             term: Terminal::new()?,
             graphemes: 0,
             cursor: Position { x: 0, y: 0 },
             offset: Position { x: 0, y: 0 },
             doc: if files.is_empty() {
-                Document::new(&config)
+                Document::new(&config.0)
             } else {
-                Document::from(&config, files[0])
+                Document::from(&config.0, files[0])
             },
             last_keypress: None,
             stdin: async_stdin().keys(),
-            config,
+            config: config.0,
         })
     }
     pub fn run(&mut self) {
         // Run the editor instance
-        self.config.read_config();
         while !self.quit {
             self.update();
             self.process_input();
@@ -119,7 +125,7 @@ impl Editor {
                 }
                 // Check for a period of inactivity
                 if let Some(time) = self.last_keypress {
-                    if time.elapsed().as_secs() >= self.config.undo_period {
+                    if time.elapsed().as_secs() >= self.config.general.undo_period {
                         self.doc.undo_stack.commit();
                         self.last_keypress = None;
                     }
@@ -156,7 +162,8 @@ impl Editor {
                 match event {
                     Event::InsertTab(pos) => {
                         self.cursor.y = pos.y - self.offset.y;
-                        self.cursor.x = pos.x.saturating_sub(self.config.tab_width) - self.offset.x;
+                        self.cursor.x =
+                            pos.x.saturating_sub(self.config.general.tab_width) - self.offset.x;
                         self.recalculate_graphemes();
                         self.tab();
                     }
@@ -231,7 +238,7 @@ impl Editor {
             for event in &events {
                 match event {
                     Event::InsertTab(pos) => {
-                        for i in 1..=self.config.tab_width {
+                        for i in 1..=self.config.general.tab_width {
                             self.doc.rows[pos.y].delete(pos.x - i);
                             self.move_cursor(Key::Left);
                         }
@@ -333,7 +340,7 @@ impl Editor {
     }
     fn tab(&mut self) {
         // Insert a tab
-        for _ in 0..self.config.tab_width {
+        for _ in 0..self.config.general.tab_width {
             self.doc.rows[self.cursor.y + self.offset.y].insert(' ', self.graphemes);
             self.move_cursor(Key::Right);
         }
@@ -911,13 +918,13 @@ impl Editor {
         let pad_right = " ".repeat(
             (self.term.width.saturating_sub(1) as usize)
                 .saturating_sub(text.len() + pad.len())
-                .saturating_sub(self.config.line_number_padding_left),
+                .saturating_sub(self.config.general.line_number_padding_left),
         );
         format!(
             "{}{}{}~{}{}{}{}{}{}",
-            self.config.window_bg,
-            self.config.line_number_fg,
-            " ".repeat(self.config.line_number_padding_left),
+            Reader::rgb_bg(self.config.theme.editor_bg),
+            Reader::rgb_fg(self.config.theme.line_number_fg),
+            " ".repeat(self.config.general.line_number_padding_left),
             RESET_FG,
             colour,
             trim_end(
@@ -956,8 +963,8 @@ impl Editor {
         format!(
             "{}{}{}{}{}{}{}",
             style::Bold,
-            self.config.status_fg,
-            self.config.status_bg,
+            Reader::rgb_fg(self.config.theme.status_fg),
+            Reader::rgb_bg(self.config.theme.status_bg),
             trim_end(
                 &format!("{}{}{}", left, padding, right),
                 self.term.width as usize
@@ -971,7 +978,7 @@ impl Editor {
         // Add a background colour to a line
         format!(
             "{}{}{}{}",
-            self.config.window_bg,
+            Reader::rgb_bg(self.config.theme.editor_bg),
             text,
             self.term.align_left(text),
             RESET_BG
@@ -1012,22 +1019,30 @@ impl Editor {
                 // Render status line
                 frame.push(self.status_line());
             } else if row == self.term.height / 4 && self.show_welcome {
-                frame.push(
-                    self.welcome_message(
-                        &format!("Ox editor  v{}", VERSION),
-                        self.config.window_fg,
-                    ),
-                );
+                frame.push(self.welcome_message(
+                    &format!("Ox editor  v{}", VERSION),
+                    Reader::rgb_fg(self.config.theme.editor_fg),
+                ));
             } else if row == (self.term.height / 4).saturating_add(1) && self.show_welcome {
-                frame.push(
-                    self.welcome_message("A Rust powered editor by Luke", self.config.window_fg),
-                );
+                frame.push(self.welcome_message(
+                    "A Rust powered editor by Luke",
+                    Reader::rgb_fg(self.config.theme.editor_fg),
+                ));
             } else if row == (self.term.height / 4).saturating_add(3) && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + Q: Exit   ", self.config.status_fg));
+                frame.push(self.welcome_message(
+                    "Ctrl + Q: Exit   ",
+                    Reader::rgb_fg(self.config.theme.status_fg),
+                ));
             } else if row == (self.term.height / 4).saturating_add(4) && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + S: Save   ", self.config.status_fg));
+                frame.push(self.welcome_message(
+                    "Ctrl + S: Save   ",
+                    Reader::rgb_fg(self.config.theme.status_fg),
+                ));
             } else if row == (self.term.height / 4).saturating_add(5) && self.show_welcome {
-                frame.push(self.welcome_message("Ctrl + W: Save as", self.config.status_fg));
+                frame.push(self.welcome_message(
+                    "Ctrl + W: Save as",
+                    Reader::rgb_fg(self.config.theme.status_fg),
+                ));
             } else if let Some(line) = self.doc.rows.get(self.offset.y + row as usize) {
                 // Render lines of code
                 frame.push(self.add_background(&line.render(
@@ -1041,10 +1056,10 @@ impl Editor {
                 // Render empty lines
                 frame.push(format!(
                     "{}{}{}",
-                    self.config.line_number_fg,
+                    Reader::rgb_fg(self.config.theme.line_number_fg),
                     self.add_background(&format!(
                         "{}~",
-                        " ".repeat(self.config.line_number_padding_left)
+                        " ".repeat(self.config.general.line_number_padding_left)
                     )),
                     RESET_FG
                 ));

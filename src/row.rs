@@ -38,17 +38,17 @@ impl Row {
         // Padding to align line numbers to the right
         let post_padding = offset.saturating_sub(
             index.to_string().len() +         // Length of the number
-            config.line_number_padding_right + // Length of the right padding
-            config.line_number_padding_left, // Length of the left padding
+            config.general.line_number_padding_right + // Length of the right padding
+            config.general.line_number_padding_left, // Length of the left padding
         );
         // Assemble the line number data
         let line_number = format!(
             "{}{}{}{}{}{}",
-            config.line_number_fg,
-            " ".repeat(config.line_number_padding_left),
+            Reader::rgb_fg(config.theme.line_number_fg),
+            " ".repeat(config.general.line_number_padding_left),
             " ".repeat(post_padding),
             index,
-            " ".repeat(config.line_number_padding_right),
+            " ".repeat(config.general.line_number_padding_right),
             RESET_FG,
         );
         // Strip ANSI values from the line
