@@ -37,7 +37,9 @@
             "characters": (40, 198, 232),
             "digits":     (134, 76, 232),
             "booleans":   (86, 217, 178),
-            "functions":  (134, 76, 232),
+            "functions":  (47, 141, 252),
+            "structs":    (47, 141, 252),
+            "macros":     (223, 52, 249),
         },
         // Definition of a language and their syntax
         languages: [
@@ -50,19 +52,15 @@
                 definitions: {
                     "comments":   ["(//.*$)"], // Rust comments
                     "keywords":   [
-                        "as", "break", "const", "continue", "crate", "else", "enum", 
-                        "extern", "fn", "for", "if", "impl", "in", "let", "loop", "match", 
-                        "mod", "move", "mut", "pub", "ref", "return", "self", "Self", 
-                        "static", "struct", "super", "trait", "type", "unsafe", "use", 
-                        "where", "while", "async", "await", "dyn", "abstract", "become", 
-                        "box", "do", "final", "macro", "override", "priv", "typeof", 
-                        "unsized", "virtual", "yield", "try", "'static"
+"\\b(pub)\\b", "\\b(const)\\b", "\\b(as)\\b", "\\b(break)", "\\b(continue)", "\\b(crate)\\b", "\\b(else)\\b", "\\b(enum)\\b", "\\b(extern)\\b", "\\b(fn)\\b", "\\b(for)\\b", "\\b(if)\\b", "\\b(impl)\\b", "\\b(in)\\b", "\\b(let)\\b", "\\b(loop)\\b", "\\b(match)\\b", "\\b(mod)\\b", "\\b(move)\\b", "\\b(mut)\\b", "\\b(ref)\\b", "\\b(return)\\b", "\\b(self)\\b", "\\b(Self)\\b", "\\b(static)\\b", "\\b(struct)\\b", "\\b(super)\\b", "\\b(trait)\\b", "\\b(type)\\b", "\\b(unsafe)\\b", "\\b(use)\\b", "\\b(where)\\b", "\\b(while)\\b", "\\b(async)\\b", "\\b(await)\\b", "\\b(dyn)\\b", "\\b('static)\\b", 
                     ], // Keywords in the Rust language
                     "strings":    ["(\".*?\")"], // Strings
                     "characters": ["('.')"], // Characters
-                    "digits":     ["(\\d+.\\d+|\\d)"], // Digits
-                    "booleans":   ["true", "false"], // Booleans
-                    "functions":  ["fn (.*)\\s*(", "\\s(.*)("], // Function identifiers
+                    "digits":     ["(\\d+.\\d+|\\d+)"], // Digits
+                    "booleans":   ["\\d(true)\\d", "\\d(false)\\d"], // Booleans
+                    "functions":  ["\\b([a-z_]*)\\b\\("], // Function identifiers
+                    "structs":    ["\\b([A-Z][A-Za-z_]*)\\b"],
+                    "macros":     ["\\b([a-z_][a-zA-Z_]*!)"],
                 }
             ),
         ],
