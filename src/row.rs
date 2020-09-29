@@ -144,13 +144,14 @@ impl Row {
         }
         for (name, regex) in syntax {
             for ex in regex {
-                for m in ex.find_iter(&line) {
+                for m in ex.captures_iter(&line) {
+                    let cap = m.get(m.len().saturating_sub(1)).unwrap();
                     token_bounds
-                        .get_mut(&m.start())
+                        .get_mut(&cap.start())
                         .unwrap()
                         .push((Token::Start, (*name).to_string()));
                     token_bounds
-                        .get_mut(&m.end())
+                        .get_mut(&cap.end())
                         .unwrap()
                         .push((Token::Stop, (*name).to_string()));
                 }
