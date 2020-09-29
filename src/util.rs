@@ -13,9 +13,13 @@ impl Exp {
             ansi: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
         }
     }
+    pub fn no_ansi(&self, string: &str) -> String {
+        // Find the length of a string without ANSI values
+        (&*self.ansi.replace_all(string, "")).to_string()
+    }
     pub fn ansi_len(&self, string: &str) -> usize {
         // Find the length of a string without ANSI values
-        UnicodeWidthStr::width(&*self.ansi.replacen(string, 2, ""))
+        UnicodeWidthStr::width(&*self.ansi.replace_all(string, ""))
     }
 }
 

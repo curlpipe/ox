@@ -2,17 +2,18 @@
 use crate::config::Reader; // Config stuff
 use crate::{EventStack, Position, Row}; // The Row and Position struct
 use regex::Regex; // For searching and replacing
+use std::collections::HashMap; // For hashmaps
 use std::fs; // For managing file reading and writing
 
 // Document struct (class) to manage files and text
 pub struct Document {
-    pub rows: Vec<Row>,           // For holding the contents of the document
-    pub path: String,             // For holding the path to the document
-    pub name: String,             // For holding the name of the document
-    pub line_offset: usize,       // For holding a line number offset
-    pub undo_stack: EventStack,   // For holding the undo event stack
-    pub redo_stack: EventStack,   // For holding the redo event stack
-    pub syntax_regex: Vec<Regex>, // For holding the regex of syntax
+    pub rows: Vec<Row>,         // For holding the contents of the document
+    pub path: String,           // For holding the path to the document
+    pub name: String,           // For holding the name of the document
+    pub line_offset: usize,     // For holding a line number offset
+    pub undo_stack: EventStack, // For holding the undo event stack
+    pub redo_stack: EventStack, // For holding the redo event stack
+    pub reg: Option<HashMap<String, Vec<Regex>>>, // For holding the regex of syntax
 }
 
 // Add methods to the document struct
@@ -27,7 +28,7 @@ impl Document {
                 + config.general.line_number_padding_left,
             undo_stack: EventStack::new(),
             redo_stack: EventStack::new(),
-            syntax_regex: vec![], // TODO: load regex from config file
+            reg: Reader::get_syntax_regex(&config, ""),
         }
     }
     pub fn open(config: &Reader, path: &str) -> Option<Self> {
@@ -48,7 +49,7 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
-                syntax_regex: vec![], // TODO: load regex from config file
+                reg: Reader::get_syntax_regex(&config, path.split(".").last().unwrap_or("")),
             })
         } else {
             // File doesn't exist
@@ -69,7 +70,7 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
-                syntax_regex: vec![], // TODO: load regex from config file
+                reg: Reader::get_syntax_regex(&config, path.split(".").last().unwrap_or("")),
             }
         }
     }

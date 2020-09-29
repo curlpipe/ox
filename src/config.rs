@@ -1,4 +1,5 @@
 // Config.rs - In charge of storing configuration information
+use regex::Regex;
 use ron::de::from_str;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -108,6 +109,24 @@ impl Reader {
     }
     pub fn rgb_bg(colour: (u8, u8, u8)) -> color::Bg<color::Rgb> {
         color::Bg(color::Rgb(colour.0, colour.1, colour.2))
+    }
+    pub fn get_syntax_regex(config: &Self, extension: &str) -> Option<HashMap<String, Vec<Regex>>> {
+        for language in &config.syntax.languages {
+            if language.extensions.contains(&extension.to_string()) {
+                let mut result = HashMap::new();
+                for (name, reg) in &language.definitions {
+                    let mut expressions = vec![];
+                    for expr in reg {
+                        if let Ok(regx) = Regex::new(&expr) {
+                            expressions.push(regx);
+                        }
+                    }
+                    result.insert(name.clone(), expressions);
+                }
+                return Some(result);
+            }
+        }
+        None
     }
 }
 

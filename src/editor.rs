@@ -1052,6 +1052,7 @@ impl Editor {
                     self.offset.y + row as usize,
                     self.doc.line_offset,
                     &self.config,
+                    &self.doc.reg,
                 )));
             } else {
                 // Render empty lines
