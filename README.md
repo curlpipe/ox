@@ -23,19 +23,18 @@
 
 ## About The Project
 
-Ox is a text editor with IDE-like features. It was written in Rust using ANSI escape sequences. It assists developers with programming by providing several tools to speed up and make programming easier. It is a refreshing alternative to heavily bloated and resource hungry editors such as VSCode and JetBrains. It is so lightweight that it can be used on even the older computers. 
+Ox is a text editor with IDE-like features. It was written in Rust using ANSI escape sequences. It assists developers with programming by providing several tools to speed up and make programming easier and a refreshing alternative to heavily bloated and resource hungry editors such as VS Code and JetBrains. Ox is so lightweight that it can be used on older computers.
 
-It runs in the terminal and runs on platforms like Linux and MacOS but doesn't work on Windows directly (it works if you use WSL) due to a lack of a good command line. There are many text editors out there and each one of them has their flaws and I hope to have a text editor that overcomes many of the burdens and issues.
+It runs in the terminal and runs on platforms like Linux and macOS but doesn't work on Windows directly (it works if you use WSL) due to a lack of a good command line. There are many text editors out there and each one of them has their flaws and I hope to have a text editor that overcomes many of the burdens and issues.
 
 Ox is not based off any other editor and has been built from the ground up without any base at all.
 
 ## What features does Ox have and why should I use it?
-
 Ox aims to be an editor that takes features from some of the most popular editors out there, gaining the best of all worlds.
 
-**Vim** http://vim.org: Vim provides a plugin system for adding features to it as it is very minimal and only provides basic text editing functionality by default. It is quite extensive and has its own programming language for configuring and writing plugins for it. It has a steep learning curve due to being a “modal” text editor, having special modes for editing text. Ox is easier to use then Vim because it doesn’t have modes where the keyboard is repurposed, however it takes the idea of being a keyboard-only editor and being able to act just like an IDE after some configuration.
+**Vim** http://vim.org: Vim provides a plugin system for adding features to it as it is very minimal and only provides basic text editing functionality by default. It is quite extensive and has its own programming language for configuring and writing plugins for it. It has a steep learning curve due to being a “modal” text editor, having special modes for editing text. Ox is easier to use than Vim because it doesn’t have modes where the keyboard is repurposed, however it takes the idea of being a keyboard-only editor and being able to act just like an IDE after some configuration.
 
-**Nano** https://www.nano-editor.org/: Nano is an editor that is very simple to grasp due to its intuitive key bindings such as “Ctrl+S” to save and “Ctrl+?” for the help menu etc. Ox took the idea for the keybindings from this editor, they are simple to remember, “Ctrl+F” for “Find”, “Ctrl+Q” for “Quit”, meaning that Ox doesn’t have as steep a learning curve. 
+**Nano** https://www.nano-editor.org/: Nano is an editor that is very simple to grasp due to its intuitive key bindings such as “Ctrl+S” to save and “Ctrl+?” for the help menu etc. Ox took the idea for the key bindings from this editor, they are simple to remember, “Ctrl+F” for “Find”, “Ctrl+Q” for “Quit”, meaning that Ox doesn’t have as steep a learning curve.
 
 **Micro** https://micro-editor.github.io/: Micro has a plugin system that is programmed with a language called Lua however I can’t seem to find any up to date plugins for it and it lacks features such as a file tree. It is micro that inspired me to add mouse functionality and other features.
 
@@ -43,7 +42,7 @@ Ox aims to be an editor that takes features from some of the most popular editor
 
 **Xi** https://xi-editor.io/: Xi is also written in Rust but is purely a backend at the moment, I decided to make Ox both a frontend and a backend because Xi has many frontends, but most of them are broken and it lacks a lot of features.
 
-**Kiro** https://github.com/rhysd/kiro-editor: Kiro is an amazing text editor written in Rust and adds features such as unicode support, a nicer colour scheme and small things like resizing and it is a very inspiring editor. Ox took the ideas for the improvements from Kiro, however implemented them differently. Kiro’s source code also seems to be quite advanced in some areas so I decided to keep Ox as simple as I could. 
+**Kiro** https://github.com/rhysd/kiro-editor: Kiro is an amazing text editor written in Rust and adds features such as Unicode support, a nicer colour scheme and small things like resizing and it is a very inspiring editor. Ox took the ideas for the improvements from Kiro, however implemented them differently. Kiro’s source code also seems to be quite advanced in some areas, so I decided to keep Ox as simple as I could. 
 
 ### Built With
 
@@ -162,16 +161,16 @@ Undoing and Redoing in Ox is as simple as <kbd>Ctrl + U</kbd> to undo and <kbd>C
 
 #### Configuring Ox
 
-Ox features a configuration system that allows modification and personalisation of the editor.
+Ox features a configuration system that allows modification and personalization of the editor.
 
-By default, Ox will look for a file here: `~/.config/ox/ox.toml`.
+By default, Ox will look for a file here: '~/.config/ox/ox.toml'.
 
 Ox's configuration language is [TOML](https://toml.io).
 
-There are several default configs in the `config` folder. You will have to either download one and place it in the default config directory or create your own using the example ones as a reference. The config folder includs the older theme that Ox had before 0.2.3 and the default modern one.
+There are several default configs in the 'config' folder. You will have to either download one and place it in the default config directory or create your own using the example ones as a reference. The config folder includes the older theme that Ox had before 0.2.3 and the default modern one.
 If you don't have a config file, don't worry :), Ox will just ignore it if you don't have one and it can ignore individual fields should you just want to use the default values.
 
-If you wish to specify the configuration directory, you can do so using the `--config` option (or `-c` if you prefer). For Example:
+If you wish to specify the configuration directory, you can do so using the '--config' option (or '-c' if you prefer). For Example:
 
 ```
 ox --config /path/to/my_config.toml file_to_edit.txt
