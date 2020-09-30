@@ -57,8 +57,8 @@
                     "characters": ["('.')"], // Characters
                     "digits":     ["(\\d+.\\d+|\\d+)"], // Digits
                     "booleans":   ["\\b(true)\\b", "\\b(false)\\b"], // Booleans
-                    "functions":  ["\\b([a-z_]*)\\b\\("], // Function identifiers
-                    "structs":    ["\\b([A-Z][A-Za-z_]*)\\b"],
+                    "functions":  ["\\b\\s+([a-z_]*)\\b\\("], // Function identifiers
+                    "structs":    ["\\b([A-Z][A-Za-z_]*)\\b\\s*\\{"],
                     "macros":     ["\\b([a-z_][a-zA-Z_]*!)"],
                     "attributes": ["^\\s*(#\\[.*?\\])"]
                 }

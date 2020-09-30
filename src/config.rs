@@ -33,7 +33,7 @@ impl Reader {
             "'static",
         ]
         .iter()
-        .map(|x| (*x).to_string())
+        .map(|x| format!("\\b{}\\b", *x))
         .collect();
         let default = Self {
             general: General {
@@ -55,9 +55,12 @@ impl Reader {
                     ("keywords".to_string(), (134, 76, 232)),
                     ("strings".to_string(), (39, 222, 145)),
                     ("characters".to_string(), (40, 198, 232)),
-                    ("digits".to_string(), (134, 76, 232)),
+                    ("digits".to_string(), (40, 198, 232)),
                     ("booleans".to_string(), (86, 217, 178)),
-                    ("functions".to_string(), (134, 76, 232)),
+                    ("functions".to_string(), (47, 141, 252)),
+                    ("structs".to_string(), (47, 141, 252)),
+                    ("macros".to_string(), (223, 52, 249)),
+                    ("attributes".to_string(), (40, 198, 232)),
                 ]
                 .iter()
                 .cloned()
@@ -67,19 +70,22 @@ impl Reader {
                     icon: "\u{e7a8} ".to_string(),
                     extensions: vec!["rs".to_string()],
                     definitions: [
-                        ("comments".to_string(), vec!["(//.*$)".to_string()]), // Rust comments
+                        ("comments".to_string(), vec!["(//.*)$".to_string()]), // Rust comments
                         ("keywords".to_string(), rust_keywords), // Keywords in the Rust language
                         ("strings".to_string(), vec!["(\".*?\")".to_string()]),
                         ("characters".to_string(), vec!["('.')".to_string()]),
                         ("digits".to_string(), vec!["(\\d+.\\d+|\\d)".to_string()]),
                         (
                             "booleans".to_string(),
-                            vec!["true".to_string(), "false".to_string()],
+                            vec!["\\b(true)\\b".to_string(), "\\b(false)\\b".to_string()],
                         ),
                         (
                             "functions".to_string(),
-                            vec!["fn (.*)\\s*(".to_string(), "\\s(.*)(".to_string()],
+                            vec!["\\b\\s+([a-z_]*)\\b\\(".to_string()],
                         ),
+                        ("structs".to_string(), vec!["\\b([A-Z][A-Za-z_]*)\\b\\s*\\{".to_string()]),
+                        ("macros".to_string(), vec!["\\b([a-z_][a-zA-Z_]*!)".to_string()]),
+                        ("attributes".to_string(), vec!["^\\s*(#\\[.*?\\])".to_string()]),
                     ]
                     .iter()
                     .cloned()
