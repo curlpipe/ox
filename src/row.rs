@@ -62,10 +62,11 @@ impl Row {
             " ".repeat(config.general.line_number_padding_right),
             RESET_FG,
         );
+        let mut body;
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
         // Trim the line to fit into the terminal width
-        let mut body = trim_end(
+        body = trim_end(
             &trim_start(&self.string, start),
             end.saturating_sub(line_number_len),
         );
@@ -87,7 +88,7 @@ impl Row {
         let mut active = false;
         let mut level = 0;
         let mut pushed = false;
-        for (i, c) in body.chars().enumerate() {
+        for (i, c) in body.graphemes(true).enumerate() {
             if let Some(token) = bounds.get(&i) {
                 for t in token {
                     match t.0 {
@@ -146,12 +147,13 @@ impl Row {
             for ex in regex {
                 for m in ex.captures_iter(&line) {
                     let cap = m.get(m.len().saturating_sub(1)).unwrap();
+                    let cap = Row::bounds(&cap, &line);
                     token_bounds
-                        .get_mut(&cap.start())
+                        .get_mut(&cap.0)
                         .unwrap()
                         .push((Token::Start, (*name).to_string()));
                     token_bounds
-                        .get_mut(&cap.end())
+                        .get_mut(&cap.1)
                         .unwrap()
                         .push((Token::Stop, (*name).to_string()));
                 }
@@ -161,6 +163,14 @@ impl Row {
             .into_iter()
             .filter(|x| !x.1.is_empty())
             .collect::<HashMap<usize, Vec<(Token, String)>>>()
+    }
+    fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
+        // Work out the width of the capture
+        let unicode_wid = reg.as_str().graphemes(true).collect::<Vec<_>>().len();
+        let pre_start = &line[..reg.start()];
+        let pre_length = pre_start.graphemes(true).collect::<Vec<_>>().len();
+        // Calculate the correct boundaries for syntax highlighting
+        (pre_length, pre_length + unicode_wid)
     }
     pub fn length(&self) -> usize {
         // Get the current length of the row
