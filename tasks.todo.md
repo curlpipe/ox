@@ -1,4 +1,5 @@
 0.2.4 (Syntax highlighting)
+- [ ] Optimize further
 - [ ] Syntax Highlighting
   - [ ] Finish Rust highlighting
   - [ ] Add C
@@ -6,6 +7,7 @@
   - [ ] Add Python
   - [ ] Add Javascript
   - [ ] Allow for multiline syntax highlighting
+  - [ ] Optimize
   - [X] Add external file reading
   - [X] Set up basic syntax highlighting regex
   - [X] Add basic Rust syntax
@@ -21,7 +23,7 @@
   - [ ] Write function
   - [ ] Set up keybinding
 - [ ] Minor tweaks
-  - [ ] Rewrite using crossterm for better bindings
+  - [ ] Rewrite using crossterm for windows support and efficiency
     - [ ] Build RGB ansi code function
     - [ ] Fix unwrap on terminal size
     - [ ] Properly implement terminal resizing

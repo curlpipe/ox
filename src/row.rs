@@ -8,7 +8,7 @@ use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
 use unicode_width::UnicodeWidthStr; // Getting width of unicode characters
 
 // Enum for border type of token
-enum Token {
+pub enum Token {
     Start,
     Stop,
 }
@@ -65,14 +65,20 @@ impl Row {
         let mut body;
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
-        // Trim the line to fit into the terminal width
-        body = trim_end(
-            &trim_start(&self.string, start),
-            end.saturating_sub(line_number_len),
-        );
         // Unpack the syntax highlighting information
         if let Some(syntax) = syntax {
-            body = self.highlight(body, syntax, &config.syntax.highlights);
+            let tokens = self.tokenize(&self.string, &syntax);
+            // Trim the line to fit into the terminal width
+            body = trim_end(
+                &trim_start(&self.string, start),
+                end.saturating_sub(line_number_len),
+            );
+            body = self.highlight(body, &tokens, &config.syntax.highlights);
+        } else {
+            body = trim_end(
+                &trim_start(&self.string, start),
+                end.saturating_sub(line_number_len),
+            );
         }
         // Return the full line string to be rendered
         line_number + &body
@@ -80,10 +86,9 @@ impl Row {
     pub fn highlight(
         &self,
         body: String,
-        syntax: &HashMap<String, Vec<Regex>>,
+        bounds: &HashMap<usize, Vec<(Token, String)>>,
         highlights: &HashMap<String, (u8, u8, u8)>,
     ) -> String {
-        let bounds = self.tokenize(&body, &syntax);
         let mut result = String::new();
         let mut active = false;
         let mut level = 0;
