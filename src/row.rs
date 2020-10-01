@@ -67,13 +67,13 @@ impl Row {
         let line_number_len = self.regex.ansi_len(&line_number);
         // Unpack the syntax highlighting information
         if let Some(syntax) = syntax {
-            let tokens = self.tokenize(&self.string, &syntax);
+            let tokens = Row::tokenize(&self.string, &syntax);
             // Trim the line to fit into the terminal width
             body = trim_end(
                 &trim_start(&self.string, start),
                 end.saturating_sub(line_number_len),
             );
-            body = self.highlight(body, &tokens, &config.syntax.highlights);
+            body = Row::highlight(&body, &tokens, &config.syntax.highlights);
         } else {
             body = trim_end(
                 &trim_start(&self.string, start),
@@ -84,8 +84,7 @@ impl Row {
         line_number + &body
     }
     pub fn highlight(
-        &self,
-        body: String,
+        body: &str,
         bounds: &HashMap<usize, Vec<(Token, String)>>,
         highlights: &HashMap<String, (u8, u8, u8)>,
     ) -> String {
@@ -139,7 +138,6 @@ impl Row {
         result
     }
     fn tokenize(
-        &self,
         line: &str,
         syntax: &HashMap<String, Vec<Regex>>,
     ) -> HashMap<usize, Vec<(Token, String)>> {
@@ -171,9 +169,9 @@ impl Row {
     }
     fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
         // Work out the width of the capture
-        let unicode_wid = reg.as_str().graphemes(true).collect::<Vec<_>>().len();
+        let unicode_wid = reg.as_str().graphemes(true).count();
         let pre_start = &line[..reg.start()];
-        let pre_length = pre_start.graphemes(true).collect::<Vec<_>>().len();
+        let pre_length = pre_start.graphemes(true).count();
         // Calculate the correct boundaries for syntax highlighting
         (pre_length, pre_length + unicode_wid)
     }

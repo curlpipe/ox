@@ -49,7 +49,7 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
-                reg: Reader::get_syntax_regex(&config, path.split(".").last().unwrap_or("")),
+                reg: Reader::get_syntax_regex(&config, path.split('.').last().unwrap_or("")),
             })
         } else {
             // File doesn't exist
@@ -70,7 +70,7 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
-                reg: Reader::get_syntax_regex(&config, path.split(".").last().unwrap_or("")),
+                reg: Reader::get_syntax_regex(&config, path.split('.').last().unwrap_or("")),
             }
         }
     }

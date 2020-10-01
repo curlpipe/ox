@@ -83,9 +83,18 @@ impl Reader {
                             "functions".to_string(),
                             vec!["\\b\\s+([a-z_]*)\\b\\(".to_string()],
                         ),
-                        ("structs".to_string(), vec!["\\b([A-Z][A-Za-z_]*)\\b\\s*\\{".to_string()]),
-                        ("macros".to_string(), vec!["\\b([a-z_][a-zA-Z_]*!)".to_string()]),
-                        ("attributes".to_string(), vec!["^\\s*(#\\[.*?\\])".to_string()]),
+                        (
+                            "structs".to_string(),
+                            vec!["\\b([A-Z][A-Za-z_]*)\\b\\s*\\{".to_string()],
+                        ),
+                        (
+                            "macros".to_string(),
+                            vec!["\\b([a-z_][a-zA-Z_]*!)".to_string()],
+                        ),
+                        (
+                            "attributes".to_string(),
+                            vec!["^\\s*(#\\[.*?\\])".to_string()],
+                        ),
                     ]
                     .iter()
                     .cloned()

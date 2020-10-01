@@ -975,7 +975,7 @@ impl Editor {
             style::Reset,
         )
     }
-    fn add_background(&self, text: String) -> String {
+    fn add_background(&self, text: &str) -> String {
         // Add a background colour to a line
         format!(
             "{}{}{}{}",
@@ -990,23 +990,23 @@ impl Editor {
         let line = &self.command_line.text;
         // Add the correct styling
         match self.command_line.msg {
-            Type::Error => self.add_background(format!(
+            Type::Error => self.add_background(&format!(
                 "{}{}{}{}{}",
                 style::Bold,
                 color::Fg(color::Red),
-                self.add_background(trim_end(&line, self.term.width as usize)),
+                self.add_background(&trim_end(&line, self.term.width as usize)),
                 color::Fg(color::Reset),
                 style::Reset
             )),
-            Type::Warning => self.add_background(format!(
+            Type::Warning => self.add_background(&format!(
                 "{}{}{}{}{}",
                 style::Bold,
                 color::Fg(color::Yellow),
-                self.add_background(trim_end(&line, self.term.width as usize)),
+                self.add_background(&trim_end(&line, self.term.width as usize)),
                 color::Fg(color::Reset),
                 style::Reset
             )),
-            Type::Info => self.add_background(trim_end(&line, self.term.width as usize)),
+            Type::Info => self.add_background(&trim_end(&line, self.term.width as usize)),
         }
     }
     fn render(&mut self) {
@@ -1046,7 +1046,7 @@ impl Editor {
                 ));
             } else if let Some(line) = self.doc.rows.get(self.offset.y + row as usize) {
                 // Render lines of code
-                frame.push(self.add_background(line.render(
+                frame.push(self.add_background(&line.render(
                     self.offset.x,
                     self.term.width as usize,
                     self.offset.y + row as usize,
@@ -1059,7 +1059,7 @@ impl Editor {
                 frame.push(format!(
                     "{}{}{}",
                     Reader::rgb_fg(self.config.theme.line_number_fg),
-                    self.add_background(format!(
+                    self.add_background(&format!(
                         "{}~",
                         " ".repeat(self.config.general.line_number_padding_left)
                     )),
