@@ -79,7 +79,9 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 You must have `curl` installed in order to run this command.
 
 ### Installation
- 
+
+#### Manual
+
 1. Clone the repo and change into it
 ```sh
 git clone https://github.com/curlpipe/ox
@@ -93,6 +95,10 @@ cargo build --release
 ```sh
 sudo cp target/release/ox /usr/bin/ox
 ```
+
+#### Arch Linux
+
+Install `ox-bin` or `ox-git` from the Arch User Repository.
 
 That's all there is to it!
 
