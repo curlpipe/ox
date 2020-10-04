@@ -27,7 +27,7 @@ Ox is a text editor with IDE-like features. It was written in Rust using ANSI es
 
 It runs in the terminal and runs on platforms like Linux and macOS but doesn't work on Windows directly (it works if you use WSL) due to a lack of a good command line. There are many text editors out there and each one of them has their flaws and I hope to have a text editor that overcomes many of the burdens and issues.
 
-Ox is not based off any other editor and has been built from the ground up without any base at all.
+Ox is not based on any other editor and has been built from the ground up without any base at all.
 
 ## What features does Ox have and why should I use it?
 Ox aims to be an editor that takes features from some of the most popular editors out there, gaining the best of all worlds.
@@ -65,6 +65,7 @@ While this may sound daunting to many people, it really isn't that hard and take
 ### Prerequisites
 
 Because Ox is written in Rust, you must have a modern and working version of `rustc` and `cargo`.
+
 On Arch Linux, you can run this command:
 ```sh
 sudo pacman -S rustup
@@ -82,18 +83,8 @@ You must have `curl` installed in order to run this command.
 
 #### Manual
 
-1. Clone the repo and change into it
 ```sh
-git clone https://github.com/curlpipe/ox
-cd ox
-```
-2. Build Ox
-```sh
-cargo build --release
-```
-3. Copy the binary into your `/usr/bin` directory
-```sh
-sudo cp target/release/ox /usr/bin/ox
+cargo install --git https://github.com/curlpipe/ox
 ```
 
 #### Arch Linux
