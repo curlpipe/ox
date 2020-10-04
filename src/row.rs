@@ -48,7 +48,7 @@ impl Row {
         let index = index.saturating_add(1);
         // Padding to align line numbers to the right
         let post_padding = offset.saturating_sub(
-            index.to_string().len() +         // Length of the number
+            Self::digits_in_number(index) +         // Digits of the number
             config.general.line_number_padding_right + // Length of the right padding
             config.general.line_number_padding_left, // Length of the left padding
         );
@@ -233,5 +233,30 @@ impl Row {
         }
         self.string = before + &after;
         result
+    }
+    /*
+     We make the parameter mutable so that we can modify it in place instead
+     of copying it in a local variable
+    */
+    const fn digits_in_number(mut index: usize)->usize {
+        /*
+         If the number is 0, then there's still a digit and we return 1 (which is the number of digits still)
+         and that would have the same behavior as converting the number to a string
+          and we return early so that we skip looping in that special case
+        */
+        if index == 0 {
+            return 1;
+        }
+        let mut digit_count = 0;
+        while index != 0 {
+            /*
+             Each time we succesfully divde by 10 we have another digit to add
+             to the count; of course we divide in place so that we reduce
+             our number by 10% each time we loop https://www.geeksforgeeks.org/program-count-digits-integer-3-different-methods/
+            */
+            index /= 10;
+            digit_count += 1;
+        }
+        digit_count
     }
 }
