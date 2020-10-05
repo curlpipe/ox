@@ -53,7 +53,8 @@ Ox is super minimal and aims to use as few dependencies as possible, allowing fo
 * [Unicode-rs](https://unicode-rs.github.io/)
 * [Clap](https://clap.rs/)
 * [Regex](https://docs.rs/regex/1.3.9/regex/)
-* [Toml](https://docs.rs/toml/0.5.6/toml/)
+* [Ron](https://docs.rs/ron/0.6.2/ron/)
+* [Serde](https://docs.rs/serde/1.0.116/serde/)
 * [Shellexpand](https://github.com/netvl/shellexpand)
 
 <!-- GETTING STARTED -->
@@ -160,9 +161,9 @@ Undoing and Redoing in Ox is as simple as <kbd>Ctrl + U</kbd> to undo and <kbd>C
 
 Ox features a configuration system that allows modification and personalization of the editor.
 
-By default, Ox will look for a file here: '~/.config/ox/ox.toml'.
+By default, Ox will look for a file here: '~/.config/ox/ox.ron'.
 
-Ox's configuration language is [TOML](https://toml.io).
+Ox's configuration language is [RON](https://github.com/ron-rs/ron).
 
 There are several default configs in the 'config' folder. You will have to either download one and place it in the default config directory or create your own using the example ones as a reference. The config folder includes the older theme that Ox had before 0.2.3 and the default modern one.
 If you don't have a config file, don't worry :), Ox will just ignore it if you don't have one and it can ignore individual fields should you just want to use the default values.
@@ -170,7 +171,7 @@ If you don't have a config file, don't worry :), Ox will just ignore it if you d
 If you wish to specify the configuration directory, you can do so using the '--config' option (or '-c' if you prefer). For Example:
 
 ```
-ox --config /path/to/my_config.toml file_to_edit.txt
+ox --config /path/to/my_config.ron file_to_edit.txt
 ```
 
 ## Roadmap
