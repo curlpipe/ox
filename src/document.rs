@@ -99,7 +99,7 @@ impl Document {
         }
         result
     }
-    fn render(&self) -> String {
+    pub fn render(&self) -> String {
         // Render the lines of a document for writing
         self.rows
             .iter()

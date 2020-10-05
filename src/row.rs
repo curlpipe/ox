@@ -2,16 +2,8 @@
 use crate::config::Reader; // For configuration
 use crate::editor::RESET_FG; // Reset colours
 use crate::util::{trim_end, trim_start, Exp}; // Utilities
-use regex::Regex;
-use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
 use unicode_width::UnicodeWidthStr; // Getting width of unicode characters
-
-// Enum for border type of token
-pub enum Token {
-    Start,
-    Stop,
-}
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Debug, Clone)]
@@ -42,7 +34,6 @@ impl Row {
         index: usize,
         offset: usize,
         config: &Reader,
-        syntax: &Option<HashMap<String, Vec<Regex>>>,
     ) -> String {
         // Render the row by trimming it to the correct size
         let index = index.saturating_add(1);
@@ -62,118 +53,15 @@ impl Row {
             " ".repeat(config.general.line_number_padding_right),
             RESET_FG,
         );
-        let mut body;
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
-        // Unpack the syntax highlighting information
-        if let Some(syntax) = syntax {
-            let tokens = Row::tokenize(&self.string, &syntax);
-            // Trim the line to fit into the terminal width
-            body = trim_end(
-                &trim_start(&self.string, start),
-                end.saturating_sub(line_number_len),
-            );
-            body = Row::highlight(&body, &tokens, &config.syntax.highlights);
-        } else {
-            body = trim_end(
-                &trim_start(&self.string, start),
-                end.saturating_sub(line_number_len),
-            );
-        }
+        // Trim the lines
+        let body = trim_end(
+            &trim_start(&self.string, start),
+            end.saturating_sub(line_number_len),
+        );
         // Return the full line string to be rendered
         line_number + &body
-    }
-    pub fn highlight(
-        body: &str,
-        bounds: &HashMap<usize, Vec<(Token, String)>>,
-        highlights: &HashMap<String, (u8, u8, u8)>,
-    ) -> String {
-        let mut result = String::new();
-        let mut active = false;
-        let mut level = 0;
-        let mut pushed = false;
-        for (i, c) in body.graphemes(true).enumerate() {
-            if let Some(token) = bounds.get(&i) {
-                for t in token {
-                    match t.0 {
-                        Token::Start => {
-                            if active {
-                                level += 1;
-                                if !pushed {
-                                    result += &c.to_string();
-                                    pushed = true;
-                                }
-                            } else {
-                                active = true;
-                                result += &format!("{}", Reader::rgb_fg(highlights[&t.1]));
-                                if !pushed {
-                                    result += &c.to_string();
-                                    pushed = true;
-                                }
-                            }
-                        }
-                        Token::Stop => {
-                            if active && level == 0 {
-                                result += &format!("{}", RESET_FG);
-                                if token.len() == 1 && !pushed {
-                                    result += &c.to_string();
-                                    pushed = true;
-                                }
-                                active = false;
-                            } else {
-                                level -= 1;
-                                if !pushed {
-                                    result += &c.to_string();
-                                    pushed = true;
-                                }
-                            }
-                        }
-                    }
-                }
-                pushed = false;
-            } else {
-                result += &c.to_string();
-            }
-        }
-        result
-    }
-    fn tokenize(
-        line: &str,
-        syntax: &HashMap<String, Vec<Regex>>,
-    ) -> HashMap<usize, Vec<(Token, String)>> {
-        // Find the token boundaries using the regex
-        let mut token_bounds = HashMap::new();
-        for i in 0..=line.len() {
-            token_bounds.insert(i, vec![]);
-        }
-        for (name, regex) in syntax {
-            for ex in regex {
-                for m in ex.captures_iter(&line) {
-                    let cap = m.get(m.len().saturating_sub(1)).unwrap();
-                    let cap = Row::bounds(&cap, &line);
-                    token_bounds
-                        .get_mut(&cap.0)
-                        .unwrap()
-                        .push((Token::Start, (*name).to_string()));
-                    token_bounds
-                        .get_mut(&cap.1)
-                        .unwrap()
-                        .push((Token::Stop, (*name).to_string()));
-                }
-            }
-        }
-        token_bounds
-            .into_iter()
-            .filter(|x| !x.1.is_empty())
-            .collect::<HashMap<usize, Vec<(Token, String)>>>()
-    }
-    fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
-        // Work out the width of the capture
-        let unicode_wid = reg.as_str().graphemes(true).count();
-        let pre_start = &line[..reg.start()];
-        let pre_length = pre_start.graphemes(true).count();
-        // Calculate the correct boundaries for syntax highlighting
-        (pre_length, pre_length + unicode_wid)
     }
     pub fn length(&self) -> usize {
         // Get the current length of the row

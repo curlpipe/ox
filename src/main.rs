@@ -23,6 +23,7 @@ mod row;
 mod terminal;
 mod undo;
 mod util;
+mod highlight;
 
 use clap::{App, Arg};
 use document::Document;

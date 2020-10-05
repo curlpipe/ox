@@ -1011,7 +1011,7 @@ impl Editor {
     }
     fn render(&mut self) {
         // Draw the screen to the terminal
-        let mut frame = Vec::new();
+        let mut frame = vec![];
         for row in 0..self.term.height {
             if row == self.term.height - 1 {
                 // Render command line
@@ -1052,7 +1052,6 @@ impl Editor {
                     self.offset.y + row as usize,
                     self.doc.line_offset,
                     &self.config,
-                    &self.doc.reg,
                 )));
             } else {
                 // Render empty lines
