@@ -71,7 +71,7 @@ impl Editor {
             dirty: false,
             command_line: CommandLine {
                 text: match &config.1 {
-                    Status::Success => "Welcome to Ox :)".to_string(),
+                    Status::Success => "Welcome to Ox".to_string(),
                     Status::File => "Config file not found, using default values".to_string(),
                     Status::Parse(error) => format!("Failed to parse: {:?}", error),
                 },
@@ -97,6 +97,7 @@ impl Editor {
     }
     pub fn run(&mut self) {
         // Run the editor instance
+        // TODO: Render entire document row here
         while !self.quit {
             self.update();
             self.process_input();
@@ -161,6 +162,7 @@ impl Editor {
         if let Some(events) = self.doc.redo_stack.pop() {
             for event in events.iter().rev() {
                 match event {
+                    // TODO: Update relavent lines here
                     Event::InsertTab(pos) => {
                         self.cursor.y = pos.y - self.offset.y;
                         self.cursor.x =
@@ -238,6 +240,7 @@ impl Editor {
         if let Some(events) = self.doc.undo_stack.pop() {
             for event in &events {
                 match event {
+                    // TODO: Update relavent lines here
                     Event::InsertTab(pos) => {
                         for i in 1..=self.config.general.tab_width {
                             self.doc.rows[pos.y].delete(pos.x - i);
@@ -321,6 +324,7 @@ impl Editor {
             }
             _ => {
                 // Other characters
+                // TODO: Update relavent lines here
                 self.dirty = true;
                 self.show_welcome = false;
                 self.doc.rows[self.cursor.y + self.offset.y].insert(c, self.graphemes);
@@ -341,6 +345,7 @@ impl Editor {
     }
     fn tab(&mut self) {
         // Insert a tab
+        // TODO: Update relavent lines here
         for _ in 0..self.config.general.tab_width {
             self.doc.rows[self.cursor.y + self.offset.y].insert(' ', self.graphemes);
             self.move_cursor(Key::Right);
@@ -350,6 +355,7 @@ impl Editor {
         // Return key
         self.dirty = true;
         self.show_welcome = false;
+        // TODO: Update relavent lines here
         if self.cursor.x + self.offset.x == 0 {
             // Return key pressed at the start of the line
             self.doc
@@ -399,6 +405,7 @@ impl Editor {
         // Handling the backspace key
         self.dirty = true;
         self.show_welcome = false;
+        // TODO: Update relavent lines here
         if self.cursor.x + self.offset.x == 0 && self.cursor.y + self.offset.y != 0 {
             // Backspace at the start of a line
             let current = self.doc.rows[self.cursor.y + self.offset.y].string.clone();
@@ -450,6 +457,7 @@ impl Editor {
     }
     fn open_document(&mut self) {
         // Handle new document event
+        // TODO: Highlight entire file here
         if self.dirty_prompt('o', "open") {
             if let Some(result) = self.prompt("Open", &|_, _, _| {}) {
                 if let Some(doc) = Document::open(&self.config, &result[..]) {
@@ -599,6 +607,7 @@ impl Editor {
                                     before.clone(),
                                     after.clone(),
                                 ));
+                                // TODO: Update relavent lines here
                                 self.doc.rows[self.cursor.y + self.offset.y] = after;
                             }
                             self.update();
@@ -632,6 +641,7 @@ impl Editor {
                             before.clone(),
                             after.clone(),
                         ));
+                        // TODO: Update relavent lines here
                         self.doc.rows[c] = after;
                     }
                 }
@@ -1013,6 +1023,9 @@ impl Editor {
         // Draw the screen to the terminal
         let mut frame = vec![];
         for row in 0..self.term.height {
+            if let Some(row) = self.doc.rows.get_mut(self.offset.y + row as usize) {
+                row.update_syntax();
+            }
             if row == self.term.height - 1 {
                 // Render command line
                 frame.push(self.command_line());

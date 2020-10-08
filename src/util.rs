@@ -1,16 +1,19 @@
 use crate::{Position, Row};
 use regex::Regex;
+use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 #[derive(Debug, Clone)]
 pub struct Exp {
     ansi: Regex,
+    pub digits: Regex,
 }
 
 impl Exp {
     pub fn new() -> Self {
         Self {
             ansi: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
+            digits: Regex::new(r"(\d+\.\d+|\d+)").unwrap(),
         }
     }
     pub fn ansi_len(&self, string: &str) -> usize {
@@ -31,8 +34,8 @@ pub fn trim_start(text: &str, start: usize) -> String {
         .chars()
         .map(|i| UnicodeWidthChar::width(i).map_or(0, |i| i))
         .collect();
-    let chars: Vec<char> = text.chars().collect();
-    let mut result = Vec::new();
+    let chars: Vec<&str> = text.graphemes(true).collect();
+    let mut result = vec![];
     let mut count = 0;
     for i in 0..chars.len() {
         for c in 0..widths[i] {
@@ -55,8 +58,8 @@ pub fn trim_end(text: &str, end: usize) -> String {
     for i in text.chars() {
         widths.push(UnicodeWidthChar::width(i).map_or(0, |i| i));
     }
-    let chars: Vec<char> = text.chars().collect();
-    let mut result = Vec::new();
+    let chars: Vec<&str> = text.graphemes(true).collect();
+    let mut result = vec![];
     let mut length = 0;
     for i in 0..chars.len() {
         let chr = chars[i];

@@ -1,16 +1,18 @@
 // Row.rs - Handling the rows of a document and their appearance
+use crate::highlight;
 use crate::config::Reader; // For configuration
 use crate::editor::RESET_FG; // Reset colours
 use crate::util::{trim_end, trim_start, Exp}; // Utilities
+use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
 use unicode_width::UnicodeWidthStr; // Getting width of unicode characters
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Debug, Clone)]
 pub struct Row {
-    pub string: String,     // For holding the contents of the row
-    pub syn_string: String, // String to be rendered
-    regex: Exp,             // For holding the regex expression
+    pub string: String,                      // For holding the contents of the row
+    pub syntax: HashMap<usize, Vec<String>>, // Hashmap for syntax
+    regex: Exp,                              // For holding the regex expression
 }
 
 // Implement a trait (similar method to inheritance) into the row
@@ -19,7 +21,7 @@ impl From<&str> for Row {
         // Initialise a row from a string
         Self {
             string: s.to_string(),
-            syn_string: s.to_string(),
+            syntax: HashMap::new(),
             regex: Exp::new(),
         }
     }
@@ -60,8 +62,27 @@ impl Row {
             &trim_start(&self.string, start),
             end.saturating_sub(line_number_len),
         );
+        // Apply highlighting
+        let mut result = String::new();
+        for (i, c) in body.graphemes(true).enumerate() {
+            // Detect token
+            if let Some(tokens) = self.syntax.get(&i) {
+                // There are tokens here
+                for token in tokens {
+                    // Iterate through tokens
+                    result.push_str(token);
+                }
+                result.push_str(c);
+            } else {
+                // There are no tokens here
+                result.push_str(c);
+            }
+        }
         // Return the full line string to be rendered
-        line_number + &body
+        line_number + &result
+    }
+    pub fn update_syntax(&mut self) {
+        self.syntax = highlight::highlight(&self.string, &self.regex);
     }
     pub fn length(&self) -> usize {
         // Get the current length of the row

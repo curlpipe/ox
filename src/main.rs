@@ -20,10 +20,10 @@ mod config;
 mod document;
 mod editor;
 mod row;
+mod highlight;
 mod terminal;
 mod undo;
 mod util;
-mod highlight;
 
 use clap::{App, Arg};
 use document::Document;
