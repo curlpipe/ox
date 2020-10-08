@@ -165,8 +165,8 @@ By default, Ox will look for a file here: '~/.config/ox/ox.ron'.
 
 Ox's configuration language is [RON](https://github.com/ron-rs/ron).
 
-There are several default configs in the 'config' folder. You will have to either download one and place it in the default config directory or create your own using the example ones as a reference. The config folder includes the older theme that Ox had before 0.2.3 and the default modern one.
-If you don't have a config file, don't worry :), Ox will just ignore it if you don't have one and it can ignore individual fields should you just want to use the default values.
+There is a default config in the 'config' folder. You will have to either download it and place it in the default config directory or create your own using the example ones as a reference.
+If you don't have a config file, don't worry :), Ox will just ignore it if you don't have one.
 
 If you wish to specify the configuration directory, you can do so using the '--config' option (or '-c' if you prefer). For Example:
 
