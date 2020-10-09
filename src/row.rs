@@ -1,5 +1,5 @@
 // Row.rs - Handling the rows of a document and their appearance
-use crate::highlight;
+use crate::highlight::{self, Token};
 use crate::config::Reader; // For configuration
 use crate::editor::RESET_FG; // Reset colours
 use crate::util::{trim_end, trim_start, Exp}; // Utilities
@@ -11,7 +11,7 @@ use unicode_width::UnicodeWidthStr; // Getting width of unicode characters
 #[derive(Debug, Clone)]
 pub struct Row {
     pub string: String,                      // For holding the contents of the row
-    pub syntax: HashMap<usize, Vec<String>>, // Hashmap for syntax
+    pub syntax: HashMap<usize, Token>,  // Hashmap for syntax
     regex: Exp,                              // For holding the regex expression
 }
 
@@ -64,18 +64,22 @@ impl Row {
         );
         // Apply highlighting
         let mut result = String::new();
-        for (i, c) in body.graphemes(true).enumerate() {
-            // Detect token
-            if let Some(tokens) = self.syntax.get(&i) {
-                // There are tokens here
-                for token in tokens {
-                    // Iterate through tokens
-                    result.push_str(token);
-                }
-                result.push_str(c);
+        let chars: Vec<&str> = body.graphemes(true).collect();
+        let mut i = 0;
+        loop {
+            if i >= chars.len() {
+                break;
+            }
+            if let Some(t) = self.syntax.get(&i) {
+                // There is a token here
+                result.push_str(&t.kind);
+                result.push_str(&t.data);
+                result.push_str(&RESET_FG.to_string());
+                i += t.span.1 - t.span.0;
             } else {
-                // There are no tokens here
-                result.push_str(c);
+                // There is no token here
+                result.push_str(chars[i]);
+                i += 1;
             }
         }
         // Return the full line string to be rendered
