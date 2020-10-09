@@ -72,7 +72,7 @@ impl Editor {
             command_line: CommandLine {
                 text: match &config.1 {
                     Status::Success => "Welcome to Ox".to_string(),
-                    Status::File => "Config file not found, using default values".to_string(),
+                    Status::File => format!("Config file not found, using default values"),
                     Status::Parse(error) => format!("Failed to parse: {:?}", error),
                 },
                 msg: match &config.1 {

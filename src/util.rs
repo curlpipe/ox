@@ -7,6 +7,7 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 pub struct Exp {
     ansi: Regex,
     pub digits: Regex,
+    pub strings: Regex,
 }
 
 impl Exp {
@@ -14,6 +15,7 @@ impl Exp {
         Self {
             ansi: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
             digits: Regex::new(r"(\d+\.\d+|\d+)").unwrap(),
+            strings: Regex::new("(\".*?\")").unwrap(),
         }
     }
     pub fn ansi_len(&self, string: &str) -> usize {

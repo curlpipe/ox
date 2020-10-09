@@ -33,6 +33,7 @@ use std::time::Duration;
 use std::{env, panic, thread};
 use terminal::Terminal;
 use undo::{Event, EventStack};
+use directories::BaseDirs;
 
 // Get the current version of Ox
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -40,6 +41,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() {
     // Attempt to start an editor instance
     let result = panic::catch_unwind(|| {
+        let config_dir = load_config().unwrap_or("~/.config/ox/ox.ron".to_string());
         // Gather the command line arguments
         let cli = App::new("Ox")
             .version(VERSION)
@@ -56,7 +58,7 @@ fn main() {
                     .long("config")
                     .short("c")
                     .takes_value(true)
-                    .default_value("~/.config/ox/ox.ron")
+                    .default_value(&config_dir)
                     .help("The directory of the config file"),
             );
         // Fire up the editor, ensuring that no start up problems occured
@@ -69,4 +71,9 @@ fn main() {
         // Pause for a few seconds to catch debug information
         thread::sleep(Duration::from_secs(5));
     }
+}
+
+fn load_config() -> Option<String> {
+    let base_dirs = BaseDirs::new()?;
+    Some(format!("{}/ox/ox.ron", base_dirs.config_dir().to_str()?.to_string()))
 }
