@@ -72,10 +72,18 @@ impl Row {
             }
             if let Some(t) = self.syntax.get(&i) {
                 // There is a token here
-                result.push_str(&t.kind);
-                result.push_str(&t.data);
-                result.push_str(&RESET_FG.to_string());
-                i += t.span.1 - t.span.0;
+                if t.data.graphemes(true).count() + i <= chars.len() {
+                    // The token will fit in the width
+                    result.push_str(&t.kind);
+                    result.push_str(&t.data);
+                    result.push_str(&RESET_FG.to_string());
+                    i += t.span.1 - t.span.0;
+                } else {
+                    // Token requires trimming to fit the width
+                    result.push_str(&t.kind);
+                    result.push_str(&trim_end(&t.data, end.saturating_sub(line_number_len) - i));
+                    i += t.span.1 - t.span.0;
+                }
             } else {
                 // There is no token here
                 result.push_str(chars[i]);
