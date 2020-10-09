@@ -19,11 +19,11 @@
 mod config;
 mod document;
 mod editor;
+mod highlight;
 mod row;
 mod terminal;
 mod undo;
 mod util;
-mod highlight;
 
 use clap::{App, Arg};
 use document::Document;
@@ -40,6 +40,10 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() {
     // Attempt to start an editor instance
     let result = panic::catch_unwind(|| {
+        let config_path = match env::var("XDG_CONFIG_HOME") {
+            Ok(path) => format!("{}/ox/ox.ron", path),
+            Err(_) => "~/.config/ox/ox.ron".to_string(),
+        };
         // Gather the command line arguments
         let cli = App::new("Ox")
             .version(VERSION)
@@ -56,7 +60,7 @@ fn main() {
                     .long("config")
                     .short("c")
                     .takes_value(true)
-                    .default_value("~/.config/ox/ox.ron")
+                    .default_value(&config_path)
                     .help("The directory of the config file"),
             );
         // Fire up the editor, ensuring that no start up problems occured
