@@ -35,10 +35,15 @@ impl Document {
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
             let mut file = file.split('\n').collect::<Vec<&str>>();
+            // Handle newline on last line
             if let Some(line) = file.iter().last() {
                 if line.is_empty() {
                     let _ = file.pop();
                 }
+            }
+            // Handle empty document by automatically inserting a row
+            if file.is_empty() {
+                file.push("");
             }
             Some(Self {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
