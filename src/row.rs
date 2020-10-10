@@ -1,7 +1,7 @@
 // Row.rs - Handling the rows of a document and their appearance
-use crate::highlight::{self, Token};
 use crate::config::Reader; // For configuration
 use crate::editor::RESET_FG; // Reset colours
+use crate::highlight::{self, Token};
 use crate::util::{trim_end, trim_start, Exp}; // Utilities
 use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
@@ -10,9 +10,9 @@ use unicode_width::UnicodeWidthStr; // Getting width of unicode characters
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Debug, Clone)]
 pub struct Row {
-    pub string: String,                      // For holding the contents of the row
-    pub syntax: HashMap<usize, Token>,  // Hashmap for syntax
-    regex: Exp,                              // For holding the regex expression
+    pub string: String,                // For holding the contents of the row
+    pub syntax: HashMap<usize, Token>, // Hashmap for syntax
+    regex: Exp,                        // For holding the regex expression
 }
 
 // Implement a trait (similar method to inheritance) into the row

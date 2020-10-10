@@ -19,13 +19,14 @@
 mod config;
 mod document;
 mod editor;
-mod row;
 mod highlight;
+mod row;
 mod terminal;
 mod undo;
 mod util;
 
 use clap::{App, Arg};
+use directories::BaseDirs;
 use document::Document;
 use editor::{Editor, Position};
 use row::Row;
@@ -33,7 +34,6 @@ use std::time::Duration;
 use std::{env, panic, thread};
 use terminal::Terminal;
 use undo::{Event, EventStack};
-use directories::BaseDirs;
 
 // Get the current version of Ox
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -75,5 +75,8 @@ fn main() {
 
 fn load_config() -> Option<String> {
     let base_dirs = BaseDirs::new()?;
-    Some(format!("{}/ox/ox.ron", base_dirs.config_dir().to_str()?.to_string()))
+    Some(format!(
+        "{}/ox/ox.ron",
+        base_dirs.config_dir().to_str()?.to_string()
+    ))
 }

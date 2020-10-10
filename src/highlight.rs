@@ -19,20 +19,26 @@ pub fn highlight(row: &str, regexes: &Exp) -> HashMap<usize, Token> {
     // For digits
     for cap in regexes.digits.captures_iter(row) {
         let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        cine(&Token {
-            span: (cap.start(), cap.end()),
-            data: cap.as_str().to_string(),
-            kind: color::Fg(color::Rgb(40, 198, 232)).to_string(),
-        }, &mut syntax);
+        cine(
+            &Token {
+                span: (cap.start(), cap.end()),
+                data: cap.as_str().to_string(),
+                kind: color::Fg(color::Rgb(40, 198, 232)).to_string(),
+            },
+            &mut syntax,
+        );
     }
     // For strings
     for cap in regexes.strings.captures_iter(row) {
         let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        cine(&Token {
-            span: (cap.start(), cap.end()),
-            data: cap.as_str().to_string(),
-            kind: color::Fg(color::Rgb(39, 222, 145)).to_string(),
-        }, &mut syntax);
+        cine(
+            &Token {
+                span: (cap.start(), cap.end()),
+                data: cap.as_str().to_string(),
+                kind: color::Fg(color::Rgb(39, 222, 145)).to_string(),
+            },
+            &mut syntax,
+        );
     }
     syntax
 }
