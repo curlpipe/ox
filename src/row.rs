@@ -57,37 +57,49 @@ impl Row {
         );
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
-        // Trim the lines
-        let body = trim_end(
-            &trim_start(&self.string, start),
-            end.saturating_sub(line_number_len),
-        );
-        // Apply highlighting
+        // Apply highlighting + trim lines
         let mut result = String::new();
-        let chars: Vec<&str> = body.graphemes(true).collect();
+        // Obtain characters
+        let trimmed = trim_start(&self.string, start);
+        let chars: Vec<&str> = trimmed.graphemes(true).collect();
+        // Set up character quota
+        let mut quota = end.saturating_sub(line_number_len) as i32;
+        // Counter to keep track of current index
         let mut i = 0;
         loop {
-            if i >= chars.len() {
-                break;
-            }
+            // Pass in a character or token until the quota is used up
             if let Some(t) = self.syntax.get(&i) {
-                // There is a token here
-                if t.data.graphemes(true).count() + i <= chars.len() {
-                    // The token will fit in the width
-                    result.push_str(&t.kind);
-                    result.push_str(&t.data);
-                    result.push_str(&RESET_FG.to_string());
-                    i += t.span.1 - t.span.0;
+                // Token available
+                let wid = UnicodeWidthStr::width(&t.data[..]);
+                if start > t.span.0 {
+                    // TODO: Token requires trimming at the front
+                }
+                if (quota - wid as i32).is_negative() {
+                    // TODO: Token doesn't quite fit in end
+                    result.push_str(&trim_end(&t.data, quota as usize));
+                    result = trim_end(&(result + &t.data), end.saturating_sub(line_number_len));
+                    break;
                 } else {
-                    // Token requires trimming to fit the width
-                    result.push_str(&t.kind);
-                    result.push_str(&trim_end(&t.data, end.saturating_sub(line_number_len) - i));
+                    // Still quota left to fill
+                    result.push_str(&t.data);
+                    quota -= wid as i32;
                     i += t.span.1 - t.span.0;
                 }
+            } else if let Some(ch) = chars.get(i) {
+                // Character available
+                let wid = UnicodeWidthStr::width(&ch[..]);
+                if (quota - wid as i32).is_negative() {
+                    // Quota is used up
+                    break;
+                } else {
+                    // Still quota left to fill
+                    result.push_str(ch);
+                    quota -= wid as i32;
+                    i += 1;
+                }
             } else {
-                // There is no token here
-                result.push_str(chars[i]);
-                i += 1;
+                // Reached the end of the line
+                break;
             }
         }
         // Return the full line string to be rendered

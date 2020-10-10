@@ -965,8 +965,8 @@ impl Editor {
             " \u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
             self.cursor.y + self.offset.y + 1,
             self.doc.rows.len(),
-            self.cursor.x,
-            self.cursor.y
+            self.cursor.x + self.offset.x,
+            self.cursor.y + self.offset.y,
         );
         // Get the padding value
         let padding = self.term.align_break(&left, &right);
