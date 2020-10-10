@@ -161,14 +161,14 @@ Undoing and Redoing in Ox is as simple as <kbd>Ctrl + U</kbd> to undo and <kbd>C
 
 Ox features a configuration system that allows modification and personalization of the editor.
 
-By default, Ox will look for a file here: '~/.config/ox/ox.ron'.
+By default, Ox will look for a file here: `$XDG_CONFIG_HOME/ox/ox.ron` or `~/.config/ox/ox.ron`.
 
 Ox's configuration language is [RON](https://github.com/ron-rs/ron).
 
 There is a default config in the 'config' folder. You will have to either download it and place it in the default config directory or create your own using the example ones as a reference.
 If you don't have a config file, don't worry :), Ox will just ignore it if you don't have one.
 
-If you wish to specify the configuration directory, you can do so using the '--config' option (or '-c' if you prefer). For Example:
+If you wish to specify the configuration file path, you can do so using the '--config' option (or '-c' if you prefer). For Example:
 
 ```
 ox --config /path/to/my_config.ron file_to_edit.txt
