@@ -41,7 +41,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() {
     // Attempt to start an editor instance
     let result = panic::catch_unwind(|| {
-        let config_dir = load_config().unwrap_or("~/.config/ox/ox.ron".to_string());
+        let config_dir = load_config().unwrap_or_else(|| " ~/.config/ox/ox.ron".to_string());
         // Gather the command line arguments
         let cli = App::new("Ox")
             .version(VERSION)

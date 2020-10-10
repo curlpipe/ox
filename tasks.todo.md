@@ -1,16 +1,25 @@
 0.2.4 (Syntax highlighting)
-- [ ] Optimize further
 - [ ] Syntax Highlighting
+  - [ ] Fix fallout with unicode and trimming
+    - [ ] Trimming start
+    - [X] Unicode
+    - [X] Trimming end
   - [ ] Finish Rust highlighting
+  - [ ] Allow for multiline syntax highlighting
+  - [ ] Add syntax to config file
+  - [ ] Allow for file type specific syntax highlighting
+  - [ ] Optimize
   - [ ] Add C
   - [ ] Add Ruby
   - [ ] Add Python
   - [ ] Add Javascript
-  - [ ] Allow for multiline syntax highlighting
-  - [ ] Optimize
-  - [X] Add external file reading
-  - [X] Set up basic syntax highlighting regex
   - [X] Add basic Rust syntax
+  - [X] Create a theme and regex definitions
+  - [X] Implement basic colourization
+  - [X] Fix overlapping tokens
+- [X] Add support for reading XDG config variable
+- [X] Fix blank file runtime error
+- [X] Use RON format instead
 
 0.2.5 (Multitasking)
 - [ ] Tabs
@@ -37,7 +46,6 @@
   - [ ] Transparent background
   - [ ] Undoing to origin makes file not dirty
   - [ ] Exit search when typing characters and catch up with events
-  - [ ] Better config.rs using reading to structs directly
   - [ ] Undo / Redo patch limit to prevent high memory usage
 
 0.2.7 (Mouse support)
@@ -80,7 +88,7 @@
   - [ ] Add configuration entries for the autocomplete
   - [ ] Add support for file autocomplete too
 
-0.3.4 (Navigation)
+0.3.3 (Navigation)
 - [ ] File tree
   - [ ] Allow the document to be shifted up a bit
   - [ ] Render random text to the left of the document
@@ -98,7 +106,7 @@
     - [ ] Move file
     - [ ] Copy file
 
-0.3.5 (Start up experience improvements)
+0.3.4 (Start up experience improvements)
 - [ ] Start page
   - [ ] Store recently used documents
   - [ ] List them out

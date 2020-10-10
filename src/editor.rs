@@ -72,7 +72,7 @@ impl Editor {
             command_line: CommandLine {
                 text: match &config.1 {
                     Status::Success => "Welcome to Ox".to_string(),
-                    Status::File => format!("Config file not found, using default values"),
+                    Status::File => "Config file not found, using default values".to_string(),
                     Status::Parse(error) => format!("Failed to parse: {:?}", error),
                 },
                 msg: match &config.1 {
@@ -965,8 +965,8 @@ impl Editor {
             " \u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
             self.cursor.y + self.offset.y + 1,
             self.doc.rows.len(),
-            self.cursor.x,
-            self.cursor.y
+            self.cursor.x + self.offset.x,
+            self.cursor.y + self.offset.y,
         );
         // Get the padding value
         let padding = self.term.align_break(&left, &right);

@@ -14,7 +14,7 @@ license = "GPL-2.0"
 
 [profile.release]
 lto = true
-panic = 'abort'
+panic = "abort"
 codegen-units = 1
 
 [dependencies]
