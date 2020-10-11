@@ -47,12 +47,12 @@ pub struct Editor {
     pub config: Reader,             // Storage for configuration
     quit: bool,                     // Toggle for cleanly quitting the editor
     show_welcome: bool,             // Toggle for showing the welcome message
-    dirty: bool,                    // True if the current document has been edited
     graphemes: usize,               // For holding the special grapheme cursor
     command_line: CommandLine,      // For holding the command line
     term: Terminal,                 // For the handling of the terminal
     cursor: Position,               // For holding the raw cursor location
-    doc: Document,                  // For holding our document
+    docs: Vec<Document>,            // For holding our document
+    current_doc: usize,             // Index of the current document
     offset: Position,               // For holding the offset on the X and Y axes
     last_keypress: Option<Instant>, // For holding the time of the last input event
     stdin: Keys<AsyncReader>,       // Asynchronous stdin
@@ -68,7 +68,6 @@ impl Editor {
         Ok(Self {
             quit: false,
             show_welcome: files.is_empty(),
-            dirty: false,
             command_line: CommandLine {
                 text: match &config.1 {
                     Status::Success => "Welcome to Ox".to_string(),
@@ -85,11 +84,15 @@ impl Editor {
             graphemes: 0,
             cursor: Position { x: 0, y: 0 },
             offset: Position { x: 0, y: 0 },
-            doc: if files.is_empty() {
-                Document::new(&config.0)
+            docs: if files.is_empty() {
+                vec![Document::new(&config.0)]
             } else {
-                Document::from(&config.0, files[0])
+                files
+                    .iter()
+                    .map(|file| Document::from(&config.0, file))
+                    .collect()
             },
+            current_doc: 0,
             last_keypress: None,
             stdin: async_stdin().keys(),
             config: config.0,
@@ -128,7 +131,7 @@ impl Editor {
                 // Check for a period of inactivity
                 if let Some(time) = self.last_keypress {
                     if time.elapsed().as_secs() >= self.config.general.undo_period {
-                        self.doc.undo_stack.commit();
+                        self.docs[self.current_doc].undo_stack.commit();
                         self.last_keypress = None;
                     }
                 }
@@ -148,18 +151,21 @@ impl Editor {
             Key::Ctrl('w') => self.save_as(),
             Key::Ctrl('n') => self.new_document(),
             Key::Ctrl('o') => self.open_document(),
+            Key::Ctrl('c') => self.close(),
             Key::Ctrl('f') => self.search(),
             Key::Ctrl('u') => self.undo(),
             Key::Ctrl('y') => self.redo(),
             Key::Ctrl('r') => self.replace(),
             Key::Ctrl('a') => self.replace_all(),
+            Key::Ctrl('l') => self.next_doc(),
+            Key::Ctrl('k') => self.previous_doc(),
             Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
             Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
         }
     }
     fn redo(&mut self) {
-        if let Some(events) = self.doc.redo_stack.pop() {
+        if let Some(events) = self.docs[self.current_doc].redo_stack.pop() {
             for event in events.iter().rev() {
                 match event {
                     // TODO: Update relavent lines here
@@ -175,75 +181,80 @@ impl Editor {
                         self.cursor.y = pos.y - self.offset.y;
                         self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
                         self.recalculate_graphemes();
-                        self.doc.rows[pos.y].insert(*c, pos.x);
+                        self.docs[self.current_doc].rows[pos.y].insert(*c, pos.x);
                     }
                     Event::BackspaceMid(pos, _) => {
                         self.cursor.y = pos.y - self.offset.y;
                         self.cursor.x = pos.x - self.offset.x;
                         self.recalculate_graphemes();
-                        self.doc.rows[pos.y].delete(pos.x);
+                        self.docs[self.current_doc].rows[pos.y].delete(pos.x);
                     }
                     Event::ReturnEnd(pos) => {
                         self.cursor.y = pos.y - self.offset.y;
                         self.cursor.x = pos.x - self.offset.x;
                         self.recalculate_graphemes();
-                        self.doc.rows.insert(pos.y + 1, Row::from(""));
+                        self.docs[self.current_doc]
+                            .rows
+                            .insert(pos.y + 1, Row::from(""));
                         self.move_cursor(Key::Down);
                     }
                     Event::ReturnStart(pos) => {
                         self.cursor.y = pos.y - self.offset.y;
                         self.cursor.x = pos.x - self.offset.x;
                         self.recalculate_graphemes();
-                        self.doc.rows.insert(pos.y, Row::from(""));
+                        self.docs[self.current_doc]
+                            .rows
+                            .insert(pos.y, Row::from(""));
                         self.move_cursor(Key::Down);
                     }
                     Event::ReturnMid(pos, breakpoint) => {
                         self.cursor.y = pos.y - self.offset.y;
                         self.cursor.x = pos.x - self.offset.x;
                         self.recalculate_graphemes();
-                        let current = self.doc.rows[pos.y].string.clone();
+                        let current = self.docs[self.current_doc].rows[pos.y].string.clone();
                         let before = Row::from(&current[..*breakpoint]);
                         let after = Row::from(&current[*breakpoint..]);
-                        self.doc.rows.insert(pos.y + 1, after);
-                        self.doc.rows[pos.y] = before;
+                        self.docs[self.current_doc].rows.insert(pos.y + 1, after);
+                        self.docs[self.current_doc].rows[pos.y] = before;
                         self.move_cursor(Key::Down);
                         self.leap_cursor(Key::Home);
                     }
                     Event::BackspaceStart(pos) => {
                         self.cursor.y = pos.y - self.offset.y;
                         self.recalculate_graphemes();
-                        let current = self.doc.rows[pos.y + 1].string.clone();
-                        let prev = self.doc.rows[pos.y].clone();
-                        self.doc.rows[pos.y + 1] = Row::from(&(prev.string.clone() + &current)[..]);
-                        self.doc.rows.remove(pos.y);
+                        let current = self.docs[self.current_doc].rows[pos.y + 1].string.clone();
+                        let prev = self.docs[self.current_doc].rows[pos.y].clone();
+                        self.docs[self.current_doc].rows[pos.y + 1] =
+                            Row::from(&(prev.string.clone() + &current)[..]);
+                        self.docs[self.current_doc].rows.remove(pos.y);
                         self.move_cursor(Key::Up);
                         self.cursor.x = prev.length();
                         self.recalculate_graphemes();
                     }
                     Event::UpdateLine(pos, _, after) => {
-                        self.doc.rows[*pos] = after.clone();
+                        self.docs[self.current_doc].rows[*pos] = after.clone();
                         self.snap_cursor();
                         self.prevent_unicode_hell();
                         self.recalculate_graphemes();
                     }
                 }
-                self.dirty = true;
+                self.docs[self.current_doc].dirty = true;
                 self.show_welcome = false;
             }
-            self.doc.undo_stack.append(events);
+            self.docs[self.current_doc].undo_stack.append(events);
         } else {
             self.set_command_line("Empty Redo Stack".to_string(), Type::Error);
         }
     }
     fn undo(&mut self) {
-        self.doc.undo_stack.commit();
-        if let Some(events) = self.doc.undo_stack.pop() {
+        self.docs[self.current_doc].undo_stack.commit();
+        if let Some(events) = self.docs[self.current_doc].undo_stack.pop() {
             for event in &events {
                 match event {
                     // TODO: Update relavent lines here
                     Event::InsertTab(pos) => {
                         for i in 1..=self.config.general.tab_width {
-                            self.doc.rows[pos.y].delete(pos.x - i);
+                            self.docs[self.current_doc].rows[pos.y].delete(pos.x - i);
                             self.move_cursor(Key::Left);
                         }
                     }
@@ -252,30 +263,32 @@ impl Editor {
                         self.cursor.y = pos.y - self.offset.y;
                         self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
                         self.recalculate_graphemes();
-                        let string = self.doc.rows[pos.y].string.clone();
-                        self.doc.rows[pos.y].delete(raw_to_grapheme(pos.x, &string));
+                        let string = self.docs[self.current_doc].rows[pos.y].string.clone();
+                        self.docs[self.current_doc].rows[pos.y]
+                            .delete(raw_to_grapheme(pos.x, &string));
                         for _ in 0..c_len {
                             self.move_cursor(Key::Left);
                         }
                     }
                     Event::BackspaceMid(pos, c) => {
-                        self.doc.rows[pos.y].insert(*c, pos.x);
+                        self.docs[self.current_doc].rows[pos.y].insert(*c, pos.x);
                         self.move_cursor(Key::Right);
                     }
                     Event::ReturnEnd(pos) => {
-                        self.doc.rows.remove(pos.y + 1);
+                        self.docs[self.current_doc].rows.remove(pos.y + 1);
                         self.move_cursor(Key::Up);
                         self.leap_cursor(Key::End);
                     }
                     Event::ReturnStart(pos) => {
-                        self.doc.rows.remove(pos.y);
+                        self.docs[self.current_doc].rows.remove(pos.y);
                         self.move_cursor(Key::Up);
                     }
                     Event::ReturnMid(pos, breakpoint) => {
-                        let current = self.doc.rows[pos.y].string.clone();
-                        let after = self.doc.rows[pos.y + 1].string.clone();
-                        self.doc.rows.remove(pos.y);
-                        self.doc.rows[pos.y] = Row::from(&(current + &after)[..]);
+                        let current = self.docs[self.current_doc].rows[pos.y].string.clone();
+                        let after = self.docs[self.current_doc].rows[pos.y + 1].string.clone();
+                        self.docs[self.current_doc].rows.remove(pos.y);
+                        self.docs[self.current_doc].rows[pos.y] =
+                            Row::from(&(current + &after)[..]);
                         self.move_cursor(Key::Up);
                         self.leap_cursor(Key::Home);
                         for _ in 0..*breakpoint {
@@ -283,24 +296,26 @@ impl Editor {
                         }
                     }
                     Event::BackspaceStart(pos) => {
-                        let before = Row::from(&self.doc.rows[pos.y].string[..pos.x]);
-                        let after = Row::from(&self.doc.rows[pos.y].string[pos.x..]);
-                        self.doc.rows[pos.y] = after;
-                        self.doc.rows.insert(pos.y, before);
+                        let before =
+                            Row::from(&self.docs[self.current_doc].rows[pos.y].string[..pos.x]);
+                        let after =
+                            Row::from(&self.docs[self.current_doc].rows[pos.y].string[pos.x..]);
+                        self.docs[self.current_doc].rows[pos.y] = after;
+                        self.docs[self.current_doc].rows.insert(pos.y, before);
                         self.move_cursor(Key::Down);
                         self.leap_cursor(Key::Home);
                     }
                     Event::UpdateLine(pos, before, _) => {
-                        self.doc.rows[*pos] = before.clone();
+                        self.docs[self.current_doc].rows[*pos] = before.clone();
                         self.snap_cursor();
                         self.prevent_unicode_hell();
                         self.recalculate_graphemes();
                     }
                 }
-                self.dirty = true;
+                self.docs[self.current_doc].dirty = true;
                 self.show_welcome = false;
             }
-            self.doc.redo_stack.append(events);
+            self.docs[self.current_doc].redo_stack.append(events);
         } else {
             self.set_command_line("Empty Undo Stack".to_string(), Type::Error);
         }
@@ -310,136 +325,162 @@ impl Editor {
     }
     fn character(&mut self, c: char) {
         // The user pressed a character key
-        self.dirty = true;
+        self.docs[self.current_doc].dirty = true;
         self.show_welcome = false;
         match c {
             '\n' => self.return_key(), // The user pressed the return key
             '\t' => {
                 // The user pressed the tab key
                 self.tab();
-                self.doc.undo_stack.push(Event::InsertTab(Position {
-                    x: self.cursor.x + self.offset.x,
-                    y: self.cursor.y + self.offset.y,
-                }));
+                self.docs[self.current_doc]
+                    .undo_stack
+                    .push(Event::InsertTab(Position {
+                        x: self.cursor.x + self.offset.x,
+                        y: self.cursor.y + self.offset.y,
+                    }));
             }
             _ => {
                 // Other characters
                 // TODO: Update relavent lines here
-                self.dirty = true;
+                self.docs[self.current_doc].dirty = true;
                 self.show_welcome = false;
-                self.doc.rows[self.cursor.y + self.offset.y].insert(c, self.graphemes);
-                self.doc.undo_stack.push(Event::InsertMid(
-                    Position {
-                        x: self.cursor.x + self.offset.x,
-                        y: self.cursor.y + self.offset.y,
-                    },
-                    c,
-                ));
+                self.docs[self.current_doc].rows[self.cursor.y + self.offset.y]
+                    .insert(c, self.graphemes);
+                self.docs[self.current_doc]
+                    .undo_stack
+                    .push(Event::InsertMid(
+                        Position {
+                            x: self.cursor.x + self.offset.x,
+                            y: self.cursor.y + self.offset.y,
+                        },
+                        c,
+                    ));
                 if c == ' ' {
-                    self.doc.undo_stack.commit();
+                    self.docs[self.current_doc].undo_stack.commit();
                 }
                 self.move_cursor(Key::Right);
             }
         }
-        self.doc.redo_stack.empty();
+        self.docs[self.current_doc].redo_stack.empty();
     }
     fn tab(&mut self) {
         // Insert a tab
         // TODO: Update relavent lines here
         for _ in 0..self.config.general.tab_width {
-            self.doc.rows[self.cursor.y + self.offset.y].insert(' ', self.graphemes);
+            self.docs[self.current_doc].rows[self.cursor.y + self.offset.y]
+                .insert(' ', self.graphemes);
             self.move_cursor(Key::Right);
         }
     }
     fn return_key(&mut self) {
         // Return key
-        self.dirty = true;
+        self.docs[self.current_doc].dirty = true;
         self.show_welcome = false;
         // TODO: Update relavent lines here
         if self.cursor.x + self.offset.x == 0 {
             // Return key pressed at the start of the line
-            self.doc
+            self.docs[self.current_doc]
                 .rows
                 .insert(self.cursor.y + self.offset.y, Row::from(""));
-            self.doc.undo_stack.push(Event::ReturnStart(Position {
-                x: self.cursor.x + self.offset.x,
-                y: self.cursor.y + self.offset.y,
-            }));
+            self.docs[self.current_doc]
+                .undo_stack
+                .push(Event::ReturnStart(Position {
+                    x: self.cursor.x + self.offset.x,
+                    y: self.cursor.y + self.offset.y,
+                }));
             self.move_cursor(Key::Down);
         } else if self.cursor.x + self.offset.x
-            == self.doc.rows[self.cursor.y + self.offset.y].length()
+            == self.docs[self.current_doc].rows[self.cursor.y + self.offset.y].length()
         {
             // Return key pressed at the end of the line
-            self.doc
+            self.docs[self.current_doc]
                 .rows
                 .insert(self.cursor.y + self.offset.y + 1, Row::from(""));
-            self.doc.undo_stack.push(Event::ReturnEnd(Position {
-                x: self.cursor.x + self.offset.x,
-                y: self.cursor.y + self.offset.y,
-            }));
+            self.docs[self.current_doc]
+                .undo_stack
+                .push(Event::ReturnEnd(Position {
+                    x: self.cursor.x + self.offset.x,
+                    y: self.cursor.y + self.offset.y,
+                }));
             self.move_cursor(Key::Down);
             self.leap_cursor(Key::Home);
             self.recalculate_graphemes();
         } else {
             // Return key pressed in the middle of the line
-            let current = self.doc.rows[self.cursor.y + self.offset.y].chars();
+            let current = self.docs[self.current_doc].rows[self.cursor.y + self.offset.y].chars();
             let before = Row::from(&current[..self.graphemes].join("")[..]);
             let after = Row::from(&current[self.graphemes..].join("")[..]);
-            self.doc
+            self.docs[self.current_doc]
                 .rows
                 .insert(self.cursor.y + self.offset.y + 1, after);
-            self.doc.rows[self.cursor.y + self.offset.y] = before.clone();
-            self.doc.undo_stack.push(Event::ReturnMid(
-                Position {
-                    x: self.cursor.x + self.offset.x,
-                    y: self.cursor.y + self.offset.y,
-                },
-                before.length(),
-            ));
+            self.docs[self.current_doc].rows[self.cursor.y + self.offset.y] = before.clone();
+            self.docs[self.current_doc]
+                .undo_stack
+                .push(Event::ReturnMid(
+                    Position {
+                        x: self.cursor.x + self.offset.x,
+                        y: self.cursor.y + self.offset.y,
+                    },
+                    before.length(),
+                ));
             self.move_cursor(Key::Down);
             self.leap_cursor(Key::Home);
         }
-        self.doc.undo_stack.commit();
+        self.docs[self.current_doc].undo_stack.commit();
     }
     fn backspace(&mut self) {
         // Handling the backspace key
-        self.dirty = true;
+        self.docs[self.current_doc].dirty = true;
         self.show_welcome = false;
         // TODO: Update relavent lines here
         if self.cursor.x + self.offset.x == 0 && self.cursor.y + self.offset.y != 0 {
             // Backspace at the start of a line
-            let current = self.doc.rows[self.cursor.y + self.offset.y].string.clone();
-            let prev = self.doc.rows[self.cursor.y + self.offset.y - 1].clone();
-            self.doc.rows[self.cursor.y + self.offset.y - 1] =
+            let current = self.docs[self.current_doc].rows[self.cursor.y + self.offset.y]
+                .string
+                .clone();
+            let prev = self.docs[self.current_doc].rows[self.cursor.y + self.offset.y - 1].clone();
+            self.docs[self.current_doc].rows[self.cursor.y + self.offset.y - 1] =
                 Row::from(&(prev.string.clone() + &current)[..]);
-            self.doc.rows.remove(self.cursor.y + self.offset.y);
+            self.docs[self.current_doc]
+                .rows
+                .remove(self.cursor.y + self.offset.y);
             self.move_cursor(Key::Up);
             self.cursor.x = prev.length();
             self.recalculate_graphemes();
-            self.doc.undo_stack.push(Event::BackspaceStart(Position {
-                x: self.cursor.x + self.offset.x,
-                y: self.cursor.y + self.offset.y,
-            }));
-            self.doc.undo_stack.commit();
+            self.docs[self.current_doc]
+                .undo_stack
+                .push(Event::BackspaceStart(Position {
+                    x: self.cursor.x + self.offset.x,
+                    y: self.cursor.y + self.offset.y,
+                }));
+            self.docs[self.current_doc].undo_stack.commit();
         } else {
             // Backspace in the middle of a line
             self.move_cursor(Key::Left);
-            let ch = self.doc.rows[self.cursor.y + self.offset.y].clone();
-            self.doc.rows[self.cursor.y + self.offset.y].delete(self.graphemes);
+            let ch = self.docs[self.current_doc].rows[self.cursor.y + self.offset.y].clone();
+            self.docs[self.current_doc].rows[self.cursor.y + self.offset.y].delete(self.graphemes);
             if let Some(ch) = ch.chars().get(self.graphemes) {
                 if let Ok(ch) = ch.parse() {
-                    self.doc.undo_stack.push(Event::BackspaceMid(
-                        Position {
-                            x: self.cursor.x + self.offset.x,
-                            y: self.cursor.y + self.offset.y,
-                        },
-                        ch,
-                    ));
+                    self.docs[self.current_doc]
+                        .undo_stack
+                        .push(Event::BackspaceMid(
+                            Position {
+                                x: self.cursor.x + self.offset.x,
+                                y: self.cursor.y + self.offset.y,
+                            },
+                            ch,
+                        ));
                 }
             }
         }
     }
     fn quit(&mut self) {
+        let index = self.docs.iter().enumerate().find(|(_, doc)| doc.dirty);
+
+        if let Some((index, _)) = index {
+            self.current_doc = index;
+        }
+
         // For handling a quit event
         if self.dirty_prompt('q', "quit") {
             self.quit = true;
@@ -448,8 +489,10 @@ impl Editor {
     fn new_document(&mut self) {
         // Handle new document event
         if self.dirty_prompt('n', "new") {
-            self.doc = Document::new(&self.config);
-            self.dirty = false;
+            let index = self.docs.len();
+            self.docs.push(Document::new(&self.config));
+            self.current_doc = index;
+            self.docs[self.current_doc].dirty = false;
             self.cursor.y = 0;
             self.offset.y = 0;
             self.leap_cursor(Key::Home);
@@ -461,8 +504,10 @@ impl Editor {
         if self.dirty_prompt('o', "open") {
             if let Some(result) = self.prompt("Open", &|_, _, _| {}) {
                 if let Some(doc) = Document::open(&self.config, &result[..]) {
-                    self.doc = doc;
-                    self.dirty = false;
+                    let index = self.docs.len();
+                    self.docs.push(doc);
+                    self.current_doc = index;
+                    self.docs[self.current_doc].dirty = false;
                     self.show_welcome = false;
                     self.cursor.y = 0;
                     self.offset.y = 0;
@@ -475,44 +520,61 @@ impl Editor {
             self.set_command_line("Open cancelled".to_string(), Type::Info);
         }
     }
+    fn close(&mut self) {
+        // For handling a quit event
+        if self.dirty_prompt('c', "close") {
+            if self.docs.len() == 1 {
+                self.quit = true;
+            } else {
+                self.docs.remove(self.current_doc);
+                self.current_doc = self.current_doc.saturating_sub(1);
+            }
+        }
+    }
     fn save(&mut self) {
         // Handle save event
-        if self.doc.save().is_ok() {
-            self.dirty = false;
+        if self.docs[self.current_doc].save().is_ok() {
+            self.docs[self.current_doc].dirty = false;
             self.set_command_line(
-                format!("File saved to {} successfully", self.doc.path),
+                format!(
+                    "File saved to {} successfully",
+                    self.docs[self.current_doc].path
+                ),
                 Type::Info,
             );
         } else {
             self.set_command_line(
-                format!("Failed to save file to {}", self.doc.path),
+                format!(
+                    "Failed to save file to {}",
+                    self.docs[self.current_doc].path
+                ),
                 Type::Error,
             );
         }
-        self.doc.undo_stack.commit();
+        self.docs[self.current_doc].undo_stack.commit();
     }
     fn save_as(&mut self) {
         // Handle save as event
         if let Some(result) = self.prompt("Save as", &|_, _, _| {}) {
-            if self.doc.save_as(&result[..]).is_ok() {
-                self.dirty = false;
+            if self.docs[self.current_doc].save_as(&result[..]).is_ok() {
+                self.docs[self.current_doc].dirty = false;
                 self.set_command_line(format!("File saved to {} successfully", result), Type::Info);
-                self.doc.name = result.clone();
-                self.doc.path = result;
+                self.docs[self.current_doc].name = result.clone();
+                self.docs[self.current_doc].path = result;
             } else {
                 self.set_command_line(format!("Failed to save file to {}", result), Type::Error);
             }
         } else {
             self.set_command_line("Save as cancelled".to_string(), Type::Info);
         }
-        self.doc.undo_stack.commit();
+        self.docs[self.current_doc].undo_stack.commit();
     }
     fn search(&mut self) {
         // For searching the file
         let initial_cursor = self.cursor;
         let initial_offset = self.offset;
         self.prompt("Search", &|s, e, t| {
-            let search_points = s.doc.scan(t);
+            let search_points = s.docs[s.current_doc].scan(t);
             match e {
                 PromptEvent::KeyPress(k) => match k {
                     Key::Left | Key::Up => {
@@ -564,7 +626,7 @@ impl Editor {
         if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
             if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
                 let re = Regex::new(&target).unwrap();
-                let mut search_points = self.doc.scan(&target);
+                let mut search_points = self.docs[self.current_doc].scan(&target);
                 for p in &search_points {
                     if is_ahead(&self.cursor, &self.offset, &p) {
                         self.goto(&p);
@@ -597,24 +659,31 @@ impl Editor {
                             }
                         }
                         Key::Char('\n') | Key::Char('y') | Key::Char(' ') => {
-                            self.doc.undo_stack.commit();
-                            let line = self.doc.rows[self.cursor.y + self.offset.y].clone();
-                            let before = self.doc.rows[self.cursor.y + self.offset.y].clone();
+                            self.docs[self.current_doc].undo_stack.commit();
+                            let line = self.docs[self.current_doc].rows
+                                [self.cursor.y + self.offset.y]
+                                .clone();
+                            let before = self.docs[self.current_doc].rows
+                                [self.cursor.y + self.offset.y]
+                                .clone();
                             let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
                             if before.string != after.string {
-                                self.doc.undo_stack.push(Event::UpdateLine(
-                                    self.cursor.y + self.offset.y,
-                                    before.clone(),
-                                    after.clone(),
-                                ));
+                                self.docs[self.current_doc]
+                                    .undo_stack
+                                    .push(Event::UpdateLine(
+                                        self.cursor.y + self.offset.y,
+                                        before.clone(),
+                                        after.clone(),
+                                    ));
                                 // TODO: Update relavent lines here
-                                self.doc.rows[self.cursor.y + self.offset.y] = after;
+                                self.docs[self.current_doc].rows[self.cursor.y + self.offset.y] =
+                                    after;
                             }
                             self.update();
                             self.snap_cursor();
                             self.prevent_unicode_hell();
                             self.recalculate_graphemes();
-                            search_points = self.doc.scan(&target);
+                            search_points = self.docs[self.current_doc].scan(&target);
                         }
                         Key::Esc => break,
                         _ => (),
@@ -629,20 +698,18 @@ impl Editor {
     fn replace_all(&mut self) {
         if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
             if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
-                self.doc.undo_stack.commit();
+                self.docs[self.current_doc].undo_stack.commit();
                 let re = Regex::new(&target).unwrap();
-                let lines = self.doc.rows.clone();
+                let lines = self.docs[self.current_doc].rows.clone();
                 for (c, line) in lines.iter().enumerate() {
-                    let before = self.doc.rows[c].clone();
+                    let before = self.docs[self.current_doc].rows[c].clone();
                     let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
                     if before.string != after.string {
-                        self.doc.undo_stack.push(Event::UpdateLine(
-                            c,
-                            before.clone(),
-                            after.clone(),
-                        ));
+                        self.docs[self.current_doc]
+                            .undo_stack
+                            .push(Event::UpdateLine(c, before.clone(), after.clone()));
                         // TODO: Update relavent lines here
-                        self.doc.rows[c] = after;
+                        self.docs[self.current_doc].rows[c] = after;
                     }
                 }
             }
@@ -652,9 +719,23 @@ impl Editor {
         self.recalculate_graphemes();
         self.set_command_line("Replaced targets".to_string(), Type::Info);
     }
+    fn next_doc(&mut self) {
+        self.current_doc += 1;
+
+        if self.current_doc == self.docs.len() {
+            self.current_doc = 0;
+        }
+    }
+    fn previous_doc(&mut self) {
+        if self.current_doc == 0 {
+            self.current_doc = self.docs.len() - 1;
+        } else {
+            self.current_doc -= 1;
+        }
+    }
     fn dirty_prompt(&mut self, key: char, subject: &str) -> bool {
         // For events that require changes to the document
-        if self.dirty {
+        if self.docs[self.current_doc].dirty {
             // Handle unsaved changes
             self.set_command_line(
                 format!(
@@ -727,7 +808,7 @@ impl Editor {
             }
             Key::PageDown => {
                 self.cursor.y = cmp::min(
-                    self.doc.rows.len().saturating_sub(1),
+                    self.docs[self.current_doc].rows.len().saturating_sub(1),
                     self.term.height.saturating_sub(3) as usize,
                 );
                 self.snap_cursor();
@@ -740,9 +821,13 @@ impl Editor {
                 self.graphemes = 0;
             }
             Key::End => {
-                let line = &self.doc.rows[self.cursor.y + self.offset.y];
+                let line = &self.docs[self.current_doc].rows[self.cursor.y + self.offset.y];
                 if line.length()
-                    >= self.term.width.saturating_sub(self.doc.line_offset as u16) as usize
+                    >= self
+                        .term
+                        .width
+                        .saturating_sub(self.docs[self.current_doc].line_offset as u16)
+                        as usize
                 {
                     // Work out the width of the character to traverse
                     let mut jump = 1;
@@ -751,13 +836,12 @@ impl Editor {
                     }
                     self.offset.x = line
                         .length()
-                        .saturating_add(jump + self.doc.line_offset + 1)
+                        .saturating_add(jump + self.docs[self.current_doc].line_offset + 1)
                         .saturating_sub(self.term.width as usize);
-                    self.cursor.x = self
-                        .term
-                        .width
-                        .saturating_sub((jump + self.doc.line_offset + 1) as u16)
-                        as usize;
+                    self.cursor.x =
+                        self.term.width.saturating_sub(
+                            (jump + self.docs[self.current_doc].line_offset + 1) as u16,
+                        ) as usize;
                 } else {
                     self.cursor.x = line.length();
                 }
@@ -770,7 +854,7 @@ impl Editor {
         // Move the cursor around the editor
         match direction {
             Key::Down => {
-                if self.cursor.y + self.offset.y + 1 < self.doc.rows.len() {
+                if self.cursor.y + self.offset.y + 1 < self.docs[self.current_doc].rows.len() {
                     // If the proposed move is within the length of the document
                     if self.cursor.y == self.term.height.saturating_sub(3) as usize {
                         self.offset.y = self.offset.y.saturating_add(1);
@@ -793,7 +877,7 @@ impl Editor {
                 self.recalculate_graphemes();
             }
             Key::Right => {
-                let line = &self.doc.rows[self.cursor.y + self.offset.y];
+                let line = &self.docs[self.current_doc].rows[self.cursor.y + self.offset.y];
                 // Work out the width of the character to traverse
                 let mut jump = 1;
                 if let Some(chr) = line.ext_chars().get(self.cursor.x + self.offset.x) {
@@ -803,18 +887,15 @@ impl Editor {
                 if line.length() > self.cursor.x + self.offset.x {
                     // Check for normal width character
                     let indicator1 = self.cursor.x
-                        == self
-                            .term
-                            .width
-                            .saturating_sub((self.doc.line_offset + jump + 1) as u16)
-                            as usize;
+                        == self.term.width.saturating_sub(
+                            (self.docs[self.current_doc].line_offset + jump + 1) as u16,
+                        ) as usize;
                     // Check for half broken unicode character
-                    let indicator2 = self.cursor.x
-                        == self
-                            .term
-                            .width
-                            .saturating_sub((self.doc.line_offset + jump) as u16)
-                            as usize;
+                    let indicator2 =
+                        self.cursor.x
+                            == self.term.width.saturating_sub(
+                                (self.docs[self.current_doc].line_offset + jump) as u16,
+                            ) as usize;
                     if indicator1 || indicator2 {
                         self.offset.x = self.offset.x.saturating_add(jump);
                     } else {
@@ -824,7 +905,7 @@ impl Editor {
                 }
             }
             Key::Left => {
-                let line = &self.doc.rows[self.cursor.y + self.offset.y];
+                let line = &self.docs[self.current_doc].rows[self.cursor.y + self.offset.y];
                 // Work out the width of the character to traverse
                 let mut jump = 1;
                 if let Some(chr) = line
@@ -845,7 +926,7 @@ impl Editor {
     }
     fn snap_cursor(&mut self) {
         // Snap the cursor to the end of the row when outside
-        let current = self.doc.rows[self.cursor.y + self.offset.y].clone();
+        let current = self.docs[self.current_doc].rows[self.cursor.y + self.offset.y].clone();
         if current.length() <= self.cursor.x + self.offset.x {
             // If the cursor is out of bounds
             self.leap_cursor(Key::Home);
@@ -854,7 +935,7 @@ impl Editor {
     }
     fn prevent_unicode_hell(&mut self) {
         // Make sure that the cursor isn't inbetween a unicode character
-        let line = &self.doc.rows[self.cursor.y + self.offset.y];
+        let line = &self.docs[self.current_doc].rows[self.cursor.y + self.offset.y];
         if line.length() > self.cursor.x + self.offset.x {
             // As long as the cursor is within range
             let boundaries = line.boundaries();
@@ -869,7 +950,7 @@ impl Editor {
     }
     fn recalculate_graphemes(&mut self) {
         // Recalculate the grapheme cursor after moving up and down
-        let current = self.doc.rows[self.cursor.y + self.offset.y].clone();
+        let current = self.docs[self.current_doc].rows[self.cursor.y + self.offset.y].clone();
         let jumps = current.get_jumps();
         let mut counter = 0;
         for (mut counter2, i) in jumps.into_iter().enumerate() {
@@ -884,7 +965,8 @@ impl Editor {
     fn goto(&mut self, pos: &Position) {
         // Move the cursor to a specific location
         let max_y = self.term.height.saturating_sub(3) as usize;
-        let max_x = (self.term.width as usize).saturating_sub(self.doc.line_offset);
+        let max_x =
+            (self.term.width as usize).saturating_sub(self.docs[self.current_doc].line_offset);
         let halfway_y = max_y / 2;
         let halfway_x = max_x / 2;
         if self.offset.x == 0 && pos.y < max_y && pos.x < max_x {
@@ -916,10 +998,13 @@ impl Editor {
     fn update(&mut self) {
         // Move the cursor and render the screen
         self.term.goto(&Position { x: 0, y: 0 });
-        self.doc.recalculate_offset(&self.config);
+        self.docs[self.current_doc].recalculate_offset(&self.config);
         self.render();
         self.term.goto(&Position {
-            x: self.cursor.x.saturating_add(self.doc.line_offset),
+            x: self
+                .cursor
+                .x
+                .saturating_add(self.docs[self.current_doc].line_offset),
             y: self.cursor.y,
         });
         self.term.flush();
@@ -951,20 +1036,22 @@ impl Editor {
         // Produce the status line
         // Create the left part of the status line
         let left = format!(
-            " {}{} \u{2502} {} ",
-            self.doc.name,
-            if self.dirty {
+            " {}{} \u{2502} {} \u{2502} {} / {}",
+            self.docs[self.current_doc].name,
+            if self.docs[self.current_doc].dirty {
                 "[+] \u{fb12} "
             } else {
                 " \u{f723} "
             },
-            self.doc.identify()
+            self.docs[self.current_doc].identify(),
+            self.current_doc + 1,
+            self.docs.len()
         );
         // Create the right part of the status line
         let right = format!(
             " \u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
             self.cursor.y + self.offset.y + 1,
-            self.doc.rows.len(),
+            self.docs[self.current_doc].rows.len(),
             self.cursor.x + self.offset.x,
             self.cursor.y + self.offset.y,
         );
@@ -1023,7 +1110,10 @@ impl Editor {
         // Draw the screen to the terminal
         let mut frame = vec![];
         for row in 0..self.term.height {
-            if let Some(row) = self.doc.rows.get_mut(self.offset.y + row as usize) {
+            if let Some(row) = self.docs[self.current_doc]
+                .rows
+                .get_mut(self.offset.y + row as usize)
+            {
                 row.update_syntax();
             }
             if row == self.term.height - 1 {
@@ -1057,13 +1147,16 @@ impl Editor {
                     "Ctrl + W: Save as",
                     Reader::rgb_fg(self.config.theme.status_fg),
                 ));
-            } else if let Some(line) = self.doc.rows.get(self.offset.y + row as usize) {
+            } else if let Some(line) = self.docs[self.current_doc]
+                .rows
+                .get(self.offset.y + row as usize)
+            {
                 // Render lines of code
                 frame.push(self.add_background(&line.render(
                     self.offset.x,
                     self.term.width as usize,
                     self.offset.y + row as usize,
-                    self.doc.line_offset,
+                    self.docs[self.current_doc].line_offset,
                     &self.config,
                 )));
             } else {

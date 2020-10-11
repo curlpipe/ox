@@ -12,6 +12,7 @@ pub struct Document {
     pub line_offset: usize,     // For holding a line number offset
     pub undo_stack: EventStack, // For holding the undo event stack
     pub redo_stack: EventStack, // For holding the redo event stack
+    pub dirty: bool,            // True if the current document has been edited
     pub highlighting: Vec<String>,
 }
 
@@ -27,6 +28,7 @@ impl Document {
                 + config.general.line_number_padding_left,
             undo_stack: EventStack::new(),
             redo_stack: EventStack::new(),
+            dirty: false,
             highlighting: vec![],
         }
     }
@@ -53,6 +55,7 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
+                dirty: false,
                 highlighting: vec![],
             })
         } else {
@@ -74,6 +77,7 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
+                dirty: false,
                 highlighting: vec![],
             }
         }
