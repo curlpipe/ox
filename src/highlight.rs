@@ -1,8 +1,9 @@
 // Highlight.rs - For syntax highlighting
+use crate::editor::RESET_FG;
 use crate::util::Exp;
 use std::collections::HashMap;
 use termion::color;
-use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -11,14 +12,20 @@ pub struct Token {
     pub kind: String,
 }
 
+impl Token {
+    pub fn colorize(&self) -> String {
+        format!("{}{}{}", self.kind, self.data, RESET_FG)
+    }
+}
+
 pub fn cine(token: &Token, hashmap: &mut HashMap<usize, Token>) {
     hashmap.insert((token.clone()).span.0, token.clone());
 }
 
 fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
     // Work out the width of the capture
-    let unicode_width = reg.as_str().graphemes(true).count();
-    let pre_length = line[..reg.start()].graphemes(true).count();
+    let unicode_width = UnicodeWidthStr::width(reg.as_str());
+    let pre_length = UnicodeWidthStr::width(&line[..reg.start()]);
     // Calculate the correct boundaries for syntax highlighting
     (pre_length, pre_length + unicode_width)
 }
@@ -52,4 +59,18 @@ pub fn highlight(row: &str, regexes: &Exp) -> HashMap<usize, Token> {
         );
     }
     syntax
+}
+
+pub fn remove_nested_tokens(tokens: HashMap<usize, Token>, line: &str) -> HashMap<usize, Token> {
+    let mut result = HashMap::new();
+    let mut c = 0;
+    while c < line.len() {
+        if let Some(t) = tokens.get(&c) {
+            result.insert(t.span.0, t.clone());
+            c += t.span.1 - t.span.0;
+        } else {
+            c += 1;
+        }
+    }
+    result
 }

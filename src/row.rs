@@ -1,11 +1,12 @@
 // Row.rs - Handling the rows of a document and their appearance
 use crate::config::Reader; // For configuration
 use crate::editor::RESET_FG; // Reset colours
-use crate::highlight::{self, Token};
-use crate::util::{trim_end, trim_start, Exp}; // Utilities
+use crate::highlight::{Token, remove_nested_tokens, highlight};
+use crate::util::Exp; // Utilities
 use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
 use unicode_width::UnicodeWidthStr; // Getting width of unicode characters
+use termion::color;
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Debug, Clone)]
@@ -31,8 +32,8 @@ impl From<&str> for Row {
 impl Row {
     pub fn render(
         &self,
-        start: usize,
-        end: usize,
+        mut start: usize,
+        width: usize,
         index: usize,
         offset: usize,
         config: &Reader,
@@ -57,56 +58,70 @@ impl Row {
         );
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
-        // Apply highlighting + trim lines
+        let width = width.saturating_sub(line_number_len);
+        let mut initial = start;
         let mut result = String::new();
-        // Obtain characters
-        let trimmed = trim_start(&self.string, start);
-        let chars: Vec<&str> = trimmed.graphemes(true).collect();
-        // Set up character quota
-        let mut quota = end.saturating_sub(line_number_len) as i32;
-        // Counter to keep track of current index
-        let mut i = 0;
-        loop {
-            // Pass in a character or token until the quota is used up
-            if let Some(t) = self.syntax.get(&i) {
-                // Token available
-                let wid = UnicodeWidthStr::width(&t.data[..]);
-                if start > t.span.0 {
-                    // TODO: Token requires trimming at the front
-                }
-                if (quota - wid as i32).is_negative() {
-                    // TODO: Token doesn't quite fit in end
-                    result.push_str(&trim_end(&t.data, quota as usize));
-                    result = trim_end(&(result + &t.data), end.saturating_sub(line_number_len));
-                    break;
-                } else {
-                    // Still quota left to fill
-                    result.push_str(&t.data);
-                    quota -= wid as i32;
-                    i += t.span.1 - t.span.0;
-                }
-            } else if let Some(ch) = chars.get(i) {
-                // Character available
-                let wid = UnicodeWidthStr::width(&ch[..]);
-                if (quota - wid as i32).is_negative() {
-                    // Quota is used up
-                    break;
-                } else {
-                    // Still quota left to fill
+        // Ensure that the render isn't impossible
+        if width != 0 && start < UnicodeWidthStr::width(&self.string[..]) {
+            // Calculate the character positions
+            let end = width + start;
+            let mut dna = HashMap::new();
+            let mut cumulative = 0;
+            for ch in self.string.graphemes(true) {
+                dna.insert(cumulative, ch);
+                cumulative += UnicodeWidthStr::width(ch);
+            }
+            // Repair dodgy start
+            if !dna.contains_key(&start) {
+                result.push(' ');
+                start += 1;
+            }
+            // Push across characters
+            'a: while start < end {
+                if let Some(t) = self.syntax.get(&start) {
+                    // There is a token here
+                    result.push_str(&t.kind);
+                    while start < end && start < t.span.1 {
+                        if let Some(ch) = dna.get(&start) {
+                            if start + UnicodeWidthStr::width(*ch) > end {
+                                result.push(' ');
+                                break 'a;
+                            }
+                            result.push_str(ch);
+                            start += UnicodeWidthStr::width(*ch);
+                        } else {
+                            break 'a;
+                        }
+                    }
+                    result.push_str(&color::Fg(color::Reset).to_string());
+                } else if let Some(ch) = dna.get(&start) {
+                    // There is a character here
+                    if start + UnicodeWidthStr::width(*ch) > end {
+                        result.push(' ');
+                        break 'a;
+                    }
                     result.push_str(ch);
-                    quota -= wid as i32;
-                    i += 1;
+                    start += UnicodeWidthStr::width(*ch);
+                } else {
+                    // The quota has been used up
+                    break 'a;
                 }
-            } else {
-                // Reached the end of the line
-                break;
+            }
+            // Find the last token start point and move it to 0
+            if initial > 0 {
+                while self.syntax.get(&initial).is_none() && initial > 0 {
+                    initial -= 1;
+                }
+                if let Some(t) = self.syntax.get(&initial) {
+                    result.insert_str(0, &t.kind);
+                }
             }
         }
         // Return the full line string to be rendered
         line_number + &result
     }
     pub fn update_syntax(&mut self) {
-        self.syntax = highlight::highlight(&self.string, &self.regex);
+        self.syntax = remove_nested_tokens(highlight(&self.string, &self.regex), &self.string);
     }
     pub fn length(&self) -> usize {
         // Get the current length of the row
