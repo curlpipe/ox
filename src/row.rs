@@ -107,13 +107,30 @@ impl Row {
                     break 'a;
                 }
             }
-            // Find the last token start point and move it to 0
+            // Correct colourization of tokens that are half off the screen and half on the screen
+            let initial_initial = initial; // Terrible variable naming, I know
             if initial > 0 {
+                // Calculate the last token start boundary
                 while self.syntax.get(&initial).is_none() && initial > 0 {
                     initial -= 1;
                 }
+                // Verify that the token actually exists
                 if let Some(t) = self.syntax.get(&initial) {
-                    result.insert_str(0, &t.kind);
+                    // Verify that the token isn't up against the far left side
+                    if t.span.0 != initial_initial && t.span.1 >= initial_initial {
+                        // Insert the correct colours
+                        let mut real = 0;
+                        let mut ch = 0;
+                        for i in result.graphemes(true) {
+                            if ch == t.span.1 - initial_initial {
+                                break;
+                            }
+                            real += i.len();
+                            ch += UnicodeWidthStr::width(i);
+                        }
+                        result.insert_str(real, &RESET_FG.to_string());
+                        result.insert_str(0, &t.kind);
+                    }
                 }
             }
         }

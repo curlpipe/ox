@@ -1,9 +1,5 @@
 0.2.4 (Syntax highlighting)
 - [ ] Syntax Highlighting
-  - [ ] Fix fallout with unicode and trimming
-    - [ ] Trimming start
-    - [X] Unicode
-    - [X] Trimming end
   - [ ] Finish Rust highlighting
   - [ ] Allow for multiline syntax highlighting
   - [ ] Add syntax to config file
@@ -17,6 +13,10 @@
   - [X] Create a theme and regex definitions
   - [X] Implement basic colourization
   - [X] Fix overlapping tokens
+  - [X] Fix fallout with unicode and trimming
+    - [X] Trimming start
+    - [X] Unicode
+    - [X] Trimming end
 - [X] Add support for reading XDG config variable
 - [X] Fix blank file runtime error
 - [X] Use RON format instead

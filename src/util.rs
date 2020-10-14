@@ -8,6 +8,7 @@ pub struct Exp {
     ansi: Regex,
     pub digits: Regex,
     pub strings: Regex,
+    pub single_comments: Regex,
 }
 
 impl Exp {
@@ -16,6 +17,7 @@ impl Exp {
             ansi: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
             digits: Regex::new(r"(\d+\.\d+|\d+)").unwrap(),
             strings: Regex::new("(\".*?\")").unwrap(),
+            single_comments: Regex::new("(//.*)").unwrap(),
         }
     }
     pub fn ansi_len(&self, string: &str) -> usize {

@@ -58,6 +58,19 @@ pub fn highlight(row: &str, regexes: &Exp) -> HashMap<usize, Token> {
             &mut syntax,
         );
     }
+    // For single line comments
+    for cap in regexes.single_comments.captures_iter(row) {
+        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
+        let boundaries = bounds(&cap, &row);
+        cine(
+            &Token {
+                span: boundaries,
+                data: cap.as_str().to_string(),
+                kind: color::Fg(color::Rgb(113, 113, 169)).to_string(),
+            },
+            &mut syntax,
+        );
+    }
     syntax
 }
 
