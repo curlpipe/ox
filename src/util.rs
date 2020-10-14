@@ -6,18 +6,40 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 #[derive(Debug, Clone)]
 pub struct Exp {
     ansi: Regex,
+    pub keywords: Vec<Regex>,
     pub digits: Regex,
     pub strings: Regex,
+    pub characters: Regex,
     pub single_comments: Regex,
+    pub macros: Regex,
+    pub functions: Regex,
+    pub structs: Regex,
+    pub attributes: Regex,
+    pub booleans: Regex,
 }
 
 impl Exp {
     pub fn new() -> Self {
+        let kw = ["as", "break", "const", "continue", "cra
+te", "else", "enum", "extern", "fn", "for", "if", "impl", "in"
+, "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
+"return", "self", "static", "struct", "super", "trait"
+, "type", "unsafe", "use", "where", "while", "async", "await",
+ "dyn", "abstract", "become", "box", "do", "final", "macro", "
+override", "priv", "typeof", "unsized", "virtual", "yield", "t
+ry", "'static"];
         Self {
             ansi: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
+            keywords: kw.iter().map(|x| Regex::new(&format!(r"\b({})\b", x)).unwrap()).collect(),
             digits: Regex::new(r"(\d+\.\d+|\d+)").unwrap(),
             strings: Regex::new("(\".*?\")").unwrap(),
+            characters: Regex::new("('.')").unwrap(),
             single_comments: Regex::new("(//.*)").unwrap(),
+            macros: Regex::new("\\b([a-z_][a-zA-Z_]*!)").unwrap(),
+            functions: Regex::new("\\b\\s+([a-z_]*)\\b\\(").unwrap(),
+            structs: Regex::new("\\b([A-Z][A-Za-z_]*)\\b\\s*\\{").unwrap(),
+            attributes: Regex::new("^\\s*(#(?:!|)\\[.*?\\])").unwrap(),
+            booleans: Regex::new("\\b(true|false)\\b").unwrap(),
         }
     }
     pub fn ansi_len(&self, string: &str) -> usize {
