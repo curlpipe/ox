@@ -26,4 +26,48 @@
         status_fg:      (35, 240, 144), // The text color of the status line
         line_number_fg: (65, 65, 98), // The text color of the line numbers
     ),
+    // Colours for the syntax highlighting
+    highlights: {
+        "comments":   (113, 113, 169),
+        "keywords":   (134, 76, 232),
+        "strings":    (39, 222, 145),
+        "characters": (40, 198, 232),
+        "digits":     (40, 198, 232),
+        "booleans":   (86, 217, 178),
+        "functions":  (47, 141, 252),
+        "structs":    (47, 141, 252),
+        "macros":     (223, 52, 249),
+        "attributes": (40, 198, 232),
+    },
+    // Language specific settings
+    languages: [
+        Language(
+            name: "Rust", // Name of the language
+            icon: " ", // Icon for the language
+            extensions: ["rs"], // Extensions of the language
+            // Keywords of the language
+            keywords: [
+                "as", "break", "const", "continue", "crate", "else", 
+                "enum", "extern", "fn", "for", "if", "impl", "in", 
+                "let", "loop", "match", "mod", "move", "mut", "pub", 
+                "ref", "return", "self", "static", "struct", "super", 
+                "trait", "type", "unsafe", "use", "where", "while", 
+                "async", "await", "dyn", "abstract", "become", "box", 
+                "do", "final", "macro", "override", "priv", "typeof", 
+                "unsized", "virtual", "yield", "try", "'static"
+            ],
+            // Syntax definitions
+            definitions: {
+                "comments":   ["(?m)(//.*)$", "(?ms)(/\\*.*?\\*/)"],
+                "strings":    ["(\".*?\")"],
+                "characters": ["('.')"],
+                "digits":     ["(\\d+.\\d+|\\d+)"],
+                "booleans":   ["\\b(true)\\b", "\\b(false)\\b"],
+                "functions":  ["\\b\\s+([a-z_]*)\\b\\("],
+                "structs":    ["\\b([A-Z][A-Za-z_]*)\\b\\s*\\{"],
+                "macros":     ["\\b([a-z_][a-zA-Z_]*!)"],
+                "attributes": ["(?m)^\\s*(#(?:!|)\\[.*?\\])"],
+            }
+        ),
+    ],
 )

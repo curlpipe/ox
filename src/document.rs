@@ -12,7 +12,6 @@ pub struct Document {
     pub line_offset: usize,     // For holding a line number offset
     pub undo_stack: EventStack, // For holding the undo event stack
     pub redo_stack: EventStack, // For holding the redo event stack
-    pub highlighting: Vec<String>,
 }
 
 // Add methods to the document struct
@@ -27,7 +26,6 @@ impl Document {
                 + config.general.line_number_padding_left,
             undo_stack: EventStack::new(),
             redo_stack: EventStack::new(),
-            highlighting: vec![],
         }
     }
     pub fn open(config: &Reader, path: &str) -> Option<Self> {
@@ -53,7 +51,6 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
-                highlighting: vec![],
             })
         } else {
             // File doesn't exist
@@ -74,7 +71,6 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
-                highlighting: vec![],
             }
         }
     }

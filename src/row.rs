@@ -1,12 +1,13 @@
 // Row.rs - Handling the rows of a document and their appearance
 use crate::config::Reader; // For configuration
 use crate::editor::RESET_FG; // Reset colours
-use crate::highlight::{Token, remove_nested_tokens, highlight};
+use crate::highlight::{highlight, remove_nested_tokens, Token};
 use crate::util::Exp; // Utilities
+use regex::Regex;
 use std::collections::HashMap;
+use termion::color;
 use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
 use unicode_width::UnicodeWidthStr; // Getting width of unicode characters
-use termion::color;
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Debug, Clone)]
@@ -137,8 +138,11 @@ impl Row {
         // Return the full line string to be rendered
         line_number + &result
     }
-    pub fn update_syntax(&mut self) {
-        self.syntax = remove_nested_tokens(highlight(&self.string, &self.regex), &self.string);
+    pub fn update_syntax(&mut self, config: &Reader, syntax: &HashMap<String, Vec<Regex>>) {
+        self.syntax = remove_nested_tokens(
+            highlight(&self.string, &syntax, &config.highlights),
+            &self.string,
+        );
     }
     pub fn length(&self) -> usize {
         // Get the current length of the row

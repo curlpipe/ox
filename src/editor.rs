@@ -4,6 +4,7 @@ use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end}; // Bri
 use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
 use clap::App; // For a nice command line interface
 use regex::Regex; // Regex for replacement
+use std::collections::HashMap;
 use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
 use std::{cmp, io::Error, thread}; // Managing threads, arguments and comparisons.
 use termion::event::Key; // For reading Keys and shortcuts
@@ -56,6 +57,7 @@ pub struct Editor {
     offset: Position,               // For holding the offset on the X and Y axes
     last_keypress: Option<Instant>, // For holding the time of the last input event
     stdin: Keys<AsyncReader>,       // Asynchronous stdin
+    pub regex: HashMap<String, Vec<Regex>>,
 }
 
 // Implementing methods for our editor struct / class
@@ -92,7 +94,8 @@ impl Editor {
             },
             last_keypress: None,
             stdin: async_stdin().keys(),
-            config: config.0,
+            config: config.0.clone(),
+            regex: Reader::get_syntax_regex(&config.0),
         })
     }
     pub fn run(&mut self) {
@@ -1024,7 +1027,7 @@ impl Editor {
         let mut frame = vec![];
         for row in 0..self.term.height {
             if let Some(row) = self.doc.rows.get_mut(self.offset.y + row as usize) {
-                row.update_syntax();
+                row.update_syntax(&self.config, &self.regex);
             }
             if row == self.term.height - 1 {
                 // Render command line

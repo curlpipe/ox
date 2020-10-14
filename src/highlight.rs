@@ -1,8 +1,7 @@
 // Highlight.rs - For syntax highlighting
-use crate::editor::RESET_FG;
-use crate::util::Exp;
+use crate::config::Reader;
+use regex::Regex;
 use std::collections::HashMap;
-use termion::color;
 use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug, Clone)]
@@ -10,12 +9,6 @@ pub struct Token {
     pub span: (usize, usize),
     pub data: String,
     pub kind: String,
-}
-
-impl Token {
-    pub fn colorize(&self) -> String {
-        format!("{}{}{}", self.kind, self.data, RESET_FG)
-    }
 }
 
 pub fn cine(token: &Token, hashmap: &mut HashMap<usize, Token>) {
@@ -30,127 +23,13 @@ fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
     (pre_length, pre_length + unicode_width)
 }
 
-pub fn highlight(row: &str, regexes: &Exp) -> HashMap<usize, Token> {
+pub fn highlight(
+    row: &str,
+    regex: &HashMap<String, Vec<Regex>>,
+    highlights: &HashMap<String, (u8, u8, u8)>,
+) -> HashMap<usize, Token> {
     let mut syntax: HashMap<usize, Token> = HashMap::new();
-    // For digits
-    for cap in regexes.digits.captures_iter(row) {
-        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        let boundaries = bounds(&cap, &row);
-        cine(
-            &Token {
-                span: boundaries,
-                data: cap.as_str().to_string(),
-                kind: color::Fg(color::Rgb(40, 198, 232)).to_string(),
-            },
-            &mut syntax,
-        );
-    }
-    // For strings
-    for cap in regexes.strings.captures_iter(row) {
-        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        let boundaries = bounds(&cap, &row);
-        cine(
-            &Token {
-                span: boundaries,
-                data: cap.as_str().to_string(),
-                kind: color::Fg(color::Rgb(39, 222, 145)).to_string(),
-            },
-            &mut syntax,
-        );
-    }
-    // For characters
-    for cap in regexes.characters.captures_iter(row) {
-        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        let boundaries = bounds(&cap, &row);
-        cine(
-            &Token {
-                span: boundaries,
-                data: cap.as_str().to_string(),
-                kind: color::Fg(color::Rgb(40, 198, 232)).to_string(),
-            },
-            &mut syntax,
-        );
-    }
-    // For function identifiers
-    for cap in regexes.functions.captures_iter(row) {
-        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        let boundaries = bounds(&cap, &row);
-        cine(
-            &Token {
-                span: boundaries,
-                data: cap.as_str().to_string(),
-                kind: color::Fg(color::Rgb(47, 141, 252)).to_string(),
-            },
-            &mut syntax,
-        );
-    }
-    // For attributes
-    for cap in regexes.attributes.captures_iter(row) {
-        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        let boundaries = bounds(&cap, &row);
-        cine(
-            &Token {
-                span: boundaries,
-                data: cap.as_str().to_string(),
-                kind: color::Fg(color::Rgb(40, 198, 232)).to_string(),
-            },
-            &mut syntax,
-        );
-    }
-    // For booleans
-    for cap in regexes.booleans.captures_iter(row) {
-        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        let boundaries = bounds(&cap, &row);
-        cine(
-            &Token {
-                span: boundaries,
-                data: cap.as_str().to_string(),
-                kind: color::Fg(color::Rgb(86, 217, 178)).to_string(),
-            },
-            &mut syntax,
-        );
-    }
-    // For struct identifiers
-    for cap in regexes.structs.captures_iter(row) {
-        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        let boundaries = bounds(&cap, &row);
-        cine(
-            &Token {
-                span: boundaries,
-                data: cap.as_str().to_string(),
-                kind: color::Fg(color::Rgb(47, 141, 252)).to_string(),
-            },
-            &mut syntax,
-        );
-    }
-    // For macros
-    for cap in regexes.macros.captures_iter(row) {
-        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        let boundaries = bounds(&cap, &row);
-        cine(
-            &Token {
-                span: boundaries,
-                data: cap.as_str().to_string(),
-                kind: color::Fg(color::Rgb(223, 52, 249)).to_string(),
-            },
-            &mut syntax,
-        );
-    }
-    // For single line comments
-    for cap in regexes.single_comments.captures_iter(row) {
-        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-        let boundaries = bounds(&cap, &row);
-        cine(
-            &Token {
-                span: boundaries,
-                data: cap.as_str().to_string(),
-                kind: color::Fg(color::Rgb(113, 113, 169)).to_string(),
-            },
-            &mut syntax,
-        );
-    }
-    // For keywords
-    for kw in &regexes.keywords {
+    for kw in &regex["keywords"] {
         for cap in kw.captures_iter(row) {
             let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
             let boundaries = bounds(&cap, &row);
@@ -158,10 +37,27 @@ pub fn highlight(row: &str, regexes: &Exp) -> HashMap<usize, Token> {
                 &Token {
                     span: boundaries,
                     data: cap.as_str().to_string(),
-                    kind: color::Fg(color::Rgb(134, 76, 232)).to_string(),
+                    kind: Reader::rgb_fg(highlights["keywords"]).to_string(),
                 },
                 &mut syntax,
             );
+        }
+    }
+    // Uh oh! O(n ^ 3)
+    for (name, exps) in regex {
+        for exp in exps.iter() {
+            for cap in exp.captures_iter(row) {
+                let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
+                let boundaries = bounds(&cap, &row);
+                cine(
+                    &Token {
+                        span: boundaries,
+                        data: cap.as_str().to_string(),
+                        kind: Reader::rgb_fg(highlights[name]).to_string(),
+                    },
+                    &mut syntax,
+                );
+            }
         }
     }
     syntax
