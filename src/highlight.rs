@@ -29,6 +29,9 @@ pub fn highlight(
     highlights: &HashMap<String, (u8, u8, u8)>,
 ) -> HashMap<usize, Token> {
     let mut syntax: HashMap<usize, Token> = HashMap::new();
+    if regex.is_empty() {
+        return syntax;
+    }
     for kw in &regex["keywords"] {
         for cap in kw.captures_iter(row) {
             let cap = cap.get(cap.len().saturating_sub(1)).unwrap();

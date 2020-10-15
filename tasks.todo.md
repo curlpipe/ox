@@ -1,9 +1,6 @@
 0.2.4 (Syntax highlighting)
 - [ ] Syntax Highlighting
-  - [ ] Finish Rust highlighting
   - [ ] Allow for multiline syntax highlighting
-  - [ ] Add syntax to config file
-  - [ ] Allow for file type specific syntax highlighting
   - [ ] Optimize
   - [ ] Add C
   - [ ] Add Ruby
@@ -17,6 +14,9 @@
     - [X] Trimming start
     - [X] Unicode
     - [X] Trimming end
+  - [X] Finish Rust highlighting
+  - [X] Add syntax to config file
+  - [X] Allow for file type specific syntax highlighting
 - [X] Add support for reading XDG config variable
 - [X] Fix blank file runtime error
 - [X] Use RON format instead
@@ -32,6 +32,7 @@
   - [ ] Write function
   - [ ] Set up keybinding
 - [ ] Minor tweaks
+  - [ ] Have a goto call for Undo / Redo
   - [ ] Rewrite using crossterm for windows support and efficiency
     - [ ] Build RGB ansi code function
     - [ ] Fix unwrap on terminal size

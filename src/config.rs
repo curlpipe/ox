@@ -116,25 +116,28 @@ impl Reader {
             (default, Status::File)
         }
     }
-    pub fn get_syntax_regex(config: &Self) -> HashMap<String, Vec<Regex>> {
+    pub fn get_syntax_regex(config: &Self, extension: String) -> HashMap<String, Vec<Regex>> {
         let mut result = HashMap::new();
-        for (name, reg) in &config.languages[0].definitions {
-            let mut expressions = vec![];
-            for expr in reg {
-                if let Ok(regx) = Regex::new(&expr) {
-                    expressions.push(regx);
+        for lang in &config.languages {
+            if lang.extensions.contains(&extension) {
+                for (name, reg) in &config.languages[0].definitions {
+                    let mut expressions = vec![];
+                    for expr in reg {
+                        if let Ok(regx) = Regex::new(&expr) {
+                            expressions.push(regx);
+                        }
+                    }
+                    result.insert(name.clone(), expressions);
                 }
+                result.insert(
+                    "keywords".to_string(),
+                    lang.keywords
+                        .iter()
+                        .map(|x| Regex::new(&format!(r"\b({})\b", x)).unwrap())
+                        .collect(),
+                );
             }
-            result.insert(name.clone(), expressions);
         }
-        result.insert(
-            "keywords".to_string(),
-            config.languages[0]
-                .keywords
-                .iter()
-                .map(|x| Regex::new(&format!(r"\b({})\b", x)).unwrap())
-                .collect(),
-        );
         result
     }
     pub fn rgb_fg(colour: (u8, u8, u8)) -> color::Fg<color::Rgb> {

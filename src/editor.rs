@@ -95,7 +95,10 @@ impl Editor {
             last_keypress: None,
             stdin: async_stdin().keys(),
             config: config.0.clone(),
-            regex: Reader::get_syntax_regex(&config.0),
+            regex: Reader::get_syntax_regex(
+                &config.0,
+                files[0].split(".").last().unwrap().to_string(),
+            ),
         })
     }
     pub fn run(&mut self) {
