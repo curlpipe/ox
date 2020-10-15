@@ -1,8 +1,10 @@
+// Util.rs - Utilities for the rest of the program
 use crate::{Position, Row};
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
+// For holding general purpose regular expressions
 #[derive(Debug, Clone)]
 pub struct Exp {
     ansi: Regex,
@@ -10,6 +12,7 @@ pub struct Exp {
 
 impl Exp {
     pub fn new() -> Self {
+        // Create the regular expressions
         Self {
             ansi: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
         }
@@ -21,33 +24,10 @@ impl Exp {
 }
 
 pub fn title(c: &str) -> String {
+    // Title-ize the string
     c.chars().next().map_or(String::new(), |f| {
         f.to_uppercase().collect::<String>() + &c[1..]
     })
-}
-
-pub fn trim_start(text: &str, start: usize) -> String {
-    // Create a special vector with spaces inserted for trimming
-    let widths: Vec<usize> = text
-        .chars()
-        .map(|i| UnicodeWidthChar::width(i).map_or(0, |i| i))
-        .collect();
-    let chars: Vec<&str> = text.graphemes(true).collect();
-    let mut result = vec![];
-    let mut count = 0;
-    for i in 0..chars.len() {
-        for c in 0..widths[i] {
-            if c == 0 {
-                result.push(chars[i].to_string());
-            } else if count <= start {
-                result.push(" ".to_string());
-            }
-            count += 1;
-        }
-    }
-    result
-        .get(start..)
-        .map_or(String::new(), |result| result.join(""))
 }
 
 pub fn trim_end(text: &str, end: usize) -> String {
@@ -76,6 +56,7 @@ pub fn trim_end(text: &str, end: usize) -> String {
 }
 
 pub fn is_behind(cursor: &Position, offset: &Position, position: &Position) -> bool {
+    // Determine whether a position is behind the cursor
     if position.y > cursor.y + offset.y {
         false
     } else {
@@ -84,6 +65,7 @@ pub fn is_behind(cursor: &Position, offset: &Position, position: &Position) -> b
 }
 
 pub fn is_ahead(cursor: &Position, offset: &Position, position: &Position) -> bool {
+    // Determine whether a position is ahead the cursor
     if position.y < cursor.y + offset.y {
         false
     } else {
@@ -92,6 +74,7 @@ pub fn is_ahead(cursor: &Position, offset: &Position, position: &Position) -> bo
 }
 
 pub fn raw_to_grapheme(x: usize, string: &str) -> usize {
+    // Convert raw cursor position to grapheme cursor position
     let mut graphemes = 0;
     let current = Row::from(string);
     let jumps = current.get_jumps();

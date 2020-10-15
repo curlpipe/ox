@@ -25,6 +25,7 @@ pub struct Reader {
 
 impl Reader {
     pub fn read(config: &str) -> (Self, Status) {
+        // Read the config file, if it fails, use a hard-coded configuration
         let rust_kw = vec![
             "as", "break", "const", "continue", "crate", "else", "enum", "extern", "fn", "for",
             "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
@@ -63,10 +64,10 @@ impl Reader {
             .collect(),
             languages: vec![Language {
                 name: "Rust".to_string(),           // Name of the language
-                icon: " ".to_string(),           // Icon for the language
+                icon: "\u{e7a8} ".to_string(),      // Icon for the language
                 extensions: vec!["rs".to_string()], // Extensions of the language
                 // Keywords of the language
-                keywords: rust_kw.iter().map(|x| x.to_string()).collect(),
+                keywords: rust_kw.iter().map(|x| (*x).to_string()).collect(),
                 // Syntax definitions
                 definitions: [
                     ("comments".to_string(), vec!["(?m)(//.*)$".to_string()]),
@@ -99,27 +100,35 @@ impl Reader {
                 .collect(),
             }],
         };
+        // Expand the path to get rid of any filepath issues
         let config = if let Ok(config) = shellexpand::full(config) {
             (*config).to_string()
         } else {
             config.to_string()
         };
+        // Attempt to read and parse the configuration file
         if let Ok(file) = fs::read_to_string(config) {
             let result: (Self, Status) = if let Ok(contents) = from_str(&file) {
                 (contents, Status::Success)
             } else {
+                // There is a syntax issue with the config file
                 let result: Result<Self, ron::Error> = from_str(&file);
+                // Provide the syntax issue with the config file for debugging
                 (default, Status::Parse(format!("{:?}", result)))
             };
             result
         } else {
+            // File wasn't able to be found
             (default, Status::File)
         }
     }
-    pub fn get_syntax_regex(config: &Self, extension: String) -> HashMap<String, Vec<Regex>> {
+    pub fn get_syntax_regex(config: &Self, extension: &str) -> HashMap<String, Vec<Regex>> {
+        // Compile the regular expressions from their string format
         let mut result = HashMap::new();
         for lang in &config.languages {
-            if lang.extensions.contains(&extension) {
+            // Locate the correct language for the extension
+            if lang.extensions.contains(&extension.to_string()) {
+                // Run through all the regex syntax definitions
                 for (name, reg) in &config.languages[0].definitions {
                     let mut expressions = vec![];
                     for expr in reg {
@@ -129,6 +138,7 @@ impl Reader {
                     }
                     result.insert(name.clone(), expressions);
                 }
+                // Process all the keywords
                 result.insert(
                     "keywords".to_string(),
                     lang.keywords
@@ -141,9 +151,11 @@ impl Reader {
         result
     }
     pub fn rgb_fg(colour: (u8, u8, u8)) -> color::Fg<color::Rgb> {
+        // Get the text ANSI code from an RGB value
         color::Fg(color::Rgb(colour.0, colour.1, colour.2))
     }
     pub fn rgb_bg(colour: (u8, u8, u8)) -> color::Bg<color::Rgb> {
+        // Get the background ANSI code from an RGB value
         color::Bg(color::Rgb(colour.0, colour.1, colour.2))
     }
 }

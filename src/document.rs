@@ -1,8 +1,8 @@
 // Document.rs - For managing external files
-use crate::config::Reader; // Config stuff
-use crate::{EventStack, Position, Row}; // The Row and Position struct
-use regex::Regex; // For searching and replacing
-use std::fs; // For managing file reading and writing
+use crate::config::Reader;
+use crate::{EventStack, Position, Row};
+use regex::Regex;
+use std::fs;
 
 // Document struct (class) to manage files and text
 pub struct Document {
@@ -75,6 +75,7 @@ impl Document {
         }
     }
     pub fn recalculate_offset(&mut self, config: &Reader) {
+        // Calculate the offset for the line numbers
         self.line_offset = self.rows.len().to_string().len()
             + config.general.line_number_padding_right
             + config.general.line_number_padding_left;

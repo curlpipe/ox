@@ -74,6 +74,7 @@ fn main() {
 }
 
 fn load_config() -> Option<String> {
+    // Load the configuration file
     let base_dirs = BaseDirs::new()?;
     Some(format!(
         "{}/ox/ox.ron",

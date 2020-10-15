@@ -1,12 +1,12 @@
 // Terminal.rs - Handling low level terminal operations
 use crate::util::Exp;
-use crate::Position; // Allow use and handling of positions
-use std::io::{stdout, Error, Stdout, Write}; // For writing to the stdout
-use termion::raw::{IntoRawMode, RawTerminal}; // To access raw mode
-use termion::screen::AlternateScreen; // To render to a separate screen
-use unicode_width::UnicodeWidthStr; // To find the width of unicode strings
+use crate::Position;
+use std::io::{stdout, Error, Stdout, Write};
+use termion::raw::{IntoRawMode, RawTerminal};
+use termion::screen::AlternateScreen;
+use unicode_width::UnicodeWidthStr;
 
-// Our terminal struct
+// The terminal struct
 pub struct Terminal {
     screen: AlternateScreen<std::io::Stdout>, // Holds the screen
     _stdout: RawTerminal<Stdout>,             // Ensures we're in raw mode for total control

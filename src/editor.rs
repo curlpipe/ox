@@ -1,16 +1,16 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{Reader, Status};
-use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end}; // Bring in the utils
-use crate::{Document, Event, Row, Terminal, VERSION}; // Bringing in all the structs
-use clap::App; // For a nice command line interface
-use regex::Regex; // Regex for replacement
+use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end};
+use crate::{Document, Event, Row, Terminal, VERSION};
+use clap::App;
+use regex::Regex;
 use std::collections::HashMap;
-use std::time::{Duration, Instant}; // For implementing an FPS cap and measuring time
-use std::{cmp, io::Error, thread}; // Managing threads, arguments and comparisons.
-use termion::event::Key; // For reading Keys and shortcuts
-use termion::input::{Keys, TermRead}; // To allow reading from the terminal
-use termion::{async_stdin, color, style, AsyncReader}; // For managing the terminal
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr}; // For calculating unicode character widths
+use std::time::{Duration, Instant};
+use std::{cmp, io::Error, thread};
+use termion::event::Key;
+use termion::input::{Keys, TermRead};
+use termion::{async_stdin, color, style, AsyncReader};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 // Set up color resets
 pub const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
@@ -45,19 +45,19 @@ pub struct Position {
 
 // The main editor struct
 pub struct Editor {
-    pub config: Reader,             // Storage for configuration
-    quit: bool,                     // Toggle for cleanly quitting the editor
-    show_welcome: bool,             // Toggle for showing the welcome message
-    dirty: bool,                    // True if the current document has been edited
-    graphemes: usize,               // For holding the special grapheme cursor
-    command_line: CommandLine,      // For holding the command line
-    term: Terminal,                 // For the handling of the terminal
-    cursor: Position,               // For holding the raw cursor location
-    doc: Document,                  // For holding our document
-    offset: Position,               // For holding the offset on the X and Y axes
-    last_keypress: Option<Instant>, // For holding the time of the last input event
-    stdin: Keys<AsyncReader>,       // Asynchronous stdin
-    pub regex: HashMap<String, Vec<Regex>>,
+    pub config: Reader,                     // Storage for configuration
+    quit: bool,                             // Toggle for cleanly quitting the editor
+    show_welcome: bool,                     // Toggle for showing the welcome message
+    dirty: bool,                            // True if the current document has been edited
+    graphemes: usize,                       // For holding the special grapheme cursor
+    command_line: CommandLine,              // For holding the command line
+    term: Terminal,                         // For the handling of the terminal
+    cursor: Position,                       // For holding the raw cursor location
+    doc: Document,                          // For holding our document
+    offset: Position,                       // For holding the offset on the X and Y axes
+    last_keypress: Option<Instant>,         // For holding the time of the last input event
+    stdin: Keys<AsyncReader>,               // Asynchronous stdin
+    pub regex: HashMap<String, Vec<Regex>>, // For syntax highlighting regex
 }
 
 // Implementing methods for our editor struct / class
@@ -65,12 +65,15 @@ impl Editor {
     pub fn new(args: App) -> Result<Self, Error> {
         // Create a new editor instance
         let args = args.get_matches();
+        // Set up the arguments
         let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
         let config = Reader::read(args.value_of("config").unwrap_or_default());
+        // Create the new editor instance
         Ok(Self {
             quit: false,
             show_welcome: files.is_empty(),
             dirty: false,
+            // Display information about the config file into text for the status line
             command_line: CommandLine {
                 text: match &config.1 {
                     Status::Success => "Welcome to Ox".to_string(),
@@ -88,17 +91,17 @@ impl Editor {
             cursor: Position { x: 0, y: 0 },
             offset: Position { x: 0, y: 0 },
             doc: if files.is_empty() {
+                // Create a new, empty document
                 Document::new(&config.0)
             } else {
+                // Attempt to load up a document
                 Document::from(&config.0, files[0])
             },
             last_keypress: None,
             stdin: async_stdin().keys(),
             config: config.0.clone(),
-            regex: Reader::get_syntax_regex(
-                &config.0,
-                files[0].split(".").last().unwrap().to_string(),
-            ),
+            // Obtain the regular expressions from the config file
+            regex: Reader::get_syntax_regex(&config.0, files[0].split('.').last().unwrap()),
         })
     }
     pub fn run(&mut self) {
@@ -133,7 +136,9 @@ impl Editor {
                 }
                 // Check for a period of inactivity
                 if let Some(time) = self.last_keypress {
+                    // Check to see if it's over the config undo period
                     if time.elapsed().as_secs() >= self.config.general.undo_period {
+                        // Commit the undo changes to the stack
                         self.doc.undo_stack.commit();
                         self.last_keypress = None;
                     }
@@ -165,8 +170,10 @@ impl Editor {
         }
     }
     fn redo(&mut self) {
+        // Redo an action
         if let Some(events) = self.doc.redo_stack.pop() {
             for event in events.iter().rev() {
+                // Reverse the undo action
                 match event {
                     // TODO: Update relavent lines here
                     Event::InsertTab(pos) => {
@@ -242,9 +249,11 @@ impl Editor {
         }
     }
     fn undo(&mut self) {
+        // Initiate an undo action
         self.doc.undo_stack.commit();
         if let Some(events) = self.doc.undo_stack.pop() {
             for event in &events {
+                // Undo the previous action
                 match event {
                     // TODO: Update relavent lines here
                     Event::InsertTab(pos) => {
@@ -312,6 +321,7 @@ impl Editor {
         }
     }
     fn set_command_line(&mut self, text: String, msg: Type) {
+        // Function to update the command line
         self.command_line = CommandLine { text, msg };
     }
     fn character(&mut self, c: char) {
@@ -341,12 +351,14 @@ impl Editor {
                     },
                     c,
                 ));
+                // Commit to the undo stack if space key pressed
                 if c == ' ' {
                     self.doc.undo_stack.commit();
                 }
                 self.move_cursor(Key::Right);
             }
         }
+        // Wipe the redo stack to avoid conflicts
         self.doc.redo_stack.empty();
     }
     fn tab(&mut self) {
@@ -405,6 +417,7 @@ impl Editor {
             self.move_cursor(Key::Down);
             self.leap_cursor(Key::Home);
         }
+        // Commit to undo stack when return key pressed
         self.doc.undo_stack.commit();
     }
     fn backspace(&mut self) {
@@ -462,11 +475,13 @@ impl Editor {
         }
     }
     fn open_document(&mut self) {
-        // Handle new document event
+        // Handle open document event
         // TODO: Highlight entire file here
         if self.dirty_prompt('o', "open") {
+            // Current document is saved to disk
             if let Some(result) = self.prompt("Open", &|_, _, _| {}) {
                 if let Some(doc) = Document::open(&self.config, &result[..]) {
+                    // Overwrite the current document
                     self.doc = doc;
                     self.dirty = false;
                     self.show_welcome = false;
@@ -478,50 +493,61 @@ impl Editor {
                 }
             }
         } else {
+            // User pressed the escape key
             self.set_command_line("Open cancelled".to_string(), Type::Info);
         }
     }
     fn save(&mut self) {
         // Handle save event
         if self.doc.save().is_ok() {
+            // The document saved successfully
             self.dirty = false;
             self.set_command_line(
                 format!("File saved to {} successfully", self.doc.path),
                 Type::Info,
             );
         } else {
+            // The document couldn't save due to permission errors
             self.set_command_line(
                 format!("Failed to save file to {}", self.doc.path),
                 Type::Error,
             );
         }
+        // Commit to undo stack on document save
         self.doc.undo_stack.commit();
     }
     fn save_as(&mut self) {
         // Handle save as event
         if let Some(result) = self.prompt("Save as", &|_, _, _| {}) {
             if self.doc.save_as(&result[..]).is_ok() {
+                // The document could save as
                 self.dirty = false;
                 self.set_command_line(format!("File saved to {} successfully", result), Type::Info);
                 self.doc.name = result.clone();
                 self.doc.path = result;
             } else {
+                // The document couldn't save to the file
                 self.set_command_line(format!("Failed to save file to {}", result), Type::Error);
             }
         } else {
+            // User pressed the escape key
             self.set_command_line("Save as cancelled".to_string(), Type::Info);
         }
+        // Commit to the undo stack on save as
         self.doc.undo_stack.commit();
     }
     fn search(&mut self) {
         // For searching the file
         let initial_cursor = self.cursor;
         let initial_offset = self.offset;
+        // Ask for a search term after saving the current cursor position
         self.prompt("Search", &|s, e, t| {
+            // Find all occurances in the document
             let search_points = s.doc.scan(t);
             match e {
                 PromptEvent::KeyPress(k) => match k {
                     Key::Left | Key::Up => {
+                        // User wants to search backwards
                         for p in search_points.iter().rev() {
                             if is_behind(&s.cursor, &s.offset, &p) {
                                 s.goto(&p);
@@ -531,6 +557,7 @@ impl Editor {
                         }
                     }
                     Key::Right | Key::Down => {
+                        // User wants to search forwards
                         for p in search_points {
                             if is_ahead(&s.cursor, &s.offset, &p) {
                                 s.goto(&p);
@@ -540,6 +567,7 @@ impl Editor {
                         }
                     }
                     Key::Esc => {
+                        // Restore cursor and offset position
                         s.cursor = initial_cursor;
                         s.offset = initial_offset;
                         s.recalculate_graphemes();
@@ -547,9 +575,11 @@ impl Editor {
                     _ => (),
                 },
                 PromptEvent::CharPress => {
+                    // When the user is typing the search query
                     s.cursor = initial_cursor;
                     s.offset = initial_offset;
                     if t != "" {
+                        // Search forward as the user searches
                         for p in search_points {
                             if is_ahead(&s.cursor, &s.offset, &p) {
                                 s.goto(&p);
@@ -562,15 +592,20 @@ impl Editor {
                 PromptEvent::Update => (),
             }
         });
+        // User cancelled or found what they were looking for
         self.set_command_line("Search exited".to_string(), Type::Info);
     }
     fn replace(&mut self) {
+        // Replace text within the document
         let initial_cursor = self.cursor;
         let initial_offset = self.offset;
+        // After saving the cursor position, ask the user for the information
         if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
             if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
+                // Construct a regular expression for searching
                 let re = Regex::new(&target).unwrap();
                 let mut search_points = self.doc.scan(&target);
+                // Search forward as the user types
                 for p in &search_points {
                     if is_ahead(&self.cursor, &self.offset, &p) {
                         self.goto(&p);
@@ -580,9 +615,11 @@ impl Editor {
                     }
                 }
                 loop {
+                    // Handle key press events while in replace mode
                     let key = self.read_key();
                     match key {
                         Key::Up | Key::Left => {
+                            // User wishes to search backwards
                             for p in (&search_points).iter().rev() {
                                 if is_behind(&self.cursor, &self.offset, &p) {
                                     self.goto(&p);
@@ -593,6 +630,7 @@ impl Editor {
                             }
                         }
                         Key::Down | Key::Right => {
+                            // User wishes to search forwards
                             for p in &search_points {
                                 if is_ahead(&self.cursor, &self.offset, &p) {
                                     self.goto(&p);
@@ -603,11 +641,15 @@ impl Editor {
                             }
                         }
                         Key::Char('\n') | Key::Char('y') | Key::Char(' ') => {
+                            // Commit current changes to undo stack
                             self.doc.undo_stack.commit();
+                            // Calculate the new line after the replacement
                             let line = self.doc.rows[self.cursor.y + self.offset.y].clone();
                             let before = self.doc.rows[self.cursor.y + self.offset.y].clone();
                             let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
+                            // Check there was actually a change
                             if before.string != after.string {
+                                // Push the replace event to the undo stack
                                 self.doc.undo_stack.push(Event::UpdateLine(
                                     self.cursor.y + self.offset.y,
                                     before.clone(),
@@ -620,12 +662,14 @@ impl Editor {
                             self.snap_cursor();
                             self.prevent_unicode_hell();
                             self.recalculate_graphemes();
+                            // Update search locations
                             search_points = self.doc.scan(&target);
                         }
                         Key::Esc => break,
                         _ => (),
                     }
                 }
+                // Restore cursor position and exit
                 self.cursor = initial_cursor;
                 self.offset = initial_offset;
                 self.set_command_line("Replace finished".to_string(), Type::Info);
@@ -633,11 +677,14 @@ impl Editor {
         }
     }
     fn replace_all(&mut self) {
+        // Replace all occurances of a substring
         if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
             if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
+                // Commit undo stack changes
                 self.doc.undo_stack.commit();
                 let re = Regex::new(&target).unwrap();
                 let lines = self.doc.rows.clone();
+                // Replace every occurance
                 for (c, line) in lines.iter().enumerate() {
                     let before = self.doc.rows[c].clone();
                     let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
@@ -700,7 +747,9 @@ impl Editor {
             let key = self.read_key();
             match key {
                 Key::Char(c) => {
+                    // Update the prompt contents
                     if c == '\n' {
+                        // Exit on enter key
                         break 'p;
                     } else {
                         result.push(c);
@@ -708,10 +757,12 @@ impl Editor {
                     func(self, PromptEvent::CharPress, &result)
                 }
                 Key::Backspace => {
+                    // Handle backspace event
                     result.pop();
                     func(self, PromptEvent::CharPress, &result)
                 }
                 Key::Esc => {
+                    // Handle escape key
                     func(self, PromptEvent::KeyPress(key), &result);
                     return None;
                 }
@@ -724,14 +775,17 @@ impl Editor {
         Some(result)
     }
     fn leap_cursor(&mut self, action: Key) {
+        // Handle large cursor movements
         match action {
             Key::PageUp => {
+                // Move cursor to the top of the screen
                 self.cursor.y = 0;
                 self.snap_cursor();
                 self.prevent_unicode_hell();
                 self.recalculate_graphemes();
             }
             Key::PageDown => {
+                // Move cursor to the bottom of the screen
                 self.cursor.y = cmp::min(
                     self.doc.rows.len().saturating_sub(1),
                     self.term.height.saturating_sub(3) as usize,
@@ -741,11 +795,13 @@ impl Editor {
                 self.recalculate_graphemes();
             }
             Key::Home => {
+                // Move cursor to the start of the line
                 self.offset.x = 0;
                 self.cursor.x = 0;
                 self.graphemes = 0;
             }
             Key::End => {
+                // Move cursor to the end of the line
                 let line = &self.doc.rows[self.cursor.y + self.offset.y];
                 if line.length()
                     >= self.term.width.saturating_sub(self.doc.line_offset as u16) as usize
@@ -776,6 +832,7 @@ impl Editor {
         // Move the cursor around the editor
         match direction {
             Key::Down => {
+                // Move the cursor down
                 if self.cursor.y + self.offset.y + 1 < self.doc.rows.len() {
                     // If the proposed move is within the length of the document
                     if self.cursor.y == self.term.height.saturating_sub(3) as usize {
@@ -789,6 +846,7 @@ impl Editor {
                 }
             }
             Key::Up => {
+                // Move the cursor up
                 if self.cursor.y == 0 {
                     self.offset.y = self.offset.y.saturating_sub(1);
                 } else {
@@ -799,6 +857,7 @@ impl Editor {
                 self.recalculate_graphemes();
             }
             Key::Right => {
+                // Move the cursor right
                 let line = &self.doc.rows[self.cursor.y + self.offset.y];
                 // Work out the width of the character to traverse
                 let mut jump = 1;
@@ -830,6 +889,7 @@ impl Editor {
                 }
             }
             Key::Left => {
+                // Move the cursor left
                 let line = &self.doc.rows[self.cursor.y + self.offset.y];
                 // Work out the width of the character to traverse
                 let mut jump = 1;
@@ -931,6 +991,7 @@ impl Editor {
         self.term.flush();
     }
     fn welcome_message(&self, text: &str, colour: color::Fg<color::Rgb>) -> String {
+        // Render the welcome message
         let pad = " ".repeat((self.term.width as usize / 2).saturating_sub(text.len() / 2));
         let pad_right = " ".repeat(
             (self.term.width.saturating_sub(1) as usize)

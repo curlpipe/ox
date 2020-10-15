@@ -1,13 +1,13 @@
 // Row.rs - Handling the rows of a document and their appearance
-use crate::config::Reader; // For configuration
-use crate::editor::RESET_FG; // Reset colours
+use crate::config::Reader;
+use crate::editor::RESET_FG;
 use crate::highlight::{highlight, remove_nested_tokens, Token};
-use crate::util::Exp; // Utilities
+use crate::util::Exp;
 use regex::Regex;
 use std::collections::HashMap;
 use termion::color;
-use unicode_segmentation::UnicodeSegmentation; // For splitting up unicode
-use unicode_width::UnicodeWidthStr; // Getting width of unicode characters
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Debug, Clone)]
@@ -68,6 +68,7 @@ impl Row {
             let end = width + start;
             let mut dna = HashMap::new();
             let mut cumulative = 0;
+            // Collect the DNA from the unicode characters
             for ch in self.string.graphemes(true) {
                 dna.insert(cumulative, ch);
                 cumulative += UnicodeWidthStr::width(ch);
@@ -84,6 +85,7 @@ impl Row {
                     result.push_str(&t.kind);
                     while start < end && start < t.span.1 {
                         if let Some(ch) = dna.get(&start) {
+                            // The character overlaps with the edge
                             if start + UnicodeWidthStr::width(*ch) > end {
                                 result.push(' ');
                                 break 'a;
@@ -139,8 +141,9 @@ impl Row {
         line_number + &result
     }
     pub fn update_syntax(&mut self, config: &Reader, syntax: &HashMap<String, Vec<Regex>>) {
+        // Update the syntax highlighting indices for this row
         self.syntax = remove_nested_tokens(
-            highlight(&self.string, &syntax, &config.highlights),
+            &highlight(&self.string, &syntax, &config.highlights),
             &self.string,
         );
     }
