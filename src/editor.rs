@@ -234,7 +234,7 @@ impl Editor {
                         self.recalculate_graphemes();
                     }
                     Event::UpdateLine(pos, _, after) => {
-                        self.doc.rows[*pos] = after.clone();
+                        self.doc.rows[*pos] = *after.clone();
                         self.snap_cursor();
                         self.prevent_unicode_hell();
                         self.recalculate_graphemes();
@@ -306,7 +306,7 @@ impl Editor {
                         self.leap_cursor(Key::Home);
                     }
                     Event::UpdateLine(pos, before, _) => {
-                        self.doc.rows[*pos] = before.clone();
+                        self.doc.rows[*pos] = *before.clone();
                         self.snap_cursor();
                         self.prevent_unicode_hell();
                         self.recalculate_graphemes();
@@ -652,8 +652,8 @@ impl Editor {
                                 // Push the replace event to the undo stack
                                 self.doc.undo_stack.push(Event::UpdateLine(
                                     self.cursor.y + self.offset.y,
-                                    before.clone(),
-                                    after.clone(),
+                                    Box::new(before.clone()),
+                                    Box::new(after.clone()),
                                 ));
                                 // TODO: Update relavent lines here
                                 self.doc.rows[self.cursor.y + self.offset.y] = after;
@@ -691,8 +691,8 @@ impl Editor {
                     if before.string != after.string {
                         self.doc.undo_stack.push(Event::UpdateLine(
                             c,
-                            before.clone(),
-                            after.clone(),
+                            Box::new(before.clone()),
+                            Box::new(after.clone()),
                         ));
                         // TODO: Update relavent lines here
                         self.doc.rows[c] = after;
