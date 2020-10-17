@@ -60,7 +60,7 @@
             definitions: {
                 "comments":   ["(?m)(//.*)$", "(?ms)(/\\*.*?\\*/)"],
                 "strings":    ["(\".*?\")"],
-                "characters": ["('.')"],
+                "characters": ["('.')", "('\\\\.')"],
                 "digits":     ["(\\d+.\\d+|\\d+)"],
                 "booleans":   ["\\b(true)\\b", "\\b(false)\\b"],
                 "functions":  ["\\b\\s+([a-z_]*)\\b\\("],

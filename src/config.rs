@@ -132,8 +132,10 @@ impl Reader {
                 for (name, reg) in &config.languages[0].definitions {
                     let mut expressions = vec![];
                     for expr in reg {
-                        if let Ok(regx) = Regex::new(&expr) {
-                            expressions.push(regx);
+                        if !expr.starts_with("(?ms)") && !expr.starts_with("(?sm)") {
+                            if let Ok(regx) = Regex::new(&expr) {
+                                expressions.push(regx);
+                            }
                         }
                     }
                     result.insert(name.clone(), expressions);

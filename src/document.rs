@@ -1,4 +1,5 @@
 // Document.rs - For managing external files
+use std::collections::HashMap;
 use crate::config::Reader;
 use crate::{EventStack, Position, Row};
 use regex::Regex;
@@ -12,6 +13,7 @@ pub struct Document {
     pub line_offset: usize,     // For holding a line number offset
     pub undo_stack: EventStack, // For holding the undo event stack
     pub redo_stack: EventStack, // For holding the redo event stack
+    pub regex: HashMap<String, Vec<Regex>>,
 }
 
 // Add methods to the document struct
@@ -26,6 +28,7 @@ impl Document {
                 + config.general.line_number_padding_left,
             undo_stack: EventStack::new(),
             redo_stack: EventStack::new(),
+            regex: Reader::get_syntax_regex(&config, ""),
         }
     }
     pub fn open(config: &Reader, path: &str) -> Option<Self> {
@@ -43,6 +46,7 @@ impl Document {
             if file.is_empty() {
                 file.push("");
             }
+            let ext = path.split('.').last().unwrap_or(&"");
             Some(Self {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: path.to_string(),
@@ -51,6 +55,7 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
+                regex: Reader::get_syntax_regex(&config, ext),
             })
         } else {
             // File doesn't exist
@@ -63,6 +68,7 @@ impl Document {
             doc
         } else {
             // Create blank document
+            let ext = path.split('.').last().unwrap_or(&"");
             Self {
                 rows: vec![Row::from("")],
                 name: path.to_string(),
@@ -71,6 +77,7 @@ impl Document {
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
+                regex: Reader::get_syntax_regex(&config, ext),
             }
         }
     }

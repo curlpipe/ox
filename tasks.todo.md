@@ -1,7 +1,6 @@
 0.2.4 (Syntax highlighting)
 - [ ] Syntax Highlighting
   - [ ] Allow for multiline syntax highlighting
-  - [ ] Optimize
   - [ ] Add C
   - [ ] Add Ruby
   - [ ] Add Python
@@ -17,6 +16,7 @@
   - [X] Finish Rust highlighting
   - [X] Add syntax to config file
   - [X] Allow for file type specific syntax highlighting
+  - [X] Optimize
 - [X] Add support for reading XDG config variable
 - [X] Fix blank file runtime error
 - [X] Use RON format instead
@@ -48,6 +48,7 @@
   - [ ] Undoing to origin makes file not dirty
   - [ ] Exit search when typing characters and catch up with events
   - [ ] Undo / Redo patch limit to prevent high memory usage
+  - [ ] Small line specific retokenization for performance
 
 0.2.7 (Mouse support)
   - [ ] Mouse selection support
