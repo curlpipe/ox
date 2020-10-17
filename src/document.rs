@@ -1,6 +1,5 @@
 // Document.rs - For managing external files
-use std::collections::HashMap;
-use crate::config::Reader;
+use crate::config::{TokenType, Reader};
 use crate::{EventStack, Position, Row};
 use regex::Regex;
 use std::fs;
@@ -13,7 +12,7 @@ pub struct Document {
     pub line_offset: usize,     // For holding a line number offset
     pub undo_stack: EventStack, // For holding the undo event stack
     pub redo_stack: EventStack, // For holding the redo event stack
-    pub regex: HashMap<String, Vec<Regex>>,
+    pub regex: Vec<TokenType>,
 }
 
 // Add methods to the document struct

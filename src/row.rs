@@ -1,9 +1,8 @@
 // Row.rs - Handling the rows of a document and their appearance
-use crate::config::Reader;
+use crate::config::{TokenType, Reader};
 use crate::editor::RESET_FG;
 use crate::highlight::{highlight, remove_nested_tokens, Token};
 use crate::util::Exp;
-use regex::Regex;
 use std::collections::HashMap;
 use termion::color;
 use unicode_segmentation::UnicodeSegmentation;
@@ -140,7 +139,7 @@ impl Row {
         // Return the full line string to be rendered
         line_number + &result
     }
-    pub fn update_syntax(&mut self, config: &Reader, syntax: &HashMap<String, Vec<Regex>>) {
+    pub fn update_syntax(&mut self, config: &Reader, syntax: &[TokenType]) {
         // Update the syntax highlighting indices for this row
         self.syntax = remove_nested_tokens(
             &highlight(&self.string, &syntax, &config.highlights),

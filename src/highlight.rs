@@ -1,6 +1,5 @@
 // Highlight.rs - For syntax highlighting
-use crate::config::Reader;
-use regex::Regex;
+use crate::config::{TokenType, Reader};
 use std::collections::HashMap;
 use unicode_width::UnicodeWidthStr;
 
@@ -27,7 +26,7 @@ fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
 
 pub fn highlight(
     row: &str,
-    regex: &HashMap<String, Vec<Regex>>,
+    regex: &[TokenType],
     highlights: &HashMap<String, (u8, u8, u8)>,
 ) -> HashMap<usize, Token> {
     // Generate syntax highlighting information
@@ -36,36 +35,44 @@ pub fn highlight(
         // Language not found, return empty hashmap
         return syntax;
     }
-    for kw in &regex["keywords"] {
-        // Locate keywords
-        for cap in kw.captures_iter(row) {
-            let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-            let boundaries = bounds(&cap, &row);
-            cine(
-                &Token {
-                    span: boundaries,
-                    data: cap.as_str().to_string(),
-                    kind: Reader::rgb_fg(highlights["keywords"]).to_string(),
-                },
-                &mut syntax,
-            );
-        }
-    }
-    for (name, exps) in regex {
-        // Locate expressions
-        for exp in exps.iter() {
-            for cap in exp.captures_iter(row) {
-                let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-                let boundaries = bounds(&cap, &row);
-                cine(
-                    &Token {
-                        span: boundaries,
-                        data: cap.as_str().to_string(),
-                        kind: Reader::rgb_fg(highlights[name]).to_string(),
-                    },
-                    &mut syntax,
-                );
-            }
+    for exps in regex {
+        match exps {
+            TokenType::SingleLine(name, regex) => {
+                if name == "keywords" {
+                    for kw in regex {
+                        // Locate keywords
+                        for cap in kw.captures_iter(row) {
+                            let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
+                            let boundaries = bounds(&cap, &row);
+                            cine(
+                                &Token {
+                                    span: boundaries,
+                                    data: cap.as_str().to_string(),
+                                    kind: Reader::rgb_fg(highlights["keywords"]).to_string(),
+                                },
+                                &mut syntax,
+                            );
+                        }
+                    }
+                } else {
+                    for exp in regex {
+                        // Locate expressions
+                        for cap in exp.captures_iter(row) {
+                            let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
+                            let boundaries = bounds(&cap, &row);
+                            cine(
+                                &Token {
+                                    span: boundaries,
+                                    data: cap.as_str().to_string(),
+                                    kind: Reader::rgb_fg(highlights[name]).to_string(),
+                                },
+                                &mut syntax,
+                            );
+                        }
+                    }
+                }
+            },
+            TokenType::MultiLine(name, regex) => (),
         }
     }
     syntax

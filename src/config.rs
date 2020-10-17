@@ -6,6 +6,13 @@ use std::collections::HashMap;
 use std::fs;
 use termion::color;
 
+// Enum for determining what type of token it is
+#[derive(Clone)]
+pub enum TokenType {
+    MultiLine(String, Vec<Regex>),
+    SingleLine(String, Vec<Regex>),
+}
+
 // Error enum for config reading
 #[derive(Debug)]
 pub enum Status {
@@ -122,32 +129,44 @@ impl Reader {
             (default, Status::File)
         }
     }
-    pub fn get_syntax_regex(config: &Self, extension: &str) -> HashMap<String, Vec<Regex>> {
+    pub fn get_syntax_regex(config: &Self, extension: &str) -> Vec<TokenType> {
         // Compile the regular expressions from their string format
-        let mut result = HashMap::new();
+        let mut result = vec![];
         for lang in &config.languages {
             // Locate the correct language for the extension
             if lang.extensions.contains(&extension.to_string()) {
                 // Run through all the regex syntax definitions
                 for (name, reg) in &config.languages[0].definitions {
-                    let mut expressions = vec![];
+                    let mut single = vec![];
+                    let mut multi = vec![];
                     for expr in reg {
-                        if !expr.starts_with("(?ms)") && !expr.starts_with("(?sm)") {
+                        if expr.starts_with("(?ms)") && expr.starts_with("(?sm)") {
+                            // Multiline regular expression
                             if let Ok(regx) = Regex::new(&expr) {
-                                expressions.push(regx);
+                                multi.push(regx);
+                            }
+                        } else {
+                            // Single line regular expression
+                            if let Ok(regx) = Regex::new(&expr) {
+                                single.push(regx);
                             }
                         }
                     }
-                    result.insert(name.clone(), expressions);
+                    if !single.is_empty() {
+                        result.push(TokenType::SingleLine(name.clone(), single));
+                    }
+                    if !multi.is_empty() {
+                        result.push(TokenType::MultiLine(name.clone(), multi));
+                    }
                 }
                 // Process all the keywords
-                result.insert(
+                result.push(TokenType::SingleLine(
                     "keywords".to_string(),
                     lang.keywords
                         .iter()
                         .map(|x| Regex::new(&format!(r"\b({})\b", x)).unwrap())
                         .collect(),
-                );
+                ));
             }
         }
         result
