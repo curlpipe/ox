@@ -44,18 +44,18 @@ pub struct Position {
 
 // The main editor struct
 pub struct Editor {
-    pub config: Reader,                     // Storage for configuration
-    quit: bool,                             // Toggle for cleanly quitting the editor
-    show_welcome: bool,                     // Toggle for showing the welcome message
-    dirty: bool,                            // True if the current document has been edited
-    graphemes: usize,                       // For holding the special grapheme cursor
-    command_line: CommandLine,              // For holding the command line
-    term: Terminal,                         // For the handling of the terminal
-    cursor: Position,                       // For holding the raw cursor location
-    doc: Document,                          // For holding our document
-    offset: Position,                       // For holding the offset on the X and Y axes
-    last_keypress: Option<Instant>,         // For holding the time of the last input event
-    stdin: Keys<AsyncReader>,               // Asynchronous stdin
+    pub config: Reader,             // Storage for configuration
+    quit: bool,                     // Toggle for cleanly quitting the editor
+    show_welcome: bool,             // Toggle for showing the welcome message
+    dirty: bool,                    // True if the current document has been edited
+    graphemes: usize,               // For holding the special grapheme cursor
+    command_line: CommandLine,      // For holding the command line
+    term: Terminal,                 // For the handling of the terminal
+    cursor: Position,               // For holding the raw cursor location
+    doc: Document,                  // For holding our document
+    offset: Position,               // For holding the offset on the X and Y axes
+    last_keypress: Option<Instant>, // For holding the time of the last input event
+    stdin: Keys<AsyncReader>,       // Asynchronous stdin
 }
 
 // Implementing methods for our editor struct / class
@@ -1085,9 +1085,15 @@ impl Editor {
     fn render(&mut self) {
         // Draw the screen to the terminal
         let mut frame = vec![];
+        let rendered = self.doc.render();
         for row in 0..self.term.height {
-            if let Some(row) = self.doc.rows.get_mut(self.offset.y + row as usize) {
-                row.update_syntax(&self.config, &self.doc.regex);
+            if let Some(r) = self.doc.rows.get_mut(self.offset.y + row as usize) {
+                r.update_syntax(
+                    &self.config,
+                    &self.doc.regex,
+                    &rendered,
+                    self.offset.y + row as usize,
+                );
             }
             if row == self.term.height - 1 {
                 // Render command line

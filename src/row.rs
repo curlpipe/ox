@@ -1,5 +1,5 @@
 // Row.rs - Handling the rows of a document and their appearance
-use crate::config::{TokenType, Reader};
+use crate::config::{Reader, TokenType};
 use crate::editor::RESET_FG;
 use crate::highlight::{highlight, remove_nested_tokens, Token};
 use crate::util::Exp;
@@ -139,10 +139,16 @@ impl Row {
         // Return the full line string to be rendered
         line_number + &result
     }
-    pub fn update_syntax(&mut self, config: &Reader, syntax: &[TokenType]) {
+    pub fn update_syntax(
+        &mut self,
+        config: &Reader,
+        syntax: &[TokenType],
+        doc: &str,
+        index: usize,
+    ) {
         // Update the syntax highlighting indices for this row
         self.syntax = remove_nested_tokens(
-            &highlight(&self.string, &syntax, &config.highlights),
+            &highlight(&self.string, &doc, index, &syntax, &config.highlights),
             &self.string,
         );
     }

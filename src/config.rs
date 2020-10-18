@@ -140,7 +140,7 @@ impl Reader {
                     let mut single = vec![];
                     let mut multi = vec![];
                     for expr in reg {
-                        if expr.starts_with("(?ms)") && expr.starts_with("(?sm)") {
+                        if expr.starts_with("(?ms)") || expr.starts_with("(?sm)") {
                             // Multiline regular expression
                             if let Ok(regx) = Regex::new(&expr) {
                                 multi.push(regx);

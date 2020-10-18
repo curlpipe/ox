@@ -1,5 +1,5 @@
 // Highlight.rs - For syntax highlighting
-use crate::config::{TokenType, Reader};
+use crate::config::{Reader, TokenType};
 use std::collections::HashMap;
 use unicode_width::UnicodeWidthStr;
 
@@ -9,11 +9,18 @@ pub struct Token {
     pub span: (usize, usize),
     pub data: String,
     pub kind: String,
+    pub priority: bool,
 }
 
 pub fn cine(token: &Token, hashmap: &mut HashMap<usize, Token>) {
     // Insert a token into a hashmap
-    hashmap.insert((token.clone()).span.0, token.clone());
+    if let Some(t) = hashmap.get(&token.span.0) {
+        if t.priority {
+            hashmap.insert(token.span.0, token.clone());
+            return;
+        }
+    }
+    hashmap.insert(token.span.0, token.clone());
 }
 
 fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
@@ -24,8 +31,21 @@ fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
     (pre_length, pre_length + unicode_width)
 }
 
+fn multi_to_single(doc: &str, m: &regex::Match) -> ((usize, usize), (usize, usize)) {
+    let b = bounds(&m, &doc);
+    let start_y = doc[..m.start()].matches("\n").count();
+    let end_y = doc[..m.end()].matches("\n").count();
+    let start_x = b.0
+        - UnicodeWidthStr::width(&doc.split("\n").take(start_y).collect::<Vec<_>>().join("\n")[..]);
+    let end_x = b.1
+        - UnicodeWidthStr::width(&doc.split("\n").take(end_y).collect::<Vec<_>>().join("\n")[..]);
+    ((start_x, start_y), (end_x, end_y))
+}
+
 pub fn highlight(
     row: &str,
+    doc: &str,
+    index: usize,
     regex: &[TokenType],
     highlights: &HashMap<String, (u8, u8, u8)>,
 ) -> HashMap<usize, Token> {
@@ -49,6 +69,7 @@ pub fn highlight(
                                     span: boundaries,
                                     data: cap.as_str().to_string(),
                                     kind: Reader::rgb_fg(highlights["keywords"]).to_string(),
+                                    priority: false,
                                 },
                                 &mut syntax,
                             );
@@ -65,14 +86,54 @@ pub fn highlight(
                                     span: boundaries,
                                     data: cap.as_str().to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
+                                    priority: false,
                                 },
                                 &mut syntax,
                             );
                         }
                     }
                 }
-            },
-            TokenType::MultiLine(name, regex) => (),
+            }
+            TokenType::MultiLine(name, regex) => {
+                // Multiline token
+                for exp in regex {
+                    for cap in exp.captures_iter(doc) {
+                        let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
+                        let ((start_x, start_y), (end_x, end_y)) = multi_to_single(&doc, &cap);
+                        if start_y == index {
+                            cine(
+                                &Token {
+                                    span: (start_x, UnicodeWidthStr::width(row)),
+                                    data: row.to_string(),
+                                    kind: Reader::rgb_fg(highlights[name]).to_string(),
+                                    priority: true,
+                                },
+                                &mut syntax,
+                            )
+                        } else if end_y == index {
+                            cine(
+                                &Token {
+                                    span: (0, end_x),
+                                    data: row.to_string(),
+                                    kind: Reader::rgb_fg(highlights[name]).to_string(),
+                                    priority: true,
+                                },
+                                &mut syntax,
+                            )
+                        } else if (start_y..=end_y).contains(&index) {
+                            cine(
+                                &Token {
+                                    span: (0, UnicodeWidthStr::width(row)),
+                                    data: row.to_string(),
+                                    kind: Reader::rgb_fg(highlights[name]).to_string(),
+                                    priority: true,
+                                },
+                                &mut syntax,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
     syntax

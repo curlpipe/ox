@@ -1,5 +1,5 @@
 // Document.rs - For managing external files
-use crate::config::{TokenType, Reader};
+use crate::config::{Reader, TokenType};
 use crate::{EventStack, Position, Row};
 use regex::Regex;
 use std::fs;
