@@ -30,6 +30,7 @@
     highlights: {
         "comments":   (113, 113, 169),
         "keywords":   (134, 76, 232),
+        "references": (134, 76, 232),
         "strings":    (39, 222, 145),
         "characters": (40, 198, 232),
         "digits":     (40, 198, 232),
@@ -54,19 +55,54 @@
                 "trait", "type", "unsafe", "use", "where", "while", 
                 "async", "await", "dyn", "abstract", "become", "box", 
                 "do", "final", "macro", "override", "priv", "typeof", 
-                "unsized", "virtual", "yield", "try", "'static"
+                "unsized", "virtual", "yield", "try", "'static",
+                "u8", "u16", "u32", "u64", "u128", "usize",
+                "i8", "i16", "i32", "i64", "i128", "isize",
+                "f32", "f64", "String", "Vec", "str", "Some",
+                "None", "Box", "Result", "Option", "Ok", "Err",
             ],
             // Syntax definitions
             definitions: {
-                "comments":   ["(?m)(//.*)$", "(?ms)(/\\*.*?\\*/)"],
-                "strings":    ["(\".*?\")"],
-                "characters": ["('.')", "('\\\\.')"],
-                "digits":     ["(\\d+.\\d+|\\d+)"],
-                "booleans":   ["\\b(true)\\b", "\\b(false)\\b"],
-                "functions":  ["\\b\\s+([a-z_]*)\\b\\("],
-                "structs":    ["\\b([A-Z][A-Za-z_]*)\\b\\s*\\{"],
-                "macros":     ["\\b([a-z_][a-zA-Z_]*!)"],
-                "attributes": ["^\\s*(#(?:!|)\\[.*?\\])"],
+                "comments":   [
+                    "(?m)(//.*)$", 
+                    "(?ms)(/\\*.*?\\*/)",
+                ],
+                "strings":    [
+                    "(\".*?\")",
+                ],
+                "characters": [
+                    "('.')", 
+                    "('\\\\.')",
+                ],
+                "digits":     [
+                    "\\b(\\d+.\\d+|\\d+)",
+                    "\\b(\\d+.\\d+(?:f32|f64))",
+                ],
+                "booleans":   [
+                    "\\b(true)\\b", 
+                    "\\b(false)\\b",
+                ],
+                "functions":  [
+                    "fn\\s+([a-z_][a-z0-9_]*)\\(",
+                ],
+                "structs":    [
+                    "(?:trait|enum|struct|impl)\\s+([A-Z][A-Za-z0-9_]*)\\s*", 
+                    "impl(?:<.*?>|)\\s+([A-Z][A-Za-z0-9_]*)",
+                    "([A-Z][A-Za-z0-9_]*)::",
+                    "impl.*for\\s+([A-Z][A-Za-z0-9_]*)",
+                ],
+                "macros":     [
+                    "\\b([a-z_][a-zA-Z0-9_]*!)",
+                ],
+                "attributes": [
+                    "^\\s*(#(?:!|)\\[.*?\\])",
+                ],
+                "references": [
+                    "&str", "&mut", "&self", 
+                    "&i8", "&i16", "&i32", "&i64", "&i128", "&isize",
+                    "&u8", "&u16", "&u32", "&u64", "&u128", "&usize",
+                    "&f32", "&f64",
+                ]
             }
         ),
     ],

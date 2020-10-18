@@ -102,7 +102,14 @@ pub fn highlight(
                         if start_y == index {
                             cine(
                                 &Token {
-                                    span: (start_x, UnicodeWidthStr::width(row)),
+                                    span: (
+                                        start_x,
+                                        if start_y == end_y {
+                                            end_x
+                                        } else {
+                                            UnicodeWidthStr::width(row)
+                                        },
+                                    ),
                                     data: row.to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
                                     priority: true,
