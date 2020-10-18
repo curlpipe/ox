@@ -32,12 +32,12 @@ fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
 
 fn multi_to_single(doc: &str, m: &regex::Match) -> ((usize, usize), (usize, usize)) {
     let b = bounds(&m, &doc);
-    let start_y = doc[..m.start()].matches("\n").count();
-    let end_y = doc[..m.end()].matches("\n").count();
+    let start_y = doc[..m.start()].matches('\n').count();
+    let end_y = doc[..m.end()].matches('\n').count();
     let start_x = b.0
-        - UnicodeWidthStr::width(&doc.split("\n").take(start_y).collect::<Vec<_>>().join("\n")[..]);
+        - UnicodeWidthStr::width(&doc.split('\n').take(start_y).collect::<Vec<_>>().join("\n")[..]);
     let end_x = b.1
-        - UnicodeWidthStr::width(&doc.split("\n").take(end_y).collect::<Vec<_>>().join("\n")[..]);
+        - UnicodeWidthStr::width(&doc.split('\n').take(end_y).collect::<Vec<_>>().join("\n")[..]);
     ((start_x, start_y), (end_x, end_y))
 }
 

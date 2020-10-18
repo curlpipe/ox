@@ -1,28 +1,4 @@
-0.2.4 (Syntax highlighting)
-- [X] Add support for reading XDG config variable
-- [X] Fix blank file runtime error
-- [X] Use RON format instead
-- [X] Syntax Highlighting
-  - [X] Add basic Rust syntax
-  - [X] Create a theme and regex definitions
-  - [X] Implement basic colourization
-  - [X] Fix overlapping tokens
-  - [X] Fix fallout with unicode and trimming
-    - [X] Trimming start
-    - [X] Unicode
-    - [X] Trimming end
-  - [X] Finish Rust highlighting
-  - [X] Add syntax to config file
-  - [X] Allow for file type specific syntax highlighting
-  - [X] Optimize
-  - [X] Allow for multiline syntax highlighting
-  - [X] Add Python
-  - [X] Add Javascript
-  - [X] Add C
-  - [X] Add Ruby
-  - [X] Add Crystal
-
-0.2.5 (Multitasking)
+0.2.5 (Multitasking) { Manage multiple buffers in one instance }
 - [ ] Tabs
   - [ ] Allow holding several documents
   - [ ] Set up current doc variable
@@ -32,36 +8,54 @@
 - [ ] Save all
   - [ ] Write function
   - [ ] Set up keybinding
-- [ ] Minor tweaks
-  - [ ] Have a goto call for Undo / Redo
-  - [ ] Rewrite using crossterm for windows support and efficiency
-    - [ ] Build RGB ansi code function
-    - [ ] Fix unwrap on terminal size
-    - [ ] Properly implement terminal resizing
 
-0.2.6 (Optimization)
+0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
   - [ ] Allow special command mode
   - [ ] Have a few example macros
+    - [ ] Goto line number
+    - [ ] Move forward a word
+    - [ ] Move backward a word
+    - [ ] Delete line
+    - [ ] Move line
+    - [ ] Move cursor
   - [ ] Allow binding of macros to some keys
-- [ ] More minor tweaks
-  - [ ] Transparent background
-  - [ ] Undoing to origin makes file not dirty
-  - [ ] Exit search when typing characters and catch up with events
-  - [ ] Undo / Redo patch limit to prevent high memory usage
-  - [ ] Small line specific retokenization for performance
+
+0.2.7 (Small patches) { Small tweaks to make Ox more comfy }
+- [ ] General Editing
   - [ ] File overwrite prevention
   - [ ] Better file save error messages
+  - [ ] Ctrl + Z for undo
+  - [ ] Save as sudo / read only files
+  - [ ] Backup
+  - [ ] Fix (0, 0) deletion issues
+- [ ] Searching
+  - [ ] Exit search when typing characters and catch up with events
+- [ ] Undoing
+  - [ ] Undoing to origin makes file not dirty
+  - [ ] Undo / Redo patch limit to prevent high memory usage
+  - [ ] Have a goto call for Undo / Redo
+
+0.2.8 (Small patches #2) { Larger tweaks to make Ox more efficient and compatible }
+- [ ] Themes
+  - [ ] Small line specific retokenization for performance
   - [ ] Highlight search and replace messages
+  - [ ] Transparent background
+  - [ ] Improved language syntax highlighting support
+  - [ ] Colour fallbacks
+- [ ] Rewrite using crossterm for windows support and efficiency
+  - [ ] Build RGB ansi code function
+  - [ ] Fix unwrap on terminal size
+  - [ ] Properly implement terminal resizing
 
-0.2.7 (Mouse support)
-  - [ ] Mouse selection support
-    - [ ] Read mouse events
-    - [ ] Move the cursor when clicking with mouse
-    - [ ] Add selection mode to document
-    - [ ] Allow text selection with the mouse cursor
+0.2.9 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
+- [ ] Mouse selection support
+  - [ ] Read mouse events
+  - [ ] Move the cursor when clicking with mouse
+  - [ ] Add selection mode to document
+  - [ ] Allow text selection with the mouse cursor
 
-0.3.0 (IDE level features)
+0.3.0 (IDE level features) { Allow for IDE level features to smooth out development experience }
 - [ ] Auto indentation 
   - [ ] Detect when to auto indent
   - [ ] Find the amount of tabs needed
@@ -75,7 +69,7 @@
   - [ ] highlight different colors for errors and warnings
   - [ ] Add support for Pylint readings
 
-0.3.1 (IDE level features #2)
+0.3.1 (IDE level features #2) { More IDE level features }
 - [ ] Auto brackets
   - [ ] Automatically insert brackets on opening pair
     - [ ] <
@@ -88,13 +82,13 @@
     - [ ] |
   - [ ] Move them around when pressing enter
 
-0.3.2 (IDE level features #3)
+0.3.2 (IDE level features #3) { Even more IDE features }
 - [ ] Auto complete
   - [ ] Get information from racer and display it in a menu
   - [ ] Add configuration entries for the autocomplete
   - [ ] Add support for file autocomplete too
 
-0.3.3 (Navigation)
+0.3.3 (Navigation) { To help with navigating and managing your project from within the editor }
 - [ ] File tree
   - [ ] Allow the document to be shifted up a bit
   - [ ] Render random text to the left of the document
@@ -112,13 +106,14 @@
     - [ ] Move file
     - [ ] Copy file
 
-0.3.4 (Start up experience improvements)
+0.3.4 (Start up experience improvements) { Add a help menu and start menu and session saver }
 - [ ] Start page
   - [ ] Store recently used documents
   - [ ] List them out
 - [ ] Add ability to save sessions and load them from cli and start page
+- [ ] Add detailed help menu / document / mode
 
-Further ideas
+Further ideas { Further fun ideas to look at }
 - [ ] Automatically closing status line
 - [ ] Split editors
 - [ ] Terminal integration
@@ -230,4 +225,28 @@ Further ideas
   - [X] Create replace all command
   - [X] Create replace some command
   - [X] Allow Regex expressions to be used?
+
+0.2.4 (Syntax highlighting)
+- [X] Add support for reading XDG config variable
+- [X] Fix blank file runtime error
+- [X] Use RON format instead
+- [X] Syntax Highlighting
+  - [X] Add basic Rust syntax
+  - [X] Create a theme and regex definitions
+  - [X] Implement basic colourization
+  - [X] Fix overlapping tokens
+  - [X] Fix fallout with unicode and trimming
+    - [X] Trimming start
+    - [X] Unicode
+    - [X] Trimming end
+  - [X] Finish Rust highlighting
+  - [X] Add syntax to config file
+  - [X] Allow for file type specific syntax highlighting
+  - [X] Optimize
+  - [X] Allow for multiline syntax highlighting
+  - [X] Add Python
+  - [X] Add Javascript
+  - [X] Add C
+  - [X] Add Ruby
+  - [X] Add Crystal
 

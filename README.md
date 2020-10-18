@@ -188,10 +188,12 @@ Here is the current summary
  - [X] Good command line interface (0.2.3)
  - [X] Config files (0.2.3)
  - [X] Replacing text (0.2.3) [1549 lines]
- - [ ] Syntax highlighting (0.2.4)
+ - [X] Syntax highlighting (0.2.4) [1894 lines]
  - [ ] Tabs for multitasking (0.2.5)
  - [ ] Macros (0.2.6)
- - [ ] Mouse support (0.2.7)
+ - [ ] Tweaks #1 (0.2.7)
+ - [ ] Tweaks #2 (0.2.8)
+ - [ ] Mouse support (0.2.9)
  - [ ] Auto indentation (0.3.0)
  - [ ] Prettifier / Automatic code formatter (0.3.0)
  - [ ] Built In linter (0.3.0)
