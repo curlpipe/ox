@@ -77,9 +77,15 @@ impl Reader {
                 keywords: rust_kw.iter().map(|x| (*x).to_string()).collect(),
                 // Syntax definitions
                 definitions: [
-                    ("comments".to_string(), vec!["(?m)(//.*)$".to_string()]),
+                    (
+                        "comments".to_string(),
+                        vec!["(?m)(//.*)$".to_string(), "(?ms)(/\\*.*?\\*/)".to_string()],
+                    ),
                     ("strings".to_string(), vec!["(\".*?\")".to_string()]),
-                    ("characters".to_string(), vec!["('.')".to_string()]),
+                    (
+                        "characters".to_string(),
+                        vec!["('.')".to_string(), "('\\\\.')".to_string()],
+                    ),
                     ("digits".to_string(), vec!["(\\d+.\\d+|\\d+)".to_string()]),
                     (
                         "booleans".to_string(),
@@ -99,7 +105,7 @@ impl Reader {
                     ),
                     (
                         "attributes".to_string(),
-                        vec!["(?m)^\\s*(#(?:!|)\\[.*?\\])".to_string()],
+                        vec!["^\\s*(#(?:!|)\\[.*?\\])".to_string()],
                     ),
                 ]
                 .iter()

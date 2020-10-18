@@ -16,7 +16,6 @@ pub fn cine(token: &Token, hashmap: &mut HashMap<usize, Token>) {
     // Insert a token into a hashmap
     if let Some(t) = hashmap.get(&token.span.0) {
         if t.priority {
-            hashmap.insert(token.span.0, token.clone());
             return;
         }
     }
