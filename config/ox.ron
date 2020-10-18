@@ -39,6 +39,9 @@
         "structs":    (47, 141, 252),
         "macros":     (223, 52, 249),
         "attributes": (40, 198, 232),
+        "headers":    (47, 141, 252),
+        "symbols":    (47, 141, 252),
+        "global":     (86, 217, 178),
     },
     // Language specific settings
     languages: [
@@ -83,7 +86,7 @@
                     "\\b(false)\\b",
                 ],
                 "functions":  [
-                    "fn\\s+([a-z_][a-z0-9_]*)\\(",
+                    "fn\\s+([a-z_][A-Za-z0-9_]*)\\s*\\(",
                 ],
                 "structs":    [
                     "(?:trait|enum|struct|impl)\\s+([A-Z][A-Za-z0-9_]*)\\s*", 
@@ -102,6 +105,98 @@
                     "&i8", "&i16", "&i32", "&i64", "&i128", "&isize",
                     "&u8", "&u16", "&u32", "&u64", "&u128", "&usize",
                     "&f32", "&f64",
+                ]
+            }
+        ),
+        Language(
+            name: "Ruby", // Name of the language
+            icon: " ", // Icon for the language
+            extensions: ["rb"], // Extensions of the language
+            // Keywords of the language
+            keywords: [
+                "__ENCODING__", "__LINE__", "__FILE__", "BEGIN", "END", 
+                "alias", "and", "begin", "break", "case", "class", "def", 
+                "defined?", "do", "else", "elsif", "end", "ensure", "print",
+                "for", "if", "in", "module", "next", "nil", "not", "or", "puts",
+                "redo", "rescue", "retry", "return", "self", "super", "then", 
+                "undef", "unless", "until", "when", "while", "yield", "raise",
+                "include", "extend", 
+            ],
+            // Syntax definitions
+            definitions: {
+                "comments":   [
+                    "(?m)(#.*)$", 
+                    "(?ms)(=begin.*=end)", 
+                ],
+                "strings":    [
+                    "((?:f|r|)\".*?\")",
+                    "(\'.*?\')",
+                ],
+                "digits":     [
+                    r"\b(\d+.\d+|\d+)",
+                ],
+                "booleans":   [
+                    r"\b(true)\b", 
+                    r"\b(false)\b",
+                ],
+                "structs":    [
+                    r"class(\s+[A-Za-z0-9_]*)",
+                ],
+                "functions":  [
+                    r"def\s+([a-z_][A-Za-z0-9_]*)",
+                ],
+                "symbols":    [
+                    r"(:[^,\)\.\s=]+)",
+                ],
+                "global":     [
+                    r"(\$[a-z_][A-Za-z0-9_]*)\s",
+                ]
+            }
+        ),
+        Language(
+            name: "Crystal", // Name of the language
+            icon: " ", // Icon for the language
+            extensions: ["cr"], // Extensions of the language
+            // Keywords of the language
+            keywords: [
+                "__ENCODING__", "__LINE__", "__FILE__", "BEGIN", "END", 
+                "alias", "and", "begin", "break", "case", "class", "def", 
+                "defined?", "do", "else", "elsif", "end", "ensure", "print",
+                "for", "if", "in", "module", "next", "nil", "not", "or", "puts",
+                "redo", "rescue", "retry", "return", "self", "super", "then", 
+                "undef", "unless", "until", "when", "while", "yield", "raise",
+                "include", "extend", "Int32", "String", "getter", "setter",
+                "property",
+            ],
+            // Syntax definitions
+            definitions: {
+                "comments":   [
+                    "(?m)(#.*)$", 
+                    "(?ms)(=begin.*=end)", 
+                ],
+                "strings":    [
+                    "(?ms)(\".*?\")",
+                    "((?:f|r|)\".*?\")",
+                    "(\'.*?\')",
+                ],
+                "digits":     [
+                    r"\b(\d+.\d+|\d+)",
+                ],
+                "booleans":   [
+                    r"\b(true)\b", 
+                    r"\b(false)\b",
+                ],
+                "structs":    [
+                    r"class(\s+[A-Za-z0-9_]*)",
+                ],
+                "functions":  [
+                    r"def\s+([a-z_][A-Za-z0-9_]*)",
+                ],
+                "symbols":    [
+                    r"(:[^,\}\)\.\s=]+)",
+                ],
+                "global":     [
+                    r"(\$[a-z_][A-Za-z0-9_]*)\s",
                 ]
             }
         ),
@@ -134,7 +229,6 @@
                 ],
                 "digits":     [
                     "\\b(\\d+.\\d+|\\d+)",
-                    "\\b(\\d+.\\d+(?:f32|f64))",
                 ],
                 "booleans":   [
                     "\\b(True)\\b", 
@@ -144,11 +238,105 @@
                     "class\\s+([A-Za-z0-9_]*)",
                 ],
                 "functions":  [
-                    "def\\s+([a-z_][a-z0-9_]*)",
+                    "def\\s+([a-z_][A-Za-z0-9_]*)",
                 ],
                 "attributes": [
                     "@.*$",
                 ]
+            }
+        ),
+        Language(
+            name: "Javascript", // Name of the language
+            icon: " ", // Icon for the language
+            extensions: ["js"], // Extensions of the language
+            // Keywords of the language
+            keywords: [
+                "abstract", "arguments", "await", "boolean", "break", "byte", 
+                "case", "catch", "char", "class", "const", "continue", "debugger", 
+                "default", "delete", "do", "double", "else", "enum", "eval", 
+                "export", "extends", "final", "finally", "float", "for", "of",
+                "function", "goto", "if", "implements", "import", "in", "instanceof", 
+                "int", "interface", "let", "long", "native", "new", "null", "package", 
+                "private", "protected", "public", "return", "short", "static", 
+                "super", "switch", "synchronized", "this", "throw", "throws", 
+                "transient", "try", "typeof", "var", "void", "volatile", "console",
+                "while", "with", "yield", "undefined", "NaN", "-Infinity", "Infinity",
+            ],
+            // Syntax definitions
+            definitions: {
+                "comments":   [
+                    "(?m)(//.*)$", 
+                    "(?ms)(/\\*.*\\*/)$", 
+                ],
+                "strings":    [
+                    "(?ms)(\"\"\".*?\"\"\")",
+                    "(?ms)(\'\'\'.*?\'\'\')",
+                    "((?:f|r|)\".*?\")",
+                    "(\'.*?\')",
+                ],
+                "digits":     [
+                    "\\b(\\d+.\\d+|\\d+)",
+                ],
+                "booleans":   [
+                    "\\b(true)\\b", 
+                    "\\b(false)\\b",
+                ],
+                "structs":    [
+                    "class\\s+([A-Za-z0-9_]*)",
+                ],
+                "functions":  [
+                    "function\\s+([a-z_][A-Za-z0-9_]*)",
+                    "\\b([a-z_][A-Za-z0-9_]*)\\s*\\("
+                ],
+            }
+        ),
+        Language(
+            name: "C", // Name of the language
+            icon: " ", // Icon for the language
+            extensions: ["c", "h"], // Extensions of the language
+            // Keywords of the language
+            keywords: [
+                "auto", "break", "case", "char", "const", "continue", "default", 
+                "do", "double", "else", "enum", "extern", "float", "for", "goto", 
+                "if", "int", "long", "register", "return", "short", "signed", 
+                "sizeof", "static", "struct", "switch", "typedef", "union", 
+                "unsigned", "void", "volatile", "while", "printf", "fscanf", 
+                "scanf", "fputsf", "exit", "stderr", "malloc", "calloc", "bool",
+                "realloc", "free", "strlen", "size_t",
+            ],
+            // Syntax definitions
+            definitions: {
+                "comments":   [
+                    "(?m)(//.*)$", 
+                    "(?ms)(/\\*.*?\\*/)",
+                ],
+                "strings":    [
+                    "(\".*?\")",
+                ],
+                "characters": [
+                    "('.')", 
+                    "('\\\\.')",
+                ],
+                "digits":     [
+                    "\\b(\\d+.\\d+|\\d+)",
+                    "\\b(\\d+.\\d+(?:f|))",
+                ],
+                "booleans":   [
+                    "\\b(true)\\b", 
+                    "\\b(false)\\b",
+                ],
+                "functions":  [
+                    "(int|bool|void|char|double|long|short|size_t)\\s+([a-z_][A-Za-z0-9_]*)\\s*\\(",
+                ],
+                "structs":    [
+                    "struct\\s+([A-Za-z0-9_]*)\\s*", 
+                ],
+                "attributes": [
+                    "^\\s*(#.*?)\\s",
+                ],
+                "headers":    [
+                    "(<.*?>)",
+                ],
             }
         ),
     ],

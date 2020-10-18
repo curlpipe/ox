@@ -604,3 +604,10 @@ add(1, 8);
 const add = (firstNumber, secondNumber) => {
     return firstNumber + secondNumber;
 };
+
+class Car {
+  constructor(name, year) {
+    this.name = name;
+    this.year = year;
+  }
+}

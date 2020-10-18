@@ -5,7 +5,7 @@ Multi-line comments look like this. They work in C89 as well.
 */
 
 /*
-Multi-line comments don't nest /* Be careful */  // comment ends on this line...
+Multi-line comments don't nest be careful // comment ends on this line...
 */ // ...not this one!
 
 // Constants: #define <keyword>

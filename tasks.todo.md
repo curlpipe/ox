@@ -1,9 +1,8 @@
 0.2.4 (Syntax highlighting)
-- [ ] Syntax Highlighting
-  - [ ] Add C
-  - [ ] Add Ruby
-  - [ ] Add Python
-  - [ ] Add Javascript
+- [X] Add support for reading XDG config variable
+- [X] Fix blank file runtime error
+- [X] Use RON format instead
+- [X] Syntax Highlighting
   - [X] Add basic Rust syntax
   - [X] Create a theme and regex definitions
   - [X] Implement basic colourization
@@ -17,9 +16,11 @@
   - [X] Allow for file type specific syntax highlighting
   - [X] Optimize
   - [X] Allow for multiline syntax highlighting
-- [X] Add support for reading XDG config variable
-- [X] Fix blank file runtime error
-- [X] Use RON format instead
+  - [X] Add Python
+  - [X] Add Javascript
+  - [X] Add C
+  - [X] Add Ruby
+  - [X] Add Crystal
 
 0.2.5 (Multitasking)
 - [ ] Tabs
@@ -38,7 +39,7 @@
     - [ ] Fix unwrap on terminal size
     - [ ] Properly implement terminal resizing
 
-0.2.6 (Extensibility)
+0.2.6 (Optimization)
 - [ ] Macro system
   - [ ] Allow special command mode
   - [ ] Have a few example macros
@@ -51,6 +52,7 @@
   - [ ] Small line specific retokenization for performance
   - [ ] File overwrite prevention
   - [ ] Better file save error messages
+  - [ ] Highlight search and replace messages
 
 0.2.7 (Mouse support)
   - [ ] Mouse selection support
