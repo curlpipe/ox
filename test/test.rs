@@ -33,6 +33,9 @@ fn main() {
     // Integer/float suffixes
     let y: i32 = 13i32;
     let f: f64 = 1.3f64;
+    
+    // Signed
+    let x: i64 = -34;
 
     // Type inference
     // Most of the time, the Rust compiler can infer what type a variable is, so
@@ -100,6 +103,9 @@ fn main() {
     //////////////
     // 2. Types //
     //////////////
+    
+    // Boolean
+    let x: bool = true;
 
     // Struct
     struct Point {
