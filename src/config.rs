@@ -142,7 +142,7 @@ impl Reader {
             // Locate the correct language for the extension
             if lang.extensions.contains(&extension.to_string()) {
                 // Run through all the regex syntax definitions
-                for (name, reg) in &config.languages[0].definitions {
+                for (name, reg) in &lang.definitions {
                     let mut single = vec![];
                     let mut multi = vec![];
                     for expr in reg {

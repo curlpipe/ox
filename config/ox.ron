@@ -43,49 +43,6 @@
     // Language specific settings
     languages: [
         Language(
-            name: "Python", // Name of the language
-            icon: " ", // Icon for the language
-            extensions: ["py", "pyw"], // Extensions of the language
-            // Keywords of the language
-            keywords: [
-                "and", "as", "assert", "break", "class", "continue", 
-                "def", "del", "elif", "else", "except", "exec", 
-                "finally", "for", "from", "global", "if", "import", 
-                "in", "is", "lambda", "not", "or", "pass", "print", 
-                "raise", "return", "try", "while", "with", "yield",
-                "str", "bool", "int", "tuple", "list", "dict", "tuple",
-                "len", "None", "input", "type", "set", "range", "enumerate",
-                "open", "iter", "min", "max", "dir", "self", "isinstance", 
-                "help", "next", "super",
-            ],
-            // Syntax definitions
-            definitions: {
-                "comments":   [
-                    "(?m)(#.*)$", 
-                ],
-                "strings":    [
-                    "(?ms)(\"\"\".*?\"\"\")",
-                    "(?ms)(\'\'\'.*?\'\'\')",
-                    "((?:f|r|)\".*?\")",
-                    "(\'.*?\')",
-                ],
-                "digits":     [
-                    "\\b(\\d+.\\d+|\\d+)",
-                    "\\b(\\d+.\\d+(?:f32|f64))",
-                ],
-                "booleans":   [
-                    "\\b(True)\\b", 
-                    "\\b(False)\\b",
-                ],
-                "functions":  [
-                    "def\\s+([a-z_][a-z0-9_]*)",
-                ],
-                "attributes": [
-                    "@.*$",
-                ]
-            }
-        ),
-        Language(
             name: "Rust", // Name of the language
             icon: " ", // Icon for the language
             extensions: ["rs"], // Extensions of the language
@@ -145,6 +102,49 @@
                     "&i8", "&i16", "&i32", "&i64", "&i128", "&isize",
                     "&u8", "&u16", "&u32", "&u64", "&u128", "&usize",
                     "&f32", "&f64",
+                ]
+            }
+        ),
+        Language(
+            name: "Python", // Name of the language
+            icon: " ", // Icon for the language
+            extensions: ["py", "pyw"], // Extensions of the language
+            // Keywords of the language
+            keywords: [
+                "and", "as", "assert", "break", "class", "continue", 
+                "def", "del", "elif", "else", "except", "exec", 
+                "finally", "for", "from", "global", "if", "import", 
+                "in", "is", "lambda", "not", "or", "pass", "print", 
+                "raise", "return", "try", "while", "with", "yield",
+                "str", "bool", "int", "tuple", "list", "dict", "tuple",
+                "len", "None", "input", "type", "set", "range", "enumerate",
+                "open", "iter", "min", "max", "dir", "self", "isinstance", 
+                "help", "next", "super",
+            ],
+            // Syntax definitions
+            definitions: {
+                "comments":   [
+                    "(?m)(#.*)$", 
+                ],
+                "strings":    [
+                    "(?ms)(\"\"\".*?\"\"\")",
+                    "(?ms)(\'\'\'.*?\'\'\')",
+                    "((?:f|r|)\".*?\")",
+                    "(\'.*?\')",
+                ],
+                "digits":     [
+                    "\\b(\\d+.\\d+|\\d+)",
+                    "\\b(\\d+.\\d+(?:f32|f64))",
+                ],
+                "booleans":   [
+                    "\\b(True)\\b", 
+                    "\\b(False)\\b",
+                ],
+                "functions":  [
+                    "def\\s+([a-z_][a-z0-9_]*)",
+                ],
+                "attributes": [
+                    "@.*$",
                 ]
             }
         ),
