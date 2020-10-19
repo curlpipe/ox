@@ -8,6 +8,7 @@
 - [ ] Save all
   - [ ] Write function
   - [ ] Set up keybinding
+- [ ] Update hardcoded config file
 
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system

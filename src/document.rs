@@ -9,6 +9,7 @@ pub struct Document {
     pub rows: Vec<Row>,         // For holding the contents of the document
     pub path: String,           // For holding the path to the document
     pub name: String,           // For holding the name of the document
+    pub dirty: bool,            // True if the current document has been edited
     pub line_offset: usize,     // For holding a line number offset
     pub undo_stack: EventStack, // For holding the undo event stack
     pub redo_stack: EventStack, // For holding the redo event stack
@@ -22,6 +23,7 @@ impl Document {
         Self {
             rows: vec![Row::from("")],
             name: String::from("[No name]"),
+            dirty: false,
             path: String::new(),
             line_offset: config.general.line_number_padding_right
                 + config.general.line_number_padding_left,
@@ -49,6 +51,7 @@ impl Document {
             Some(Self {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: path.to_string(),
+                dirty: false,
                 path: path.to_string(),
                 line_offset: config.general.line_number_padding_right
                     + config.general.line_number_padding_left,
@@ -72,6 +75,7 @@ impl Document {
                 rows: vec![Row::from("")],
                 name: path.to_string(),
                 path: path.to_string(),
+                dirty: false,
                 line_offset: config.general.line_number_padding_right
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),

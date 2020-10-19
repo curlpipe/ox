@@ -41,6 +41,12 @@ impl Terminal {
         // Flush the screen to prevent weird behaviour
         self.screen.flush().unwrap();
     }
+    pub fn hide_cursor(&mut self) {
+        write!(self.screen, "{}", termion::cursor::Hide).unwrap();
+    }
+    pub fn show_cursor(&mut self) {
+        write!(self.screen, "{}", termion::cursor::Show).unwrap();
+    }
     pub fn align_break(&self, l: &str, r: &str) -> String {
         // Align two items to the left and right
         let left_length = UnicodeWidthStr::width(l);
