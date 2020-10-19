@@ -96,13 +96,7 @@ impl Editor {
             cursor: Position { x: 0, y: 0 },
             offset: Position { x: 0, y: 0 },
             opened_tab: 0,
-            doc: vec![if files.is_empty() {
-                // Create a new, empty document
-                Document::new(&config.0)
-            } else {
-                // Attempt to load up a document
-                Document::from(&config.0, files[0])
-            }],
+            doc: documents,
             last_keypress: None,
             stdin: async_stdin().keys(),
             config: config.0.clone(),
@@ -168,10 +162,22 @@ impl Editor {
             Key::Ctrl('y') => self.redo(),
             Key::Ctrl('r') => self.replace(),
             Key::Ctrl('a') => self.replace_all(),
+            Key::Ctrl('d') => self.prev_tab(),
+            Key::Ctrl('h') => self.next_tab(),
             Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
             Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
             _ => (),
         }
+    }
+    fn next_tab(&mut self) {
+        if self.opened_tab.saturating_add(1) < self.doc.len() {
+            self.opened_tab = self.opened_tab.saturating_add(1);
+            self.update();
+        }
+    }
+    fn prev_tab(&mut self) {
+        self.opened_tab = self.opened_tab.saturating_sub(1);
+        self.update();
     }
     fn redo(&mut self) {
         // Redo an action

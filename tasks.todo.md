@@ -1,10 +1,10 @@
 0.2.5 (Multitasking) { Manage multiple buffers in one instance }
 - [ ] Tabs
-  - [ ] Allow holding several documents
-  - [ ] Set up current doc variable
-  - [ ] Rewrite editor to use documents from current doc
-  - [ ] Allow editor to move between different documents
   - [ ] Add tab line
+  - [X] Allow holding several documents
+  - [X] Set up current doc variable
+  - [X] Rewrite editor to use documents from current doc
+  - [X] Allow editor to move between different documents
 - [ ] Save all
   - [ ] Write function
   - [ ] Set up keybinding
