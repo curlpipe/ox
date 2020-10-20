@@ -427,7 +427,8 @@ impl Editor {
             self.recalculate_graphemes();
         } else {
             // Return key pressed in the middle of the line
-            let current = self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET].chars();
+            let current =
+                self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET].chars();
             let before = Row::from(&current[..self.graphemes].join("")[..]);
             let after = Row::from(&current[self.graphemes..].join("")[..]);
             self.doc[self.opened_tab]
@@ -457,7 +458,8 @@ impl Editor {
             let current = self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET]
                 .string
                 .clone();
-            let prev = self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - 1 - OFFSET].clone();
+            let prev =
+                self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - 1 - OFFSET].clone();
             self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - 1 - OFFSET] =
                 Row::from(&(prev.string.clone() + &current)[..]);
             self.doc[self.opened_tab]
@@ -477,7 +479,8 @@ impl Editor {
             // Backspace in the middle of a line
             self.move_cursor(Key::Left);
             let ch = self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET].clone();
-            self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET].delete(self.graphemes);
+            self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET]
+                .delete(self.graphemes);
             if let Some(ch) = ch.chars().get(self.graphemes) {
                 if let Ok(ch) = ch.parse() {
                     self.doc[self.opened_tab]
@@ -698,8 +701,8 @@ impl Editor {
                                     Box::new(after.clone()),
                                 ));
                                 // TODO: Update relavent lines here
-                                self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET] =
-                                    after;
+                                self.doc[self.opened_tab].rows
+                                    [self.cursor.y + self.offset.y - OFFSET] = after;
                             }
                             self.update();
                             self.snap_cursor();
@@ -879,7 +882,9 @@ impl Editor {
         match direction {
             Key::Down => {
                 // Move the cursor down
-                if self.cursor.y + self.offset.y + 1 - (OFFSET) < self.doc[self.opened_tab].rows.len() {
+                if self.cursor.y + self.offset.y + 1 - (OFFSET)
+                    < self.doc[self.opened_tab].rows.len()
+                {
                     // If the proposed move is within the length of the document
                     if self.cursor.y == self.term.height.saturating_sub(3) as usize {
                         self.offset.y = self.offset.y.saturating_add(1);
@@ -954,7 +959,8 @@ impl Editor {
     }
     fn snap_cursor(&mut self) {
         // Snap the cursor to the end of the row when outside
-        let current = self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET].clone();
+        let current =
+            self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET].clone();
         if current.length() <= self.cursor.x + self.offset.x {
             // If the cursor is out of bounds
             self.leap_cursor(Key::Home);
@@ -978,7 +984,8 @@ impl Editor {
     }
     fn recalculate_graphemes(&mut self) {
         // Recalculate the grapheme cursor after moving up and down
-        let current = self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET].clone();
+        let current =
+            self.doc[self.opened_tab].rows[self.cursor.y + self.offset.y - OFFSET].clone();
         let jumps = current.get_jumps();
         let mut counter = 0;
         for (mut counter2, i) in jumps.into_iter().enumerate() {
@@ -1136,11 +1143,23 @@ impl Editor {
         }
     }
     fn tab_line(&mut self) -> String {
+        let files = trim_end(
+            &format!(
+                " {}",
+                self.doc
+                    .iter()
+                    .map(|x| &x.name[..])
+                    .collect::<Vec<_>>()
+                    .join(" │ ")
+            ),
+            self.term.width as usize,
+        );
         format!(
-            "{}{}{}", 
+            "{}{}{}{}",
             Reader::rgb_bg(self.config.theme.status_bg),
-            " ".repeat(self.term.width as usize),
-            RESET_BG,
+            files,
+            self.term.align_left(&files),
+            RESET_BG
         )
     }
     fn render(&mut self) {
@@ -1167,22 +1186,30 @@ impl Editor {
                     &format!("Ox editor  v{}", VERSION),
                     Reader::rgb_fg(self.config.theme.editor_fg),
                 ));
-            } else if row == (self.term.height / 4).saturating_add(1) - OFFSET as u16 && self.show_welcome {
+            } else if row == (self.term.height / 4).saturating_add(1) - OFFSET as u16
+                && self.show_welcome
+            {
                 frame.push(self.welcome_message(
                     "A Rust powered editor by Luke",
                     Reader::rgb_fg(self.config.theme.editor_fg),
                 ));
-            } else if row == (self.term.height / 4).saturating_add(3) - OFFSET as u16 && self.show_welcome {
+            } else if row == (self.term.height / 4).saturating_add(3) - OFFSET as u16
+                && self.show_welcome
+            {
                 frame.push(self.welcome_message(
                     "Ctrl + Q: Exit   ",
                     Reader::rgb_fg(self.config.theme.status_fg),
                 ));
-            } else if row == (self.term.height / 4).saturating_add(4) - OFFSET as u16 && self.show_welcome {
+            } else if row == (self.term.height / 4).saturating_add(4) - OFFSET as u16
+                && self.show_welcome
+            {
                 frame.push(self.welcome_message(
                     "Ctrl + S: Save   ",
                     Reader::rgb_fg(self.config.theme.status_fg),
                 ));
-            } else if row == (self.term.height / 4).saturating_add(5) - OFFSET as u16 && self.show_welcome {
+            } else if row == (self.term.height / 4).saturating_add(5) - OFFSET as u16
+                && self.show_welcome
+            {
                 frame.push(self.welcome_message(
                     "Ctrl + W: Save as",
                     Reader::rgb_fg(self.config.theme.status_fg),
