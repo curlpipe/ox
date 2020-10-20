@@ -1,6 +1,6 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{Reader, Status};
-use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end};
+use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end, Exp};
 use crate::{Document, Event, Row, Terminal, VERSION};
 use clap::App;
 use regex::Regex;
@@ -10,6 +10,7 @@ use termion::event::Key;
 use termion::input::{Keys, TermRead};
 use termion::{async_stdin, color, style, AsyncReader};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_segmentation::UnicodeSegmentation;
 
 // Set up color resets
 pub const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
@@ -55,10 +56,11 @@ pub struct Editor {
     term: Terminal,            // For the handling of the terminal
     cursor: Position,          // For holding the raw cursor location
     doc: Vec<Document>,        // For holding our document
-    opened_tab: usize,
+    opened_tab: usize, // Holds the number of the current tab
     offset: Position,               // For holding the offset on the X and Y axes
     last_keypress: Option<Instant>, // For holding the time of the last input event
     stdin: Keys<AsyncReader>,       // Asynchronous stdin
+    exp: Exp,
 }
 
 // Implementing methods for our editor struct / class
@@ -103,6 +105,7 @@ impl Editor {
             last_keypress: None,
             stdin: async_stdin().keys(),
             config: config.0.clone(),
+            exp: Exp::new(),
         })
     }
     pub fn run(&mut self) {
@@ -507,7 +510,7 @@ impl Editor {
         if self.dirty_prompt('n', "new") {
             self.doc.push(Document::new(&self.config));
             self.doc[self.opened_tab].dirty = false;
-            self.cursor.y = 0;
+            self.cursor.y = OFFSET;
             self.offset.y = 0;
             self.leap_cursor(Key::Home);
         }
@@ -523,7 +526,7 @@ impl Editor {
                     self.doc.push(doc);
                     self.doc[self.opened_tab].dirty = false;
                     self.show_welcome = false;
-                    self.cursor.y = 0;
+                    self.cursor.y = OFFSET;
                     self.offset.y = 0;
                     self.leap_cursor(Key::Home);
                 } else {
@@ -1081,7 +1084,7 @@ impl Editor {
             } else {
                 " \u{f723} "
             },
-            self.doc[self.opened_tab].identify()
+            self.doc[self.opened_tab].icon,
         );
         // Create the right part of the status line
         let right = format!(
@@ -1143,23 +1146,39 @@ impl Editor {
         }
     }
     fn tab_line(&mut self) -> String {
-        let files = trim_end(
-            &format!(
-                " {}",
-                self.doc
-                    .iter()
-                    .map(|x| &x.name[..])
-                    .collect::<Vec<_>>()
-                    .join(" │ ")
-            ),
-            self.term.width as usize,
-        );
+        let mut result = String::new();
+        let mut width = 0;
+        for (num, doc) in self.doc.iter().enumerate() {
+            let mut name = doc.name.clone();
+            let icons: Vec<&str> = doc.icon.graphemes(true).collect();
+            if icons.len() > 2 {
+                let icons = &icons.get(icons.len() - 2..).unwrap_or_default().join("");
+                name = format!("{} {}", icons, doc.name);
+            }
+            let this;
+            if num == self.opened_tab && !self.doc.len() == num {
+                this = format!("{} {} |", Reader::rgb_bg(self.config.theme.editor_bg), name);
+            } else if num == self.opened_tab {
+                this = format!("{} {} {}|", Reader::rgb_bg(self.config.theme.editor_bg), name, Reader::rgb_bg(self.config.theme.status_bg));
+            } else if num.saturating_sub(1) == self.opened_tab {
+                this = format!("{} {} |", Reader::rgb_bg(self.config.theme.status_bg), name);
+            } else {
+                this = format!(" {} |", name);
+            }
+            width += self.exp.ansi_len(&this);
+            if width + 3 > self.term.width as usize {
+                result += &"...";
+                break;
+            } else {
+                result += &this;
+            }
+        }
         format!(
             "{}{}{}{}",
             Reader::rgb_bg(self.config.theme.status_bg),
-            files,
-            self.term.align_left(&files),
-            RESET_BG
+            result,
+            self.term.align_left(&result),
+            RESET_BG,
         )
     }
     fn render(&mut self) {

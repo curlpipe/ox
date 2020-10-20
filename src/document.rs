@@ -14,6 +14,7 @@ pub struct Document {
     pub undo_stack: EventStack, // For holding the undo event stack
     pub redo_stack: EventStack, // For holding the redo event stack
     pub regex: Vec<TokenType>,
+    pub icon: String,
 }
 
 // Add methods to the document struct
@@ -30,6 +31,7 @@ impl Document {
             undo_stack: EventStack::new(),
             redo_stack: EventStack::new(),
             regex: Reader::get_syntax_regex(&config, ""),
+            icon: String::new(),
         }
     }
     pub fn open(config: &Reader, path: &str) -> Option<Self> {
@@ -58,6 +60,7 @@ impl Document {
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
                 regex: Reader::get_syntax_regex(&config, ext),
+                icon: Self::identify(path),
             })
         } else {
             // File doesn't exist
@@ -81,6 +84,7 @@ impl Document {
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
                 regex: Reader::get_syntax_regex(&config, ext),
+                icon: Self::identify(path),
             }
         }
     }
@@ -119,10 +123,9 @@ impl Document {
             .join("\n")
             + "\n"
     }
-    pub fn identify(&self) -> &str {
+    pub fn identify(path: &str) -> String {
         // Identify which type of file the current buffer is
-        let extension = self.name.split('.').last();
-        match extension {
+        match path.split('.').last() {
             Some(ext) => match ext {
                 "asm" => "Assembly \u{f471} ",
                 "b" => "B \u{e7a3} ",
@@ -171,6 +174,6 @@ impl Document {
                 _ => "Unknown \u{f128}",
             },
             None => "Unknown \u{f128}",
-        }
+        }.to_string()
     }
 }
