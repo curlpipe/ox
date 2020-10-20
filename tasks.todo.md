@@ -1,6 +1,7 @@
 0.2.5 (Multitasking) { Manage multiple buffers in one instance }
 - [ ] Tabs
   - [ ] Add tab line
+  - [ ] Ctrl + Q closes document rather than editor
   - [X] Allow holding several documents
   - [X] Set up current doc variable
   - [X] Rewrite editor to use documents from current doc
@@ -44,6 +45,7 @@
   - [ ] Transparent background
   - [ ] Improved language syntax highlighting support
   - [ ] Colour fallbacks
+  - [ ] Live / Command for reloading of the config file
 - [ ] Rewrite using crossterm for windows support and efficiency
   - [ ] Build RGB ansi code function
   - [ ] Fix unwrap on terminal size
@@ -131,6 +133,8 @@ Further ideas { Further fun ideas to look at }
 - [ ] Automated tests
 - [ ] Theme builder
 - [ ] Typing speed tests / statistics
+- [ ] Theme changing depending on time of day
+- [ ] Nice, personal greeting
 
 0.1.1
 - [X] Go to the next line at end of line
