@@ -1,5 +1,6 @@
 // Document.rs - For managing external files
 use crate::config::{Reader, TokenType};
+use crate::editor::OFFSET;
 use crate::{EventStack, Position, Row};
 use regex::Regex;
 use std::fs;
@@ -13,8 +14,12 @@ pub struct Document {
     pub line_offset: usize,     // For holding a line number offset
     pub undo_stack: EventStack, // For holding the undo event stack
     pub redo_stack: EventStack, // For holding the redo event stack
-    pub regex: Vec<TokenType>,
-    pub icon: String,
+    pub regex: Vec<TokenType>,  // For holding regular expressions
+    pub icon: String,           // For holding the icon of the document
+    pub show_welcome: bool,     // Whether to show welcome in the document
+    pub cursor: Position,       // For holding the raw cursor location
+    pub offset: Position,       // For holding the offset on the X and Y axes
+    pub graphemes: usize,       // For holding the special grapheme cursor
 }
 
 // Add methods to the document struct
@@ -32,6 +37,10 @@ impl Document {
             redo_stack: EventStack::new(),
             regex: Reader::get_syntax_regex(&config, ""),
             icon: String::new(),
+            show_welcome: true,
+            graphemes: 0,
+            cursor: Position { x: 0, y: OFFSET },
+            offset: Position { x: 0, y: 0 },
         }
     }
     pub fn open(config: &Reader, path: &str) -> Option<Self> {
@@ -61,6 +70,10 @@ impl Document {
                 redo_stack: EventStack::new(),
                 regex: Reader::get_syntax_regex(&config, ext),
                 icon: Self::identify(path),
+                show_welcome: false,
+                graphemes: 0,
+                cursor: Position { x: 0, y: OFFSET },
+                offset: Position { x: 0, y: 0 },
             })
         } else {
             // File doesn't exist
@@ -85,6 +98,10 @@ impl Document {
                 redo_stack: EventStack::new(),
                 regex: Reader::get_syntax_regex(&config, ext),
                 icon: Self::identify(path),
+                show_welcome: false,
+                graphemes: 0,
+                cursor: Position { x: 0, y: OFFSET },
+                offset: Position { x: 0, y: 0 },
             }
         }
     }

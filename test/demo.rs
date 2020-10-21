@@ -1,6 +1,6 @@
 /* 
-    Ox 0.2.4 - With new syntax highlighter! 
-    And a lot more!
+    Ox 0.2.5
+    Finally highlights multiline comments.
 */
 
 pub const PI = 3.14159;

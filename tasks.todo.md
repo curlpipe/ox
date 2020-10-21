@@ -46,9 +46,7 @@
   - [ ] Highlight search and replace messages
   - [ ] Transparent background
   - [ ] Improved language syntax highlighting support
-  - [ ] Colour fallbacks
   - [ ] Live / Command for reloading of the config file
-  - [ ] Improve syntax highlighting
 - [ ] Rewrite using crossterm for windows support and efficiency
   - [ ] Build RGB ansi code function
   - [ ] Fix unwrap on terminal size
@@ -121,23 +119,23 @@
 
 Further ideas { Further fun ideas to look at }
 - [ ] Automatically closing status line
+- [ ] Discord rich presence
+- [ ] Nice, personal greeting
+- [ ] Theme changing depending on time of day
+- [ ] Live HTML editor
 - [ ] Split editors
 - [ ] Terminal integration
-- [ ] Package manager
-- [ ] Stack overflow searcher
+- [ ] Todo list
 - [ ] Cheatsheet downloader
-- [ ] Discord rich presence
-- [ ] Live HTML editor
+- [ ] Stack overflow searcher
 - [ ] HTML expansion like emmet
 - [ ] Documentation viewer
-- [ ] Todo list
 - [ ] Pomodoro timer for work / rest balance
 - [ ] Easter eggs
 - [ ] Automated tests
 - [ ] Theme builder
 - [ ] Typing speed tests / statistics
-- [ ] Theme changing depending on time of day
-- [ ] Nice, personal greeting
+- [ ] Package manager
 
 0.1.1
 - [X] Go to the next line at end of line
