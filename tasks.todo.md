@@ -1,15 +1,17 @@
 0.2.5 (Multitasking) { Manage multiple buffers in one instance }
-- [ ] Tabs
-  - [ ] Add tab line
-  - [ ] Ctrl + Q closes document rather than editor
-  - [X] Allow holding several documents
-  - [X] Set up current doc variable
-  - [X] Rewrite editor to use documents from current doc
-  - [X] Allow editor to move between different documents
 - [ ] Save all
   - [ ] Write function
   - [ ] Set up keybinding
 - [ ] Update hardcoded config file
+- [X] Tabs
+  - [X] Allow holding several documents
+  - [X] Set up current doc variable
+  - [X] Rewrite editor to use documents from current doc
+  - [X] Allow editor to move between different documents
+  - [X] Add tab line
+  - [X] Ctrl + Q closes document rather than editor
+  - [X] Make current tab bold
+  - [X] Remove open confirmation
 
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
@@ -46,6 +48,7 @@
   - [ ] Improved language syntax highlighting support
   - [ ] Colour fallbacks
   - [ ] Live / Command for reloading of the config file
+  - [ ] Improve syntax highlighting
 - [ ] Rewrite using crossterm for windows support and efficiency
   - [ ] Build RGB ansi code function
   - [ ] Fix unwrap on terminal size

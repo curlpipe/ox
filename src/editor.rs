@@ -502,7 +502,19 @@ impl Editor {
     fn quit(&mut self) {
         // For handling a quit event
         if self.dirty_prompt('q', "quit") {
-            self.quit = true;
+            if self.doc.len() <= 1 {
+                // Quit Ox
+                self.quit = true;
+            } else if self.opened_tab == self.doc.len().saturating_sub(1) {
+                // Close current tab and move right
+                self.doc.remove(self.opened_tab);
+                self.opened_tab -= 1;
+                self.set_command_line("Closed tab".to_string(), Type::Info);
+            } else {
+                // Close current tab and move left
+                self.doc.remove(self.opened_tab);
+                self.set_command_line("Closed tab".to_string(), Type::Info);
+            }
         }
     }
     fn new_document(&mut self) {
@@ -518,24 +530,19 @@ impl Editor {
     fn open_document(&mut self) {
         // Handle open document event
         // TODO: Highlight entire file here
-        if self.dirty_prompt('o', "open") {
-            // Current document is saved to disk
-            if let Some(result) = self.prompt("Open", &|_, _, _| {}) {
-                if let Some(doc) = Document::open(&self.config, &result[..]) {
-                    // Overwrite the current document
-                    self.doc.push(doc);
-                    self.doc[self.opened_tab].dirty = false;
-                    self.show_welcome = false;
-                    self.cursor.y = OFFSET;
-                    self.offset.y = 0;
-                    self.leap_cursor(Key::Home);
-                } else {
-                    self.set_command_line("File couldn't be opened".to_string(), Type::Error);
-                }
+        if let Some(result) = self.prompt("Open", &|_, _, _| {}) {
+            if let Some(doc) = Document::open(&self.config, &result[..]) {
+                // Overwrite the current document
+                self.doc.push(doc);
+                self.opened_tab = self.doc.len().saturating_sub(1);
+                self.doc[self.opened_tab].dirty = false;
+                self.show_welcome = false;
+                self.cursor.y = OFFSET;
+                self.offset.y = 0;
+                self.leap_cursor(Key::Home);
+            } else {
+                self.set_command_line("File couldn't be opened".to_string(), Type::Error);
             }
-        } else {
-            // User pressed the escape key
-            self.set_command_line("Open cancelled".to_string(), Type::Info);
         }
     }
     fn save(&mut self) {
@@ -1182,9 +1189,12 @@ impl Editor {
         }
     }
     fn tab_line(&mut self) -> String {
+        // Render the tab line
         let mut result = String::new();
         let mut width = 0;
+        // Iterate through documents
         for (num, doc) in self.doc.iter().enumerate() {
+            // Calculate value for tab
             let mut name = doc.name.clone();
             let icons: Vec<&str> = doc.icon.graphemes(true).collect();
             if icons.len() > 2 {
@@ -1193,12 +1203,16 @@ impl Editor {
             }
             let this;
             if num == self.opened_tab && !self.doc.len() == num {
+                // Render inactive tabs
                 this = format!("{} {} |", Reader::rgb_bg(self.config.theme.editor_bg), name);
             } else if num == self.opened_tab {
+                // Render active tab
                 this = format!(
-                    "{} {} {}|",
+                    "{}{} {} {}{}|",
                     Reader::rgb_bg(self.config.theme.editor_bg),
+                    style::Bold,
                     name,
+                    style::Reset,
                     Reader::rgb_bg(self.config.theme.status_bg)
                 );
             } else if num.saturating_sub(1) == self.opened_tab {
@@ -1206,6 +1220,7 @@ impl Editor {
             } else {
                 this = format!(" {} |", name);
             }
+            // Check if tab will fit in window width, otherwise put in a "..."
             width += self.exp.ansi_len(&this);
             if width + 3 > self.term.width as usize {
                 result += &"...";
