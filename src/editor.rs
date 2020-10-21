@@ -9,8 +9,8 @@ use std::{cmp, io::Error, thread};
 use termion::event::Key;
 use termion::input::{Keys, TermRead};
 use termion::{async_stdin, color, style, AsyncReader};
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 // Set up color resets
 pub const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
@@ -48,15 +48,15 @@ pub struct Position {
 
 // The main editor struct
 pub struct Editor {
-    pub config: Reader,        // Storage for configuration
-    quit: bool,                // Toggle for cleanly quitting the editor
-    show_welcome: bool,        // Toggle for showing the welcome message
-    graphemes: usize,          // For holding the special grapheme cursor
-    command_line: CommandLine, // For holding the command line
-    term: Terminal,            // For the handling of the terminal
-    cursor: Position,          // For holding the raw cursor location
-    doc: Vec<Document>,        // For holding our document
-    opened_tab: usize, // Holds the number of the current tab
+    pub config: Reader,             // Storage for configuration
+    quit: bool,                     // Toggle for cleanly quitting the editor
+    show_welcome: bool,             // Toggle for showing the welcome message
+    graphemes: usize,               // For holding the special grapheme cursor
+    command_line: CommandLine,      // For holding the command line
+    term: Terminal,                 // For the handling of the terminal
+    cursor: Position,               // For holding the raw cursor location
+    doc: Vec<Document>,             // For holding our document
+    opened_tab: usize,              // Holds the number of the current tab
     offset: Position,               // For holding the offset on the X and Y axes
     last_keypress: Option<Instant>, // For holding the time of the last input event
     stdin: Keys<AsyncReader>,       // Asynchronous stdin
@@ -587,13 +587,19 @@ impl Editor {
         // Ask for a search term after saving the current cursor position
         self.prompt("Search", &|s, e, t| {
             // Find all occurances in the document
-            let search_points = s.doc[s.opened_tab].scan(t);
+            let search_points = s.doc[s.opened_tab].scan(t, OFFSET);
             match e {
                 PromptEvent::KeyPress(k) => match k {
                     Key::Left | Key::Up => {
                         // User wants to search backwards
                         for p in search_points.iter().rev() {
-                            if is_behind(&s.cursor, &s.offset, &p) {
+                            if is_behind(
+                                &Position {
+                                    x: s.cursor.x + s.offset.x,
+                                    y: s.cursor.y + s.offset.y,
+                                },
+                                &p,
+                            ) {
                                 s.goto(&p);
                                 s.recalculate_graphemes();
                                 break;
@@ -603,7 +609,13 @@ impl Editor {
                     Key::Right | Key::Down => {
                         // User wants to search forwards
                         for p in search_points {
-                            if is_ahead(&s.cursor, &s.offset, &p) {
+                            if is_ahead(
+                                &Position {
+                                    x: s.cursor.x + s.offset.x,
+                                    y: s.cursor.y + s.offset.y,
+                                },
+                                &p,
+                            ) {
                                 s.goto(&p);
                                 s.recalculate_graphemes();
                                 break;
@@ -625,7 +637,13 @@ impl Editor {
                     if t != "" {
                         // Search forward as the user searches
                         for p in search_points {
-                            if is_ahead(&s.cursor, &s.offset, &p) {
+                            if is_ahead(
+                                &Position {
+                                    x: s.cursor.x + s.offset.x,
+                                    y: s.cursor.y + s.offset.y,
+                                },
+                                &p,
+                            ) {
                                 s.goto(&p);
                                 s.recalculate_graphemes();
                                 break;
@@ -648,10 +666,16 @@ impl Editor {
             if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
                 // Construct a regular expression for searching
                 let re = Regex::new(&target).unwrap();
-                let mut search_points = self.doc[self.opened_tab].scan(&target);
+                let mut search_points = self.doc[self.opened_tab].scan(&target, OFFSET);
                 // Search forward as the user types
                 for p in &search_points {
-                    if is_ahead(&self.cursor, &self.offset, &p) {
+                    if is_ahead(
+                        &Position {
+                            x: self.cursor.x + self.offset.x,
+                            y: self.cursor.y + self.offset.y,
+                        },
+                        &p,
+                    ) {
                         self.goto(&p);
                         self.recalculate_graphemes();
                         self.update();
@@ -665,7 +689,13 @@ impl Editor {
                         Key::Up | Key::Left => {
                             // User wishes to search backwards
                             for p in (&search_points).iter().rev() {
-                                if is_behind(&self.cursor, &self.offset, &p) {
+                                if is_behind(
+                                    &Position {
+                                        x: self.cursor.x + self.offset.x,
+                                        y: self.cursor.y + self.offset.y,
+                                    },
+                                    &p,
+                                ) {
                                     self.goto(&p);
                                     self.recalculate_graphemes();
                                     self.update();
@@ -676,7 +706,13 @@ impl Editor {
                         Key::Down | Key::Right => {
                             // User wishes to search forwards
                             for p in &search_points {
-                                if is_ahead(&self.cursor, &self.offset, &p) {
+                                if is_ahead(
+                                    &Position {
+                                        x: self.cursor.x + self.offset.x,
+                                        y: self.cursor.y + self.offset.y - OFFSET,
+                                    },
+                                    &p,
+                                ) {
                                     self.goto(&p);
                                     self.recalculate_graphemes();
                                     self.update();
@@ -712,7 +748,7 @@ impl Editor {
                             self.prevent_unicode_hell();
                             self.recalculate_graphemes();
                             // Update search locations
-                            search_points = self.doc[self.opened_tab].scan(&target);
+                            search_points = self.doc[self.opened_tab].scan(&target, OFFSET);
                         }
                         Key::Esc => break,
                         _ => (),
@@ -1089,7 +1125,7 @@ impl Editor {
         // Create the right part of the status line
         let right = format!(
             " \u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
-            self.cursor.y + self.offset.y + 1 + OFFSET,
+            self.cursor.y + self.offset.y + 1 - OFFSET,
             self.doc[self.opened_tab].rows.len(),
             self.cursor.x + self.offset.x,
             self.cursor.y + self.offset.y,
@@ -1159,7 +1195,12 @@ impl Editor {
             if num == self.opened_tab && !self.doc.len() == num {
                 this = format!("{} {} |", Reader::rgb_bg(self.config.theme.editor_bg), name);
             } else if num == self.opened_tab {
-                this = format!("{} {} {}|", Reader::rgb_bg(self.config.theme.editor_bg), name, Reader::rgb_bg(self.config.theme.status_bg));
+                this = format!(
+                    "{} {} {}|",
+                    Reader::rgb_bg(self.config.theme.editor_bg),
+                    name,
+                    Reader::rgb_bg(self.config.theme.status_bg)
+                );
             } else if num.saturating_sub(1) == self.opened_tab {
                 this = format!("{} {} |", Reader::rgb_bg(self.config.theme.status_bg), name);
             } else {

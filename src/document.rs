@@ -102,13 +102,16 @@ impl Document {
         // Save a file to a specific path
         fs::write(path, self.render())
     }
-    pub fn scan(&self, needle: &str) -> Vec<Position> {
+    pub fn scan(&self, needle: &str, offset: usize) -> Vec<Position> {
         // Find all the points where "needle" occurs
         let mut result = vec![];
         if let Ok(re) = Regex::new(needle) {
             for (i, row) in self.rows.iter().enumerate() {
                 for o in re.find_iter(&row.string) {
-                    result.push(Position { x: o.start(), y: i });
+                    result.push(Position {
+                        x: o.start(),
+                        y: i + offset,
+                    });
                 }
             }
         }
@@ -174,6 +177,7 @@ impl Document {
                 _ => "Unknown \u{f128}",
             },
             None => "Unknown \u{f128}",
-        }.to_string()
+        }
+        .to_string()
     }
 }
