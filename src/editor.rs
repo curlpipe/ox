@@ -193,7 +193,7 @@ impl Editor {
                 match event {
                     // TODO: Update relavent lines here
                     Event::InsertTab(pos) => {
-                        self.cursor.y = pos.y - self.offset.y;
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
                         self.cursor.x =
                             pos.x.saturating_sub(self.config.general.tab_width) - self.offset.x;
                         self.recalculate_graphemes();
@@ -201,19 +201,19 @@ impl Editor {
                     }
                     Event::InsertMid(pos, c) => {
                         let c_len = UnicodeWidthChar::width(*c).map_or(0, |c| c);
-                        self.cursor.y = pos.y - self.offset.y;
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
                         self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
                         self.recalculate_graphemes();
                         self.doc[self.opened_tab].rows[pos.y].insert(*c, pos.x);
                     }
                     Event::BackspaceMid(pos, _) => {
-                        self.cursor.y = pos.y - self.offset.y;
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
                         self.cursor.x = pos.x - self.offset.x;
                         self.recalculate_graphemes();
                         self.doc[self.opened_tab].rows[pos.y].delete(pos.x);
                     }
                     Event::ReturnEnd(pos) => {
-                        self.cursor.y = pos.y - self.offset.y;
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
                         self.cursor.x = pos.x - self.offset.x;
                         self.recalculate_graphemes();
                         self.doc[self.opened_tab]
@@ -222,14 +222,14 @@ impl Editor {
                         self.move_cursor(Key::Down);
                     }
                     Event::ReturnStart(pos) => {
-                        self.cursor.y = pos.y - self.offset.y;
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
                         self.cursor.x = pos.x - self.offset.x;
                         self.recalculate_graphemes();
                         self.doc[self.opened_tab].rows.insert(pos.y, Row::from(""));
                         self.move_cursor(Key::Down);
                     }
                     Event::ReturnMid(pos, breakpoint) => {
-                        self.cursor.y = pos.y - self.offset.y;
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
                         self.cursor.x = pos.x - self.offset.x;
                         self.recalculate_graphemes();
                         let current = self.doc[self.opened_tab].rows[pos.y].string.clone();
@@ -241,7 +241,7 @@ impl Editor {
                         self.leap_cursor(Key::Home);
                     }
                     Event::BackspaceStart(pos) => {
-                        self.cursor.y = pos.y - self.offset.y;
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
                         self.recalculate_graphemes();
                         let current = self.doc[self.opened_tab].rows[pos.y + 1].string.clone();
                         let prev = self.doc[self.opened_tab].rows[pos.y].clone();
@@ -283,7 +283,7 @@ impl Editor {
                     }
                     Event::InsertMid(pos, c) => {
                         let c_len = UnicodeWidthChar::width(*c).map_or(0, |c| c);
-                        self.cursor.y = pos.y - self.offset.y;
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
                         self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
                         self.recalculate_graphemes();
                         let string = self.doc[self.opened_tab].rows[pos.y].string.clone();
