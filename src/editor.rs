@@ -10,7 +10,7 @@ use termion::event::Key;
 use termion::input::{Keys, TermRead};
 use termion::{async_stdin, color, style, AsyncReader};
 use unicode_segmentation::UnicodeSegmentation;
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_width::UnicodeWidthChar;
 
 // Set up color resets
 pub const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
@@ -148,8 +148,8 @@ impl Editor {
         // Read a key and act on it
         let key = self.read_key();
         match key {
-            Key::Char(c) => self.character(c),
-            Key::Backspace => self.backspace(),
+            Key::Char(c) => self.doc[self.tab].character(c, &self.term.size, &self.config),
+            Key::Backspace => self.doc[self.tab].backspace(&self.term.size),
             Key::Ctrl('q') => self.quit(),
             Key::Ctrl('s') => self.save(),
             Key::Ctrl('w') => self.save_as(),
@@ -162,7 +162,9 @@ impl Editor {
             Key::Ctrl('a') => self.replace_all(),
             Key::Ctrl('d') => self.prev_tab(),
             Key::Ctrl('h') => self.next_tab(),
-            Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
+            Key::Left | Key::Right | Key::Up | Key::Down => {
+                self.doc[self.tab].move_cursor(key, &self.term.size)
+            }
             Key::PageDown | Key::PageUp | Key::Home | Key::End => {
                 self.doc[self.tab].leap_cursor(key, &self.term.size)
             }
@@ -190,7 +192,7 @@ impl Editor {
                             pos.x.saturating_sub(self.config.general.tab_width)
                                 - self.doc[self.tab].offset.x;
                         self.doc[self.tab].recalculate_graphemes();
-                        self.tab();
+                        self.doc[self.tab].tab(&self.config, &self.term.size);
                     }
                     Event::InsertMid(pos, c) => {
                         let c_len = UnicodeWidthChar::width(*c).map_or(0, |c| c);
@@ -211,14 +213,14 @@ impl Editor {
                         self.doc[self.tab].cursor.x = pos.x - self.doc[self.tab].offset.x;
                         self.doc[self.tab].recalculate_graphemes();
                         self.doc[self.tab].rows.insert(pos.y + 1, Row::from(""));
-                        self.move_cursor(Key::Down);
+                        self.doc[self.tab].move_cursor(Key::Down, &self.term.size);
                     }
                     Event::ReturnStart(pos) => {
                         self.doc[self.tab].cursor.y = pos.y - self.doc[self.tab].offset.y + OFFSET;
                         self.doc[self.tab].cursor.x = pos.x - self.doc[self.tab].offset.x;
                         self.doc[self.tab].recalculate_graphemes();
                         self.doc[self.tab].rows.insert(pos.y, Row::from(""));
-                        self.move_cursor(Key::Down);
+                        self.doc[self.tab].move_cursor(Key::Down, &self.term.size);
                     }
                     Event::ReturnMid(pos, breakpoint) => {
                         self.doc[self.tab].cursor.y = pos.y - self.doc[self.tab].offset.y + OFFSET;
@@ -229,7 +231,7 @@ impl Editor {
                         let after = Row::from(&current[*breakpoint..]);
                         self.doc[self.tab].rows.insert(pos.y + 1, after);
                         self.doc[self.tab].rows[pos.y] = before;
-                        self.move_cursor(Key::Down);
+                        self.doc[self.tab].move_cursor(Key::Down, &self.term.size);
                         self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
                     }
                     Event::BackspaceStart(pos) => {
@@ -240,7 +242,7 @@ impl Editor {
                         self.doc[self.tab].rows[pos.y + 1] =
                             Row::from(&(prev.string.clone() + &current)[..]);
                         self.doc[self.tab].rows.remove(pos.y);
-                        self.move_cursor(Key::Up);
+                        self.doc[self.tab].move_cursor(Key::Up, &self.term.size);
                         self.doc[self.tab].cursor.x = prev.length();
                         self.doc[self.tab].recalculate_graphemes();
                     }
@@ -270,7 +272,7 @@ impl Editor {
                     Event::InsertTab(pos) => {
                         for i in 1..=self.config.general.tab_width {
                             self.doc[self.tab].rows[pos.y].delete(pos.x - i);
-                            self.move_cursor(Key::Left);
+                            self.doc[self.tab].move_cursor(Key::Left, &self.term.size);
                         }
                     }
                     Event::InsertMid(pos, c) => {
@@ -282,31 +284,31 @@ impl Editor {
                         let string = self.doc[self.tab].rows[pos.y].string.clone();
                         self.doc[self.tab].rows[pos.y].delete(raw_to_grapheme(pos.x, &string));
                         for _ in 0..c_len {
-                            self.move_cursor(Key::Left);
+                            self.doc[self.tab].move_cursor(Key::Left, &self.term.size);
                         }
                     }
                     Event::BackspaceMid(pos, c) => {
                         self.doc[self.tab].rows[pos.y].insert(*c, pos.x);
-                        self.move_cursor(Key::Right);
+                        self.doc[self.tab].move_cursor(Key::Right, &self.term.size);
                     }
                     Event::ReturnEnd(pos) => {
                         self.doc[self.tab].rows.remove(pos.y + 1);
-                        self.move_cursor(Key::Up);
+                        self.doc[self.tab].move_cursor(Key::Up, &self.term.size);
                         self.doc[self.tab].leap_cursor(Key::End, &self.term.size);
                     }
                     Event::ReturnStart(pos) => {
                         self.doc[self.tab].rows.remove(pos.y);
-                        self.move_cursor(Key::Up);
+                        self.doc[self.tab].move_cursor(Key::Up, &self.term.size);
                     }
                     Event::ReturnMid(pos, breakpoint) => {
                         let current = self.doc[self.tab].rows[pos.y].string.clone();
                         let after = self.doc[self.tab].rows[pos.y + 1].string.clone();
                         self.doc[self.tab].rows.remove(pos.y);
                         self.doc[self.tab].rows[pos.y] = Row::from(&(current + &after)[..]);
-                        self.move_cursor(Key::Up);
+                        self.doc[self.tab].move_cursor(Key::Up, &self.term.size);
                         self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
                         for _ in 0..*breakpoint {
-                            self.move_cursor(Key::Right);
+                            self.doc[self.tab].move_cursor(Key::Right, &self.term.size);
                         }
                     }
                     Event::BackspaceStart(pos) => {
@@ -314,7 +316,7 @@ impl Editor {
                         let after = Row::from(&self.doc[self.tab].rows[pos.y].string[pos.x..]);
                         self.doc[self.tab].rows[pos.y] = after;
                         self.doc[self.tab].rows.insert(pos.y, before);
-                        self.move_cursor(Key::Down);
+                        self.doc[self.tab].move_cursor(Key::Down, &self.term.size);
                         self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
                     }
                     Event::UpdateLine(pos, before, _) => {
@@ -335,168 +337,6 @@ impl Editor {
     fn set_command_line(&mut self, text: String, msg: Type) {
         // Function to update the command line
         self.command_line = CommandLine { text, msg };
-    }
-    fn character(&mut self, c: char) {
-        // The user pressed a character key
-        self.doc[self.tab].dirty = true;
-        self.doc[self.tab].show_welcome = false;
-        let cursor = self.doc[self.tab].cursor;
-        let offset = self.doc[self.tab].offset;
-        let graphemes = self.doc[self.tab].graphemes;
-        match c {
-            '\n' => self.return_key(), // The user pressed the return key
-            '\t' => {
-                // The user pressed the tab key
-                self.tab();
-                self.doc[self.tab]
-                    .undo_stack
-                    .push(Event::InsertTab(Position {
-                        x: cursor.x + offset.x,
-                        y: cursor.y + offset.y - OFFSET,
-                    }));
-            }
-            _ => {
-                // Other characters
-                // TODO: Update relavent lines here
-                self.doc[self.tab].dirty = true;
-                self.doc[self.tab].show_welcome = false;
-                self.doc[self.tab].rows[cursor.y + offset.y - OFFSET].insert(c, graphemes);
-                self.doc[self.tab].undo_stack.push(Event::InsertMid(
-                    Position {
-                        x: cursor.x + offset.x,
-                        y: cursor.y + offset.y - OFFSET,
-                    },
-                    c,
-                ));
-                // Commit to the undo stack if space key pressed
-                if c == ' ' {
-                    self.doc[self.tab].undo_stack.commit();
-                }
-                self.move_cursor(Key::Right);
-            }
-        }
-        // Wipe the redo stack to avoid conflicts
-        self.doc[self.tab].redo_stack.empty();
-    }
-    fn tab(&mut self) {
-        // Insert a tab
-        let cursor = self.doc[self.tab].cursor;
-        let offset = self.doc[self.tab].offset;
-        let graphemes = self.doc[self.tab].graphemes;
-        // TODO: Update relavent lines here
-        for _ in 0..self.config.general.tab_width {
-            self.doc[self.tab].rows[cursor.y + offset.y - OFFSET].insert(' ', graphemes);
-            self.move_cursor(Key::Right);
-        }
-    }
-    fn return_key(&mut self) {
-        // Return key
-        self.doc[self.tab].dirty = true;
-        self.doc[self.tab].show_welcome = false;
-        let cursor = self.doc[self.tab].cursor;
-        let offset = self.doc[self.tab].offset;
-        // TODO: Update relavent lines here
-        if cursor.x + offset.x == 0 {
-            // Return key pressed at the start of the line
-            self.doc[self.tab]
-                .rows
-                .insert(cursor.y + offset.y - OFFSET, Row::from(""));
-            self.doc[self.tab]
-                .undo_stack
-                .push(Event::ReturnStart(Position {
-                    x: cursor.x + offset.x,
-                    y: cursor.y + offset.y - OFFSET,
-                }));
-            self.move_cursor(Key::Down);
-        } else if cursor.x + self.doc[self.tab].offset.x
-            == self.doc[self.tab].rows[cursor.y + offset.y - OFFSET].length()
-        {
-            // Return key pressed at the end of the line
-            self.doc[self.tab]
-                .rows
-                .insert(cursor.y + offset.y + 1 - OFFSET, Row::from(""));
-            self.doc[self.tab]
-                .undo_stack
-                .push(Event::ReturnEnd(Position {
-                    x: cursor.x + offset.x,
-                    y: cursor.y + offset.y - OFFSET,
-                }));
-            self.move_cursor(Key::Down);
-            self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
-            self.doc[self.tab].recalculate_graphemes();
-        } else {
-            // Return key pressed in the middle of the line
-            let current = self.doc[self.tab].rows
-                [self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET]
-                .chars();
-            let before = Row::from(&current[..self.doc[self.tab].graphemes].join("")[..]);
-            let after = Row::from(&current[self.doc[self.tab].graphemes..].join("")[..]);
-            self.doc[self.tab]
-                .rows
-                .insert(cursor.y + offset.y + 1 - OFFSET, after);
-            self.doc[self.tab].rows[cursor.y + offset.y - OFFSET] = before.clone();
-            self.doc[self.tab].undo_stack.push(Event::ReturnMid(
-                Position {
-                    x: cursor.x + offset.x,
-                    y: cursor.y + offset.y - OFFSET,
-                },
-                before.length(),
-            ));
-            self.move_cursor(Key::Down);
-            self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
-        }
-        // Commit to undo stack when return key pressed
-        self.doc[self.tab].undo_stack.commit();
-    }
-    fn backspace(&mut self) {
-        // Handling the backspace key
-        self.doc[self.tab].dirty = true;
-        self.doc[self.tab].show_welcome = false;
-        let cursor = self.doc[self.tab].cursor;
-        let offset = self.doc[self.tab].offset;
-        let graphemes = self.doc[self.tab].graphemes;
-        // TODO: Update relavent lines here
-        if self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x == 0
-            && self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET != 0
-        {
-            // Backspace at the start of a line
-            let current = self.doc[self.tab].rows
-                [self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET]
-                .string
-                .clone();
-            let prev = self.doc[self.tab].rows
-                [self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - 1 - OFFSET]
-                .clone();
-            self.doc[self.tab].rows[cursor.y + offset.y - 1 - OFFSET] =
-                Row::from(&(prev.string.clone() + &current)[..]);
-            self.doc[self.tab].rows.remove(cursor.y + offset.y - OFFSET);
-            self.move_cursor(Key::Up);
-            self.doc[self.tab].cursor.x = prev.length();
-            self.doc[self.tab].recalculate_graphemes();
-            self.doc[self.tab]
-                .undo_stack
-                .push(Event::BackspaceStart(Position {
-                    x: cursor.x + offset.x,
-                    y: cursor.y + offset.y - OFFSET,
-                }));
-            self.doc[self.tab].undo_stack.commit();
-        } else {
-            // Backspace in the middle of a line
-            self.move_cursor(Key::Left);
-            let ch = self.doc[self.tab].rows[cursor.y + offset.y - OFFSET].clone();
-            self.doc[self.tab].rows[cursor.y + offset.y - OFFSET].delete(graphemes);
-            if let Some(ch) = ch.chars().get(graphemes) {
-                if let Ok(ch) = ch.parse() {
-                    self.doc[self.tab].undo_stack.push(Event::BackspaceMid(
-                        Position {
-                            x: cursor.x + offset.x,
-                            y: cursor.y + offset.y - OFFSET,
-                        },
-                        ch,
-                    ));
-                }
-            }
-        }
     }
     fn quit(&mut self) {
         // For handling a quit event
@@ -874,95 +714,6 @@ impl Editor {
         }
         Some(result)
     }
-    fn move_cursor(&mut self, direction: Key) {
-        // Move the cursor around the editor
-        match direction {
-            Key::Down => {
-                // Move the cursor down
-                if self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y + 1 - (OFFSET)
-                    < self.doc[self.tab].rows.len()
-                {
-                    // If the proposed move is within the length of the document
-                    if self.doc[self.tab].cursor.y == self.term.size.height.saturating_sub(3) {
-                        self.doc[self.tab].offset.y = self.doc[self.tab].offset.y.saturating_add(1);
-                    } else {
-                        self.doc[self.tab].cursor.y = self.doc[self.tab].cursor.y.saturating_add(1);
-                    }
-                    self.doc[self.tab].snap_cursor(&self.term.size);
-                    self.doc[self.tab].prevent_unicode_hell();
-                    self.doc[self.tab].recalculate_graphemes();
-                }
-            }
-            Key::Up => {
-                // Move the cursor up
-                if self.doc[self.tab].cursor.y - OFFSET == 0 {
-                    self.doc[self.tab].offset.y = self.doc[self.tab].offset.y.saturating_sub(1);
-                } else if self.doc[self.tab].cursor.y != OFFSET {
-                    self.doc[self.tab].cursor.y = self.doc[self.tab].cursor.y.saturating_sub(1);
-                }
-                self.doc[self.tab].snap_cursor(&self.term.size);
-                self.doc[self.tab].prevent_unicode_hell();
-                self.doc[self.tab].recalculate_graphemes();
-            }
-            Key::Right => {
-                // Move the cursor right
-                let line = &self.doc[self.tab].rows
-                    [self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET];
-                // Work out the width of the character to traverse
-                let mut jump = 1;
-                if let Some(chr) = line
-                    .ext_chars()
-                    .get(self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x)
-                {
-                    jump = UnicodeWidthStr::width(*chr);
-                }
-                // Check the proposed move is within the current line length
-                if line.length() > self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x {
-                    // Check for normal width character
-                    let indicator1 = self.doc[self.tab].cursor.x
-                        == self
-                            .term
-                            .size
-                            .width
-                            .saturating_sub(self.doc[self.tab].line_offset + jump + 1);
-                    // Check for half broken unicode character
-                    let indicator2 = self.doc[self.tab].cursor.x
-                        == self
-                            .term
-                            .size
-                            .width
-                            .saturating_sub(self.doc[self.tab].line_offset + jump);
-                    if indicator1 || indicator2 {
-                        self.doc[self.tab].offset.x =
-                            self.doc[self.tab].offset.x.saturating_add(jump);
-                    } else {
-                        self.doc[self.tab].cursor.x =
-                            self.doc[self.tab].cursor.x.saturating_add(jump);
-                    }
-                    self.doc[self.tab].graphemes = self.doc[self.tab].graphemes.saturating_add(1);
-                }
-            }
-            Key::Left => {
-                // Move the cursor left
-                let line = &self.doc[self.tab].rows
-                    [self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET];
-                // Work out the width of the character to traverse
-                let mut jump = 1;
-                if let Some(chr) = line.ext_chars().get(
-                    (self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x).saturating_sub(1),
-                ) {
-                    jump = UnicodeWidthStr::width(*chr);
-                }
-                if self.doc[self.tab].cursor.x == 0 {
-                    self.doc[self.tab].offset.x = self.doc[self.tab].offset.x.saturating_sub(jump);
-                } else {
-                    self.doc[self.tab].cursor.x = self.doc[self.tab].cursor.x.saturating_sub(jump);
-                }
-                self.doc[self.tab].graphemes = self.doc[self.tab].graphemes.saturating_sub(1);
-            }
-            _ => (),
-        }
-    }
     fn goto(&mut self, pos: &Position) {
         // Move the cursor to a specific location
         let max_y = self.term.size.height.saturating_sub(3);
@@ -1164,8 +915,8 @@ impl Editor {
         let reg = self.doc[self.tab].regex.clone();
         for row in OFFSET..self.term.size.height {
             let row = row.saturating_sub(OFFSET);
-            if let Some(r) = self.doc[self.tab].rows.get_mut(offset.y + row as usize) {
-                r.update_syntax(&self.config, &reg, &rendered, offset.y + row as usize);
+            if let Some(r) = self.doc[self.tab].rows.get_mut(offset.y + row) {
+                r.update_syntax(&self.config, &reg, &rendered, offset.y + row);
             }
             if row == self.term.size.height - 1 - OFFSET {
                 // Render command line
@@ -1208,13 +959,13 @@ impl Editor {
                 ));
             } else if let Some(line) = self.doc[self.tab]
                 .rows
-                .get(self.doc[self.tab].offset.y + row as usize)
+                .get(self.doc[self.tab].offset.y + row)
             {
                 // Render lines of code
                 frame.push(self.add_background(&line.render(
                     self.doc[self.tab].offset.x,
                     self.term.size.width,
-                    self.doc[self.tab].offset.y + row as usize,
+                    self.doc[self.tab].offset.y + row,
                     self.doc[self.tab].line_offset,
                     &self.config,
                 )));

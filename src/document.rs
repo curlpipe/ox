@@ -1,7 +1,7 @@
 // Document.rs - For managing external files
 use crate::config::{Reader, TokenType};
 use crate::editor::OFFSET;
-use crate::{EventStack, Position, Row, Size};
+use crate::{Event, EventStack, Position, Row, Size};
 use regex::Regex;
 use std::{cmp, fs};
 use termion::event::Key;
@@ -107,6 +107,79 @@ impl Document {
             }
         }
     }
+    pub fn move_cursor(&mut self, direction: Key, term: &Size) {
+        // Move the cursor around the editor
+        match direction {
+            Key::Down => {
+                // Move the cursor down
+                if self.cursor.y + self.offset.y + 1 - (OFFSET) < self.rows.len() {
+                    // If the proposed move is within the length of the document
+                    if self.cursor.y == term.height.saturating_sub(3) {
+                        self.offset.y = self.offset.y.saturating_add(1);
+                    } else {
+                        self.cursor.y = self.cursor.y.saturating_add(1);
+                    }
+                    self.snap_cursor(term);
+                    self.prevent_unicode_hell();
+                    self.recalculate_graphemes();
+                }
+            }
+            Key::Up => {
+                // Move the cursor up
+                if self.cursor.y - OFFSET == 0 {
+                    self.offset.y = self.offset.y.saturating_sub(1);
+                } else if self.cursor.y != OFFSET {
+                    self.cursor.y = self.cursor.y.saturating_sub(1);
+                }
+                self.snap_cursor(term);
+                self.prevent_unicode_hell();
+                self.recalculate_graphemes();
+            }
+            Key::Right => {
+                // Move the cursor right
+                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET];
+                // Work out the width of the character to traverse
+                let mut jump = 1;
+                if let Some(chr) = line.ext_chars().get(self.cursor.x + self.offset.x) {
+                    jump = UnicodeWidthStr::width(*chr);
+                }
+                // Check the proposed move is within the current line length
+                if line.length() > self.cursor.x + self.offset.x {
+                    // Check for normal width character
+                    let indicator1 =
+                        self.cursor.x == term.width.saturating_sub(self.line_offset + jump + 1);
+                    // Check for half broken unicode character
+                    let indicator2 =
+                        self.cursor.x == term.width.saturating_sub(self.line_offset + jump);
+                    if indicator1 || indicator2 {
+                        self.offset.x = self.offset.x.saturating_add(jump);
+                    } else {
+                        self.cursor.x = self.cursor.x.saturating_add(jump);
+                    }
+                    self.graphemes = self.graphemes.saturating_add(1);
+                }
+            }
+            Key::Left => {
+                // Move the cursor left
+                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET];
+                // Work out the width of the character to traverse
+                let mut jump = 1;
+                if let Some(chr) = line
+                    .ext_chars()
+                    .get((self.cursor.x + self.offset.x).saturating_sub(1))
+                {
+                    jump = UnicodeWidthStr::width(*chr);
+                }
+                if self.cursor.x == 0 {
+                    self.offset.x = self.offset.x.saturating_sub(jump);
+                } else {
+                    self.cursor.x = self.cursor.x.saturating_sub(jump);
+                }
+                self.graphemes = self.graphemes.saturating_sub(1);
+            }
+            _ => (),
+        }
+    }
     pub fn leap_cursor(&mut self, action: Key, term: &Size) {
         // Handle large cursor movements
         match action {
@@ -200,6 +273,139 @@ impl Document {
         self.line_offset = self.rows.len().to_string().len()
             + config.general.line_number_padding_right
             + config.general.line_number_padding_left;
+    }
+    pub fn character(&mut self, c: char, term: &Size, config: &Reader) {
+        // The user pressed a character key
+        self.dirty = true;
+        self.show_welcome = false;
+        match c {
+            '\n' => self.return_key(term), // The user pressed the return key
+            '\t' => {
+                // The user pressed the tab key
+                self.tab(&config, term);
+                self.undo_stack.push(Event::InsertTab(Position {
+                    x: self.cursor.x + self.offset.x,
+                    y: self.cursor.y + self.offset.y - OFFSET,
+                }));
+            }
+            _ => {
+                // Other characters
+                // TODO: Update relavent lines here
+                self.dirty = true;
+                self.show_welcome = false;
+                self.rows[self.cursor.y + self.offset.y - OFFSET].insert(c, self.graphemes);
+                self.undo_stack.push(Event::InsertMid(
+                    Position {
+                        x: self.cursor.x + self.offset.x,
+                        y: self.cursor.y + self.offset.y - OFFSET,
+                    },
+                    c,
+                ));
+                // Commit to the undo stack if space key pressed
+                if c == ' ' {
+                    self.undo_stack.commit();
+                }
+                self.move_cursor(Key::Right, term);
+            }
+        }
+        // Wipe the redo stack to avoid conflicts
+        self.redo_stack.empty();
+    }
+    pub fn tab(&mut self, config: &Reader, term: &Size) {
+        // Insert a tab
+        // TODO: Update relavent lines here
+        for _ in 0..config.general.tab_width {
+            self.rows[self.cursor.y + self.offset.y - OFFSET].insert(' ', self.graphemes);
+            self.move_cursor(Key::Right, term);
+        }
+    }
+    pub fn return_key(&mut self, term: &Size) {
+        // Return key
+        self.dirty = true;
+        self.show_welcome = false;
+        // TODO: Update relavent lines here
+        if self.cursor.x + self.offset.x == 0 {
+            // Return key pressed at the start of the line
+            self.rows
+                .insert(self.cursor.y + self.offset.y - OFFSET, Row::from(""));
+            self.undo_stack.push(Event::ReturnStart(Position {
+                x: self.cursor.x + self.offset.x,
+                y: self.cursor.y + self.offset.y - OFFSET,
+            }));
+            self.move_cursor(Key::Down, term);
+        } else if self.cursor.x + self.offset.x
+            == self.rows[self.cursor.y + self.offset.y - OFFSET].length()
+        {
+            // Return key pressed at the end of the line
+            self.rows
+                .insert(self.cursor.y + self.offset.y + 1 - OFFSET, Row::from(""));
+            self.undo_stack.push(Event::ReturnEnd(Position {
+                x: self.cursor.x + self.offset.x,
+                y: self.cursor.y + self.offset.y - OFFSET,
+            }));
+            self.move_cursor(Key::Down, term);
+            self.leap_cursor(Key::Home, term);
+            self.recalculate_graphemes();
+        } else {
+            // Return key pressed in the middle of the line
+            let current = self.rows[self.cursor.y + self.offset.y - OFFSET].chars();
+            let before = Row::from(&current[..self.graphemes].join("")[..]);
+            let after = Row::from(&current[self.graphemes..].join("")[..]);
+            self.rows
+                .insert(self.cursor.y + self.offset.y + 1 - OFFSET, after);
+            self.rows[self.cursor.y + self.offset.y - OFFSET] = before.clone();
+            self.undo_stack.push(Event::ReturnMid(
+                Position {
+                    x: self.cursor.x + self.offset.x,
+                    y: self.cursor.y + self.offset.y - OFFSET,
+                },
+                before.length(),
+            ));
+            self.move_cursor(Key::Down, term);
+            self.leap_cursor(Key::Home, term);
+        }
+        // Commit to undo stack when return key pressed
+        self.undo_stack.commit();
+    }
+    pub fn backspace(&mut self, term: &Size) {
+        // Handling the backspace key
+        self.dirty = true;
+        self.show_welcome = false;
+        // TODO: Update relavent lines here
+        if self.cursor.x + self.offset.x == 0 && self.cursor.y + self.offset.y - OFFSET != 0 {
+            // Backspace at the start of a line
+            let current = self.rows[self.cursor.y + self.offset.y - OFFSET]
+                .string
+                .clone();
+            let prev = self.rows[self.cursor.y + self.offset.y - 1 - OFFSET].clone();
+            self.rows[self.cursor.y + self.offset.y - 1 - OFFSET] =
+                Row::from(&(prev.string.clone() + &current)[..]);
+            self.rows.remove(self.cursor.y + self.offset.y - OFFSET);
+            self.move_cursor(Key::Up, term);
+            self.cursor.x = prev.length();
+            self.recalculate_graphemes();
+            self.undo_stack.push(Event::BackspaceStart(Position {
+                x: self.cursor.x + self.offset.x,
+                y: self.cursor.y + self.offset.y - OFFSET,
+            }));
+            self.undo_stack.commit();
+        } else {
+            // Backspace in the middle of a line
+            self.move_cursor(Key::Left, term);
+            let ch = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
+            self.rows[self.cursor.y + self.offset.y - OFFSET].delete(self.graphemes);
+            if let Some(ch) = ch.chars().get(self.graphemes) {
+                if let Ok(ch) = ch.parse() {
+                    self.undo_stack.push(Event::BackspaceMid(
+                        Position {
+                            x: self.cursor.x + self.offset.x,
+                            y: self.cursor.y + self.offset.y - OFFSET,
+                        },
+                        ch,
+                    ));
+                }
+            }
+        }
     }
     pub fn save(&self) -> std::io::Result<()> {
         // Save a file

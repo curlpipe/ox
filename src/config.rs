@@ -178,7 +178,7 @@ highlights: {
 languages: [
 Language(
 name: "Rust",
-icon: " ",
+icon: "\u{e7a8} ",
 extensions: ["rs"],
 keywords: [
 "as", "break", "const", "continue", "crate", "else", 
@@ -239,7 +239,7 @@ definitions: {
 ),
 Language(
 name: "Ruby",
-icon: " ",
+icon: "\u{e739} ",
 extensions: ["rb"],
 
 keywords: [
@@ -284,7 +284,7 @@ r"(\$[a-z_][A-Za-z0-9_]*)\s",
 ),
 Language(
 name: "Crystal",
-icon: " ",
+icon: "\u{e7a3} ",
 extensions: ["cr"],
 
 keywords: [
@@ -331,7 +331,7 @@ r"(\$[a-z_][A-Za-z0-9_]*)\s",
 ),
 Language(
 name: "Python",
-icon: " ",
+icon: "\u{e73c} ",
 extensions: ["py", "pyw"],
 
 keywords: [
@@ -376,7 +376,7 @@ definitions: {
 ),
 Language(
 name: "Javascript",
-icon: " ",
+icon: "\u{e74e} ",
 extensions: ["js"],
 
 keywords: [
@@ -421,7 +421,7 @@ definitions: {
 ),
 Language(
 name: "C",
-icon: " ",
+icon: "\u{e61e} ",
 extensions: ["c", "h"],
 
 keywords: [
