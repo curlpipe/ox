@@ -1,5 +1,6 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{Reader, Status};
+use crate::document::Type;
 use crate::util::{is_ahead, is_behind, raw_to_grapheme, title, trim_end, Exp};
 use crate::{Document, Event, Row, Terminal, VERSION};
 use clap::App;
@@ -19,24 +20,11 @@ pub const RESET_FG: color::Fg<color::Reset> = color::Fg(color::Reset);
 // Set up offset rules
 pub const OFFSET: usize = 1;
 
-// Enum for the kinds of status messages
-enum Type {
-    Error,
-    Warning,
-    Info,
-}
-
 // Enum for holding prompt events
 enum PromptEvent {
     Update,
     CharPress,
     KeyPress(Key),
-}
-
-// For holding the info in the command line
-struct CommandLine {
-    msg: Type,
-    text: String,
 }
 
 // For representing positions
@@ -49,8 +37,8 @@ pub struct Position {
 // The main editor struct
 pub struct Editor {
     pub config: Reader,             // Storage for configuration
+    pub status: Status,             // Holding the status of the config
     quit: bool,                     // Toggle for cleanly quitting the editor
-    command_line: CommandLine,      // For holding the command line
     term: Terminal,                 // For the handling of the terminal
     doc: Vec<Document>,             // For holding our document
     tab: usize,                     // Holds the number of the current tab
@@ -69,34 +57,23 @@ impl Editor {
         let config = Reader::read(args.value_of("config").unwrap_or_default());
         let mut documents = vec![];
         if files.is_empty() {
-            documents.push(Document::new(&config.0));
+            documents.push(Document::new(&config.0, &config.1));
         } else {
             for file in &files {
-                documents.push(Document::from(&config.0, file))
+                documents.push(Document::from(&config.0, &config.1, file))
             }
         }
         // Create the new editor instance
         Ok(Self {
             quit: false,
             // Display information about the config file into text for the status line
-            command_line: CommandLine {
-                text: match &config.1 {
-                    Status::Success => "Welcome to Ox".to_string(),
-                    Status::File => "Config file not found, using default values".to_string(),
-                    Status::Parse(error) => format!("Failed to parse: {:?}", error),
-                },
-                msg: match &config.1 {
-                    Status::Success => Type::Info,
-                    Status::File => Type::Warning,
-                    Status::Parse(_) => Type::Error,
-                },
-            },
             term: Terminal::new()?,
             tab: 0,
             doc: documents,
             last_keypress: None,
             stdin: async_stdin().keys(),
             config: config.0.clone(),
+            status: config.1,
             exp: Exp::new(),
         })
     }
@@ -258,7 +235,7 @@ impl Editor {
             }
             self.doc[self.tab].undo_stack.append(events);
         } else {
-            self.set_command_line("Empty Redo Stack".to_string(), Type::Error);
+            self.doc[self.tab].set_command_line("Empty Redo Stack".to_string(), Type::Error);
         }
     }
     fn undo(&mut self) {
@@ -331,12 +308,8 @@ impl Editor {
             }
             self.doc[self.tab].redo_stack.append(events);
         } else {
-            self.set_command_line("Empty Undo Stack".to_string(), Type::Error);
+            self.doc[self.tab].set_command_line("Empty Undo Stack".to_string(), Type::Error);
         }
-    }
-    fn set_command_line(&mut self, text: String, msg: Type) {
-        // Function to update the command line
-        self.command_line = CommandLine { text, msg };
     }
     fn quit(&mut self) {
         // For handling a quit event
@@ -348,18 +321,18 @@ impl Editor {
                 // Close current tab and move right
                 self.doc.remove(self.tab);
                 self.tab -= 1;
-                self.set_command_line("Closed tab".to_string(), Type::Info);
+                self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
             } else {
                 // Close current tab and move left
                 self.doc.remove(self.tab);
-                self.set_command_line("Closed tab".to_string(), Type::Info);
+                self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
             }
         }
     }
     fn new_document(&mut self) {
         // Handle new document event
         if self.dirty_prompt('n', "new") {
-            self.doc.push(Document::new(&self.config));
+            self.doc.push(Document::new(&self.config, &self.status));
             self.tab = self.doc.len().saturating_sub(1);
             self.doc[self.tab].dirty = false;
             self.doc[self.tab].show_welcome = true;
@@ -372,7 +345,7 @@ impl Editor {
         // Handle open document event
         // TODO: Highlight entire file here
         if let Some(result) = self.prompt("Open", &|_, _, _| {}) {
-            if let Some(doc) = Document::open(&self.config, &result[..]) {
+            if let Some(doc) = Document::open(&self.config, &self.status, &result[..]) {
                 // Overwrite the current document
                 self.doc.push(doc);
                 self.tab = self.doc.len().saturating_sub(1);
@@ -382,25 +355,23 @@ impl Editor {
                 self.doc[self.tab].offset.y = 0;
                 self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
             } else {
-                self.set_command_line("File couldn't be opened".to_string(), Type::Error);
+                self.doc[self.tab]
+                    .set_command_line("File couldn't be opened".to_string(), Type::Error);
             }
         }
     }
     fn save(&mut self) {
         // Handle save event
+        let path = self.doc[self.tab].path.clone();
         if self.doc[self.tab].save().is_ok() {
             // The document saved successfully
             self.doc[self.tab].dirty = false;
-            self.set_command_line(
-                format!("File saved to {} successfully", self.doc[self.tab].path),
-                Type::Info,
-            );
+            self.doc[self.tab]
+                .set_command_line(format!("File saved to {} successfully", path), Type::Info);
         } else {
             // The document couldn't save due to permission errors
-            self.set_command_line(
-                format!("Failed to save file to {}", self.doc[self.tab].path),
-                Type::Error,
-            );
+            self.doc[self.tab]
+                .set_command_line(format!("Failed to save file to {}", path), Type::Error);
         }
         // Commit to undo stack on document save
         self.doc[self.tab].undo_stack.commit();
@@ -411,17 +382,19 @@ impl Editor {
             if self.doc[self.tab].save_as(&result[..]).is_ok() {
                 // The document could save as
                 self.doc[self.tab].dirty = false;
-                self.set_command_line(format!("File saved to {} successfully", result), Type::Info);
+                self.doc[self.tab]
+                    .set_command_line(format!("File saved to {} successfully", result), Type::Info);
                 self.doc[self.tab].icon = Document::identify(&result);
                 self.doc[self.tab].name = result.clone();
                 self.doc[self.tab].path = result;
             } else {
                 // The document couldn't save to the file
-                self.set_command_line(format!("Failed to save file to {}", result), Type::Error);
+                self.doc[self.tab]
+                    .set_command_line(format!("Failed to save file to {}", result), Type::Error);
             }
         } else {
             // User pressed the escape key
-            self.set_command_line("Save as cancelled".to_string(), Type::Info);
+            self.doc[self.tab].set_command_line("Save as cancelled".to_string(), Type::Info);
         }
         // Commit to the undo stack on save as
         self.doc[self.tab].undo_stack.commit();
@@ -503,7 +476,7 @@ impl Editor {
             }
         });
         // User cancelled or found what they were looking for
-        self.set_command_line("Search exited".to_string(), Type::Info);
+        self.doc[self.tab].set_command_line("Search exited".to_string(), Type::Info);
     }
     fn replace(&mut self) {
         // Replace text within the document
@@ -613,7 +586,7 @@ impl Editor {
                 // Restore cursor position and exit
                 self.doc[self.tab].cursor = initial_cursor;
                 self.doc[self.tab].offset = initial_offset;
-                self.set_command_line("Replace finished".to_string(), Type::Info);
+                self.doc[self.tab].set_command_line("Replace finished".to_string(), Type::Info);
             }
         }
     }
@@ -644,13 +617,13 @@ impl Editor {
         self.doc[self.tab].snap_cursor(&self.term.size);
         self.doc[self.tab].prevent_unicode_hell();
         self.doc[self.tab].recalculate_graphemes();
-        self.set_command_line("Replaced targets".to_string(), Type::Info);
+        self.doc[self.tab].set_command_line("Replaced targets".to_string(), Type::Info);
     }
     fn dirty_prompt(&mut self, key: char, subject: &str) -> bool {
         // For events that require changes to the document
         if self.doc[self.tab].dirty {
             // Handle unsaved changes
-            self.set_command_line(
+            self.doc[self.tab].set_command_line(
                 format!(
                     "Unsaved Changes! Ctrl + {} to force {}",
                     key.to_uppercase(),
@@ -665,10 +638,12 @@ impl Editor {
                     if k == key {
                         return true;
                     } else {
-                        self.set_command_line(format!("{} cancelled", title(subject)), Type::Info);
+                        self.doc[self.tab]
+                            .set_command_line(format!("{} cancelled", title(subject)), Type::Info);
                     }
                 }
-                _ => self.set_command_line(format!("{} cancelled", title(subject)), Type::Info),
+                _ => self.doc[self.tab]
+                    .set_command_line(format!("{} cancelled", title(subject)), Type::Info),
             }
         } else {
             return true;
@@ -681,7 +656,7 @@ impl Editor {
         func: &dyn Fn(&mut Self, PromptEvent, &str),
     ) -> Option<String> {
         // Create a new prompt
-        self.set_command_line(format!("{}: ", prompt), Type::Info);
+        self.doc[self.tab].set_command_line(format!("{}: ", prompt), Type::Info);
         self.update();
         let mut result = String::new();
         'p: loop {
@@ -709,7 +684,7 @@ impl Editor {
                 }
                 _ => func(self, PromptEvent::KeyPress(key), &result),
             }
-            self.set_command_line(format!("{}: {}", prompt, result), Type::Info);
+            self.doc[self.tab].set_command_line(format!("{}: {}", prompt, result), Type::Info);
             func(self, PromptEvent::Update, &result);
             self.update();
         }
@@ -837,9 +812,9 @@ impl Editor {
     }
     fn command_line(&self) -> String {
         // Render the command line
-        let line = &self.command_line.text;
+        let line = &self.doc[self.tab].cmd_line.text;
         // Add the correct styling
-        match self.command_line.msg {
+        match self.doc[self.tab].cmd_line.msg {
             Type::Error => self.add_background(&format!(
                 "{}{}{}{}{}",
                 style::Bold,

@@ -1,5 +1,5 @@
 // Document.rs - For managing external files
-use crate::config::{Reader, TokenType};
+use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
 use crate::{Event, EventStack, Position, Row, Size};
 use regex::Regex;
@@ -7,12 +7,26 @@ use std::{cmp, fs};
 use termion::event::Key;
 use unicode_width::UnicodeWidthStr;
 
+// For holding the info in the command line
+pub struct CommandLine {
+    pub msg: Type,
+    pub text: String,
+}
+
+// Enum for the kinds of status messages
+pub enum Type {
+    Error,
+    Warning,
+    Info,
+}
+
 // Document struct (class) to manage files and text
 pub struct Document {
     pub rows: Vec<Row>,         // For holding the contents of the document
     pub path: String,           // For holding the path to the document
     pub name: String,           // For holding the name of the document
     pub dirty: bool,            // True if the current document has been edited
+    pub cmd_line: CommandLine,  // For holding the command line
     pub line_offset: usize,     // For holding a line number offset
     pub undo_stack: EventStack, // For holding the undo event stack
     pub redo_stack: EventStack, // For holding the redo event stack
@@ -26,12 +40,13 @@ pub struct Document {
 
 // Add methods to the document struct
 impl Document {
-    pub fn new(config: &Reader) -> Self {
+    pub fn new(config: &Reader, status: &Status) -> Self {
         // Create a new, empty document
         Self {
             rows: vec![Row::from("")],
             name: String::from("[No name]"),
             dirty: false,
+            cmd_line: Document::config_to_commandline(&status),
             path: String::new(),
             line_offset: config.general.line_number_padding_right
                 + config.general.line_number_padding_left,
@@ -45,7 +60,7 @@ impl Document {
             offset: Position { x: 0, y: 0 },
         }
     }
-    pub fn open(config: &Reader, path: &str) -> Option<Self> {
+    pub fn open(config: &Reader, status: &Status, path: &str) -> Option<Self> {
         // Create a new document from a path
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
@@ -65,6 +80,7 @@ impl Document {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: path.to_string(),
                 dirty: false,
+                cmd_line: Document::config_to_commandline(&status),
                 path: path.to_string(),
                 line_offset: config.general.line_number_padding_right
                     + config.general.line_number_padding_left,
@@ -82,9 +98,9 @@ impl Document {
             None
         }
     }
-    pub fn from(config: &Reader, path: &str) -> Self {
+    pub fn from(config: &Reader, status: &Status, path: &str) -> Self {
         // Create a new document from a path with empty document on error
-        if let Some(doc) = Document::open(&config, path) {
+        if let Some(doc) = Document::open(&config, &status, path) {
             doc
         } else {
             // Create blank document
@@ -94,6 +110,7 @@ impl Document {
                 name: path.to_string(),
                 path: path.to_string(),
                 dirty: false,
+                cmd_line: Document::config_to_commandline(&status),
                 line_offset: config.general.line_number_padding_right
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
@@ -105,6 +122,24 @@ impl Document {
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
             }
+        }
+    }
+    pub fn set_command_line(&mut self, text: String, msg: Type) {
+        // Function to update the command line
+        self.cmd_line = CommandLine { text, msg };
+    }
+    fn config_to_commandline(status: &Status) -> CommandLine {
+        CommandLine {
+            text: match status {
+                Status::Success => "Welcome to Ox".to_string(),
+                Status::File => "Config file not found, using default values".to_string(),
+                Status::Parse(error) => format!("Failed to parse: {:?}", error),
+            },
+            msg: match status {
+                Status::Success => Type::Info,
+                Status::File => Type::Warning,
+                Status::Parse(_) => Type::Error,
+            },
         }
     }
     pub fn move_cursor(&mut self, direction: Key, term: &Size) {
