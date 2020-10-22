@@ -412,6 +412,7 @@ impl Editor {
                 // The document could save as
                 self.doc[self.tab].dirty = false;
                 self.set_command_line(format!("File saved to {} successfully", result), Type::Info);
+                self.doc[self.tab].icon = Document::identify(&result);
                 self.doc[self.tab].name = result.clone();
                 self.doc[self.tab].path = result;
             } else {
