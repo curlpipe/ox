@@ -1,8 +1,10 @@
 0.2.5 (Multitasking) { Manage multiple buffers in one instance }
+- [ ] Balance load between editor and document files
+  - [ ] Move methods around
+  - [X] Move variables
 - [ ] Save all
   - [ ] Write function
   - [ ] Set up keybinding
-- [ ] Update hardcoded config file
 - [X] Tabs
   - [X] Allow holding several documents
   - [X] Set up current doc variable
@@ -12,6 +14,7 @@
   - [X] Ctrl + Q closes document rather than editor
   - [X] Make current tab bold
   - [X] Remove open confirmation
+- [X] Update hardcoded config file
 
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
