@@ -59,7 +59,7 @@ impl Editor {
             documents.push(Document::new(&config.0, &config.1));
         } else {
             for file in &files {
-                documents.push(Document::from(&config.0, &config.1, file))
+                documents.push(Document::from(&config.0, &config.1, file));
             }
         }
         // Create the new editor instance

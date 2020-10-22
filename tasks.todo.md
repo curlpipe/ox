@@ -1,7 +1,4 @@
 0.2.5 (Multitasking) { Manage multiple buffers in one instance }
-- [ ] Balance load between editor and document files
-  - [ ] Move methods around
-  - [X] Move variables
 - [ ] Save all
   - [ ] Write function
   - [ ] Set up keybinding
@@ -15,6 +12,9 @@
   - [X] Make current tab bold
   - [X] Remove open confirmation
 - [X] Update hardcoded config file
+- [X] Balance load between editor and document files
+  - [X] Move variables
+  - [X] Move methods around
 
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
