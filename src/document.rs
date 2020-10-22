@@ -1,9 +1,11 @@
 // Document.rs - For managing external files
 use crate::config::{Reader, TokenType};
 use crate::editor::OFFSET;
-use crate::{EventStack, Position, Row};
+use crate::{EventStack, Position, Row, Size};
 use regex::Regex;
-use std::fs;
+use std::{cmp, fs};
+use termion::event::Key;
+use unicode_width::UnicodeWidthStr;
 
 // Document struct (class) to manage files and text
 pub struct Document {
@@ -103,6 +105,94 @@ impl Document {
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
             }
+        }
+    }
+    pub fn leap_cursor(&mut self, action: Key, term: &Size) {
+        // Handle large cursor movements
+        match action {
+            Key::PageUp => {
+                // Move cursor to the top of the screen
+                self.cursor.y = OFFSET;
+                self.snap_cursor(term);
+                self.prevent_unicode_hell();
+                self.recalculate_graphemes();
+            }
+            Key::PageDown => {
+                // Move cursor to the bottom of the screen
+                self.cursor.y = cmp::min(
+                    self.rows.len().saturating_sub(1),
+                    term.height.saturating_sub(3) as usize,
+                );
+                self.snap_cursor(term);
+                self.prevent_unicode_hell();
+                self.recalculate_graphemes();
+            }
+            Key::Home => {
+                // Move cursor to the start of the line
+                self.offset.x = 0;
+                self.cursor.x = 0;
+                self.graphemes = 0;
+            }
+            Key::End => {
+                // Move cursor to the end of the line
+                let cursor = self.cursor;
+                let offset = self.offset;
+                let line = self.rows[cursor.y + offset.y - OFFSET].clone();
+                if line.length() >= term.width.saturating_sub(self.line_offset) {
+                    // Work out the width of the character to traverse
+                    let mut jump = 1;
+                    if let Some(chr) = line.ext_chars().get(line.length()) {
+                        jump = UnicodeWidthStr::width(*chr);
+                    }
+                    self.offset.x = line
+                        .length()
+                        .saturating_add(jump + self.line_offset + 1)
+                        .saturating_sub(term.width as usize);
+                    self.cursor.x = term.width.saturating_sub(jump + self.line_offset + 1);
+                } else {
+                    self.cursor.x = line.length();
+                }
+                self.graphemes = line.chars().len();
+            }
+            _ => (),
+        }
+    }
+    pub fn snap_cursor(&mut self, term: &Size) {
+        // Snap the cursor to the end of the row when outside
+        let current = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
+        if current.length() <= self.cursor.x + self.offset.x {
+            // If the cursor is out of bounds
+            self.leap_cursor(Key::Home, term);
+            self.leap_cursor(Key::End, term);
+        }
+    }
+    pub fn prevent_unicode_hell(&mut self) {
+        // Make sure that the cursor isn't inbetween a unicode character
+        let line = &self.rows[self.cursor.y + self.offset.y - OFFSET];
+        if line.length() > self.cursor.x + self.offset.x {
+            // As long as the cursor is within range
+            let boundaries = line.boundaries();
+            let mut index = self.cursor.x + self.offset.x;
+            if !boundaries.contains(&index) && index != 0 {}
+            while !boundaries.contains(&index) && index != 0 {
+                self.cursor.x = self.cursor.x.saturating_sub(1);
+                self.graphemes = self.graphemes.saturating_sub(1);
+                index = index.saturating_sub(1);
+            }
+        }
+    }
+    pub fn recalculate_graphemes(&mut self) {
+        // Recalculate the grapheme cursor after moving up and down
+        let current = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
+        let jumps = current.get_jumps();
+        let mut counter = 0;
+        for (mut counter2, i) in jumps.into_iter().enumerate() {
+            if counter == self.cursor.x + self.offset.x {
+                break;
+            }
+            counter2 += 1;
+            self.graphemes = counter2;
+            counter += i;
         }
     }
     pub fn recalculate_offset(&mut self, config: &Reader) {

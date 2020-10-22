@@ -47,7 +47,10 @@ impl Reader {
                 // There is a syntax issue with the config file
                 let result: Result<Self, ron::Error> = from_str(&file);
                 // Provide the syntax issue with the config file for debugging
-                (from_str(DEFAULT).unwrap(), Status::Parse(format!("{:?}", result)))
+                (
+                    from_str(DEFAULT).unwrap(),
+                    Status::Parse(format!("{:?}", result)),
+                )
             };
             result
         } else {

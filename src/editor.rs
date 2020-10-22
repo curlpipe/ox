@@ -5,7 +5,7 @@ use crate::{Document, Event, Row, Terminal, VERSION};
 use clap::App;
 use regex::Regex;
 use std::time::{Duration, Instant};
-use std::{cmp, io::Error, thread};
+use std::{io::Error, thread};
 use termion::event::Key;
 use termion::input::{Keys, TermRead};
 use termion::{async_stdin, color, style, AsyncReader};
@@ -123,9 +123,9 @@ impl Editor {
                 // Run code that we want to run when the key isn't pressed
                 if self.term.check_resize() {
                     // The terminal has changed in size
-                    if self.doc[self.tab].cursor.y > self.term.height.saturating_sub(3) as usize {
+                    if self.doc[self.tab].cursor.y > self.term.size.height.saturating_sub(3) {
                         // Prevent cursor going off the screen and breaking everything
-                        self.doc[self.tab].cursor.y = self.term.height.saturating_sub(3) as usize;
+                        self.doc[self.tab].cursor.y = self.term.size.height.saturating_sub(3);
                     }
                     // Re-render everything to the new size
                     self.update();
@@ -163,7 +163,9 @@ impl Editor {
             Key::Ctrl('d') => self.prev_tab(),
             Key::Ctrl('h') => self.next_tab(),
             Key::Left | Key::Right | Key::Up | Key::Down => self.move_cursor(key),
-            Key::PageDown | Key::PageUp | Key::Home | Key::End => self.leap_cursor(key),
+            Key::PageDown | Key::PageUp | Key::Home | Key::End => {
+                self.doc[self.tab].leap_cursor(key, &self.term.size)
+            }
             _ => (),
         }
     }
@@ -187,7 +189,7 @@ impl Editor {
                         self.doc[self.tab].cursor.x =
                             pos.x.saturating_sub(self.config.general.tab_width)
                                 - self.doc[self.tab].offset.x;
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                         self.tab();
                     }
                     Event::InsertMid(pos, c) => {
@@ -195,44 +197,44 @@ impl Editor {
                         self.doc[self.tab].cursor.y = pos.y - self.doc[self.tab].offset.y + OFFSET;
                         self.doc[self.tab].cursor.x =
                             pos.x.saturating_add(c_len) - self.doc[self.tab].offset.x;
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                         self.doc[self.tab].rows[pos.y].insert(*c, pos.x);
                     }
                     Event::BackspaceMid(pos, _) => {
                         self.doc[self.tab].cursor.y = pos.y - self.doc[self.tab].offset.y + OFFSET;
                         self.doc[self.tab].cursor.x = pos.x - self.doc[self.tab].offset.x;
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                         self.doc[self.tab].rows[pos.y].delete(pos.x);
                     }
                     Event::ReturnEnd(pos) => {
                         self.doc[self.tab].cursor.y = pos.y - self.doc[self.tab].offset.y + OFFSET;
                         self.doc[self.tab].cursor.x = pos.x - self.doc[self.tab].offset.x;
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                         self.doc[self.tab].rows.insert(pos.y + 1, Row::from(""));
                         self.move_cursor(Key::Down);
                     }
                     Event::ReturnStart(pos) => {
                         self.doc[self.tab].cursor.y = pos.y - self.doc[self.tab].offset.y + OFFSET;
                         self.doc[self.tab].cursor.x = pos.x - self.doc[self.tab].offset.x;
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                         self.doc[self.tab].rows.insert(pos.y, Row::from(""));
                         self.move_cursor(Key::Down);
                     }
                     Event::ReturnMid(pos, breakpoint) => {
                         self.doc[self.tab].cursor.y = pos.y - self.doc[self.tab].offset.y + OFFSET;
                         self.doc[self.tab].cursor.x = pos.x - self.doc[self.tab].offset.x;
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                         let current = self.doc[self.tab].rows[pos.y].string.clone();
                         let before = Row::from(&current[..*breakpoint]);
                         let after = Row::from(&current[*breakpoint..]);
                         self.doc[self.tab].rows.insert(pos.y + 1, after);
                         self.doc[self.tab].rows[pos.y] = before;
                         self.move_cursor(Key::Down);
-                        self.leap_cursor(Key::Home);
+                        self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
                     }
                     Event::BackspaceStart(pos) => {
                         self.doc[self.tab].cursor.y = pos.y - self.doc[self.tab].offset.y + OFFSET;
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                         let current = self.doc[self.tab].rows[pos.y + 1].string.clone();
                         let prev = self.doc[self.tab].rows[pos.y].clone();
                         self.doc[self.tab].rows[pos.y + 1] =
@@ -240,13 +242,13 @@ impl Editor {
                         self.doc[self.tab].rows.remove(pos.y);
                         self.move_cursor(Key::Up);
                         self.doc[self.tab].cursor.x = prev.length();
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                     }
                     Event::UpdateLine(pos, _, after) => {
                         self.doc[self.tab].rows[*pos] = *after.clone();
-                        self.snap_cursor();
-                        self.prevent_unicode_hell();
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].snap_cursor(&self.term.size);
+                        self.doc[self.tab].prevent_unicode_hell();
+                        self.doc[self.tab].recalculate_graphemes();
                     }
                 }
                 self.doc[self.tab].dirty = true;
@@ -276,7 +278,7 @@ impl Editor {
                         self.doc[self.tab].cursor.y = pos.y - self.doc[self.tab].offset.y + OFFSET;
                         self.doc[self.tab].cursor.x =
                             pos.x.saturating_add(c_len) - self.doc[self.tab].offset.x;
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                         let string = self.doc[self.tab].rows[pos.y].string.clone();
                         self.doc[self.tab].rows[pos.y].delete(raw_to_grapheme(pos.x, &string));
                         for _ in 0..c_len {
@@ -290,7 +292,7 @@ impl Editor {
                     Event::ReturnEnd(pos) => {
                         self.doc[self.tab].rows.remove(pos.y + 1);
                         self.move_cursor(Key::Up);
-                        self.leap_cursor(Key::End);
+                        self.doc[self.tab].leap_cursor(Key::End, &self.term.size);
                     }
                     Event::ReturnStart(pos) => {
                         self.doc[self.tab].rows.remove(pos.y);
@@ -302,7 +304,7 @@ impl Editor {
                         self.doc[self.tab].rows.remove(pos.y);
                         self.doc[self.tab].rows[pos.y] = Row::from(&(current + &after)[..]);
                         self.move_cursor(Key::Up);
-                        self.leap_cursor(Key::Home);
+                        self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
                         for _ in 0..*breakpoint {
                             self.move_cursor(Key::Right);
                         }
@@ -313,13 +315,13 @@ impl Editor {
                         self.doc[self.tab].rows[pos.y] = after;
                         self.doc[self.tab].rows.insert(pos.y, before);
                         self.move_cursor(Key::Down);
-                        self.leap_cursor(Key::Home);
+                        self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
                     }
                     Event::UpdateLine(pos, before, _) => {
                         self.doc[self.tab].rows[*pos] = *before.clone();
-                        self.snap_cursor();
-                        self.prevent_unicode_hell();
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].snap_cursor(&self.term.size);
+                        self.doc[self.tab].prevent_unicode_hell();
+                        self.doc[self.tab].recalculate_graphemes();
                     }
                 }
                 self.doc[self.tab].dirty = true;
@@ -420,8 +422,8 @@ impl Editor {
                     y: cursor.y + offset.y - OFFSET,
                 }));
             self.move_cursor(Key::Down);
-            self.leap_cursor(Key::Home);
-            self.recalculate_graphemes();
+            self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
+            self.doc[self.tab].recalculate_graphemes();
         } else {
             // Return key pressed in the middle of the line
             let current = self.doc[self.tab].rows
@@ -441,7 +443,7 @@ impl Editor {
                 before.length(),
             ));
             self.move_cursor(Key::Down);
-            self.leap_cursor(Key::Home);
+            self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
         }
         // Commit to undo stack when return key pressed
         self.doc[self.tab].undo_stack.commit();
@@ -470,7 +472,7 @@ impl Editor {
             self.doc[self.tab].rows.remove(cursor.y + offset.y - OFFSET);
             self.move_cursor(Key::Up);
             self.doc[self.tab].cursor.x = prev.length();
-            self.recalculate_graphemes();
+            self.doc[self.tab].recalculate_graphemes();
             self.doc[self.tab]
                 .undo_stack
                 .push(Event::BackspaceStart(Position {
@@ -523,7 +525,7 @@ impl Editor {
             self.doc[self.tab].show_welcome = true;
             self.doc[self.tab].cursor.y = OFFSET;
             self.doc[self.tab].offset.y = 0;
-            self.leap_cursor(Key::Home);
+            self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
         }
     }
     fn open_document(&mut self) {
@@ -538,7 +540,7 @@ impl Editor {
                 self.doc[self.tab].show_welcome = false;
                 self.doc[self.tab].cursor.y = OFFSET;
                 self.doc[self.tab].offset.y = 0;
-                self.leap_cursor(Key::Home);
+                self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
             } else {
                 self.set_command_line("File couldn't be opened".to_string(), Type::Error);
             }
@@ -606,7 +608,7 @@ impl Editor {
                                 &p,
                             ) {
                                 s.goto(&p);
-                                s.recalculate_graphemes();
+                                s.doc[s.tab].recalculate_graphemes();
                                 break;
                             }
                         }
@@ -622,7 +624,7 @@ impl Editor {
                                 &p,
                             ) {
                                 s.goto(&p);
-                                s.recalculate_graphemes();
+                                s.doc[s.tab].recalculate_graphemes();
                                 break;
                             }
                         }
@@ -631,7 +633,7 @@ impl Editor {
                         // Restore cursor and offset position
                         s.doc[s.tab].cursor = initial_cursor;
                         s.doc[s.tab].offset = initial_offset;
-                        s.recalculate_graphemes();
+                        s.doc[s.tab].recalculate_graphemes();
                     }
                     _ => (),
                 },
@@ -650,7 +652,7 @@ impl Editor {
                                 &p,
                             ) {
                                 s.goto(&p);
-                                s.recalculate_graphemes();
+                                s.doc[s.tab].recalculate_graphemes();
                                 break;
                             }
                         }
@@ -682,7 +684,7 @@ impl Editor {
                         &p,
                     ) {
                         self.goto(&p);
-                        self.recalculate_graphemes();
+                        self.doc[self.tab].recalculate_graphemes();
                         self.update();
                         break;
                     }
@@ -704,7 +706,7 @@ impl Editor {
                                     &p,
                                 ) {
                                     self.goto(&p);
-                                    self.recalculate_graphemes();
+                                    self.doc[self.tab].recalculate_graphemes();
                                     self.update();
                                     break;
                                 }
@@ -724,7 +726,7 @@ impl Editor {
                                     &p,
                                 ) {
                                     self.goto(&p);
-                                    self.recalculate_graphemes();
+                                    self.doc[self.tab].recalculate_graphemes();
                                     self.update();
                                     break;
                                 }
@@ -757,9 +759,9 @@ impl Editor {
                                 self.doc[self.tab].rows[cursor.y + offset.y - OFFSET] = after;
                             }
                             self.update();
-                            self.snap_cursor();
-                            self.prevent_unicode_hell();
-                            self.recalculate_graphemes();
+                            self.doc[self.tab].snap_cursor(&self.term.size);
+                            self.doc[self.tab].prevent_unicode_hell();
+                            self.doc[self.tab].recalculate_graphemes();
                             // Update search locations
                             search_points = self.doc[self.tab].scan(&target, OFFSET);
                         }
@@ -798,9 +800,9 @@ impl Editor {
                 }
             }
         }
-        self.snap_cursor();
-        self.prevent_unicode_hell();
-        self.recalculate_graphemes();
+        self.doc[self.tab].snap_cursor(&self.term.size);
+        self.doc[self.tab].prevent_unicode_hell();
+        self.doc[self.tab].recalculate_graphemes();
         self.set_command_line("Replaced targets".to_string(), Type::Info);
     }
     fn dirty_prompt(&mut self, key: char, subject: &str) -> bool {
@@ -872,66 +874,6 @@ impl Editor {
         }
         Some(result)
     }
-    fn leap_cursor(&mut self, action: Key) {
-        // Handle large cursor movements
-        match action {
-            Key::PageUp => {
-                // Move cursor to the top of the screen
-                self.doc[self.tab].cursor.y = OFFSET;
-                self.snap_cursor();
-                self.prevent_unicode_hell();
-                self.recalculate_graphemes();
-            }
-            Key::PageDown => {
-                // Move cursor to the bottom of the screen
-                self.doc[self.tab].cursor.y = cmp::min(
-                    self.doc[self.tab].rows.len().saturating_sub(1),
-                    self.term.height.saturating_sub(3) as usize,
-                );
-                self.snap_cursor();
-                self.prevent_unicode_hell();
-                self.recalculate_graphemes();
-            }
-            Key::Home => {
-                // Move cursor to the start of the line
-                self.doc[self.tab].offset.x = 0;
-                self.doc[self.tab].cursor.x = 0;
-                self.doc[self.tab].graphemes = 0;
-            }
-            Key::End => {
-                // Move cursor to the end of the line
-                let cursor = self.doc[self.tab].cursor;
-                let offset = self.doc[self.tab].offset;
-                let line = self.doc[self.tab].rows[cursor.y + offset.y - OFFSET].clone();
-                if line.length()
-                    >= self
-                        .term
-                        .width
-                        .saturating_sub(self.doc[self.tab].line_offset as u16)
-                        as usize
-                {
-                    // Work out the width of the character to traverse
-                    let mut jump = 1;
-                    if let Some(chr) = line.ext_chars().get(line.length()) {
-                        jump = UnicodeWidthStr::width(*chr);
-                    }
-                    self.doc[self.tab].offset.x = line
-                        .length()
-                        .saturating_add(jump + self.doc[self.tab].line_offset + 1)
-                        .saturating_sub(self.term.width as usize);
-                    self.doc[self.tab].cursor.x = self
-                        .term
-                        .width
-                        .saturating_sub((jump + self.doc[self.tab].line_offset + 1) as u16)
-                        as usize;
-                } else {
-                    self.doc[self.tab].cursor.x = line.length();
-                }
-                self.doc[self.tab].graphemes = line.chars().len();
-            }
-            _ => (),
-        }
-    }
     fn move_cursor(&mut self, direction: Key) {
         // Move the cursor around the editor
         match direction {
@@ -941,14 +883,14 @@ impl Editor {
                     < self.doc[self.tab].rows.len()
                 {
                     // If the proposed move is within the length of the document
-                    if self.doc[self.tab].cursor.y == self.term.height.saturating_sub(3) as usize {
+                    if self.doc[self.tab].cursor.y == self.term.size.height.saturating_sub(3) {
                         self.doc[self.tab].offset.y = self.doc[self.tab].offset.y.saturating_add(1);
                     } else {
                         self.doc[self.tab].cursor.y = self.doc[self.tab].cursor.y.saturating_add(1);
                     }
-                    self.snap_cursor();
-                    self.prevent_unicode_hell();
-                    self.recalculate_graphemes();
+                    self.doc[self.tab].snap_cursor(&self.term.size);
+                    self.doc[self.tab].prevent_unicode_hell();
+                    self.doc[self.tab].recalculate_graphemes();
                 }
             }
             Key::Up => {
@@ -958,9 +900,9 @@ impl Editor {
                 } else if self.doc[self.tab].cursor.y != OFFSET {
                     self.doc[self.tab].cursor.y = self.doc[self.tab].cursor.y.saturating_sub(1);
                 }
-                self.snap_cursor();
-                self.prevent_unicode_hell();
-                self.recalculate_graphemes();
+                self.doc[self.tab].snap_cursor(&self.term.size);
+                self.doc[self.tab].prevent_unicode_hell();
+                self.doc[self.tab].recalculate_graphemes();
             }
             Key::Right => {
                 // Move the cursor right
@@ -980,16 +922,16 @@ impl Editor {
                     let indicator1 = self.doc[self.tab].cursor.x
                         == self
                             .term
+                            .size
                             .width
-                            .saturating_sub((self.doc[self.tab].line_offset + jump + 1) as u16)
-                            as usize;
+                            .saturating_sub(self.doc[self.tab].line_offset + jump + 1);
                     // Check for half broken unicode character
                     let indicator2 = self.doc[self.tab].cursor.x
                         == self
                             .term
+                            .size
                             .width
-                            .saturating_sub((self.doc[self.tab].line_offset + jump) as u16)
-                            as usize;
+                            .saturating_sub(self.doc[self.tab].line_offset + jump);
                     if indicator1 || indicator2 {
                         self.doc[self.tab].offset.x =
                             self.doc[self.tab].offset.x.saturating_add(jump);
@@ -1021,53 +963,10 @@ impl Editor {
             _ => (),
         }
     }
-    fn snap_cursor(&mut self) {
-        // Snap the cursor to the end of the row when outside
-        let current = self.doc[self.tab].rows
-            [self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET]
-            .clone();
-        if current.length() <= self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x {
-            // If the cursor is out of bounds
-            self.leap_cursor(Key::Home);
-            self.leap_cursor(Key::End);
-        }
-    }
-    fn prevent_unicode_hell(&mut self) {
-        // Make sure that the cursor isn't inbetween a unicode character
-        let line = &self.doc[self.tab].rows
-            [self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET];
-        if line.length() > self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x {
-            // As long as the cursor is within range
-            let boundaries = line.boundaries();
-            let mut index = self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x;
-            if !boundaries.contains(&index) && index != 0 {}
-            while !boundaries.contains(&index) && index != 0 {
-                self.doc[self.tab].cursor.x = self.doc[self.tab].cursor.x.saturating_sub(1);
-                self.doc[self.tab].graphemes = self.doc[self.tab].graphemes.saturating_sub(1);
-                index = index.saturating_sub(1);
-            }
-        }
-    }
-    fn recalculate_graphemes(&mut self) {
-        // Recalculate the grapheme cursor after moving up and down
-        let current = self.doc[self.tab].rows
-            [self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET]
-            .clone();
-        let jumps = current.get_jumps();
-        let mut counter = 0;
-        for (mut counter2, i) in jumps.into_iter().enumerate() {
-            if counter == self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x {
-                break;
-            }
-            counter2 += 1;
-            self.doc[self.tab].graphemes = counter2;
-            counter += i;
-        }
-    }
     fn goto(&mut self, pos: &Position) {
         // Move the cursor to a specific location
-        let max_y = self.term.height.saturating_sub(3) as usize;
-        let max_x = (self.term.width as usize).saturating_sub(self.doc[self.tab].line_offset);
+        let max_y = self.term.size.height.saturating_sub(3);
+        let max_x = (self.term.size.width).saturating_sub(self.doc[self.tab].line_offset);
         let halfway_y = max_y / 2;
         let halfway_x = max_x / 2;
         if self.doc[self.tab].offset.x == 0 && pos.y < max_y && pos.x < max_x {
@@ -1114,9 +1013,9 @@ impl Editor {
     }
     fn welcome_message(&self, text: &str, colour: color::Fg<color::Rgb>) -> String {
         // Render the welcome message
-        let pad = " ".repeat((self.term.width as usize / 2).saturating_sub(text.len() / 2));
+        let pad = " ".repeat((self.term.size.width / 2).saturating_sub(text.len() / 2));
         let pad_right = " ".repeat(
-            (self.term.width.saturating_sub(1) as usize)
+            (self.term.size.width.saturating_sub(1))
                 .saturating_sub(text.len() + pad.len())
                 .saturating_sub(self.config.general.line_number_padding_left),
         );
@@ -1129,7 +1028,7 @@ impl Editor {
             colour,
             trim_end(
                 &format!("{}{}", pad, text),
-                self.term.width.saturating_sub(1) as usize
+                self.term.size.width.saturating_sub(1)
             ),
             pad_right,
             RESET_FG,
@@ -1167,7 +1066,7 @@ impl Editor {
             Reader::rgb_bg(self.config.theme.status_bg),
             trim_end(
                 &format!("{}{}{}", left, padding, right),
-                self.term.width as usize
+                self.term.size.width
             ),
             RESET_BG,
             RESET_FG,
@@ -1193,7 +1092,7 @@ impl Editor {
                 "{}{}{}{}{}",
                 style::Bold,
                 color::Fg(color::Red),
-                self.add_background(&trim_end(&line, self.term.width as usize)),
+                self.add_background(&trim_end(&line, self.term.size.width)),
                 color::Fg(color::Reset),
                 style::Reset
             )),
@@ -1201,11 +1100,11 @@ impl Editor {
                 "{}{}{}{}{}",
                 style::Bold,
                 color::Fg(color::Yellow),
-                self.add_background(&trim_end(&line, self.term.width as usize)),
+                self.add_background(&trim_end(&line, self.term.size.width)),
                 color::Fg(color::Reset),
                 style::Reset
             )),
-            Type::Info => self.add_background(&trim_end(&line, self.term.width as usize)),
+            Type::Info => self.add_background(&trim_end(&line, self.term.size.width)),
         }
     }
     fn tab_line(&mut self) -> String {
@@ -1242,7 +1141,7 @@ impl Editor {
             }
             // Check if tab will fit in window width, otherwise put in a "..."
             width += self.exp.ansi_len(&this);
-            if width + 3 > self.term.width as usize {
+            if width + 3 > self.term.size.width {
                 result += &"...";
                 break;
             } else {
@@ -1263,45 +1162,44 @@ impl Editor {
         let mut frame = vec![self.tab_line()];
         let rendered = self.doc[self.tab].render();
         let reg = self.doc[self.tab].regex.clone();
-        for row in (OFFSET as u16)..self.term.height {
-            let row = row.saturating_sub(OFFSET as u16);
+        for row in OFFSET..self.term.size.height {
+            let row = row.saturating_sub(OFFSET);
             if let Some(r) = self.doc[self.tab].rows.get_mut(offset.y + row as usize) {
                 r.update_syntax(&self.config, &reg, &rendered, offset.y + row as usize);
             }
-            if row == self.term.height - 1 - OFFSET as u16 {
+            if row == self.term.size.height - 1 - OFFSET {
                 // Render command line
                 frame.push(self.command_line());
-            } else if row == self.term.height - 2 - OFFSET as u16 {
+            } else if row == self.term.size.height - 2 - OFFSET {
                 // Render status line
                 frame.push(self.status_line());
-            } else if row == self.term.height / 4 - OFFSET as u16 && self.doc[self.tab].show_welcome
-            {
+            } else if row == self.term.size.height / 4 - OFFSET && self.doc[self.tab].show_welcome {
                 frame.push(self.welcome_message(
                     &format!("Ox editor  v{}", VERSION),
                     Reader::rgb_fg(self.config.theme.editor_fg),
                 ));
-            } else if row == (self.term.height / 4).saturating_add(1) - OFFSET as u16
+            } else if row == (self.term.size.height / 4).saturating_add(1) - OFFSET
                 && self.doc[self.tab].show_welcome
             {
                 frame.push(self.welcome_message(
                     "A Rust powered editor by Luke",
                     Reader::rgb_fg(self.config.theme.editor_fg),
                 ));
-            } else if row == (self.term.height / 4).saturating_add(3) - OFFSET as u16
+            } else if row == (self.term.size.height / 4).saturating_add(3) - OFFSET
                 && self.doc[self.tab].show_welcome
             {
                 frame.push(self.welcome_message(
                     "Ctrl + Q: Exit   ",
                     Reader::rgb_fg(self.config.theme.status_fg),
                 ));
-            } else if row == (self.term.height / 4).saturating_add(4) - OFFSET as u16
+            } else if row == (self.term.size.height / 4).saturating_add(4) - OFFSET
                 && self.doc[self.tab].show_welcome
             {
                 frame.push(self.welcome_message(
                     "Ctrl + S: Save   ",
                     Reader::rgb_fg(self.config.theme.status_fg),
                 ));
-            } else if row == (self.term.height / 4).saturating_add(5) - OFFSET as u16
+            } else if row == (self.term.size.height / 4).saturating_add(5) - OFFSET
                 && self.doc[self.tab].show_welcome
             {
                 frame.push(self.welcome_message(
@@ -1315,7 +1213,7 @@ impl Editor {
                 // Render lines of code
                 frame.push(self.add_background(&line.render(
                     self.doc[self.tab].offset.x,
-                    self.term.width as usize,
+                    self.term.size.width,
                     self.doc[self.tab].offset.y + row as usize,
                     self.doc[self.tab].line_offset,
                     &self.config,

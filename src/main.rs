@@ -32,7 +32,7 @@ use editor::{Editor, Position};
 use row::Row;
 use std::time::Duration;
 use std::{env, panic, thread};
-use terminal::Terminal;
+use terminal::{Size, Terminal};
 use undo::{Event, EventStack};
 
 // Get the current version of Ox
