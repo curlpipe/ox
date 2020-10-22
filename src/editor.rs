@@ -129,6 +129,7 @@ impl Editor {
             Key::Ctrl('q') => self.quit(),
             Key::Ctrl('s') => self.save(),
             Key::Ctrl('w') => self.save_as(),
+            Key::Ctrl('p') => self.save_all(),
             Key::Ctrl('n') => self.new_document(),
             Key::Ctrl('o') => self.open_document(),
             Key::Ctrl('f') => self.search(),
@@ -175,15 +176,13 @@ impl Editor {
     }
     fn new_document(&mut self) {
         // Handle new document event
-        if self.dirty_prompt('n', "new") {
-            self.doc.push(Document::new(&self.config, &self.status));
-            self.tab = self.doc.len().saturating_sub(1);
-            self.doc[self.tab].dirty = false;
-            self.doc[self.tab].show_welcome = true;
-            self.doc[self.tab].cursor.y = OFFSET;
-            self.doc[self.tab].offset.y = 0;
-            self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
-        }
+        self.doc.push(Document::new(&self.config, &self.status));
+        self.tab = self.doc.len().saturating_sub(1);
+        self.doc[self.tab].dirty = false;
+        self.doc[self.tab].show_welcome = true;
+        self.doc[self.tab].cursor.y = OFFSET;
+        self.doc[self.tab].offset.y = 0;
+        self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
     }
     fn open_document(&mut self) {
         // Handle open document event
@@ -242,6 +241,23 @@ impl Editor {
         }
         // Commit to the undo stack on save as
         self.doc[self.tab].undo_stack.commit();
+    }
+    fn save_all(&mut self) {
+        for i in 0..self.doc.len() {
+            let path = self.doc[i].path.clone();
+            if self.doc[i].save().is_ok() {
+                // The document saved successfully
+                self.doc[i].dirty = false;
+                self.doc[i]
+                    .set_command_line(format!("File saved to {} successfully", path), Type::Info);
+            } else {
+                // The document couldn't save due to permission errors
+                self.doc[i]
+                    .set_command_line(format!("Failed to save file to {}", path), Type::Error);
+            }
+            // Commit to undo stack on document save
+            self.doc[i].undo_stack.commit();
+        }
     }
     fn search(&mut self) {
         // For searching the file
@@ -694,21 +710,32 @@ impl Editor {
             let this;
             if num == self.tab && !self.doc.len() == num {
                 // Render inactive tabs
-                this = format!("{} {} |", Reader::rgb_bg(self.config.theme.editor_bg), name);
+                this = format!(
+                    "{} {}{} |",
+                    Reader::rgb_bg(self.config.theme.editor_bg),
+                    name,
+                    if doc.dirty { "[+]" } else { "" }
+                );
             } else if num == self.tab {
                 // Render active tab
                 this = format!(
-                    "{}{} {} {}{}|",
+                    "{}{} {}{} {}{}|",
                     Reader::rgb_bg(self.config.theme.editor_bg),
                     style::Bold,
                     name,
+                    if doc.dirty { "[+]" } else { "" },
                     style::Reset,
                     Reader::rgb_bg(self.config.theme.status_bg)
                 );
             } else if num.saturating_sub(1) == self.tab {
-                this = format!("{} {} |", Reader::rgb_bg(self.config.theme.status_bg), name);
+                this = format!(
+                    "{} {}{} |",
+                    Reader::rgb_bg(self.config.theme.status_bg),
+                    name,
+                    if doc.dirty { "[+]" } else { "" }
+                );
             } else {
-                this = format!(" {} |", name);
+                this = format!(" {}{} |", name, if doc.dirty { "[+]" } else { "" });
             }
             // Check if tab will fit in window width, otherwise put in a "..."
             width += self.exp.ansi_len(&this);

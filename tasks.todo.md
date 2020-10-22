@@ -1,7 +1,5 @@
 0.2.5 (Multitasking) { Manage multiple buffers in one instance }
-- [ ] Save all
-  - [ ] Write function
-  - [ ] Set up keybinding
+- [ ] Dynamic tab offset
 - [X] Tabs
   - [X] Allow holding several documents
   - [X] Set up current doc variable
@@ -15,6 +13,10 @@
 - [X] Balance load between editor and document files
   - [X] Move variables
   - [X] Move methods around
+- [X] Save all
+  - [X] Add dirty indicator to tab
+  - [X] Write function
+  - [X] Set up keybinding
 
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
