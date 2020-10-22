@@ -229,7 +229,7 @@ impl Document {
             Key::PageDown => {
                 // Move cursor to the bottom of the screen
                 self.cursor.y = cmp::min(
-                    self.rows.len().saturating_sub(1),
+                    self.rows.len().saturating_sub(1).saturating_add(OFFSET),
                     term.height.saturating_sub(3) as usize,
                 );
                 self.snap_cursor(term);
