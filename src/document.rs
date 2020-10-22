@@ -1,11 +1,12 @@
 // Document.rs - For managing external files
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
+use crate::util::raw_to_grapheme;
 use crate::{Event, EventStack, Position, Row, Size};
 use regex::Regex;
 use std::{cmp, fs};
 use termion::event::Key;
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 // For holding the info in the command line
 pub struct CommandLine {
@@ -440,6 +441,157 @@ impl Document {
                     ));
                 }
             }
+        }
+    }
+    pub fn redo(&mut self, config: &Reader, term: &Size) {
+        // Redo an action
+        if let Some(events) = self.redo_stack.pop() {
+            for event in events.iter().rev() {
+                // Reverse the undo action
+                match event {
+                    // TODO: Update relavent lines here
+                    Event::InsertTab(pos) => {
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
+                        self.cursor.x =
+                            pos.x.saturating_sub(config.general.tab_width) - self.offset.x;
+                        self.recalculate_graphemes();
+                        self.tab(&config, &term);
+                    }
+                    Event::InsertMid(pos, c) => {
+                        let c_len = UnicodeWidthChar::width(*c).map_or(0, |c| c);
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
+                        self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
+                        self.recalculate_graphemes();
+                        self.rows[pos.y].insert(*c, pos.x);
+                    }
+                    Event::BackspaceMid(pos, _) => {
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
+                        self.cursor.x = pos.x - self.offset.x;
+                        self.recalculate_graphemes();
+                        self.rows[pos.y].delete(pos.x);
+                    }
+                    Event::ReturnEnd(pos) => {
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
+                        self.cursor.x = pos.x - self.offset.x;
+                        self.recalculate_graphemes();
+                        self.rows.insert(pos.y + 1, Row::from(""));
+                        self.move_cursor(Key::Down, &term);
+                    }
+                    Event::ReturnStart(pos) => {
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
+                        self.cursor.x = pos.x - self.offset.x;
+                        self.recalculate_graphemes();
+                        self.rows.insert(pos.y, Row::from(""));
+                        self.move_cursor(Key::Down, &term);
+                    }
+                    Event::ReturnMid(pos, breakpoint) => {
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
+                        self.cursor.x = pos.x - self.offset.x;
+                        self.recalculate_graphemes();
+                        let current = self.rows[pos.y].string.clone();
+                        let before = Row::from(&current[..*breakpoint]);
+                        let after = Row::from(&current[*breakpoint..]);
+                        self.rows.insert(pos.y + 1, after);
+                        self.rows[pos.y] = before;
+                        self.move_cursor(Key::Down, &term);
+                        self.leap_cursor(Key::Home, &term);
+                    }
+                    Event::BackspaceStart(pos) => {
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
+                        self.recalculate_graphemes();
+                        let current = self.rows[pos.y + 1].string.clone();
+                        let prev = self.rows[pos.y].clone();
+                        self.rows[pos.y + 1] = Row::from(&(prev.string.clone() + &current)[..]);
+                        self.rows.remove(pos.y);
+                        self.move_cursor(Key::Up, &term);
+                        self.cursor.x = prev.length();
+                        self.recalculate_graphemes();
+                    }
+                    Event::UpdateLine(pos, _, after) => {
+                        self.rows[*pos] = *after.clone();
+                        self.snap_cursor(&term);
+                        self.prevent_unicode_hell();
+                        self.recalculate_graphemes();
+                    }
+                }
+                self.dirty = true;
+                self.show_welcome = false;
+            }
+            self.undo_stack.append(events);
+        } else {
+            self.set_command_line("Empty Redo Stack".to_string(), Type::Error);
+        }
+    }
+    pub fn undo(&mut self, config: &Reader, term: &Size) {
+        // Initiate an undo action
+        self.undo_stack.commit();
+        if let Some(events) = self.undo_stack.pop() {
+            for event in &events {
+                // Undo the previous action
+                match event {
+                    // TODO: Update relavent lines here
+                    Event::InsertTab(pos) => {
+                        for i in 1..=config.general.tab_width {
+                            self.rows[pos.y].delete(pos.x - i);
+                            self.move_cursor(Key::Left, &term);
+                        }
+                    }
+                    Event::InsertMid(pos, c) => {
+                        let c_len = UnicodeWidthChar::width(*c).map_or(0, |c| c);
+                        self.cursor.y = pos.y - self.offset.y + OFFSET;
+                        self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
+                        self.recalculate_graphemes();
+                        let string = self.rows[pos.y].string.clone();
+                        self.rows[pos.y].delete(raw_to_grapheme(pos.x, &string));
+                        for _ in 0..c_len {
+                            self.move_cursor(Key::Left, term);
+                        }
+                    }
+                    Event::BackspaceMid(pos, c) => {
+                        self.rows[pos.y].insert(*c, pos.x);
+                        self.move_cursor(Key::Right, term);
+                    }
+                    Event::ReturnEnd(pos) => {
+                        self.rows.remove(pos.y + 1);
+                        self.move_cursor(Key::Up, term);
+                        self.leap_cursor(Key::End, term);
+                    }
+                    Event::ReturnStart(pos) => {
+                        self.rows.remove(pos.y);
+                        self.move_cursor(Key::Up, term);
+                    }
+                    Event::ReturnMid(pos, breakpoint) => {
+                        let current = self.rows[pos.y].string.clone();
+                        let after = self.rows[pos.y + 1].string.clone();
+                        self.rows.remove(pos.y);
+                        self.rows[pos.y] = Row::from(&(current + &after)[..]);
+                        self.move_cursor(Key::Up, term);
+                        self.leap_cursor(Key::Home, term);
+                        for _ in 0..*breakpoint {
+                            self.move_cursor(Key::Right, term);
+                        }
+                    }
+                    Event::BackspaceStart(pos) => {
+                        let before = Row::from(&self.rows[pos.y].string[..pos.x]);
+                        let after = Row::from(&self.rows[pos.y].string[pos.x..]);
+                        self.rows[pos.y] = after;
+                        self.rows.insert(pos.y, before);
+                        self.move_cursor(Key::Down, term);
+                        self.leap_cursor(Key::Home, term);
+                    }
+                    Event::UpdateLine(pos, before, _) => {
+                        self.rows[*pos] = *before.clone();
+                        self.snap_cursor(term);
+                        self.prevent_unicode_hell();
+                        self.recalculate_graphemes();
+                    }
+                }
+                self.dirty = true;
+                self.show_welcome = false;
+            }
+            self.redo_stack.append(events);
+        } else {
+            self.set_command_line("Empty Undo Stack".to_string(), Type::Error);
         }
     }
     pub fn save(&self) -> std::io::Result<()> {
