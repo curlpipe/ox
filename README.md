@@ -135,27 +135,24 @@ You can also use:
 
 You can use the keys <kbd>Backspace</kbd> and <kbd>Return</kbd> / <kbd>Enter</kbd> as well as all the characters on your keyboard to edit files!
 
-#### Saving the file
 
-The simple keyboard shortcut of <kbd>Ctrl + S</kbd> can be used to save the current file and <kbd>Ctrl + W</kbd> can be used to "save as" the current file to a specific path.
+Ox is controlled via your keyboard shortcuts. Here are the default shortcuts that you can use:
 
-#### Closing Ox
-
-You can use the keybinding <kbd>Ctrl + Q</kbd> to exit Ox.
-
-#### Searching a file in Ox
-
-You can search both back and forth by activating the search feature through <kbd>Ctrl + F</kbd>, typing out what you wish to search and then using <kbd>→</kbd> or <kbd>↓</kbd> To search forward and <kbd>←</kbd> or <kbd>↑</kbd> to search backwards. 
-
-If at any time you wish to exit the search feature and return to the location in the document that you were in before activating the search feature, you can press <kbd>esc</kbd> on your keyboard, otherwise you can press any other key to exit the search feature and start editing your document at the new location.
-
-#### Replacing
-
-As with most text editors, Ox provides a replace / replace all feature <kbd>Ctrl + R</kbd> to replace individual occurances and <kbd>Ctrl + A</kbd> to replace all occurances at once. Regular expressions are supported in both commands.
-
-#### Undoing / Redoing
-
-Undoing and Redoing in Ox is as simple as <kbd>Ctrl + U</kbd> to undo and <kbd>Ctrl + Y</kbd> to redo. The changes are commited to the undo stack every time you press the space bar, create / destroy a new line and when there is inactivity longer than a specific period of time. (e.g. Ox will commit to the undo stack after 10 seconds of inactivity, possibly while you pause for thought or a break)
+| Keybinding  | What it does  |
+| ------------ | ------------ |
+| `Ctrl + Q`  | Exits the current tab or the editor if only one tab open.  | 
+| `Ctrl + S`  | Saves the open file to the disk.  | 
+| `Ctrl + W`  | Prompts you for a file name and saves it to disk as that file name.  | 
+| `Ctrl + P`  | Saves all the currently open files to the disk. | 
+| `Ctrl + N`  | Creates a new tab with a blank document.  | 
+| `Ctrl + O`  | Prompts you for a file and opens that file in a new tab.  | 
+| `Ctrl + F`  | Searches the document for a search query. Allows pressing of <kbd>↑</kbd> and <kbd>←</kbd> to move the cursor to the previous occurance fof the query and <kbd>↓</kbd> and <kbd>→</kbd> to move to the next occurance of the query. Press <kbd>Return</kbd> to cancel the search at the current cursor position or <kbd>Esc</kbd> to cancel the search and return to the initial location of the cursor. Note: this allows you to use regular expressions. | 
+| `Ctrl + U`  | Undoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
+| `Ctrl + Y`  | Redoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
+| `Ctrl + R`  | Allows replacing of occurances in the document. Uses the same keybindings as the search feature: <kbd>↑</kbd> and <kbd>←</kbd> to move the cursor to the previous occurance fof the query and <kbd>↓</kbd> and <kbd>→</kbd> to move to the next occurance of the query. You can also press <kbd>Return</kbd>, <kbd>y</kbd> or <kbd>Space</kbd> to carry out the replace action. To exit replace mode once you're finished, you can press <kbd>Esc</kbd> to cancel and return back to your initial cursor position. Note: this allows you to use regular expressions. | 
+| `Ctrl + A`  | Carries out a batch replace option. It will prompt you for a target to replace and what you want to replace it with and will then replace every occurance in the document. Note: this allows you to use regular expressions. | 
+| `Ctrl + D`  | Navigates to the previous tab.  | 
+| `Ctrl + H`  | Navigates to the next tab.  | 
 
 #### Configuring Ox
 
