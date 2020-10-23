@@ -52,6 +52,13 @@
   - [ ] Transparent background
   - [ ] Improved language syntax highlighting support
   - [ ] Live / Command for reloading of the config file
+  - [ ] Add more languages
+    - [ ] x86 Assembly
+    - [ ] Go
+    - [ ] C++
+    - [ ] C#
+    - [ ] Java
+    - [ ] SQL
 - [ ] Rewrite using crossterm for windows support and efficiency
   - [ ] Build RGB ansi code function
   - [ ] Fix unwrap on terminal size
