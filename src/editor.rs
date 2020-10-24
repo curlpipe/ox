@@ -138,6 +138,7 @@ impl Editor {
             Key::Ctrl('a') => self.replace_all(),
             Key::Ctrl('d') => self.prev_tab(),
             Key::Ctrl('h') => self.next_tab(),
+            Key::Alt('a') => self.cmd(),
             Key::Left | Key::Right | Key::Up | Key::Down => {
                 self.doc[self.tab].move_cursor(key, &self.term.size)
             }
@@ -145,6 +146,11 @@ impl Editor {
                 self.doc[self.tab].leap_cursor(key, &self.term.size)
             }
             _ => (),
+        }
+    }
+    fn cmd(&mut self) {
+        if let Some(command) = self.prompt(">", " ", &|_, _, _| {}) {
+            self.doc[self.tab].set_command_line(format!("Recieved macro {}", command), Type::Info);
         }
     }
     fn next_tab(&mut self) {
@@ -186,7 +192,7 @@ impl Editor {
     fn open_document(&mut self) {
         // Handle open document event
         // TODO: Highlight entire file here
-        if let Some(result) = self.prompt("Open", &|_, _, _| {}) {
+        if let Some(result) = self.prompt("Open", ": ", &|_, _, _| {}) {
             if let Some(doc) = Document::open(&self.config, &self.status, &result[..]) {
                 // Overwrite the current document
                 self.doc.push(doc);
@@ -220,7 +226,7 @@ impl Editor {
     }
     fn save_as(&mut self) {
         // Handle save as event
-        if let Some(result) = self.prompt("Save as", &|_, _, _| {}) {
+        if let Some(result) = self.prompt("Save as", ": ", &|_, _, _| {}) {
             if self.doc[self.tab].save_as(&result[..]).is_ok() {
                 // The document could save as
                 let ext = result.split('.').last().unwrap_or(&"");
@@ -266,7 +272,7 @@ impl Editor {
         let initial_cursor = self.doc[self.tab].cursor;
         let initial_offset = self.doc[self.tab].offset;
         // Ask for a search term after saving the current cursor position
-        self.prompt("Search", &|s, e, t| {
+        self.prompt("Search", ": ", &|s, e, t| {
             // Find all occurances in the document
             let search_points = s.doc[s.tab].scan(t, OFFSET);
             let cursor = s.doc[s.tab].cursor;
@@ -345,8 +351,8 @@ impl Editor {
         let initial_cursor = self.doc[self.tab].cursor;
         let initial_offset = self.doc[self.tab].offset;
         // After saving the cursor position, ask the user for the information
-        if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
-            if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
+        if let Some(target) = self.prompt("Replace", ": ", &|_, _, _| {}) {
+            if let Some(arrow) = self.prompt("With", ": ", &|_, _, _| {}) {
                 // Construct a regular expression for searching
                 let re = Regex::new(&target).unwrap();
                 let mut search_points = self.doc[self.tab].scan(&target, OFFSET);
@@ -454,8 +460,8 @@ impl Editor {
     }
     fn replace_all(&mut self) {
         // Replace all occurances of a substring
-        if let Some(target) = self.prompt("Replace", &|_, _, _| {}) {
-            if let Some(arrow) = self.prompt("With", &|_, _, _| {}) {
+        if let Some(target) = self.prompt("Replace", ": ", &|_, _, _| {}) {
+            if let Some(arrow) = self.prompt("With", ": ", &|_, _, _| {}) {
                 // Commit undo stack changes
                 self.doc[self.tab].undo_stack.commit();
                 let re = Regex::new(&target).unwrap();
@@ -515,10 +521,11 @@ impl Editor {
     fn prompt(
         &mut self,
         prompt: &str,
+        ending: &str,
         func: &dyn Fn(&mut Self, PromptEvent, &str),
     ) -> Option<String> {
         // Create a new prompt
-        self.doc[self.tab].set_command_line(format!("{}: ", prompt), Type::Info);
+        self.doc[self.tab].set_command_line(format!("{}{}", prompt, ending), Type::Info);
         self.update();
         let mut result = String::new();
         'p: loop {
@@ -546,7 +553,7 @@ impl Editor {
                 }
                 _ => func(self, PromptEvent::KeyPress(key), &result),
             }
-            self.doc[self.tab].set_command_line(format!("{}: {}", prompt, result), Type::Info);
+            self.doc[self.tab].set_command_line(format!("{}{}{}", prompt, ending, result), Type::Info);
             func(self, PromptEvent::Update, &result);
             self.update();
         }

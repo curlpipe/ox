@@ -1,6 +1,5 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
-  - [ ] Allow special command mode
   - [ ] Have a few example macros
     - [ ] Goto line number
     - [ ] Move forward a word
@@ -9,6 +8,7 @@
     - [ ] Move line
     - [ ] Move cursor
   - [ ] Allow binding of macros to some keys
+  - [X] Allow special command mode
 
 0.2.7 (Small patches) { Small tweaks to make Ox more comfy }
 - [ ] General Editing
