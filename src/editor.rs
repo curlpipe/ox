@@ -10,7 +10,6 @@ use std::{io::Error, thread};
 use termion::event::Key;
 use termion::input::{Keys, TermRead};
 use termion::{async_stdin, color, style, AsyncReader};
-use unicode_segmentation::UnicodeSegmentation;
 
 // Set up color resets
 pub const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
@@ -224,12 +223,15 @@ impl Editor {
         if let Some(result) = self.prompt("Save as", &|_, _, _| {}) {
             if self.doc[self.tab].save_as(&result[..]).is_ok() {
                 // The document could save as
+                let ext = result.split('.').last().unwrap_or(&"");
                 self.doc[self.tab].dirty = false;
                 self.doc[self.tab]
                     .set_command_line(format!("File saved to {} successfully", result), Type::Info);
-                self.doc[self.tab].icon = Document::identify(&result);
+                self.doc[self.tab].kind = Document::identify(&result).0.to_string();
+                self.doc[self.tab].icon = Document::identify(&result).1.to_string();
                 self.doc[self.tab].name = result.clone();
-                self.doc[self.tab].path = result;
+                self.doc[self.tab].path = result.clone();
+                self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
             } else {
                 // The document couldn't save to the file
                 self.doc[self.tab]
@@ -626,13 +628,14 @@ impl Editor {
         // Produce the status line
         // Create the left part of the status line
         let left = format!(
-            " {}{} \u{2502} {} ",
+            " {}{} \u{2502} {} {} ",
             self.doc[self.tab].name,
             if self.doc[self.tab].dirty {
                 "[+] \u{fb12} "
             } else {
                 " \u{f723} "
             },
+            self.doc[self.tab].kind,
             self.doc[self.tab].icon,
         );
         // Create the right part of the status line
@@ -696,56 +699,44 @@ impl Editor {
     }
     fn tab_line(&mut self) -> String {
         // Render the tab line
-        let mut result = String::new();
-        let mut width = 0;
-        // Iterate through documents
+        let mut result = vec![];
+        let mut widths = vec![];
+        let active = Reader::rgb_bg(self.config.theme.editor_bg);
+        let inactive = Reader::rgb_bg(self.config.theme.status_bg);
+        // Iterate through documents and create their tab text
         for (num, doc) in self.doc.iter().enumerate() {
-            // Calculate value for tab
-            let mut name = doc.name.clone();
-            let icons: Vec<&str> = doc.icon.graphemes(true).collect();
-            if icons.len() > 2 {
-                let icons = &icons.get(icons.len() - 2..).unwrap_or_default().join("");
-                name = format!("{} {}", icons, doc.name);
-            }
-            let this;
-            if num == self.tab && !self.doc.len() == num {
-                // Render inactive tabs
-                this = format!(
-                    "{} {}{} |",
-                    Reader::rgb_bg(self.config.theme.editor_bg),
-                    name,
-                    if doc.dirty { "[+]" } else { "" }
-                );
-            } else if num == self.tab {
-                // Render active tab
-                this = format!(
-                    "{}{} {}{} {}{}|",
-                    Reader::rgb_bg(self.config.theme.editor_bg),
-                    style::Bold,
-                    name,
-                    if doc.dirty { "[+]" } else { "" },
-                    style::Reset,
-                    Reader::rgb_bg(self.config.theme.status_bg)
-                );
-            } else if num.saturating_sub(1) == self.tab {
-                this = format!(
-                    "{} {}{} |",
-                    Reader::rgb_bg(self.config.theme.status_bg),
-                    name,
-                    if doc.dirty { "[+]" } else { "" }
-                );
+            let this = format!(
+                "{} {}{}{} {}{}|", 
+                if num == self.tab {
+                    format!("{}{}", style::Bold, active)
+                } else {
+                    inactive.to_string()
+                },
+                if doc.icon.is_empty() {doc.icon.to_string()} else {format!("{} ", doc.icon)},
+                doc.name,
+                if doc.dirty {"[+]"} else {""},
+                style::Reset,
+                inactive.to_string(),
+            );
+            widths.push(self.exp.ansi_len(this.as_str()));
+            result.push(this);
+        }
+        // Determine if the tab can be rendered on screen
+        let mut more_right = true;
+        while widths.iter().sum::<usize>() > self.term.size.width {
+            if self.tab == 0 || self.tab == 1 {
+                result.pop();
+                widths.pop();
+                more_right = false;
             } else {
-                this = format!(" {}{} |", name, if doc.dirty { "[+]" } else { "" });
-            }
-            // Check if tab will fit in window width, otherwise put in a "..."
-            width += self.exp.ansi_len(&this);
-            if width + 3 > self.term.size.width {
-                result += &"...";
-                break;
-            } else {
-                result += &this;
+                result.remove(0);
+                widths.remove(0);
             }
         }
+        if widths.iter().sum::<usize>() < self.term.size.width.saturating_sub(3) && !more_right {
+            result.push("...".to_string());
+        }
+        let result = result.join("");
         format!(
             "{}{}{}{}",
             Reader::rgb_bg(self.config.theme.status_bg),
