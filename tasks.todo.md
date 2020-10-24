@@ -1,23 +1,3 @@
-0.2.5 (Multitasking) { Manage multiple buffers in one instance }
-- [ ] Dynamic tab offset
-- [X] Tabs
-  - [X] Allow holding several documents
-  - [X] Set up current doc variable
-  - [X] Rewrite editor to use documents from current doc
-  - [X] Allow editor to move between different documents
-  - [X] Add tab line
-  - [X] Ctrl + Q closes document rather than editor
-  - [X] Make current tab bold
-  - [X] Remove open confirmation
-- [X] Update hardcoded config file
-- [X] Balance load between editor and document files
-  - [X] Move variables
-  - [X] Move methods around
-- [X] Save all
-  - [X] Add dirty indicator to tab
-  - [X] Write function
-  - [X] Set up keybinding
-
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
   - [ ] Allow special command mode
@@ -267,4 +247,24 @@ Further ideas { Further fun ideas to look at }
   - [X] Add C
   - [X] Add Ruby
   - [X] Add Crystal
+
+0.2.5 (Multitasking) { Manage multiple buffers in one instance }
+- [X] Tabs
+  - [X] Allow holding several documents
+  - [X] Set up current doc variable
+  - [X] Rewrite editor to use documents from current doc
+  - [X] Allow editor to move between different documents
+  - [X] Add tab line
+  - [X] Ctrl + Q closes document rather than editor
+  - [X] Make current tab bold
+  - [X] Remove open confirmation
+- [X] Update hardcoded config file
+- [X] Balance load between editor and document files
+  - [X] Move variables
+  - [X] Move methods around
+- [X] Save all
+  - [X] Add dirty indicator to tab
+  - [X] Write function
+  - [X] Set up keybinding
+- [X] Dynamic tab offset
 
