@@ -706,15 +706,19 @@ impl Editor {
         // Iterate through documents and create their tab text
         for (num, doc) in self.doc.iter().enumerate() {
             let this = format!(
-                "{} {}{}{} {}{}|", 
+                "{} {}{}{} {}{}|",
                 if num == self.tab {
                     format!("{}{}", style::Bold, active)
                 } else {
                     inactive.to_string()
                 },
-                if doc.icon.is_empty() {doc.icon.to_string()} else {format!("{} ", doc.icon)},
+                if doc.icon.is_empty() {
+                    doc.icon.to_string()
+                } else {
+                    format!("{} ", doc.icon)
+                },
                 doc.name,
-                if doc.dirty {"[+]"} else {""},
+                if doc.dirty { "[+]" } else { "" },
                 style::Reset,
                 inactive.to_string(),
             );
