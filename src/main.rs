@@ -32,7 +32,7 @@ use editor::{Editor, Position};
 use row::Row;
 use std::time::Duration;
 use std::{env, panic, thread};
-use terminal::Terminal;
+use terminal::{Size, Terminal};
 use undo::{Event, EventStack};
 
 // Get the current version of Ox
@@ -69,7 +69,7 @@ fn main() {
     // Check to see if the editor exited because of a runtime issue
     if result.is_err() {
         // Pause for a few seconds to catch debug information
-        thread::sleep(Duration::from_secs(1));
+        thread::sleep(Duration::from_secs(3));
     }
 }
 

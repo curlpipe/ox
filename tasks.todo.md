@@ -1,14 +1,3 @@
-0.2.5 (Multitasking) { Manage multiple buffers in one instance }
-- [ ] Tabs
-  - [ ] Allow holding several documents
-  - [ ] Set up current doc variable
-  - [ ] Rewrite editor to use documents from current doc
-  - [ ] Allow editor to move between different documents
-  - [ ] Add tab line
-- [ ] Save all
-  - [ ] Write function
-  - [ ] Set up keybinding
-
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
   - [ ] Allow special command mode
@@ -42,7 +31,14 @@
   - [ ] Highlight search and replace messages
   - [ ] Transparent background
   - [ ] Improved language syntax highlighting support
-  - [ ] Colour fallbacks
+  - [ ] Live / Command for reloading of the config file
+  - [ ] Add more languages
+    - [ ] x86 Assembly
+    - [ ] Go
+    - [ ] C++
+    - [ ] C#
+    - [ ] Java
+    - [ ] SQL
 - [ ] Rewrite using crossterm for windows support and efficiency
   - [ ] Build RGB ansi code function
   - [ ] Fix unwrap on terminal size
@@ -115,21 +111,23 @@
 
 Further ideas { Further fun ideas to look at }
 - [ ] Automatically closing status line
+- [ ] Discord rich presence
+- [ ] Nice, personal greeting
+- [ ] Theme changing depending on time of day
+- [ ] Live HTML editor
 - [ ] Split editors
 - [ ] Terminal integration
-- [ ] Package manager
-- [ ] Stack overflow searcher
+- [ ] Todo list
 - [ ] Cheatsheet downloader
-- [ ] Discord rich presence
-- [ ] Live HTML editor
+- [ ] Stack overflow searcher
 - [ ] HTML expansion like emmet
 - [ ] Documentation viewer
-- [ ] Todo list
 - [ ] Pomodoro timer for work / rest balance
 - [ ] Easter eggs
 - [ ] Automated tests
 - [ ] Theme builder
 - [ ] Typing speed tests / statistics
+- [ ] Package manager
 
 0.1.1
 - [X] Go to the next line at end of line
@@ -249,4 +247,24 @@ Further ideas { Further fun ideas to look at }
   - [X] Add C
   - [X] Add Ruby
   - [X] Add Crystal
+
+0.2.5 (Multitasking) { Manage multiple buffers in one instance }
+- [X] Tabs
+  - [X] Allow holding several documents
+  - [X] Set up current doc variable
+  - [X] Rewrite editor to use documents from current doc
+  - [X] Allow editor to move between different documents
+  - [X] Add tab line
+  - [X] Ctrl + Q closes document rather than editor
+  - [X] Make current tab bold
+  - [X] Remove open confirmation
+- [X] Update hardcoded config file
+- [X] Balance load between editor and document files
+  - [X] Move variables
+  - [X] Move methods around
+- [X] Save all
+  - [X] Add dirty indicator to tab
+  - [X] Write function
+  - [X] Set up keybinding
+- [X] Dynamic tab offset
 
