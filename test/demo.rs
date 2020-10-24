@@ -1,6 +1,6 @@
 /* 
     Ox 0.2.5
-    Finally highlights multiline comments.
+    Finally has tabs to open multiple files!
 */
 
 pub const PI = 3.14159;
