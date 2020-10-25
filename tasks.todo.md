@@ -13,6 +13,7 @@
   - [ ] Allow binding of macros to some keys (28th)
   - [X] Allow special command mode
 - [ ] Add more configuration options in the config file (29th)
+- [ ] Fix (0, 0) deletion issues
 - [X] Fix file tab issue (27th)
 
 0.2.7 (Small patches) { Small tweaks to make Ox more comfy }
@@ -22,7 +23,6 @@
   - [ ] Ctrl + Z for undo
   - [ ] Save as sudo / read only files
   - [ ] Backup
-  - [ ] Fix (0, 0) deletion issues
 - [ ] Searching
   - [ ] Exit search when typing characters and catch up with events
 - [ ] Undoing

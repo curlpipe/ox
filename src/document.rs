@@ -1,7 +1,7 @@
 // Document.rs - For managing external files
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
-use crate::util::{raw_to_grapheme, tabs_to_spaces, spaces_to_tabs};
+use crate::util::{raw_to_grapheme, spaces_to_tabs, tabs_to_spaces};
 use crate::{Event, EventStack, Position, Row, Size};
 use regex::Regex;
 use std::{cmp, fs};
@@ -632,7 +632,8 @@ impl Document {
     }
     pub fn render(&self, replace_tab: bool, tab_width: usize) -> String {
         // Render the lines of a document for writing
-        let render = self.rows
+        let render = self
+            .rows
             .iter()
             .map(|x| x.string.clone())
             .collect::<Vec<String>>()

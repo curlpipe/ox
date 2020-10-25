@@ -135,4 +135,3 @@ pub fn tabs_to_spaces(code: &str, tab_width: usize) -> String {
     }
     result.join("\n")
 }
-

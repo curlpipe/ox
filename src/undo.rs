@@ -12,8 +12,18 @@ pub enum Event {
     ReturnMid(Position, usize),            // Return from middle of the line
     ReturnEnd(Position),                   // Return on the end of line
     UpdateLine(usize, Box<Row>, Box<Row>), // For holding entire line updates
+    DeleteLine(usize, Box<Row>),           // For deleting a line
     MoveCursor(i128, i128),                // For moving the cursor
     GotoCursor(Position),                  // For setting the cursor position
+    Overwrite(Vec<Row>, Vec<Row>),         // Overwrite document
+    New,                                   // New document
+    Open(String),                          // Open document
+    Save(String),                          // Save document
+    SaveAll,                               // Save all documents
+    Undo,                                  // Undo event
+    Redo,                                  // Redo event
+    Commit,                                // Commit undo event
+    Quit,                                  // Quit document
 }
 
 // A struct for holding all the events taken by the user

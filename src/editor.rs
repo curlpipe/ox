@@ -1,6 +1,7 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{Reader, Status};
 use crate::document::Type;
+use crate::oxa::interpret_line;
 use crate::util::{is_ahead, is_behind, title, trim_end, Exp};
 use crate::{Document, Event, Row, Terminal, VERSION};
 use clap::App;
@@ -150,7 +151,15 @@ impl Editor {
     }
     fn cmd(&mut self) {
         if let Some(command) = self.prompt(">", " ", &|_, _, _| {}) {
-            self.doc[self.tab].set_command_line(format!("Recieved macro {}", command), Type::Info);
+            let output = format!(
+                "{:?}",
+                interpret_line(
+                    &command,
+                    &self.doc[self.tab].cursor,
+                    &self.doc[self.tab].rows
+                )
+            );
+            self.doc[self.tab].set_command_line(output, Type::Info);
         }
     }
     fn next_tab(&mut self) {
@@ -211,7 +220,10 @@ impl Editor {
     fn save(&mut self) {
         // Handle save event
         let path = self.doc[self.tab].path.clone();
-        if self.doc[self.tab].save(self.config.general.tab_width).is_ok() {
+        if self.doc[self.tab]
+            .save(self.config.general.tab_width)
+            .is_ok()
+        {
             // The document saved successfully
             self.doc[self.tab].dirty = false;
             self.doc[self.tab]
@@ -227,7 +239,10 @@ impl Editor {
     fn save_as(&mut self) {
         // Handle save as event
         if let Some(result) = self.prompt("Save as", ": ", &|_, _, _| {}) {
-            if self.doc[self.tab].save_as(&result[..], self.config.general.tab_width).is_ok() {
+            if self.doc[self.tab]
+                .save_as(&result[..], self.config.general.tab_width)
+                .is_ok()
+            {
                 // The document could save as
                 let ext = result.split('.').last().unwrap_or(&"");
                 self.doc[self.tab].dirty = false;
@@ -553,7 +568,8 @@ impl Editor {
                 }
                 _ => func(self, PromptEvent::KeyPress(key), &result),
             }
-            self.doc[self.tab].set_command_line(format!("{}{}{}", prompt, ending, result), Type::Info);
+            self.doc[self.tab]
+                .set_command_line(format!("{}{}{}", prompt, ending, result), Type::Info);
             func(self, PromptEvent::Update, &result);
             self.update();
         }
