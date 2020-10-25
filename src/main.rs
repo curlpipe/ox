@@ -20,6 +20,7 @@ mod config;
 mod document;
 mod editor;
 mod highlight;
+mod oxa;
 mod row;
 mod terminal;
 mod undo;
@@ -40,6 +41,18 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
     // Attempt to start an editor instance
+    /*
+    let pos = Position { x: 0, y: 0 };
+    println!("{:#?}", oxa::interpret_line("goto 40", &pos));
+    println!("{:#?}", oxa::interpret_line("goto 40 30", &pos));
+    println!("{:#?}", oxa::interpret_line("move 4", &pos));
+    println!("{:#?}", oxa::interpret_line("move -4", &pos));
+    println!("{:#?}", oxa::interpret_line("move 4 2", &pos));
+    println!("{:#?}", oxa::interpret_line("move 4 0", &pos));
+    println!("{:#?}", oxa::interpret_line("put hello", &pos));
+    println!("{:#?}", oxa::interpret_line("put \n", &pos));
+    //return;
+    */
     let result = panic::catch_unwind(|| {
         let config_dir = load_config().unwrap_or_else(|| " ~/.config/ox/ox.ron".to_string());
         // Gather the command line arguments

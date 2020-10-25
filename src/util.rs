@@ -89,3 +89,50 @@ pub fn raw_to_grapheme(x: usize, string: &str) -> usize {
     }
     graphemes
 }
+
+pub fn spaces_to_tabs(code: &str, tab_width: usize) -> String {
+    // Convert spaces to tabs
+    let mut result = vec![];
+    for mut line in code.split('\n') {
+        // Count the number of spaces
+        let mut spaces = 0;
+        for c in line.chars() {
+            if c == ' ' {
+                spaces += 1;
+            } else {
+                break;
+            }
+        }
+        // Divide by tab width
+        let tabs = spaces / tab_width;
+        // Remove spaces
+        line = &line[spaces..];
+        // Add tabs
+        result.push(format!("{}{}", "\t".repeat(tabs), line));
+    }
+    result.join("\n")
+}
+
+pub fn tabs_to_spaces(code: &str, tab_width: usize) -> String {
+    // Convert tabs to spaces
+    let mut result = vec![];
+    for mut line in code.split('\n') {
+        // Count the number of spaces
+        let mut tabs = 0;
+        for c in line.chars() {
+            if c == '\t' {
+                tabs += 1;
+            } else {
+                break;
+            }
+        }
+        // Divide by tab width
+        let spaces = tabs * tab_width;
+        // Remove spaces
+        line = &line[tabs..];
+        // Add tabs
+        result.push(format!("{}{}", " ".repeat(spaces), line));
+    }
+    result.join("\n")
+}
+

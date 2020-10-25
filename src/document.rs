@@ -1,7 +1,7 @@
 // Document.rs - For managing external files
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
-use crate::util::raw_to_grapheme;
+use crate::util::{raw_to_grapheme, tabs_to_spaces, spaces_to_tabs};
 use crate::{Event, EventStack, Position, Row, Size};
 use regex::Regex;
 use std::{cmp, fs};
@@ -38,6 +38,7 @@ pub struct Document {
     pub cursor: Position,       // For holding the raw cursor location
     pub offset: Position,       // For holding the offset on the X and Y axes
     pub graphemes: usize,       // For holding the special grapheme cursor
+    pub tabs: bool,             // For detecting if tabs are used over spaces
 }
 
 // Add methods to the document struct
@@ -61,12 +62,14 @@ impl Document {
             graphemes: 0,
             cursor: Position { x: 0, y: OFFSET },
             offset: Position { x: 0, y: 0 },
+            tabs: false,
         }
     }
     pub fn open(config: &Reader, status: &Status, path: &str) -> Option<Self> {
         // Create a new document from a path
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
+            let file = tabs_to_spaces(&file, config.general.tab_width);
             let mut file = file.split('\n').collect::<Vec<&str>>();
             // Handle newline on last line
             if let Some(line) = file.iter().last() {
@@ -96,6 +99,7 @@ impl Document {
                 graphemes: 0,
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
+                tabs: file.contains(&"\n\t"),
             })
         } else {
             // File doesn't exist
@@ -126,6 +130,7 @@ impl Document {
                 graphemes: 0,
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
+                tabs: false,
             }
         }
     }
@@ -517,6 +522,7 @@ impl Document {
                         self.prevent_unicode_hell();
                         self.recalculate_graphemes();
                     }
+                    _ => (),
                 }
                 self.dirty = true;
                 self.show_welcome = false;
@@ -589,6 +595,7 @@ impl Document {
                         self.prevent_unicode_hell();
                         self.recalculate_graphemes();
                     }
+                    _ => (),
                 }
                 self.dirty = true;
                 self.show_welcome = false;
@@ -598,13 +605,15 @@ impl Document {
             self.set_command_line("Empty Undo Stack".to_string(), Type::Error);
         }
     }
-    pub fn save(&self) -> std::io::Result<()> {
+    pub fn save(&self, tab: usize) -> std::io::Result<()> {
         // Save a file
-        fs::write(&self.path, self.render())
+        let contents = self.render(true, tab);
+        fs::write(&self.path, contents)
     }
-    pub fn save_as(&self, path: &str) -> std::io::Result<()> {
+    pub fn save_as(&self, path: &str, tab: usize) -> std::io::Result<()> {
         // Save a file to a specific path
-        fs::write(path, self.render())
+        let contents = self.render(true, tab);
+        fs::write(path, contents)
     }
     pub fn scan(&self, needle: &str, offset: usize) -> Vec<Position> {
         // Find all the points where "needle" occurs
@@ -621,14 +630,19 @@ impl Document {
         }
         result
     }
-    pub fn render(&self) -> String {
+    pub fn render(&self, replace_tab: bool, tab_width: usize) -> String {
         // Render the lines of a document for writing
-        self.rows
+        let render = self.rows
             .iter()
             .map(|x| x.string.clone())
             .collect::<Vec<String>>()
             .join("\n")
-            + "\n"
+            + "\n";
+        if replace_tab {
+            spaces_to_tabs(&render, tab_width)
+        } else {
+            render
+        }
     }
     pub fn identify(path: &str) -> (&str, &str) {
         // Identify which type of file the current buffer is

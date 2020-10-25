@@ -1,14 +1,19 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
-  - [ ] Have a few example macros
+  - [ ] Create Oxa parser (25th)
+  - [ ] Create unified event executor (26th)
+  - [ ] Write documentation for oxa (27th)
+  - [ ] Have a few example macros (27th)
     - [ ] Goto line number
     - [ ] Move forward a word
     - [ ] Move backward a word
     - [ ] Delete line
     - [ ] Move line
     - [ ] Move cursor
-  - [ ] Allow binding of macros to some keys
+  - [ ] Allow binding of macros to some keys (28th)
   - [X] Allow special command mode
+- [ ] Add more configuration options in the config file (29th)
+- [X] Fix file tab issue (27th)
 
 0.2.7 (Small patches) { Small tweaks to make Ox more comfy }
 - [ ] General Editing
@@ -32,6 +37,7 @@
   - [ ] Transparent background
   - [ ] Improved language syntax highlighting support
   - [ ] Live / Command for reloading of the config file
+  - [ ] Line number background
   - [ ] Add more languages
     - [ ] x86 Assembly
     - [ ] Go

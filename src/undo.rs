@@ -12,6 +12,8 @@ pub enum Event {
     ReturnMid(Position, usize),            // Return from middle of the line
     ReturnEnd(Position),                   // Return on the end of line
     UpdateLine(usize, Box<Row>, Box<Row>), // For holding entire line updates
+    MoveCursor(i128, i128),                // For moving the cursor
+    GotoCursor(Position),                  // For setting the cursor position
 }
 
 // A struct for holding all the events taken by the user

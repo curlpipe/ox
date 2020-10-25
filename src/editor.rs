@@ -211,7 +211,7 @@ impl Editor {
     fn save(&mut self) {
         // Handle save event
         let path = self.doc[self.tab].path.clone();
-        if self.doc[self.tab].save().is_ok() {
+        if self.doc[self.tab].save(self.config.general.tab_width).is_ok() {
             // The document saved successfully
             self.doc[self.tab].dirty = false;
             self.doc[self.tab]
@@ -227,7 +227,7 @@ impl Editor {
     fn save_as(&mut self) {
         // Handle save as event
         if let Some(result) = self.prompt("Save as", ": ", &|_, _, _| {}) {
-            if self.doc[self.tab].save_as(&result[..]).is_ok() {
+            if self.doc[self.tab].save_as(&result[..], self.config.general.tab_width).is_ok() {
                 // The document could save as
                 let ext = result.split('.').last().unwrap_or(&"");
                 self.doc[self.tab].dirty = false;
@@ -253,7 +253,7 @@ impl Editor {
     fn save_all(&mut self) {
         for i in 0..self.doc.len() {
             let path = self.doc[i].path.clone();
-            if self.doc[i].save().is_ok() {
+            if self.doc[i].save(self.config.general.tab_width).is_ok() {
                 // The document saved successfully
                 self.doc[i].dirty = false;
                 self.doc[i]
@@ -760,7 +760,7 @@ impl Editor {
         // Draw the screen to the terminal
         let offset = self.doc[self.tab].offset;
         let mut frame = vec![self.tab_line()];
-        let rendered = self.doc[self.tab].render();
+        let rendered = self.doc[self.tab].render(false, 0);
         let reg = self.doc[self.tab].regex.clone();
         for row in OFFSET..self.term.size.height {
             let row = row.saturating_sub(OFFSET);
