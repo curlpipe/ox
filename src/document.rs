@@ -414,12 +414,12 @@ impl Document {
     }
     pub fn backspace(&mut self, term: &Size) {
         // Handling the backspace key
-        self.dirty = true;
-        self.show_welcome = false;
-        // TODO: Update relavent lines here
         if self.cursor.y + self.offset.y == OFFSET && self.cursor.x + self.offset.x == 0 {
             return;
         }
+        self.dirty = true;
+        self.show_welcome = false;
+        // TODO: Update relavent lines here
         if self.cursor.x + self.offset.x == 0 {
             // Backspace at the start of a line
             let current = self.rows[self.cursor.y + self.offset.y - OFFSET]

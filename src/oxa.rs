@@ -9,7 +9,7 @@
 */
 use crate::{Event, Position, Row};
 
-pub fn interpret_line(line: &str, cursor: &Position, rows: &Vec<Row>) -> Option<Vec<Event>> {
+pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec<Event>> {
     // Take an instruction of Oxa and interpret it
     let mut events = vec![];
     let mut line = line.split(' ');
@@ -61,50 +61,11 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &Vec<Row>) -> Option<
                     }
                 }
             }
-            "delete" => {
-                if !args.is_empty() {
-                    if let Ok(line) = args[0].parse::<i128>() {
-                        let ind;
-                        if line.is_negative() {
-                            if cursor.y as i128 + line >= 0 {
-                                ind = (cursor.y as i128 + line) as usize;
-                            } else {
-                                ind = 0;
-                            }
-                        } else if cursor.y as i128 + line < rows.len() as i128 {
-                            ind = (cursor.y as i128 + line) as usize;
-                        } else {
-                            ind = rows.len().saturating_sub(1);
-                        }
-                        events.push(Event::DeleteLine(ind, Box::new(rows[ind].clone())));
-                    } else {
-                        match args[0] {
-                            "~" => {
-                                let mut c = cursor.x as i128;
-                                let chars: Vec<char> = rows[cursor.y].string.chars().collect();
-                                while c >= 0 && chars[c as usize] != ' ' {
-                                    events.push(Event::BackspaceMid(
-                                        Position {
-                                            x: c as usize,
-                                            y: cursor.y,
-                                        },
-                                        chars[c as usize],
-                                    ));
-                                    c -= 1;
-                                }
-                            }
-                            "$" => events.push(Event::UpdateLine(
-                                cursor.y,
-                                Box::new(rows[cursor.y].clone()),
-                                Box::new(Row::from("")),
-                            )),
-                            _ => return None,
-                        }
-                    }
-                } else {
-                    return None;
-                }
-            }
+            "delete" => if let Some(mut evts) = delete_command(&args, cursor, rows) {
+                events.append(&mut evts);
+            } else {
+                return None;
+            },
             "new" => events.push(Event::New),
             "open" => {
                 if !args.is_empty() {
@@ -124,14 +85,60 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &Vec<Row>) -> Option<
             "commit" => events.push(Event::Commit),
             "redo" => events.push(Event::Redo),
             "quit" => events.push(Event::Quit),
-            "overwrite" => events.push(if !args.is_empty() {
+            "overwrite" => events.push(if args.is_empty() {
+                Event::Overwrite(rows.to_vec(), vec![Row::from("")])
+            } else {
                 Event::Overwrite(
-                    rows.clone(),
+                    rows.to_vec(),
                     args[0].split('\n').map(Row::from).collect::<Vec<_>>(),
                 )
-            } else {
-                Event::Overwrite(rows.clone(), vec![Row::from("")])
             }),
+            _ => return None,
+        }
+    }
+    Some(events)
+}
+
+fn delete_command(args: &[&str], cursor: &Position, rows: &[Row]) -> Option<Vec<Event>> {
+    // Handle the delete command (complicated)
+    let mut events = vec![];
+    if args.is_empty() {
+        return None;
+    } else if let Ok(line) = args[0].parse::<i128>() {
+        let ind;
+        if line.is_negative() {
+            if cursor.y as i128 + line >= 0 {
+                ind = (cursor.y as i128 + line) as usize;
+            } else {
+                ind = 0;
+            }
+        } else if cursor.y as i128 + line < rows.len() as i128 {
+            ind = (cursor.y as i128 + line) as usize;
+        } else {
+            ind = rows.len().saturating_sub(1);
+        }
+        events.push(Event::DeleteLine(ind, Box::new(rows[ind].clone())));
+    } else {
+        match *args.get(0).unwrap_or(&"") {
+            "~" => {
+                let mut c = cursor.x as i128;
+                let chars: Vec<char> = rows[cursor.y].string.chars().collect();
+                while c >= 0 && chars[c as usize] != ' ' {
+                    events.push(Event::BackspaceMid(
+                        Position {
+                            x: c as usize,
+                            y: cursor.y,
+                        },
+                        chars[c as usize],
+                    ));
+                    c -= 1;
+                }
+            }
+            "$" => events.push(Event::UpdateLine(
+                cursor.y,
+                Box::new(rows[cursor.y].clone()),
+                Box::new(Row::from("")),
+            )),
             _ => return None,
         }
     }
