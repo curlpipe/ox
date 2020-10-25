@@ -1,6 +1,5 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
-  - [ ] Create Oxa parser (25th)
   - [ ] Create unified event executor (26th)
   - [ ] Write documentation for oxa (27th)
   - [ ] Have a few example macros (27th)
@@ -12,9 +11,10 @@
     - [ ] Move cursor
   - [ ] Allow binding of macros to some keys (28th)
   - [X] Allow special command mode
+  - [X] Create Oxa parser (25th)
 - [ ] Add more configuration options in the config file (29th)
-- [ ] Fix (0, 0) deletion issues
 - [X] Fix file tab issue (27th)
+- [X] Fix (0, 0) deletion issues
 
 0.2.7 (Small patches) { Small tweaks to make Ox more comfy }
 - [ ] General Editing

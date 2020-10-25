@@ -417,7 +417,10 @@ impl Document {
         self.dirty = true;
         self.show_welcome = false;
         // TODO: Update relavent lines here
-        if self.cursor.x + self.offset.x == 0 && self.cursor.y + self.offset.y - OFFSET != 0 {
+        if self.cursor.y + self.offset.y == OFFSET && self.cursor.x + self.offset.x == 0 {
+            return;
+        }
+        if self.cursor.x + self.offset.x == 0 {
             // Backspace at the start of a line
             let current = self.rows[self.cursor.y + self.offset.y - OFFSET]
                 .string
