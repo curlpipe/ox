@@ -81,6 +81,8 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                     } else {
                         Event::Save(Some(args[0].to_string()), false)
                     })
+                } else {
+                    events.push(Event::Save(None, false))
                 }
             }
             "undo" => events.push(Event::Undo),

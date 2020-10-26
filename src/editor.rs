@@ -292,7 +292,7 @@ impl Editor {
     }
     fn cmd(&mut self) {
         // Recieve macro command
-        if let Some(command) = self.prompt(">", " ", &|_, _, _| {}) {
+        if let Some(command) = self.prompt(":", "", &|_, _, _| {}) {
             // Parse and Lex instruction
             let instruction = interpret_line(
                 &command,
