@@ -286,6 +286,9 @@ impl Editor {
                 Event::Commit => self.doc[self.tab].undo_stack.commit(),
                 Event::Undo => self.doc[self.tab].undo(&self.config, &self.term.size),
                 Event::Redo => self.doc[self.tab].redo(&self.config, &self.term.size),
+                Event::Overwrite(_before, after) => {
+                    self.doc[self.tab].rows = after.to_vec();
+                },
                 _ => (),
             }
         }

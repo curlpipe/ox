@@ -1,13 +1,13 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
   - [ ] Create unified event executor (26th)
-    - [ ] Document functions
     - [ ] Cursor functions
     - [ ] Mass edit functions
     - [ ] Tab functions
     - [ ] Insertion function
     - [ ] Backspace functions
     - [ ] Return functions
+    - [X] Document functions
   - [ ] Write documentation for oxa (27th)
   - [ ] Have a few example macros (27th)
     - [ ] Move forward a word
