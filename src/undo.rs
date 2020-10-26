@@ -17,13 +17,15 @@ pub enum Event {
     GotoCursor(Position),                  // For setting the cursor position
     Overwrite(Vec<Row>, Vec<Row>),         // Overwrite document
     New,                                   // New document
-    Open(String),                          // Open document
-    Save(String),                          // Save document
+    Open(Option<String>),                  // Open document
+    Save(Option<String>, bool),            // Save document
     SaveAll,                               // Save all documents
     Undo,                                  // Undo event
     Redo,                                  // Redo event
     Commit,                                // Commit undo event
-    Quit,                                  // Quit document
+    Quit(bool),                            // Quit document
+    NextTab,                               // Next tab
+    PrevTab,                               // Previous tab
 }
 
 // A struct for holding all the events taken by the user

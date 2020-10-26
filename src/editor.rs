@@ -126,19 +126,19 @@ impl Editor {
         match key {
             Key::Char(c) => self.doc[self.tab].character(c, &self.term.size, &self.config),
             Key::Backspace => self.doc[self.tab].backspace(&self.term.size),
-            Key::Ctrl('q') => self.quit(),
-            Key::Ctrl('s') => self.save(),
-            Key::Ctrl('w') => self.save_as(),
-            Key::Ctrl('p') => self.save_all(),
-            Key::Ctrl('n') => self.new_document(),
-            Key::Ctrl('o') => self.open_document(),
+            Key::Ctrl('q') => self.execute(&[Event::Quit(false)]),
+            Key::Ctrl('s') => self.execute(&[Event::Save(None, false)]),
+            Key::Ctrl('w') => self.execute(&[Event::Save(None, true)]),
+            Key::Ctrl('p') => self.execute(&[Event::SaveAll]),
+            Key::Ctrl('n') => self.execute(&[Event::New]),
+            Key::Ctrl('o') => self.execute(&[Event::Open(None)]),
+            Key::Ctrl('d') => self.execute(&[Event::PrevTab]),
+            Key::Ctrl('h') => self.execute(&[Event::NextTab]),
             Key::Ctrl('f') => self.search(),
             Key::Ctrl('u') => self.doc[self.tab].undo(&self.config, &self.term.size),
             Key::Ctrl('y') => self.doc[self.tab].redo(&self.config, &self.term.size),
             Key::Ctrl('r') => self.replace(),
             Key::Ctrl('a') => self.replace_all(),
-            Key::Ctrl('d') => self.prev_tab(),
-            Key::Ctrl('h') => self.next_tab(),
             Key::Alt('a') => self.cmd(),
             Key::Left | Key::Right | Key::Up | Key::Down => {
                 self.doc[self.tab].move_cursor(key, &self.term.size)
@@ -149,137 +149,153 @@ impl Editor {
             _ => (),
         }
     }
+    pub fn execute(&mut self, events: &[Event]) {
+        // Event executor
+        for event in events {
+            match event {
+                Event::New => {
+                    self.doc.push(Document::new(&self.config, &self.status));
+                    self.tab = self.doc.len().saturating_sub(1);
+                    self.doc[self.tab].dirty = false;
+                    self.doc[self.tab].show_welcome = true;
+                    self.doc[self.tab].cursor.y = OFFSET;
+                    self.doc[self.tab].offset.y = 0;
+                    self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
+                }
+                Event::Open(file) => {
+                    let to_open = if let Some(path) = file {
+                        path.clone()
+                    } else if let Some(path) = self.prompt("Open", ": ", &|_, _, _| {}) {
+                        path
+                    } else {
+                        continue;
+                    };
+                    if let Some(doc) = Document::open(&self.config, &self.status, &to_open) {
+                        // Overwrite the current document
+                        self.doc.push(doc);
+                        self.tab = self.doc.len().saturating_sub(1);
+                        self.doc[self.tab].dirty = false;
+                        self.doc[self.tab].show_welcome = false;
+                        self.doc[self.tab].cursor.y = OFFSET;
+                        self.doc[self.tab].offset.y = 0;
+                        self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
+                    } else {
+                        self.doc[self.tab]
+                            .set_command_line("File couldn't be opened".to_string(), Type::Error);
+                    }
+                }
+                Event::Save(file, prompt) => {
+                    // Handle save event
+                    let to_save = if let Some(file) = file {
+                        // Specified file
+                        file.to_string()
+                    } else {
+                        // File not specified
+                        if *prompt {
+                            // Prompt for file when unspecified
+                            if let Some(path) = self.prompt("Save as", ": ", &|_, _, _| {}) {
+                                path
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            // Use current document
+                            self.doc[self.tab].path.clone()
+                        }
+                    };
+                    if self.doc[self.tab]
+                        .save(&to_save, self.config.general.tab_width)
+                        .is_ok()
+                    {
+                        // The document saved successfully
+                        let ext = to_save.split('.').last().unwrap_or(&"");
+                        self.doc[self.tab].dirty = false;
+                        self.doc[self.tab].set_command_line(
+                            format!("File saved to {} successfully", to_save),
+                            Type::Info,
+                        );
+                        self.doc[self.tab].kind = Document::identify(&to_save).0.to_string();
+                        self.doc[self.tab].icon = Document::identify(&to_save).1.to_string();
+                        self.doc[self.tab].name = to_save.clone();
+                        self.doc[self.tab].path = to_save.clone();
+                        self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
+                    } else {
+                        // The document couldn't save due to permission errors
+                        self.doc[self.tab].set_command_line(
+                            format!("Failed to save file to {}", to_save),
+                            Type::Error,
+                        );
+                    }
+                    // Commit to undo stack on document save
+                    self.execute(&[Event::Commit]);
+                }
+                Event::SaveAll => {
+                    for i in 0..self.doc.len() {
+                        let path = self.doc[i].path.clone();
+                        if self.doc[i]
+                            .save(&path, self.config.general.tab_width)
+                            .is_ok()
+                        {
+                            // The document saved successfully
+                            self.doc[i].dirty = false;
+                            self.doc[i].set_command_line(
+                                format!("File saved to {} successfully", path),
+                                Type::Info,
+                            );
+                        } else {
+                            // The document couldn't save due to permission errors
+                            self.doc[i].set_command_line(
+                                format!("Failed to save file to {}", path),
+                                Type::Error,
+                            );
+                        }
+                        // Commit to undo stack on document save
+                        self.execute(&[Event::Commit]);
+                    }
+                }
+                Event::Quit(force) => {
+                    // For handling a quit event
+                    if !force && !self.dirty_prompt('q', "quit") {
+                        continue;
+                    }
+                    if self.doc.len() <= 1 {
+                        // Quit Ox
+                        self.quit = true;
+                        return;
+                    } else if self.tab == self.doc.len().saturating_sub(1) {
+                        // Close current tab and move right
+                        self.doc.remove(self.tab);
+                        self.tab -= 1;
+                    } else {
+                        // Close current tab and move left
+                        self.doc.remove(self.tab);
+                    }
+                    self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
+                }
+                Event::NextTab => {
+                    if self.tab.saturating_add(1) < self.doc.len() {
+                        self.tab = self.tab.saturating_add(1);
+                    }
+                }
+                Event::PrevTab => self.tab = self.tab.saturating_sub(1),
+                _ => (),
+            }
+        }
+    }
     fn cmd(&mut self) {
+        // Recieve macro command
         if let Some(command) = self.prompt(">", " ", &|_, _, _| {}) {
-            let output = format!(
-                "{:?}",
-                interpret_line(
-                    &command,
-                    &self.doc[self.tab].cursor,
-                    &self.doc[self.tab].rows
-                )
+            // Parse and Lex instruction
+            let instruction = interpret_line(
+                &command,
+                &self.doc[self.tab].cursor,
+                &self.doc[self.tab].rows,
             );
-            self.doc[self.tab].set_command_line(output, Type::Info);
-        }
-    }
-    fn next_tab(&mut self) {
-        if self.tab.saturating_add(1) < self.doc.len() {
-            self.tab = self.tab.saturating_add(1);
-        }
-    }
-    fn prev_tab(&mut self) {
-        self.tab = self.tab.saturating_sub(1);
-    }
-    fn quit(&mut self) {
-        // For handling a quit event
-        if self.dirty_prompt('q', "quit") {
-            if self.doc.len() <= 1 {
-                // Quit Ox
-                self.quit = true;
-            } else if self.tab == self.doc.len().saturating_sub(1) {
-                // Close current tab and move right
-                self.doc.remove(self.tab);
-                self.tab -= 1;
-                self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
-            } else {
-                // Close current tab and move left
-                self.doc.remove(self.tab);
-                self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
-            }
-        }
-    }
-    fn new_document(&mut self) {
-        // Handle new document event
-        self.doc.push(Document::new(&self.config, &self.status));
-        self.tab = self.doc.len().saturating_sub(1);
-        self.doc[self.tab].dirty = false;
-        self.doc[self.tab].show_welcome = true;
-        self.doc[self.tab].cursor.y = OFFSET;
-        self.doc[self.tab].offset.y = 0;
-        self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
-    }
-    fn open_document(&mut self) {
-        // Handle open document event
-        // TODO: Highlight entire file here
-        if let Some(result) = self.prompt("Open", ": ", &|_, _, _| {}) {
-            if let Some(doc) = Document::open(&self.config, &self.status, &result[..]) {
-                // Overwrite the current document
-                self.doc.push(doc);
-                self.tab = self.doc.len().saturating_sub(1);
-                self.doc[self.tab].dirty = false;
-                self.doc[self.tab].show_welcome = false;
-                self.doc[self.tab].cursor.y = OFFSET;
-                self.doc[self.tab].offset.y = 0;
-                self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
-            } else {
-                self.doc[self.tab]
-                    .set_command_line("File couldn't be opened".to_string(), Type::Error);
-            }
-        }
-    }
-    fn save(&mut self) {
-        // Handle save event
-        let path = self.doc[self.tab].path.clone();
-        if self.doc[self.tab]
-            .save(self.config.general.tab_width)
-            .is_ok()
-        {
-            // The document saved successfully
-            self.doc[self.tab].dirty = false;
-            self.doc[self.tab]
-                .set_command_line(format!("File saved to {} successfully", path), Type::Info);
-        } else {
-            // The document couldn't save due to permission errors
-            self.doc[self.tab]
-                .set_command_line(format!("Failed to save file to {}", path), Type::Error);
-        }
-        // Commit to undo stack on document save
-        self.doc[self.tab].undo_stack.commit();
-    }
-    fn save_as(&mut self) {
-        // Handle save as event
-        if let Some(result) = self.prompt("Save as", ": ", &|_, _, _| {}) {
-            if self.doc[self.tab]
-                .save_as(&result[..], self.config.general.tab_width)
-                .is_ok()
-            {
-                // The document could save as
-                let ext = result.split('.').last().unwrap_or(&"");
-                self.doc[self.tab].dirty = false;
-                self.doc[self.tab]
-                    .set_command_line(format!("File saved to {} successfully", result), Type::Info);
-                self.doc[self.tab].kind = Document::identify(&result).0.to_string();
-                self.doc[self.tab].icon = Document::identify(&result).1.to_string();
-                self.doc[self.tab].name = result.clone();
-                self.doc[self.tab].path = result.clone();
-                self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
-            } else {
-                // The document couldn't save to the file
-                self.doc[self.tab]
-                    .set_command_line(format!("Failed to save file to {}", result), Type::Error);
-            }
-        } else {
-            // User pressed the escape key
-            self.doc[self.tab].set_command_line("Save as cancelled".to_string(), Type::Info);
-        }
-        // Commit to the undo stack on save as
-        self.doc[self.tab].undo_stack.commit();
-    }
-    fn save_all(&mut self) {
-        for i in 0..self.doc.len() {
-            let path = self.doc[i].path.clone();
-            if self.doc[i].save(self.config.general.tab_width).is_ok() {
-                // The document saved successfully
-                self.doc[i].dirty = false;
-                self.doc[i]
-                    .set_command_line(format!("File saved to {} successfully", path), Type::Info);
-            } else {
-                // The document couldn't save due to permission errors
-                self.doc[i]
-                    .set_command_line(format!("Failed to save file to {}", path), Type::Error);
-            }
-            // Commit to undo stack on document save
-            self.doc[i].undo_stack.commit();
+            self.doc[self.tab].set_command_line(format!("{:?}", instruction), Type::Info);
+            // Execute the instruction
+            if let Some(instruction) = instruction {
+                self.execute(&instruction)
+            };
         }
     }
     fn search(&mut self) {

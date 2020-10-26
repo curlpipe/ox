@@ -608,13 +608,8 @@ impl Document {
             self.set_command_line("Empty Undo Stack".to_string(), Type::Error);
         }
     }
-    pub fn save(&self, tab: usize) -> std::io::Result<()> {
+    pub fn save(&self, path: &str, tab: usize) -> std::io::Result<()> {
         // Save a file
-        let contents = self.render(true, tab);
-        fs::write(&self.path, contents)
-    }
-    pub fn save_as(&self, path: &str, tab: usize) -> std::io::Result<()> {
-        // Save a file to a specific path
         let contents = self.render(true, tab);
         fs::write(path, contents)
     }

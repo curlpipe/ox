@@ -1,5 +1,5 @@
 /*
-    Oxa.rs - Tools for parsing the Ox Assembly format
+    Oxa.rs - Tools for parsing and lexing the Ox Assembly format
 
     Oxa is an interpreted specific purpose language inspired by x86 assembly
     It is used to write macros for the editor that make editing text painless
@@ -61,30 +61,32 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                     }
                 }
             }
-            "delete" => if let Some(mut evts) = delete_command(&args, cursor, rows) {
-                events.append(&mut evts);
-            } else {
-                return None;
-            },
-            "new" => events.push(Event::New),
-            "open" => {
-                if !args.is_empty() {
-                    events.push(Event::Open(args[0].to_string()))
+            "delete" => {
+                if let Some(mut evts) = delete_command(&args, cursor, rows) {
+                    events.append(&mut evts);
+                } else {
+                    return None;
                 }
             }
+            "new" => events.push(Event::New),
+            "open" => events.push(Event::Open(if args.is_empty() {
+                None
+            } else {
+                Some(args[0].to_string())
+            })),
             "save" => {
                 if !args.is_empty() {
                     events.push(if args[0] == "*" {
                         Event::SaveAll
                     } else {
-                        Event::Save(args[0].to_string())
+                        Event::Save(Some(args[0].to_string()), false)
                     })
                 }
             }
             "undo" => events.push(Event::Undo),
             "commit" => events.push(Event::Commit),
             "redo" => events.push(Event::Redo),
-            "quit" => events.push(Event::Quit),
+            "quit" => events.push(Event::Quit(args.len() != 0 && args[0] == "!")),
             "overwrite" => events.push(if args.is_empty() {
                 Event::Overwrite(rows.to_vec(), vec![Row::from("")])
             } else {

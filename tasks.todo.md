@@ -1,14 +1,21 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
   - [ ] Create unified event executor (26th)
+    - [ ] Document functions
+    - [ ] Cursor functions
+    - [ ] Mass edit functions
+    - [ ] Tab functions
+    - [ ] Insertion function
+    - [ ] Backspace functions
+    - [ ] Return functions
   - [ ] Write documentation for oxa (27th)
   - [ ] Have a few example macros (27th)
-    - [ ] Goto line number
     - [ ] Move forward a word
     - [ ] Move backward a word
-    - [ ] Delete line
     - [ ] Move line
-    - [ ] Move cursor
+    - [X] Goto line number
+    - [X] Delete line
+    - [X] Move cursor
   - [ ] Allow binding of macros to some keys (28th)
   - [X] Allow special command mode
   - [X] Create Oxa parser (25th)
