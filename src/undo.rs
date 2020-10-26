@@ -24,6 +24,7 @@ pub enum Event {
     Redo,                                  // Redo event
     Commit,                                // Commit undo event
     Quit(bool),                            // Quit document
+    QuitAll(bool),                         // Quit all
     NextTab,                               // Next tab
     PrevTab,                               // Previous tab
 }

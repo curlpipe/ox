@@ -86,7 +86,13 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
             "undo" => events.push(Event::Undo),
             "commit" => events.push(Event::Commit),
             "redo" => events.push(Event::Redo),
-            "quit" => events.push(Event::Quit(args.len() != 0 && args[0] == "!")),
+            "quit" => {
+                events.push(if args.contains(&"*") {
+                    Event::QuitAll(args.contains(&"!"))
+                } else {
+                    Event::Quit(args.contains(&"!"))
+                });
+            },
             "overwrite" => events.push(if args.is_empty() {
                 Event::Overwrite(rows.to_vec(), vec![Row::from("")])
             } else {
@@ -95,6 +101,8 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                     args[0].split('\n').map(Row::from).collect::<Vec<_>>(),
                 )
             }),
+            "prev" => events.push(Event::PrevTab),
+            "next" => events.push(Event::NextTab),
             _ => return None,
         }
     }

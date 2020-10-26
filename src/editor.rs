@@ -255,29 +255,37 @@ impl Editor {
                 }
                 Event::Quit(force) => {
                     // For handling a quit event
-                    if !force && !self.dirty_prompt('q', "quit") {
-                        continue;
+                    if *force || self.dirty_prompt('q', "quit") {
+                        if self.doc.len() <= 1 {
+                            // Quit Ox
+                            self.quit = true;
+                            return;
+                        } else if self.tab == self.doc.len().saturating_sub(1) {
+                            // Close current tab and move right
+                            self.doc.remove(self.tab);
+                            self.tab -= 1;
+                        } else {
+                            // Close current tab and move left
+                            self.doc.remove(self.tab);
+                        }
+                        self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
                     }
-                    if self.doc.len() <= 1 {
-                        // Quit Ox
-                        self.quit = true;
-                        return;
-                    } else if self.tab == self.doc.len().saturating_sub(1) {
-                        // Close current tab and move right
-                        self.doc.remove(self.tab);
-                        self.tab -= 1;
-                    } else {
-                        // Close current tab and move left
-                        self.doc.remove(self.tab);
-                    }
-                    self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
                 }
+                Event::QuitAll(force) => {
+                    self.tab = 0;
+                    while self.quit == false {
+                        self.execute(&[Event::Quit(*force)]);
+                    }
+                },
                 Event::NextTab => {
                     if self.tab.saturating_add(1) < self.doc.len() {
                         self.tab = self.tab.saturating_add(1);
                     }
                 }
                 Event::PrevTab => self.tab = self.tab.saturating_sub(1),
+                Event::Commit => self.doc[self.tab].undo_stack.commit(),
+                Event::Undo => self.doc[self.tab].undo(&self.config, &self.term.size),
+                Event::Redo => self.doc[self.tab].redo(&self.config, &self.term.size),
                 _ => (),
             }
         }
