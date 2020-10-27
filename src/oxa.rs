@@ -34,6 +34,9 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                 }
             }
             "move" => {
+                if args.len() == 0 {
+                    return None;
+                }
                 if args.len() == 1 {
                     if let Ok(y) = args[0].parse() {
                         events.push(Event::MoveCursor(0, y));

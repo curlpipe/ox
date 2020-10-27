@@ -288,7 +288,33 @@ impl Editor {
                 Event::Redo => self.doc[self.tab].redo(&self.config, &self.term.size),
                 Event::Overwrite(_before, after) => {
                     self.doc[self.tab].rows = after.to_vec();
-                },
+                }
+                Event::GotoCursor(mut position) => {
+                    if self.doc[self.tab].rows.len() > position.y && self.doc[self.tab].rows[position.y].length() >= position.x {
+                        position.y = position.y + OFFSET;
+                        self.goto(&position);
+                    }
+                }
+                Event::MoveCursor(x, y) => {
+                    if y.is_negative() {
+                        for _ in 0..(y * -1) {
+                            self.doc[self.tab].move_cursor(Key::Up, &self.term.size);
+                        }
+                    } else if y.is_positive() {
+                        for _ in 0..*y {
+                            self.doc[self.tab].move_cursor(Key::Down, &self.term.size);
+                        }
+                    }
+                    if x.is_negative() {
+                        for _ in 0..(x * -1) {
+                            self.doc[self.tab].move_cursor(Key::Left, &self.term.size);
+                        }
+                    } else if x.is_positive() {
+                        for _ in 0..*x {
+                            self.doc[self.tab].move_cursor(Key::Right, &self.term.size);
+                        }
+                    }
+                }
                 _ => (),
             }
         }
@@ -616,12 +642,6 @@ impl Editor {
             // Cursor is off the screen, move to the Y position
             self.doc[self.tab].offset.y = pos.y.saturating_sub(halfway_y);
             self.doc[self.tab].cursor.y = halfway_y;
-            if self.doc[self.tab].offset.y + self.doc[self.tab].cursor.y != pos.y {
-                // Fix cursor misplacement
-                self.doc[self.tab].offset = Position { x: 0, y: 0 };
-                self.doc[self.tab].cursor = *pos;
-                return;
-            }
             // Change the X
             if pos.x >= max_x {
                 // Move to the center
@@ -631,6 +651,11 @@ impl Editor {
                 // No offset
                 self.doc[self.tab].offset.x = 0;
                 self.doc[self.tab].cursor.x = pos.x;
+            }
+            if self.doc[self.tab].offset.y + self.doc[self.tab].cursor.y != pos.y {
+                // Fix cursor misplacement
+                self.doc[self.tab].offset.y = 0;
+                self.doc[self.tab].cursor.y = pos.y;
             }
         }
     }
