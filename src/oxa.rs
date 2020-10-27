@@ -40,17 +40,16 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                 }
             }
             "move" => {
-                if args.is_empty() {
-                    return None;
-                }
-                if args.len() == 1 {
-                    if let Ok(y) = args[0].parse() {
-                        events.push(Event::MoveCursor(0, y));
-                    } else {
-                        return None;
-                    }
-                } else if let (Ok(x), Ok(y)) = (args[0].parse(), args[1].parse()) {
-                    events.push(Event::MoveCursor(x, y))
+                if args.len() == 2 {
+                    let magnitude: usize = args[0].parse().unwrap_or_default();
+                    let direction = args[1];
+                    events.push(match direction {
+                        "up" => Event::MoveCursor(0, magnitude as i128 * -1),
+                        "down" => Event::MoveCursor(0, magnitude as i128),
+                        "left" => Event::MoveCursor(magnitude as i128 * -1, 0),
+                        "right" => Event::MoveCursor(magnitude as i128, 0),
+                        _ => return None,
+                    });
                 } else {
                     return None;
                 }
