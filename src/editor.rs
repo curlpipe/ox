@@ -33,6 +33,12 @@ pub struct Position {
     pub y: usize,
 }
 
+// Enum for direction
+#[derive(Clone, Copy, Debug)]
+pub enum Direction {
+    Up, Down, Left, Right
+}
+
 // The main editor struct
 pub struct Editor {
     pub config: Reader,             // Storage for configuration
@@ -297,24 +303,14 @@ impl Editor {
                         self.goto(&position);
                     }
                 }
-                Event::MoveCursor(x, y) => {
-                    if y.is_negative() {
-                        for _ in 0..(y * -1) {
-                            self.doc[self.tab].move_cursor(Key::Up, &self.term.size);
-                        }
-                    } else if y.is_positive() {
-                        for _ in 0..*y {
-                            self.doc[self.tab].move_cursor(Key::Down, &self.term.size);
-                        }
-                    }
-                    if x.is_negative() {
-                        for _ in 0..(x * -1) {
-                            self.doc[self.tab].move_cursor(Key::Left, &self.term.size);
-                        }
-                    } else if x.is_positive() {
-                        for _ in 0..*x {
-                            self.doc[self.tab].move_cursor(Key::Right, &self.term.size);
-                        }
+                Event::MoveCursor(magnitude, direction) => {
+                    for _ in 0..*magnitude {
+                        self.doc[self.tab].move_cursor(match direction {
+                            Direction::Up => Key::Up,
+                            Direction::Down => Key::Down,
+                            Direction::Left => Key::Left,
+                            Direction::Right => Key::Right,
+                        }, &self.term.size);
                     }
                 }
                 _ => (),

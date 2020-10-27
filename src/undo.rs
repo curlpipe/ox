@@ -1,5 +1,5 @@
 // Undo.rs - Utilities for undoing, redoing and storing events
-use crate::{Position, Row};
+use crate::{Position, Row, Direction};
 
 // Event enum to store the types of events that occur
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ pub enum Event {
     ReturnEnd(Position),                   // Return on the end of line
     UpdateLine(usize, Box<Row>, Box<Row>), // For holding entire line updates
     DeleteLine(usize, Box<Row>),           // For deleting a line
-    MoveCursor(i128, i128),                // For moving the cursor
+    MoveCursor(i128, Direction),           // For moving the cursor
     GotoCursor(Position),                  // For setting the cursor position
     Overwrite(Vec<Row>, Vec<Row>),         // Overwrite document
     New,                                   // New document

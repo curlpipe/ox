@@ -7,7 +7,7 @@
 
     An example usage could be writing a macro to delete the current line
 */
-use crate::{Event, Position, Row};
+use crate::{Event, Position, Row, Direction};
 
 pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec<Event>> {
     // Take an instruction of Oxa and interpret it
@@ -16,40 +16,37 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
     if let Some(instruction) = line.next() {
         let args: Vec<&str> = line.collect();
         match instruction {
-            "goto" => {
-                if args.len() == 1 {
-                    if let Ok(y) = args[0].parse::<usize>() {
-                        events.push(Event::GotoCursor(Position {
-                            x: 0,
-                            y: y.saturating_sub(1),
-                        }));
-                    } else {
-                        return None;
-                    }
-                } else if args.len() == 2 {
-                    if let (Ok(x), Ok(y)) = (args[0].parse::<usize>(), args[1].parse::<usize>()) {
-                        events.push(Event::GotoCursor(Position {
-                            x: x.saturating_sub(1),
-                            y: y.saturating_sub(1),
-                        }));
-                    } else {
-                        return None;
-                    }
+            "goto" => match args.len() {
+                0 => events.push(Event::GotoCursor(Position { x: 0, y: 0 })),
+                1 => if let Ok(y) = args[0].parse::<usize>() {
+                    events.push(Event::GotoCursor(Position {
+                        x: 0,
+                        y: y.saturating_sub(1),
+                    }));
                 } else {
                     return None;
-                }
+                },
+                2 => if let (Ok(x), Ok(y)) = (args[0].parse::<usize>(), args[1].parse::<usize>()) {
+                    events.push(Event::GotoCursor(Position {
+                        x: x.saturating_sub(1),
+                        y: y.saturating_sub(1),
+                    }));
+                } else {
+                    return None;
+                },
+                _ => return None,
             }
             "move" => {
                 if args.len() == 2 {
                     let magnitude: usize = args[0].parse().unwrap_or_default();
                     let direction = args[1];
-                    events.push(match direction {
-                        "up" => Event::MoveCursor(0, magnitude as i128 * -1),
-                        "down" => Event::MoveCursor(0, magnitude as i128),
-                        "left" => Event::MoveCursor(magnitude as i128 * -1, 0),
-                        "right" => Event::MoveCursor(magnitude as i128, 0),
+                    events.push(Event::MoveCursor(magnitude as i128, match direction {
+                        "up" => Direction::Up,
+                        "down" => Direction::Down,
+                        "left" => Direction::Left,
+                        "right" => Direction::Right,
                         _ => return None,
-                    });
+                    }));
                 } else {
                     return None;
                 }
