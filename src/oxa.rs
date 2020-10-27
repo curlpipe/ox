@@ -18,14 +18,20 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
         match instruction {
             "goto" => {
                 if args.len() == 1 {
-                    if let Ok(y) = args[0].parse() {
-                        events.push(Event::GotoCursor(Position { x: 0, y }));
+                    if let Ok(y) = args[0].parse::<usize>() {
+                        events.push(Event::GotoCursor(Position {
+                            x: 0,
+                            y: y.saturating_sub(1),
+                        }));
                     } else {
                         return None;
                     }
                 } else if args.len() == 2 {
-                    if let (Ok(x), Ok(y)) = (args[0].parse(), args[1].parse()) {
-                        events.push(Event::GotoCursor(Position { x, y }));
+                    if let (Ok(x), Ok(y)) = (args[0].parse::<usize>(), args[1].parse::<usize>()) {
+                        events.push(Event::GotoCursor(Position {
+                            x: x.saturating_sub(1),
+                            y: y.saturating_sub(1),
+                        }));
                     } else {
                         return None;
                     }
@@ -34,7 +40,7 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                 }
             }
             "move" => {
-                if args.len() == 0 {
+                if args.is_empty() {
                     return None;
                 }
                 if args.len() == 1 {
@@ -97,7 +103,7 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                 } else {
                     Event::Quit(args.contains(&"!"))
                 });
-            },
+            }
             "overwrite" => events.push(if args.is_empty() {
                 Event::Overwrite(rows.to_vec(), vec![Row::from("")])
             } else {

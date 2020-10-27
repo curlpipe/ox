@@ -6,6 +6,7 @@
     - [ ] Insertion function
     - [ ] Backspace functions
     - [ ] Return functions
+    - [ ] Storage functions
     - [ ] Allow reverse execution
     - [X] Document functions
     - [X] Cursor functions

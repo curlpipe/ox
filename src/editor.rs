@@ -273,10 +273,10 @@ impl Editor {
                 }
                 Event::QuitAll(force) => {
                     self.tab = 0;
-                    while self.quit == false {
+                    while !self.quit {
                         self.execute(&[Event::Quit(*force)]);
                     }
-                },
+                }
                 Event::NextTab => {
                     if self.tab.saturating_add(1) < self.doc.len() {
                         self.tab = self.tab.saturating_add(1);
@@ -290,8 +290,10 @@ impl Editor {
                     self.doc[self.tab].rows = after.to_vec();
                 }
                 Event::GotoCursor(mut position) => {
-                    if self.doc[self.tab].rows.len() > position.y && self.doc[self.tab].rows[position.y].length() >= position.x {
-                        position.y = position.y + OFFSET;
+                    if self.doc[self.tab].rows.len() > position.y
+                        && self.doc[self.tab].rows[position.y].length() >= position.x
+                    {
+                        position.y += OFFSET;
                         self.goto(&position);
                     }
                 }
