@@ -36,7 +36,10 @@ pub struct Position {
 // Enum for direction
 #[derive(Clone, Copy, Debug)]
 pub enum Direction {
-    Up, Down, Left, Right
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
 // The main editor struct
@@ -129,8 +132,14 @@ impl Editor {
     fn process_input(&mut self) {
         // Read a key and act on it
         let key = self.read_key();
+        let cursor = self.doc[self.tab].cursor;
+        let offset = self.doc[self.tab].offset;
+        let current = Position {
+            x: cursor.x + offset.x,
+            y: cursor.y + offset.y + OFFSET,
+        };
         match key {
-            Key::Char(c) => self.doc[self.tab].character(c, &self.term.size, &self.config),
+            Key::Char(c) => self.execute(&[Event::InsertMid(current, c)]),
             Key::Backspace => self.doc[self.tab].backspace(&self.term.size),
             Key::Ctrl('q') => self.execute(&[Event::Quit(false)]),
             Key::Ctrl('s') => self.execute(&[Event::Save(None, false)]),
@@ -294,6 +303,7 @@ impl Editor {
                 Event::Redo => self.doc[self.tab].redo(&self.config, &self.term.size),
                 Event::Overwrite(_before, after) => {
                     self.doc[self.tab].rows = after.to_vec();
+                    self.execute(&[Event::GotoCursor(Position { x: 0, y: 0 })]);
                 }
                 Event::GotoCursor(mut position) => {
                     if self.doc[self.tab].rows.len() > position.y
@@ -305,13 +315,31 @@ impl Editor {
                 }
                 Event::MoveCursor(magnitude, direction) => {
                     for _ in 0..*magnitude {
-                        self.doc[self.tab].move_cursor(match direction {
-                            Direction::Up => Key::Up,
-                            Direction::Down => Key::Down,
-                            Direction::Left => Key::Left,
-                            Direction::Right => Key::Right,
-                        }, &self.term.size);
+                        self.doc[self.tab].move_cursor(
+                            match direction {
+                                Direction::Up => Key::Up,
+                                Direction::Down => Key::Down,
+                                Direction::Left => Key::Left,
+                                Direction::Right => Key::Right,
+                            },
+                            &self.term.size,
+                        );
                     }
+                }
+                Event::UpdateLine(y, _before, after) => {
+                    self.doc[self.tab].rows[*y] = *after.clone()
+                }
+                Event::DeleteLine(y, _before) => {
+                    if self.doc[self.tab].rows.len() > 1 {
+                        self.doc[self.tab].rows.remove(*y);
+                        if y < &self.doc[self.tab].cursor.y {
+                            self.execute(&[Event::MoveCursor(1, Direction::Up)]);
+                        }
+                    }
+                }
+                Event::InsertTab(pos) => self.execute(&[Event::InsertMid(*pos, '\t')]),
+                Event::InsertMid(_pos, ch) => {
+                    self.doc[self.tab].character(*ch, &self.term.size, &self.config)
                 }
                 _ => (),
             }
@@ -321,9 +349,14 @@ impl Editor {
         // Recieve macro command
         if let Some(command) = self.prompt(":", "", &|_, _, _| {}) {
             // Parse and Lex instruction
+            let cursor = self.doc[self.tab].cursor;
+            let offset = self.doc[self.tab].offset;
             let instruction = interpret_line(
                 &command,
-                &self.doc[self.tab].cursor,
+                &Position {
+                    x: cursor.x + offset.x,
+                    y: cursor.y + offset.y,
+                },
                 &self.doc[self.tab].rows,
             );
             self.doc[self.tab].set_command_line(format!("{:?}", instruction), Type::Info);
@@ -716,8 +749,8 @@ impl Editor {
             " \u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
             self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y + 1 - OFFSET,
             self.doc[self.tab].rows.len(),
-            self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x,
-            self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y,
+            self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x + 1,
+            self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y + 1 - OFFSET,
         );
         // Get the padding value
         let padding = self.term.align_break(&left, &right);

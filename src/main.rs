@@ -33,7 +33,7 @@ mod util;
 use clap::{App, Arg};
 use directories::BaseDirs;
 use document::Document;
-use editor::{Editor, Position, Direction};
+use editor::{Direction, Editor, Position};
 use row::Row;
 use std::time::Duration;
 use std::{env, panic, thread};

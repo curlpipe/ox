@@ -327,11 +327,12 @@ impl Document {
             '\n' => self.return_key(term), // The user pressed the return key
             '\t' => {
                 // The user pressed the tab key
-                self.tab(&config, term);
-                self.undo_stack.push(Event::InsertTab(Position {
+                let pos = Position {
                     x: self.cursor.x + self.offset.x,
                     y: self.cursor.y + self.offset.y - OFFSET,
-                }));
+                };
+                self.tab(&pos, &config, term);
+                self.undo_stack.push(Event::InsertTab(pos));
             }
             _ => {
                 // Other characters
@@ -356,11 +357,10 @@ impl Document {
         // Wipe the redo stack to avoid conflicts
         self.redo_stack.empty();
     }
-    pub fn tab(&mut self, config: &Reader, term: &Size) {
+    pub fn tab(&mut self, pos: &Position, config: &Reader, term: &Size) {
         // Insert a tab
-        // TODO: Update relavent lines here
         for _ in 0..config.general.tab_width {
-            self.rows[self.cursor.y + self.offset.y - OFFSET].insert(' ', self.graphemes);
+            self.rows[pos.y].insert(' ', pos.x);
             self.move_cursor(Key::Right, term);
         }
     }
@@ -467,7 +467,7 @@ impl Document {
                         self.cursor.x =
                             pos.x.saturating_sub(config.general.tab_width) - self.offset.x;
                         self.recalculate_graphemes();
-                        self.tab(&config, &term);
+                        self.tab(&pos, &config, &term);
                     }
                     Event::InsertMid(pos, c) => {
                         let c_len = UnicodeWidthChar::width(*c).map_or(0, |c| c);
@@ -544,8 +544,8 @@ impl Document {
                 match event {
                     // TODO: Update relavent lines here
                     Event::InsertTab(pos) => {
-                        for i in 1..=config.general.tab_width {
-                            self.rows[pos.y].delete(pos.x - i);
+                        for _ in 1..=config.general.tab_width {
+                            self.rows[pos.y].delete(pos.x);
                             self.move_cursor(Key::Left, &term);
                         }
                     }
