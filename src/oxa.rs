@@ -7,12 +7,20 @@
 
     An example usage could be writing a macro to delete the current line
 */
+use crate::config::Reader;
+use crate::undo::BankType;
 use crate::{Direction, Event, Position, Row};
 
-pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec<Event>> {
+pub fn interpret_line(
+    line: &str,
+    cursor: &Position,
+    graphemes: usize,
+    rows: &[Row],
+    config: &Reader,
+) -> Option<Vec<Event>> {
     // Take an instruction of Oxa and interpret it
     let mut events = vec![];
-    let mut line = line.split(' ');
+    let mut line = line.trim_start_matches(' ').split(' ');
     let mut start = line.next();
     let times;
     if let Ok(repeat) = start.unwrap_or_default().parse::<usize>() {
@@ -69,11 +77,13 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                     }
                 }
                 "put" => {
-                    if args[0] == "\n" {
-                        events.push(Event::ReturnEnd(*cursor));
+                    if args[0] == "\\t" {
+                        for _ in 0..config.general.tab_width {
+                            events.push(Event::Insertion(*cursor, ' '));
+                        }
                     } else {
                         for (c, ch) in args.join(" ").chars().enumerate() {
-                            events.push(Event::InsertMid(
+                            events.push(Event::Insertion(
                                 Position {
                                     x: cursor.x.saturating_add(c),
                                     y: cursor.y,
@@ -84,7 +94,7 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                     }
                 }
                 "delete" => {
-                    if let Some(mut evts) = delete_command(&args, cursor, rows) {
+                    if let Some(mut evts) = delete_command(&args, cursor, graphemes, rows) {
                         events.append(&mut evts);
                     } else {
                         return None;
@@ -145,10 +155,49 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
                         ));
                     }
                 }
-                "tab" => events.push(Event::InsertTab(Position {
-                    x: cursor.x,
-                    y: cursor.y.saturating_sub(1),
-                })),
+                "line" => {
+                    if !args.is_empty() {
+                        match args[0] {
+                            "below" => events.push(Event::InsertLineBelow(cursor.y)),
+                            "above" => events.push(Event::InsertLineAbove(cursor.y)),
+                            _ => return None,
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+                "split" => events.push(Event::SplitDown(*cursor)),
+                "splice" => events.push(Event::SpliceUp(*cursor)),
+                "store" => {
+                    if args.len() == 2 {
+                        if let Ok(bank) = args[1].parse::<usize>() {
+                            match args[0] {
+                                "cursor" => events.push(Event::Store(BankType::Cursor, bank)),
+                                "line" => events.push(Event::Store(BankType::Line, bank)),
+                                _ => return None,
+                            }
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+                "load" => {
+                    if args.len() == 2 {
+                        if let Ok(bank) = args[1].parse::<usize>() {
+                            match args[0] {
+                                "cursor" => events.push(Event::Load(BankType::Cursor, bank)),
+                                "line" => events.push(Event::Load(BankType::Line, bank)),
+                                _ => return None,
+                            }
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        return None;
+                    }
+                }
                 _ => return None,
             }
         }
@@ -156,11 +205,23 @@ pub fn interpret_line(line: &str, cursor: &Position, rows: &[Row]) -> Option<Vec
     Some(events)
 }
 
-fn delete_command(args: &[&str], cursor: &Position, rows: &[Row]) -> Option<Vec<Event>> {
+fn delete_command(
+    args: &[&str],
+    cursor: &Position,
+    graphemes: usize,
+    rows: &[Row],
+) -> Option<Vec<Event>> {
     // Handle the delete command (complicated)
     let mut events = vec![];
     if args.is_empty() {
-        return None;
+        if let Some(ch) = rows[cursor.y]
+            .string
+            .chars()
+            .collect::<Vec<_>>()
+            .get(graphemes)
+        {
+            events.push(Event::Deletion(*cursor, *ch));
+        }
     } else if let Ok(line) = args[0].parse::<i128>() {
         let ind;
         if line.is_negative() {
@@ -178,19 +239,6 @@ fn delete_command(args: &[&str], cursor: &Position, rows: &[Row]) -> Option<Vec<
             ind.saturating_sub(1),
             Box::new(rows[ind.saturating_sub(1)].clone()),
         ));
-    } else if args[0] == "~" {
-        let mut c = cursor.x as i128;
-        let chars: Vec<char> = rows[cursor.y].string.chars().collect();
-        while c >= 0 && chars[c as usize] != ' ' {
-            events.push(Event::BackspaceMid(
-                Position {
-                    x: c as usize,
-                    y: cursor.y,
-                },
-                chars[c as usize],
-            ));
-            c -= 1;
-        }
     } else {
         return None;
     }

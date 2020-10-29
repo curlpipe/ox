@@ -2,12 +2,13 @@
 use crate::config::{Reader, Status};
 use crate::document::Type;
 use crate::oxa::interpret_line;
+use crate::undo::BankType;
 use crate::util::{is_ahead, is_behind, title, trim_end, Exp};
 use crate::{Document, Event, Row, Terminal, VERSION};
 use clap::App;
 use regex::Regex;
 use std::time::{Duration, Instant};
-use std::{io::Error, thread};
+use std::{collections::HashMap, io::Error, thread};
 use termion::event::Key;
 use termion::input::{Keys, TermRead};
 use termion::{async_stdin, color, style, AsyncReader};
@@ -44,15 +45,17 @@ pub enum Direction {
 
 // The main editor struct
 pub struct Editor {
-    pub config: Reader,             // Storage for configuration
-    pub status: Status,             // Holding the status of the config
-    quit: bool,                     // Toggle for cleanly quitting the editor
-    term: Terminal,                 // For the handling of the terminal
-    doc: Vec<Document>,             // For holding our document
-    tab: usize,                     // Holds the number of the current tab
-    last_keypress: Option<Instant>, // For holding the time of the last input event
-    stdin: Keys<AsyncReader>,       // Asynchronous stdin
-    exp: Exp,                       // For holding expressions
+    pub config: Reader,                      // Storage for configuration
+    pub status: Status,                      // Holding the status of the config
+    quit: bool,                              // Toggle for cleanly quitting the editor
+    term: Terminal,                          // For the handling of the terminal
+    doc: Vec<Document>,                      // For holding our document
+    tab: usize,                              // Holds the number of the current tab
+    last_keypress: Option<Instant>,          // For holding the time of the last input event
+    stdin: Keys<AsyncReader>,                // Asynchronous stdin
+    exp: Exp,                                // For holding expressions
+    position_bank: HashMap<usize, Position>, // Bank for cursor positions
+    row_bank: HashMap<usize, Row>,           // Bank for lines
 }
 
 // Implementing methods for our editor struct / class
@@ -83,6 +86,8 @@ impl Editor {
             config: config.0.clone(),
             status: config.1,
             exp: Exp::new(),
+            position_bank: HashMap::new(),
+            row_bank: HashMap::new(),
         })
     }
     pub fn run(&mut self) {
@@ -139,19 +144,19 @@ impl Editor {
             y: cursor.y + offset.y + OFFSET,
         };
         match key {
-            Key::Char(c) => self.execute(&[Event::InsertMid(current, c)]),
-            Key::Backspace => self.doc[self.tab].backspace(&self.term.size),
-            Key::Ctrl('q') => self.execute(&[Event::Quit(false)]),
-            Key::Ctrl('s') => self.execute(&[Event::Save(None, false)]),
-            Key::Ctrl('w') => self.execute(&[Event::Save(None, true)]),
-            Key::Ctrl('p') => self.execute(&[Event::SaveAll]),
-            Key::Ctrl('n') => self.execute(&[Event::New]),
-            Key::Ctrl('o') => self.execute(&[Event::Open(None)]),
-            Key::Ctrl('d') => self.execute(&[Event::PrevTab]),
-            Key::Ctrl('h') => self.execute(&[Event::NextTab]),
+            Key::Char(c) => self.execute(Event::Insertion(current, c)),
+            Key::Backspace => self.execute(Event::Deletion(current, ' ')),
+            Key::Ctrl('q') => self.execute(Event::Quit(false)),
+            Key::Ctrl('s') => self.execute(Event::Save(None, false)),
+            Key::Ctrl('w') => self.execute(Event::Save(None, true)),
+            Key::Ctrl('p') => self.execute(Event::SaveAll),
+            Key::Ctrl('n') => self.execute(Event::New),
+            Key::Ctrl('o') => self.execute(Event::Open(None)),
+            Key::Ctrl('d') => self.execute(Event::PrevTab),
+            Key::Ctrl('h') => self.execute(Event::NextTab),
+            //Key::Ctrl('u') => self.doc[self.tab].undo(&self.config, &self.term.size),
+            //Key::Ctrl('y') => self.doc[self.tab].redo(&self.config, &self.term.size),
             Key::Ctrl('f') => self.search(),
-            Key::Ctrl('u') => self.doc[self.tab].undo(&self.config, &self.term.size),
-            Key::Ctrl('y') => self.doc[self.tab].redo(&self.config, &self.term.size),
             Key::Ctrl('r') => self.replace(),
             Key::Ctrl('a') => self.replace_all(),
             Key::Alt('a') => self.cmd(),
@@ -164,206 +169,315 @@ impl Editor {
             _ => (),
         }
     }
-    pub fn execute(&mut self, events: &[Event]) {
+    pub fn execute(&mut self, event: Event) {
         // Event executor
-        for event in events {
-            match event {
-                Event::New => {
-                    self.doc.push(Document::new(&self.config, &self.status));
+        match event {
+            Event::New => {
+                self.doc.push(Document::new(&self.config, &self.status));
+                self.tab = self.doc.len().saturating_sub(1);
+                self.doc[self.tab].dirty = false;
+                self.doc[self.tab].show_welcome = true;
+                self.doc[self.tab].cursor.y = OFFSET;
+                self.doc[self.tab].offset.y = 0;
+                self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
+            }
+            Event::Open(file) => {
+                let to_open = if let Some(path) = file {
+                    path.clone()
+                } else if let Some(path) = self.prompt("Open", ": ", &|_, _, _| {}) {
+                    path
+                } else {
+                    return;
+                };
+                if let Some(doc) = Document::open(&self.config, &self.status, &to_open) {
+                    // Overwrite the current document
+                    self.doc.push(doc);
                     self.tab = self.doc.len().saturating_sub(1);
                     self.doc[self.tab].dirty = false;
-                    self.doc[self.tab].show_welcome = true;
+                    self.doc[self.tab].show_welcome = false;
                     self.doc[self.tab].cursor.y = OFFSET;
                     self.doc[self.tab].offset.y = 0;
                     self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
+                } else {
+                    self.doc[self.tab]
+                        .set_command_line("File couldn't be opened".to_string(), Type::Error);
                 }
-                Event::Open(file) => {
-                    let to_open = if let Some(path) = file {
-                        path.clone()
-                    } else if let Some(path) = self.prompt("Open", ": ", &|_, _, _| {}) {
-                        path
-                    } else {
-                        continue;
-                    };
-                    if let Some(doc) = Document::open(&self.config, &self.status, &to_open) {
-                        // Overwrite the current document
-                        self.doc.push(doc);
-                        self.tab = self.doc.len().saturating_sub(1);
-                        self.doc[self.tab].dirty = false;
-                        self.doc[self.tab].show_welcome = false;
-                        self.doc[self.tab].cursor.y = OFFSET;
-                        self.doc[self.tab].offset.y = 0;
-                        self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
-                    } else {
-                        self.doc[self.tab]
-                            .set_command_line("File couldn't be opened".to_string(), Type::Error);
-                    }
-                }
-                Event::Save(file, prompt) => {
-                    // Handle save event
-                    let to_save = if let Some(file) = file {
-                        // Specified file
-                        file.to_string()
-                    } else {
-                        // File not specified
-                        if *prompt {
-                            // Prompt for file when unspecified
-                            if let Some(path) = self.prompt("Save as", ": ", &|_, _, _| {}) {
-                                path
-                            } else {
-                                continue;
-                            }
+            }
+            Event::Save(file, prompt) => {
+                // Handle save event
+                let to_save = if let Some(file) = file {
+                    // Specified file
+                    file.to_string()
+                } else {
+                    // File not specified
+                    if prompt {
+                        // Prompt for file when unspecified
+                        if let Some(path) = self.prompt("Save as", ": ", &|_, _, _| {}) {
+                            path
                         } else {
-                            // Use current document
-                            self.doc[self.tab].path.clone()
+                            return;
                         }
-                    };
-                    if self.doc[self.tab]
-                        .save(&to_save, self.config.general.tab_width)
+                    } else {
+                        // Use current document
+                        self.doc[self.tab].path.clone()
+                    }
+                };
+                if self.doc[self.tab]
+                    .save(&to_save, self.config.general.tab_width)
+                    .is_ok()
+                {
+                    // The document saved successfully
+                    let ext = to_save.split('.').last().unwrap_or(&"");
+                    self.doc[self.tab].dirty = false;
+                    self.doc[self.tab].set_command_line(
+                        format!("File saved to {} successfully", to_save),
+                        Type::Info,
+                    );
+                    self.doc[self.tab].kind = Document::identify(&to_save).0.to_string();
+                    self.doc[self.tab].icon = Document::identify(&to_save).1.to_string();
+                    self.doc[self.tab].name = to_save.clone();
+                    self.doc[self.tab].path = to_save.clone();
+                    self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
+                } else {
+                    // The document couldn't save due to permission errors
+                    self.doc[self.tab].set_command_line(
+                        format!("Failed to save file to {}", to_save),
+                        Type::Error,
+                    );
+                }
+                // Commit to undo stack on document save
+                self.execute(Event::Commit);
+            }
+            Event::SaveAll => {
+                for i in 0..self.doc.len() {
+                    let path = self.doc[i].path.clone();
+                    if self.doc[i]
+                        .save(&path, self.config.general.tab_width)
                         .is_ok()
                     {
                         // The document saved successfully
-                        let ext = to_save.split('.').last().unwrap_or(&"");
-                        self.doc[self.tab].dirty = false;
-                        self.doc[self.tab].set_command_line(
-                            format!("File saved to {} successfully", to_save),
+                        self.doc[i].dirty = false;
+                        self.doc[i].set_command_line(
+                            format!("File saved to {} successfully", path),
                             Type::Info,
                         );
-                        self.doc[self.tab].kind = Document::identify(&to_save).0.to_string();
-                        self.doc[self.tab].icon = Document::identify(&to_save).1.to_string();
-                        self.doc[self.tab].name = to_save.clone();
-                        self.doc[self.tab].path = to_save.clone();
-                        self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
                     } else {
                         // The document couldn't save due to permission errors
-                        self.doc[self.tab].set_command_line(
-                            format!("Failed to save file to {}", to_save),
+                        self.doc[i].set_command_line(
+                            format!("Failed to save file to {}", path),
                             Type::Error,
                         );
                     }
                     // Commit to undo stack on document save
-                    self.execute(&[Event::Commit]);
+                    self.execute(Event::Commit);
                 }
-                Event::SaveAll => {
-                    for i in 0..self.doc.len() {
-                        let path = self.doc[i].path.clone();
-                        if self.doc[i]
-                            .save(&path, self.config.general.tab_width)
-                            .is_ok()
+            }
+            Event::Quit(force) => {
+                // For handling a quit event
+                if force || self.dirty_prompt('q', "quit") {
+                    if self.doc.len() <= 1 {
+                        // Quit Ox
+                        self.quit = true;
+                        return;
+                    } else if self.tab == self.doc.len().saturating_sub(1) {
+                        // Close current tab and move right
+                        self.doc.remove(self.tab);
+                        self.tab -= 1;
+                    } else {
+                        // Close current tab and move left
+                        self.doc.remove(self.tab);
+                    }
+                    self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
+                }
+            }
+            Event::QuitAll(force) => {
+                self.tab = 0;
+                while !self.quit {
+                    self.execute(Event::Quit(force));
+                }
+            }
+            Event::NextTab => {
+                if self.tab.saturating_add(1) < self.doc.len() {
+                    self.tab = self.tab.saturating_add(1);
+                }
+            }
+            Event::PrevTab => self.tab = self.tab.saturating_sub(1),
+            Event::Commit => self.doc[self.tab].undo_stack.commit(),
+            //Event::Undo => self.doc[self.tab].undo(&self.config, &self.term.size),
+            //Event::Redo => self.doc[self.tab].redo(&self.config, &self.term.size),
+            Event::Overwrite(_before, after) => {
+                self.doc[self.tab].rows = after.to_vec();
+                self.execute(Event::GotoCursor(Position { x: 0, y: 0 }));
+            }
+            Event::GotoCursor(mut position) => {
+                if self.doc[self.tab].rows.len() > position.y
+                    && self.doc[self.tab].rows[position.y].length() >= position.x
+                {
+                    position.y += OFFSET;
+                    self.goto(&position);
+                }
+            }
+            Event::MoveCursor(magnitude, direction) => {
+                for _ in 0..magnitude {
+                    self.doc[self.tab].move_cursor(
+                        match direction {
+                            Direction::Up => Key::Up,
+                            Direction::Down => Key::Down,
+                            Direction::Left => Key::Left,
+                            Direction::Right => Key::Right,
+                        },
+                        &self.term.size,
+                    );
+                }
+            }
+            Event::UpdateLine(y, _before, after) => self.doc[self.tab].rows[y] = *after.clone(),
+            Event::DeleteLine(y, _before) => {
+                if self.doc[self.tab].rows.len() > 1 {
+                    self.doc[self.tab].rows.remove(y);
+                    if y < self.doc[self.tab].cursor.y.saturating_sub(1) {
+                        self.execute(Event::MoveCursor(1, Direction::Up));
+                    }
+                }
+            }
+            Event::Insertion(pos, ch) => {
+                self.doc[self.tab].dirty = true;
+                self.doc[self.tab].show_welcome = false;
+                let cursor = self.doc[self.tab].cursor;
+                let offset = self.doc[self.tab].offset;
+                let graphemes = self.doc[self.tab].graphemes;
+                match ch {
+                    '\n' => {
+                        if cursor.x + offset.x == 0 {
+                            // Return key pressed at the start of the line
+                            self.execute(Event::InsertLineAbove(cursor.y + offset.y - OFFSET + 1));
+                        } else if cursor.x + offset.x
+                            == self.doc[self.tab].rows[cursor.y + offset.y - OFFSET].length()
                         {
-                            // The document saved successfully
-                            self.doc[i].dirty = false;
-                            self.doc[i].set_command_line(
-                                format!("File saved to {} successfully", path),
-                                Type::Info,
-                            );
+                            // Return key pressed at the end of the line
+                            self.execute(Event::InsertLineBelow(cursor.y + offset.y - OFFSET + 1));
+                            self.execute(Event::MoveCursor(1, Direction::Down));
+                            self.doc[self.tab].recalculate_graphemes();
                         } else {
-                            // The document couldn't save due to permission errors
-                            self.doc[i].set_command_line(
-                                format!("Failed to save file to {}", path),
-                                Type::Error,
-                            );
+                            // Return key pressed in the middle of the line
+                            self.execute(Event::SplitDown(pos));
                         }
-                        // Commit to undo stack on document save
-                        self.execute(&[Event::Commit]);
                     }
-                }
-                Event::Quit(force) => {
-                    // For handling a quit event
-                    if *force || self.dirty_prompt('q', "quit") {
-                        if self.doc.len() <= 1 {
-                            // Quit Ox
-                            self.quit = true;
-                            return;
-                        } else if self.tab == self.doc.len().saturating_sub(1) {
-                            // Close current tab and move right
-                            self.doc.remove(self.tab);
-                            self.tab -= 1;
-                        } else {
-                            // Close current tab and move left
-                            self.doc.remove(self.tab);
+                    '\t' => {
+                        // The user pressed the tab key
+                        let pos = Position {
+                            x: cursor.x + offset.x,
+                            y: cursor.y + offset.y - OFFSET,
+                        };
+                        self.doc[self.tab].tab(&pos, &self.config, &self.term.size);
+                    }
+                    _ => {
+                        // Other characters
+                        // TODO: Update relavent lines here
+                        self.doc[self.tab].rows[cursor.y + offset.y - OFFSET].insert(ch, graphemes);
+                        // Commit to the undo stack if space key pressed
+                        if ch == ' ' {
+                            self.doc[self.tab].undo_stack.commit();
                         }
-                        self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
+                        self.doc[self.tab].move_cursor(Key::Right, &self.term.size);
                     }
                 }
-                Event::QuitAll(force) => {
-                    self.tab = 0;
-                    while !self.quit {
-                        self.execute(&[Event::Quit(*force)]);
+            }
+            Event::Deletion(pos, _ch) => {
+                self.doc[self.tab].dirty = true;
+                self.doc[self.tab].show_welcome = false;
+                let cursor = self.doc[self.tab].cursor;
+                let offset = self.doc[self.tab].offset;
+                let graphemes = self.doc[self.tab].graphemes;
+                if cursor.x + offset.x == 0 {
+                    // Backspace at the start of a line
+                    self.execute(Event::SpliceUp(pos));
+                } else {
+                    // Backspace in the middle of a line
+                    self.doc[self.tab].rows[cursor.y + offset.y - OFFSET]
+                        .delete(graphemes.saturating_sub(1));
+                    self.doc[self.tab].move_cursor(Key::Left, &self.term.size);
+                }
+            }
+            Event::InsertLineAbove(y) => {
+                self.doc[self.tab]
+                    .rows
+                    .insert(y.saturating_sub(1), Row::from(""));
+                self.doc[self.tab].move_cursor(Key::Down, &self.term.size)
+            }
+            Event::InsertLineBelow(y) => self.doc[self.tab].rows.insert(y, Row::from("")),
+            Event::SpliceUp(_pos) => self.doc[self.tab].splice_up(&self.term.size),
+            Event::SplitDown(_pos) => self.doc[self.tab].split_down(&self.term.size),
+            Event::Store(kind, bank) => {
+                let cursor = self.doc[self.tab].cursor;
+                let offset = self.doc[self.tab].offset;
+                let current = Position {
+                    x: cursor.x + offset.x,
+                    y: cursor.y + offset.y + OFFSET - 1,
+                };
+                match kind {
+                    BankType::Cursor => {
+                        self.position_bank.insert(bank, current);
                     }
-                }
-                Event::NextTab => {
-                    if self.tab.saturating_add(1) < self.doc.len() {
-                        self.tab = self.tab.saturating_add(1);
-                    }
-                }
-                Event::PrevTab => self.tab = self.tab.saturating_sub(1),
-                Event::Commit => self.doc[self.tab].undo_stack.commit(),
-                Event::Undo => self.doc[self.tab].undo(&self.config, &self.term.size),
-                Event::Redo => self.doc[self.tab].redo(&self.config, &self.term.size),
-                Event::Overwrite(_before, after) => {
-                    self.doc[self.tab].rows = after.to_vec();
-                    self.execute(&[Event::GotoCursor(Position { x: 0, y: 0 })]);
-                }
-                Event::GotoCursor(mut position) => {
-                    if self.doc[self.tab].rows.len() > position.y
-                        && self.doc[self.tab].rows[position.y].length() >= position.x
-                    {
-                        position.y += OFFSET;
-                        self.goto(&position);
-                    }
-                }
-                Event::MoveCursor(magnitude, direction) => {
-                    for _ in 0..*magnitude {
-                        self.doc[self.tab].move_cursor(
-                            match direction {
-                                Direction::Up => Key::Up,
-                                Direction::Down => Key::Down,
-                                Direction::Left => Key::Left,
-                                Direction::Right => Key::Right,
-                            },
-                            &self.term.size,
+                    BankType::Line => {
+                        self.row_bank.insert(
+                            bank,
+                            self.doc[self.tab].rows[current.y.saturating_sub(1)].clone(),
                         );
                     }
                 }
-                Event::UpdateLine(y, _before, after) => {
-                    self.doc[self.tab].rows[*y] = *after.clone()
-                }
-                Event::DeleteLine(y, _before) => {
-                    if self.doc[self.tab].rows.len() > 1 {
-                        self.doc[self.tab].rows.remove(*y);
-                        if y < &self.doc[self.tab].cursor.y {
-                            self.execute(&[Event::MoveCursor(1, Direction::Up)]);
+            }
+            Event::Load(kind, bank) => {
+                let cursor = self.doc[self.tab].cursor;
+                let offset = self.doc[self.tab].offset;
+                let current = Position {
+                    x: cursor.x + offset.x,
+                    y: cursor.y + offset.y + OFFSET - 1,
+                };
+                match kind {
+                    BankType::Cursor => {
+                        let cursor = self
+                            .position_bank
+                            .get(&bank)
+                            .unwrap_or_else(|| &current)
+                            .clone();
+                        self.goto(&cursor);
+                    }
+                    BankType::Line => {
+                        if let Some(row) = self.row_bank.get(&bank) {
+                            self.doc[self.tab].rows.insert(current.y, row.clone());
+                            self.execute(Event::MoveCursor(1, Direction::Down));
                         }
                     }
                 }
-                Event::InsertTab(pos) => self.execute(&[Event::InsertMid(*pos, '\t')]),
-                Event::InsertMid(_pos, ch) => {
-                    self.doc[self.tab].character(*ch, &self.term.size, &self.config)
-                }
-                _ => (),
             }
+            _ => (),
         }
     }
     fn cmd(&mut self) {
         // Recieve macro command
         if let Some(command) = self.prompt(":", "", &|_, _, _| {}) {
             // Parse and Lex instruction
-            let cursor = self.doc[self.tab].cursor;
-            let offset = self.doc[self.tab].offset;
-            let instruction = interpret_line(
-                &command,
-                &Position {
-                    x: cursor.x + offset.x,
-                    y: cursor.y + offset.y,
-                },
-                &self.doc[self.tab].rows,
-            );
-            self.doc[self.tab].set_command_line(format!("{:?}", instruction), Type::Info);
-            // Execute the instruction
-            if let Some(instruction) = instruction {
-                self.execute(&instruction)
-            };
+            for command in command.split('|') {
+                let cursor = self.doc[self.tab].cursor;
+                let offset = self.doc[self.tab].offset;
+                let instruction = interpret_line(
+                    &command,
+                    &Position {
+                        x: cursor.x + offset.x,
+                        y: cursor.y + offset.y,
+                    },
+                    self.doc[self.tab].graphemes,
+                    &self.doc[self.tab].rows,
+                    &self.config,
+                );
+                self.doc[self.tab].set_command_line(format!("{:?}", instruction), Type::Info);
+                // Execute the instruction
+                if let Some(instruct) = instruction {
+                    for i in instruct {
+                        self.execute(i);
+                    }
+                };
+            }
         }
     }
     fn search(&mut self) {
@@ -812,7 +926,7 @@ impl Editor {
         // Iterate through documents and create their tab text
         for (num, doc) in self.doc.iter().enumerate() {
             let this = format!(
-                "{} {}{}{} {}{}|",
+                "{} {}{}{} {}{}│",
                 if num == self.tab {
                     format!("{}{}", style::Bold, active)
                 } else {

@@ -1,12 +1,12 @@
 // Document.rs - For managing external files
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
-use crate::util::{raw_to_grapheme, spaces_to_tabs, tabs_to_spaces};
-use crate::{Event, EventStack, Position, Row, Size};
+use crate::util::{spaces_to_tabs, tabs_to_spaces};
+use crate::{EventStack, Position, Row, Size};
 use regex::Regex;
 use std::{cmp, fs};
 use termion::event::Key;
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_width::UnicodeWidthStr;
 
 // For holding the info in the command line
 pub struct CommandLine {
@@ -319,44 +319,6 @@ impl Document {
             + config.general.line_number_padding_right
             + config.general.line_number_padding_left;
     }
-    pub fn character(&mut self, c: char, term: &Size, config: &Reader) {
-        // The user pressed a character key
-        self.dirty = true;
-        self.show_welcome = false;
-        match c {
-            '\n' => self.return_key(term), // The user pressed the return key
-            '\t' => {
-                // The user pressed the tab key
-                let pos = Position {
-                    x: self.cursor.x + self.offset.x,
-                    y: self.cursor.y + self.offset.y - OFFSET,
-                };
-                self.tab(&pos, &config, term);
-                self.undo_stack.push(Event::InsertTab(pos));
-            }
-            _ => {
-                // Other characters
-                // TODO: Update relavent lines here
-                self.dirty = true;
-                self.show_welcome = false;
-                self.rows[self.cursor.y + self.offset.y - OFFSET].insert(c, self.graphemes);
-                self.undo_stack.push(Event::InsertMid(
-                    Position {
-                        x: self.cursor.x + self.offset.x,
-                        y: self.cursor.y + self.offset.y - OFFSET,
-                    },
-                    c,
-                ));
-                // Commit to the undo stack if space key pressed
-                if c == ' ' {
-                    self.undo_stack.commit();
-                }
-                self.move_cursor(Key::Right, term);
-            }
-        }
-        // Wipe the redo stack to avoid conflicts
-        self.redo_stack.empty();
-    }
     pub fn tab(&mut self, pos: &Position, config: &Reader, term: &Size) {
         // Insert a tab
         for _ in 0..config.general.tab_width {
@@ -364,249 +326,30 @@ impl Document {
             self.move_cursor(Key::Right, term);
         }
     }
-    pub fn return_key(&mut self, term: &Size) {
-        // Return key
-        self.dirty = true;
-        self.show_welcome = false;
-        // TODO: Update relavent lines here
-        if self.cursor.x + self.offset.x == 0 {
-            // Return key pressed at the start of the line
-            self.rows
-                .insert(self.cursor.y + self.offset.y - OFFSET, Row::from(""));
-            self.undo_stack.push(Event::ReturnStart(Position {
-                x: self.cursor.x + self.offset.x,
-                y: self.cursor.y + self.offset.y - OFFSET,
-            }));
-            self.move_cursor(Key::Down, term);
-        } else if self.cursor.x + self.offset.x
-            == self.rows[self.cursor.y + self.offset.y - OFFSET].length()
-        {
-            // Return key pressed at the end of the line
-            self.rows
-                .insert(self.cursor.y + self.offset.y + 1 - OFFSET, Row::from(""));
-            self.undo_stack.push(Event::ReturnEnd(Position {
-                x: self.cursor.x + self.offset.x,
-                y: self.cursor.y + self.offset.y - OFFSET,
-            }));
-            self.move_cursor(Key::Down, term);
-            self.leap_cursor(Key::Home, term);
-            self.recalculate_graphemes();
-        } else {
-            // Return key pressed in the middle of the line
-            let current = self.rows[self.cursor.y + self.offset.y - OFFSET].chars();
-            let before = Row::from(&current[..self.graphemes].join("")[..]);
-            let after = Row::from(&current[self.graphemes..].join("")[..]);
-            self.rows
-                .insert(self.cursor.y + self.offset.y + 1 - OFFSET, after);
-            self.rows[self.cursor.y + self.offset.y - OFFSET] = before.clone();
-            self.undo_stack.push(Event::ReturnMid(
-                Position {
-                    x: self.cursor.x + self.offset.x,
-                    y: self.cursor.y + self.offset.y - OFFSET,
-                },
-                before.length(),
-            ));
-            self.move_cursor(Key::Down, term);
-            self.leap_cursor(Key::Home, term);
-        }
-        // Commit to undo stack when return key pressed
+    pub fn split_down(&mut self, term: &Size) {
+        // Split current line in two, dropping the right side down
+        // Used for when the return key is pressed in the middle of a line
+        let current = self.rows[self.cursor.y + self.offset.y - OFFSET].chars();
+        let before = Row::from(&current[..self.graphemes].join("")[..]);
+        let after = Row::from(&current[self.graphemes..].join("")[..]);
+        self.rows
+            .insert(self.cursor.y + self.offset.y + 1 - OFFSET, after);
+        self.rows[self.cursor.y + self.offset.y - OFFSET] = before.clone();
+        self.move_cursor(Key::Down, term);
+        self.leap_cursor(Key::Home, term);
+    }
+    pub fn splice_up(&mut self, term: &Size) {
+        let current = self.rows[self.cursor.y + self.offset.y - OFFSET]
+            .string
+            .clone();
+        let prev = self.rows[self.cursor.y + self.offset.y - 1 - OFFSET].clone();
+        self.rows[self.cursor.y + self.offset.y - 1 - OFFSET] =
+            Row::from(&(prev.string.clone() + &current)[..]);
+        self.rows.remove(self.cursor.y + self.offset.y - OFFSET);
+        self.move_cursor(Key::Up, term);
+        self.cursor.x = prev.length();
+        self.recalculate_graphemes();
         self.undo_stack.commit();
-    }
-    pub fn backspace(&mut self, term: &Size) {
-        // Handling the backspace key
-        if self.cursor.y + self.offset.y == OFFSET && self.cursor.x + self.offset.x == 0 {
-            return;
-        }
-        self.dirty = true;
-        self.show_welcome = false;
-        // TODO: Update relavent lines here
-        if self.cursor.x + self.offset.x == 0 {
-            // Backspace at the start of a line
-            let current = self.rows[self.cursor.y + self.offset.y - OFFSET]
-                .string
-                .clone();
-            let prev = self.rows[self.cursor.y + self.offset.y - 1 - OFFSET].clone();
-            self.rows[self.cursor.y + self.offset.y - 1 - OFFSET] =
-                Row::from(&(prev.string.clone() + &current)[..]);
-            self.rows.remove(self.cursor.y + self.offset.y - OFFSET);
-            self.move_cursor(Key::Up, term);
-            self.cursor.x = prev.length();
-            self.recalculate_graphemes();
-            self.undo_stack.push(Event::BackspaceStart(Position {
-                x: self.cursor.x + self.offset.x,
-                y: self.cursor.y + self.offset.y - OFFSET,
-            }));
-            self.undo_stack.commit();
-        } else {
-            // Backspace in the middle of a line
-            self.move_cursor(Key::Left, term);
-            let ch = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
-            self.rows[self.cursor.y + self.offset.y - OFFSET].delete(self.graphemes);
-            if let Some(ch) = ch.chars().get(self.graphemes) {
-                if let Ok(ch) = ch.parse() {
-                    self.undo_stack.push(Event::BackspaceMid(
-                        Position {
-                            x: self.cursor.x + self.offset.x,
-                            y: self.cursor.y + self.offset.y - OFFSET,
-                        },
-                        ch,
-                    ));
-                }
-            }
-        }
-    }
-    pub fn redo(&mut self, config: &Reader, term: &Size) {
-        // Redo an action
-        if let Some(events) = self.redo_stack.pop() {
-            for event in events.iter().rev() {
-                // Reverse the undo action
-                match event {
-                    // TODO: Update relavent lines here
-                    Event::InsertTab(pos) => {
-                        self.cursor.y = pos.y - self.offset.y + OFFSET;
-                        self.cursor.x =
-                            pos.x.saturating_sub(config.general.tab_width) - self.offset.x;
-                        self.recalculate_graphemes();
-                        self.tab(&pos, &config, &term);
-                    }
-                    Event::InsertMid(pos, c) => {
-                        let c_len = UnicodeWidthChar::width(*c).map_or(0, |c| c);
-                        self.cursor.y = pos.y - self.offset.y + OFFSET;
-                        self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
-                        self.recalculate_graphemes();
-                        self.rows[pos.y].insert(*c, pos.x);
-                    }
-                    Event::BackspaceMid(pos, _) => {
-                        self.cursor.y = pos.y - self.offset.y + OFFSET;
-                        self.cursor.x = pos.x - self.offset.x;
-                        self.recalculate_graphemes();
-                        self.rows[pos.y].delete(pos.x);
-                    }
-                    Event::ReturnEnd(pos) => {
-                        self.cursor.y = pos.y - self.offset.y + OFFSET;
-                        self.cursor.x = pos.x - self.offset.x;
-                        self.recalculate_graphemes();
-                        self.rows.insert(pos.y + 1, Row::from(""));
-                        self.move_cursor(Key::Down, &term);
-                    }
-                    Event::ReturnStart(pos) => {
-                        self.cursor.y = pos.y - self.offset.y + OFFSET;
-                        self.cursor.x = pos.x - self.offset.x;
-                        self.recalculate_graphemes();
-                        self.rows.insert(pos.y, Row::from(""));
-                        self.move_cursor(Key::Down, &term);
-                    }
-                    Event::ReturnMid(pos, breakpoint) => {
-                        self.cursor.y = pos.y - self.offset.y + OFFSET;
-                        self.cursor.x = pos.x - self.offset.x;
-                        self.recalculate_graphemes();
-                        let current = self.rows[pos.y].string.clone();
-                        let before = Row::from(&current[..*breakpoint]);
-                        let after = Row::from(&current[*breakpoint..]);
-                        self.rows.insert(pos.y + 1, after);
-                        self.rows[pos.y] = before;
-                        self.move_cursor(Key::Down, &term);
-                        self.leap_cursor(Key::Home, &term);
-                    }
-                    Event::BackspaceStart(pos) => {
-                        self.cursor.y = pos.y - self.offset.y + OFFSET;
-                        self.recalculate_graphemes();
-                        let current = self.rows[pos.y + 1].string.clone();
-                        let prev = self.rows[pos.y].clone();
-                        self.rows[pos.y + 1] = Row::from(&(prev.string.clone() + &current)[..]);
-                        self.rows.remove(pos.y);
-                        self.move_cursor(Key::Up, &term);
-                        self.cursor.x = prev.length();
-                        self.recalculate_graphemes();
-                    }
-                    Event::UpdateLine(pos, _, after) => {
-                        self.rows[*pos] = *after.clone();
-                        self.snap_cursor(&term);
-                        self.prevent_unicode_hell();
-                        self.recalculate_graphemes();
-                    }
-                    _ => (),
-                }
-                self.dirty = true;
-                self.show_welcome = false;
-            }
-            self.undo_stack.append(events);
-        } else {
-            self.set_command_line("Empty Redo Stack".to_string(), Type::Error);
-        }
-    }
-    pub fn undo(&mut self, config: &Reader, term: &Size) {
-        // Initiate an undo action
-        self.undo_stack.commit();
-        if let Some(events) = self.undo_stack.pop() {
-            for event in &events {
-                // Undo the previous action
-                match event {
-                    // TODO: Update relavent lines here
-                    Event::InsertTab(pos) => {
-                        for _ in 1..=config.general.tab_width {
-                            self.rows[pos.y].delete(pos.x);
-                            self.move_cursor(Key::Left, &term);
-                        }
-                    }
-                    Event::InsertMid(pos, c) => {
-                        let c_len = UnicodeWidthChar::width(*c).map_or(0, |c| c);
-                        self.cursor.y = pos.y - self.offset.y + OFFSET;
-                        self.cursor.x = pos.x.saturating_add(c_len) - self.offset.x;
-                        self.recalculate_graphemes();
-                        let string = self.rows[pos.y].string.clone();
-                        self.rows[pos.y].delete(raw_to_grapheme(pos.x, &string));
-                        for _ in 0..c_len {
-                            self.move_cursor(Key::Left, term);
-                        }
-                    }
-                    Event::BackspaceMid(pos, c) => {
-                        self.rows[pos.y].insert(*c, pos.x);
-                        self.move_cursor(Key::Right, term);
-                    }
-                    Event::ReturnEnd(pos) => {
-                        self.rows.remove(pos.y + 1);
-                        self.move_cursor(Key::Up, term);
-                        self.leap_cursor(Key::End, term);
-                    }
-                    Event::ReturnStart(pos) => {
-                        self.rows.remove(pos.y);
-                        self.move_cursor(Key::Up, term);
-                    }
-                    Event::ReturnMid(pos, breakpoint) => {
-                        let current = self.rows[pos.y].string.clone();
-                        let after = self.rows[pos.y + 1].string.clone();
-                        self.rows.remove(pos.y);
-                        self.rows[pos.y] = Row::from(&(current + &after)[..]);
-                        self.move_cursor(Key::Up, term);
-                        self.leap_cursor(Key::Home, term);
-                        for _ in 0..*breakpoint {
-                            self.move_cursor(Key::Right, term);
-                        }
-                    }
-                    Event::BackspaceStart(pos) => {
-                        let before = Row::from(&self.rows[pos.y].string[..pos.x]);
-                        let after = Row::from(&self.rows[pos.y].string[pos.x..]);
-                        self.rows[pos.y] = after;
-                        self.rows.insert(pos.y, before);
-                        self.move_cursor(Key::Down, term);
-                        self.leap_cursor(Key::Home, term);
-                    }
-                    Event::UpdateLine(pos, before, _) => {
-                        self.rows[*pos] = *before.clone();
-                        self.snap_cursor(term);
-                        self.prevent_unicode_hell();
-                        self.recalculate_graphemes();
-                    }
-                    _ => (),
-                }
-                self.dirty = true;
-                self.show_welcome = false;
-            }
-            self.redo_stack.append(events);
-        } else {
-            self.set_command_line("Empty Undo Stack".to_string(), Type::Error);
-        }
     }
     pub fn save(&self, path: &str, tab: usize) -> std::io::Result<()> {
         // Save a file

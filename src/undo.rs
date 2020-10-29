@@ -1,18 +1,24 @@
 // Undo.rs - Utilities for undoing, redoing and storing events
 use crate::{Direction, Position, Row};
 
+// Enum for the the types of banks
+#[derive(Debug, Clone)]
+pub enum BankType {
+    Line,   // For holding lines from the document
+    Cursor, // For holding cursor positions
+}
+
 // Event enum to store the types of events that occur
 #[derive(Debug, Clone)]
 pub enum Event {
-    BackspaceStart(Position),     // Delete from start
-    BackspaceMid(Position, char), // Delete from middle
-    ReturnStart(Position),        // Return key in the middle of line
-    ReturnMid(Position, usize),   // Return from middle of the line
-    ReturnEnd(Position),          // Return on the end of line
-    // TODO:
-    // COMPLETED EVENTS:
-    InsertMid(Position, char),             // Insert character
-    InsertTab(Position),                   // Insert Tab
+    Store(BankType, usize),                // Store an item in a bank
+    Load(BankType, usize),                 // Load an item from a bank
+    SpliceUp(Position),                    // Delete from start
+    SplitDown(Position),                   // Return from middle of the line
+    InsertLineAbove(usize),                // Return key in the middle of line
+    InsertLineBelow(usize),                // Return on the end of line
+    Deletion(Position, char),              // Delete from middle
+    Insertion(Position, char),             // Insert character
     DeleteLine(usize, Box<Row>),           // For deleting a line
     UpdateLine(usize, Box<Row>, Box<Row>), // For holding entire line updates
     MoveCursor(i128, Direction),           // For moving the cursor

@@ -1,28 +1,31 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
-  - [ ] Create unified event executor (26th)
-    - [ ] Backspace functions
-    - [ ] Return functions
-    - [ ] Storage functions
+  - [ ] Create unified event executor (28th)
     - [ ] Allow undo via reverse execution
+    - [ ] Clippy
+    - [ ] Thorough Testing
     - [X] Document functions
     - [X] Cursor functions
     - [X] Mass edit functions
     - [X] Tab functions
     - [X] Insertion function
     - [X] Allow repeated Ox commands
-  - [ ] Write documentation for oxa (27th)
-  - [ ] Have a few example macros (27th)
+    - [X] Backspace functions
+    - [X] Return functions
+    - [X] Storage functions
+    - [X] Allow multiple event execution
+  - [ ] Write documentation for oxa (29th)
+  - [ ] Have a few example macros (29th)
     - [ ] Move forward a word
     - [ ] Move backward a word
     - [ ] Move line
     - [X] Goto line number
     - [X] Delete line
     - [X] Move cursor
-  - [ ] Allow binding of macros to some keys (28th)
+  - [ ] Allow binding of macros to some keys (30th)
   - [X] Allow special command mode
   - [X] Create Oxa parser (25th)
-- [ ] Add more configuration options in the config file (29th)
+- [ ] Add more configuration options in the config file (30th)
 - [X] Fix file tab issue (27th)
 - [X] Fix (0, 0) deletion issues
 
