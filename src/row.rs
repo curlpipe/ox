@@ -54,7 +54,7 @@ impl Row {
             " ".repeat(post_padding),
             index,
             " ".repeat(config.general.line_number_padding_right),
-            RESET_FG,
+            Reader::rgb_fg(config.theme.editor_fg),
         );
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);

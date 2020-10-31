@@ -76,3 +76,20 @@ impl EventStack {
         }
     }
 }
+
+pub fn reverse(before: Event) -> Option<Event> {
+    // Turn an event into the opposite of itself
+    // Used for undo
+    Some(match before {
+        Event::SpliceUp(pos) => Event::SplitDown(pos),
+        Event::SplitDown(pos) => Event::SplitDown(pos),
+        Event::InsertLineAbove(y) => Event::DeleteLine(y, Box::new(Row::from(""))),
+        Event::InsertLineBelow(y) => Event::DeleteLine(y.saturating_add(1), Box::new(Row::from(""))),
+        Event::Deletion(pos, ch) => Event::Insertion(pos, ch),
+        Event::Insertion(pos, ch) => Event::Deletion(pos, ch),
+        Event::DeleteLine(y, before) => Event::UpdateLine(y, Box::new(Row::from("")), before),
+        Event::UpdateLine(y, before, after) => Event::UpdateLine(y, after, before),
+        Event::Overwrite(before, after) => Event::Overwrite(after, before),
+        _ => return None,
+    })
+}

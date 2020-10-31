@@ -143,14 +143,14 @@ pub fn interpret_line(
                 "set" => {
                     if args.is_empty() {
                         events.push(Event::UpdateLine(
-                            cursor.y.saturating_sub(1),
-                            Box::new(rows[cursor.y.saturating_sub(1)].clone()),
+                            cursor.y,
+                            Box::new(rows[cursor.y].clone()),
                             Box::new(Row::from("")),
                         ));
                     } else {
                         events.push(Event::UpdateLine(
-                            cursor.y.saturating_sub(1),
-                            Box::new(rows[cursor.y.saturating_sub(1)].clone()),
+                            cursor.y,
+                            Box::new(rows[cursor.y].clone()),
                             Box::new(Row::from(args.join(" ").as_str())),
                         ));
                     }
@@ -235,10 +235,7 @@ fn delete_command(
         } else {
             ind = rows.len().saturating_sub(1);
         }
-        events.push(Event::DeleteLine(
-            ind.saturating_sub(1),
-            Box::new(rows[ind.saturating_sub(1)].clone()),
-        ));
+        events.push(Event::DeleteLine(ind, Box::new(rows[ind].clone())));
     } else {
         return None;
     }
