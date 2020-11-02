@@ -231,7 +231,7 @@ impl Editor {
             }
             Event::Open(file) => {
                 let to_open = if let Some(path) = file {
-                    path.clone()
+                    path
                 } else if let Some(path) = self.prompt("Open", ": ", &|_, _, _| {}) {
                     path
                 } else {
@@ -255,7 +255,7 @@ impl Editor {
                 // Handle save event
                 let to_save = if let Some(file) = file {
                     // Specified file
-                    file.to_string()
+                    file
                 } else {
                     // File not specified
                     if prompt {
@@ -529,11 +529,7 @@ impl Editor {
                 };
                 match kind {
                     BankType::Cursor => {
-                        let cursor = self
-                            .position_bank
-                            .get(&bank)
-                            .unwrap_or_else(|| &current)
-                            .clone();
+                        let cursor = *self.position_bank.get(&bank).unwrap_or(&current);
                         self.goto(&cursor);
                     }
                     BankType::Line => {
@@ -1090,18 +1086,18 @@ impl Editor {
         // Render the tab line
         let mut result = vec![];
         let mut widths = vec![];
-        let active_bg = Reader::rgb_bg(self.config.theme.active_tab_bg);
-        let inactive_bg = Reader::rgb_bg(self.config.theme.inactive_tab_bg);
-        let active_fg = Reader::rgb_fg(self.config.theme.active_tab_fg);
-        let inactive_fg = Reader::rgb_fg(self.config.theme.inactive_tab_fg);
+        let active_background = Reader::rgb_bg(self.config.theme.active_tab_bg);
+        let inactive_background = Reader::rgb_bg(self.config.theme.inactive_tab_bg);
+        let active_foreground = Reader::rgb_fg(self.config.theme.active_tab_fg);
+        let inactive_foreground = Reader::rgb_fg(self.config.theme.inactive_tab_fg);
         // Iterate through documents and create their tab text
         for (num, doc) in self.doc.iter().enumerate() {
             let this = format!(
-                "{} {}{}{} {}{}{}│",
+                "{} {}{}{} {}{}{}\u{2502}",
                 if num == self.tab {
-                    format!("{}{}{}", style::Bold, active_bg, active_fg)
+                    format!("{}{}{}", style::Bold, active_background, active_foreground)
                 } else {
-                    format!("{}{}", inactive_bg, inactive_fg)
+                    format!("{}{}", inactive_background, inactive_foreground)
                 },
                 if doc.icon.is_empty() {
                     doc.icon.to_string()
@@ -1111,8 +1107,8 @@ impl Editor {
                 doc.name,
                 if doc.dirty { "[+]" } else { "" },
                 style::Reset,
-                inactive_bg.to_string(),
-                inactive_fg.to_string(),
+                inactive_background.to_string(),
+                inactive_foreground.to_string(),
             );
             widths.push(self.exp.ansi_len(this.as_str()));
             result.push(this);

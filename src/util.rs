@@ -76,14 +76,14 @@ pub fn is_ahead(current: &Position, position: &Position) -> bool {
 pub fn line_offset(point: usize, offset: i128, limit: usize) -> usize {
     if offset.is_negative() {
         if point as i128 + offset >= 0 {
-            return (point as i128 + offset) as usize;
+            (point as i128 + offset) as usize
         } else {
-            return 0;
+            0
         }
     } else if point as i128 + offset < limit as i128 {
-        return (point as i128 + offset) as usize;
+        (point as i128 + offset) as usize
     } else {
-        return limit.saturating_sub(1);
+        limit.saturating_sub(1)
     }
 }
 

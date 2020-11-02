@@ -33,182 +33,233 @@ pub fn interpret_line(
         let args: Vec<&str> = line.collect();
         for _ in 0..times {
             match instruction {
-                "goto" => match args.len() {
-                    0 => events.push(Event::GotoCursor(Position { x: 0, y: 0 })),
-                    1 => {
-                        if let Ok(y) = args[0].parse::<usize>() {
-                            events.push(Event::GotoCursor(Position {
-                                x: 0,
-                                y: y.saturating_sub(1),
-                            }));
-                        } else {
-                            return None;
-                        }
-                    }
-                    2 => {
-                        if let (Ok(x), Ok(y)) = (args[0].parse::<usize>(), args[1].parse::<usize>())
-                        {
-                            events.push(Event::GotoCursor(Position {
-                                x: x.saturating_sub(1),
-                                y: y.saturating_sub(1),
-                            }));
-                        } else {
-                            return None;
-                        }
-                    }
-                    _ => return None,
-                },
-                "move" => {
-                    if args.len() == 2 {
-                        let magnitude: usize = args[0].parse().unwrap_or_default();
-                        let direction = args[1];
-                        events.push(Event::MoveCursor(
-                            magnitude as i128,
-                            match direction {
-                                "up" => Direction::Up,
-                                "down" => Direction::Down,
-                                "left" => Direction::Left,
-                                "right" => Direction::Right,
-                                _ => return None,
-                            },
-                        ));
-                    } else if args.len() == 1 {
-                        events.push(match args[0] {
-                            "home" => Event::Home,
-                            "end" => Event::End,
-                            "pageup" => Event::PageUp,
-                            "pagedown" => Event::PageDown,
-                            _ => return None,
-                        });
-                    } else {
-                        return None;
-                    }
-                }
-                "put" => {
-                    if args[0] == "\\t" {
-                        events.push(Event::InsertTab(cursor));
-                    } else {
-                        for (c, ch) in args.join(" ").chars().enumerate() {
-                            events.push(Event::Insertion(
-                                Position {
-                                    x: cursor.x.saturating_add(c),
-                                    y: cursor.y,
-                                },
-                                ch,
-                            ))
-                        }
-                    }
-                }
-                "delete" => {
-                    if let Some(mut evts) = delete_command(&args, &cursor, graphemes, rows) {
-                        events.append(&mut evts);
-                    } else {
-                        return None;
-                    }
-                }
                 "new" => events.push(Event::New),
-                "open" => events.push(Event::Open(if args.is_empty() {
-                    None
-                } else {
-                    Some(args[0].to_string())
-                })),
-                "save" => {
-                    if !args.is_empty() {
-                        events.push(if args[0] == "*" {
-                            Event::SaveAll
-                        } else {
-                            Event::Save(Some(args[0].to_string()), false)
-                        })
-                    } else {
-                        events.push(Event::Save(None, false))
-                    }
-                }
+                "open" => events.push(open_command(&args)),
                 "undo" => events.push(Event::Undo),
                 "commit" => events.push(Event::Commit),
                 "redo" => events.push(Event::Redo),
-                "quit" => {
-                    events.push(if args.contains(&"*") {
-                        Event::QuitAll(args.contains(&"!"))
-                    } else {
-                        Event::Quit(args.contains(&"!"))
-                    });
-                }
-                "overwrite" => events.push(if args.is_empty() {
-                    Event::Overwrite(rows.to_vec(), vec![Row::from("")])
-                } else {
-                    Event::Overwrite(
-                        rows.to_vec(),
-                        args.join(" ")
-                            .split("\\n")
-                            .map(Row::from)
-                            .collect::<Vec<_>>(),
-                    )
-                }),
+                "quit" => events.push(quit_command(&args)),
                 "prev" => events.push(Event::PrevTab),
                 "next" => events.push(Event::NextTab),
-                "set" => {
-                    if args.is_empty() {
-                        events.push(Event::UpdateLine(
-                            cursor,
-                            0,
-                            Box::new(rows[cursor.y].clone()),
-                            Box::new(Row::from("")),
-                        ));
-                    } else {
-                        events.push(Event::UpdateLine(
-                            cursor,
-                            0,
-                            Box::new(rows[cursor.y].clone()),
-                            Box::new(Row::from(args.join(" ").as_str())),
-                        ));
-                    }
-                }
-                "line" => {
-                    if !args.is_empty() {
-                        match args[0] {
-                            "below" => events.push(Event::InsertLineBelow(cursor)),
-                            "above" => events.push(Event::InsertLineAbove(cursor)),
-                            _ => return None,
-                        }
-                    } else {
-                        return None;
-                    }
-                }
+                "set" => events.push(set_command(&args, &cursor, &rows)),
                 "split" => events.push(Event::SplitDown(cursor, cursor)),
                 "splice" => events.push(Event::SpliceUp(cursor, cursor)),
-                "store" => {
-                    if args.len() == 2 {
-                        if let Ok(bank) = args[1].parse::<usize>() {
-                            match args[0] {
-                                "cursor" => events.push(Event::Store(BankType::Cursor, bank)),
-                                "line" => events.push(Event::Store(BankType::Line, bank)),
-                                _ => return None,
-                            }
-                        } else {
-                            return None;
-                        }
+                "line" => if let Some(line) = line_command(&args, &cursor) {
+                    events.push(line);
+                } else {
+                    return None;
+                },
+                _ => {
+                    let i = match instruction {
+                        "save" => save_command(&args),
+                        "goto" => goto_command(&args),
+                        "move" => move_command(&args),
+                        "put" => put_command(&args, &cursor),
+                        "delete" => delete_command(&args, &cursor, graphemes, &rows),
+                        "load" => load_command(&args),
+                        "store" => store_command(&args),
+                        "overwrite" => overwrite_command(&args, &rows),
+                        _ => return None,
+                    };
+                    if let Some(mut command) = i {
+                        events.append(&mut command);
                     } else {
                         return None;
                     }
                 }
-                "load" => {
-                    if args.len() == 2 {
-                        if let Ok(bank) = args[1].parse::<usize>() {
-                            match args[0] {
-                                "cursor" => events.push(Event::Load(BankType::Cursor, bank)),
-                                "line" => events.push(Event::Load(BankType::Line, bank)),
-                                _ => return None,
-                            }
-                        } else {
-                            return None;
-                        }
-                    } else {
-                        return None;
-                    }
-                }
-                _ => return None,
             }
         }
+    }
+    Some(events)
+}
+
+fn open_command(args: &[&str]) -> Event {
+    Event::Open(if args.is_empty() {
+        None
+    } else {
+        Some(args[0].to_string())
+    })
+}
+
+fn quit_command(args: &[&str]) -> Event {
+    if args.contains(&"*") {
+        Event::QuitAll(args.contains(&"!"))
+    } else {
+        Event::Quit(args.contains(&"!"))
+    }
+}
+
+fn line_command(args: &[&str], cursor: &Position) -> Option<Event> {
+    if args.is_empty() {
+        return None;
+    } else if let Some(dir) = args.get(0) {
+        return match *dir {
+            "below" => Some(Event::InsertLineBelow(*cursor)),
+            "above" => Some(Event::InsertLineAbove(*cursor)),
+            _ => None,
+        };
+    }
+    None
+}
+
+fn set_command(args: &[&str], cursor: &Position, rows: &[Row]) -> Event {
+    if args.is_empty() {
+        Event::UpdateLine(
+            *cursor,
+            0,
+            Box::new(rows[cursor.y].clone()),
+            Box::new(Row::from("")),
+        )
+    } else {
+        Event::UpdateLine(
+            *cursor,
+            0,
+            Box::new(rows[cursor.y].clone()),
+            Box::new(Row::from(args.join(" ").as_str())),
+        )
+    }
+}
+
+fn overwrite_command(args: &[&str], rows: &[Row]) -> Option<Vec<Event>> {
+    Some(vec![if args.is_empty() {
+        Event::Overwrite(rows.to_vec(), vec![Row::from("")])
+    } else {
+        Event::Overwrite(
+            rows.to_vec(),
+            args.join(" ")
+                .split("\\n")
+                .map(Row::from)
+                .collect::<Vec<_>>(),
+        )
+    }])
+}
+
+fn save_command(args: &[&str]) -> Option<Vec<Event>> {
+    let mut events = vec![];
+    if args.is_empty() {
+        events.push(Event::Save(None, false))
+    } else {
+        events.push(if args[0] == "*" {
+            Event::SaveAll
+        } else {
+            Event::Save(Some(args[0].to_string()), false)
+        })
+    }
+    Some(events)
+}
+
+fn store_command(args: &[&str]) -> Option<Vec<Event>> {
+    let mut events = vec![];
+    if args.len() == 2 {
+        if let Ok(bank) = args[1].parse::<usize>() {
+            if let Some(kind) = args.get(0) {
+                match *kind {
+                    "cursor" => events.push(Event::Store(BankType::Cursor, bank)),
+                    "line" => events.push(Event::Store(BankType::Line, bank)),
+                    _ => return None,
+                }
+            }
+        } else {
+            return None;
+        }
+    } else {
+        return None;
+    }
+    Some(events)
+}
+
+fn load_command(args: &[&str]) -> Option<Vec<Event>> {
+    let mut events = vec![];
+    if args.len() == 2 {
+        if let Ok(bank) = args[1].parse::<usize>() {
+            if let Some(kind) = args.get(0) {
+                match *kind {
+                    "cursor" => events.push(Event::Load(BankType::Cursor, bank)),
+                    "line" => events.push(Event::Load(BankType::Line, bank)),
+                    _ => return None,
+                }
+            }
+        } else {
+            return None;
+        }
+    } else {
+        return None;
+    }
+    Some(events)
+}
+
+fn goto_command(args: &[&str]) -> Option<Vec<Event>> {
+    let mut events = vec![];
+    match args.len() {
+        0 => events.push(Event::GotoCursor(Position { x: 0, y: 0 })),
+        1 => {
+            if let Ok(y) = args[0].parse::<usize>() {
+                events.push(Event::GotoCursor(Position {
+                    x: 0,
+                    y: y.saturating_sub(1),
+                }));
+            } else {
+                return None;
+            }
+        }
+        2 => {
+            if let (Ok(x), Ok(y)) = (args[0].parse::<usize>(), args[1].parse::<usize>()) {
+                events.push(Event::GotoCursor(Position {
+                    x: x.saturating_sub(1),
+                    y: y.saturating_sub(1),
+                }));
+            } else {
+                return None;
+            }
+        }
+        _ => return None,
+    }
+    Some(events)
+}
+
+fn put_command(args: &[&str], cursor: &Position) -> Option<Vec<Event>> {
+    let mut events = vec![];
+    if args[0] == "\\t" {
+        events.push(Event::InsertTab(*cursor));
+    } else {
+        for (c, ch) in args.join(" ").chars().enumerate() {
+            events.push(Event::Insertion(
+                Position {
+                    x: cursor.x.saturating_add(c),
+                    y: cursor.y,
+                },
+                ch,
+            ))
+        }
+    }
+    Some(events)
+}
+
+fn move_command(args: &[&str]) -> Option<Vec<Event>> {
+    let mut events = vec![];
+    if args.len() == 2 {
+        let magnitude: usize = args[0].parse().unwrap_or_default();
+        let direction = args[1];
+        events.push(Event::MoveCursor(
+            magnitude as i128,
+            match direction {
+                "up" => Direction::Up,
+                "down" => Direction::Down,
+                "left" => Direction::Left,
+                "right" => Direction::Right,
+                _ => return None,
+            },
+        ));
+    } else if let Some(direction) = args.get(0) {
+        events.push(match *direction {
+            "home" => Event::Home,
+            "end" => Event::End,
+            "pageup" => Event::PageUp,
+            "pagedown" => Event::PageDown,
+            _ => return None,
+        });
+    } else {
+        return None;
     }
     Some(events)
 }
