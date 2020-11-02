@@ -7,8 +7,8 @@
 
     An example usage could be writing a macro to delete the current line
 */
-use crate::config::Reader;
 use crate::undo::BankType;
+use crate::util::line_offset;
 use crate::{Direction, Event, Position, Row};
 
 pub fn interpret_line(
@@ -16,7 +16,6 @@ pub fn interpret_line(
     cursor: &Position,
     graphemes: usize,
     rows: &[Row],
-    config: &Reader,
 ) -> Option<Vec<Event>> {
     // Take an instruction of Oxa and interpret it
     let mut events = vec![];
@@ -29,6 +28,7 @@ pub fn interpret_line(
     } else {
         times = 1;
     }
+    let cursor = *cursor;
     if let Some(instruction) = start {
         let args: Vec<&str> = line.collect();
         for _ in 0..times {
@@ -72,15 +72,21 @@ pub fn interpret_line(
                                 _ => return None,
                             },
                         ));
+                    } else if args.len() == 1 {
+                        events.push(match args[0] {
+                            "home" => Event::Home,
+                            "end" => Event::End,
+                            "pageup" => Event::PageUp,
+                            "pagedown" => Event::PageDown,
+                            _ => return None,
+                        });
                     } else {
                         return None;
                     }
                 }
                 "put" => {
                     if args[0] == "\\t" {
-                        for _ in 0..config.general.tab_width {
-                            events.push(Event::Insertion(*cursor, ' '));
-                        }
+                        events.push(Event::InsertTab(cursor));
                     } else {
                         for (c, ch) in args.join(" ").chars().enumerate() {
                             events.push(Event::Insertion(
@@ -94,7 +100,7 @@ pub fn interpret_line(
                     }
                 }
                 "delete" => {
-                    if let Some(mut evts) = delete_command(&args, cursor, graphemes, rows) {
+                    if let Some(mut evts) = delete_command(&args, &cursor, graphemes, rows) {
                         events.append(&mut evts);
                     } else {
                         return None;
@@ -143,13 +149,15 @@ pub fn interpret_line(
                 "set" => {
                     if args.is_empty() {
                         events.push(Event::UpdateLine(
-                            cursor.y,
+                            cursor,
+                            0,
                             Box::new(rows[cursor.y].clone()),
                             Box::new(Row::from("")),
                         ));
                     } else {
                         events.push(Event::UpdateLine(
-                            cursor.y,
+                            cursor,
+                            0,
                             Box::new(rows[cursor.y].clone()),
                             Box::new(Row::from(args.join(" ").as_str())),
                         ));
@@ -158,16 +166,16 @@ pub fn interpret_line(
                 "line" => {
                     if !args.is_empty() {
                         match args[0] {
-                            "below" => events.push(Event::InsertLineBelow(cursor.y)),
-                            "above" => events.push(Event::InsertLineAbove(cursor.y)),
+                            "below" => events.push(Event::InsertLineBelow(cursor)),
+                            "above" => events.push(Event::InsertLineAbove(cursor)),
                             _ => return None,
                         }
                     } else {
                         return None;
                     }
                 }
-                "split" => events.push(Event::SplitDown(*cursor)),
-                "splice" => events.push(Event::SpliceUp(*cursor)),
+                "split" => events.push(Event::SplitDown(cursor, cursor)),
+                "splice" => events.push(Event::SpliceUp(cursor, cursor)),
                 "store" => {
                     if args.len() == 2 {
                         if let Ok(bank) = args[1].parse::<usize>() {
@@ -223,19 +231,11 @@ fn delete_command(
             events.push(Event::Deletion(*cursor, *ch));
         }
     } else if let Ok(line) = args[0].parse::<i128>() {
-        let ind;
-        if line.is_negative() {
-            if cursor.y as i128 + line >= 0 {
-                ind = (cursor.y as i128 + line) as usize;
-            } else {
-                ind = 0;
-            }
-        } else if cursor.y as i128 + line < rows.len() as i128 {
-            ind = (cursor.y as i128 + line) as usize;
-        } else {
-            ind = rows.len().saturating_sub(1);
-        }
-        events.push(Event::DeleteLine(ind, Box::new(rows[ind].clone())));
+        events.push(Event::DeleteLine(
+            *cursor,
+            line,
+            Box::new(rows[line_offset(cursor.y, line, rows.len())].clone()),
+        ));
     } else {
         return None;
     }

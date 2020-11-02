@@ -326,31 +326,6 @@ impl Document {
             self.move_cursor(Key::Right, term);
         }
     }
-    pub fn split_down(&mut self, term: &Size) {
-        // Split current line in two, dropping the right side down
-        // Used for when the return key is pressed in the middle of a line
-        let current = self.rows[self.cursor.y + self.offset.y - OFFSET].chars();
-        let before = Row::from(&current[..self.graphemes].join("")[..]);
-        let after = Row::from(&current[self.graphemes..].join("")[..]);
-        self.rows
-            .insert(self.cursor.y + self.offset.y + 1 - OFFSET, after);
-        self.rows[self.cursor.y + self.offset.y - OFFSET] = before.clone();
-        self.move_cursor(Key::Down, term);
-        self.leap_cursor(Key::Home, term);
-    }
-    pub fn splice_up(&mut self, term: &Size) {
-        let current = self.rows[self.cursor.y + self.offset.y - OFFSET]
-            .string
-            .clone();
-        let prev = self.rows[self.cursor.y + self.offset.y - 1 - OFFSET].clone();
-        self.rows[self.cursor.y + self.offset.y - 1 - OFFSET] =
-            Row::from(&(prev.string.clone() + &current)[..]);
-        self.rows.remove(self.cursor.y + self.offset.y - OFFSET);
-        self.move_cursor(Key::Up, term);
-        self.cursor.x = prev.length();
-        self.recalculate_graphemes();
-        self.undo_stack.commit();
-    }
     pub fn save(&self, path: &str, tab: usize) -> std::io::Result<()> {
         // Save a file
         let contents = self.render(true, tab);

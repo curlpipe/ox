@@ -3,7 +3,7 @@ use crate::config::{Reader, Status};
 use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
-use crate::util::{is_ahead, is_behind, title, trim_end, Exp, raw_to_grapheme};
+use crate::util::{is_ahead, is_behind, line_offset, title, trim_end, Exp};
 use crate::{Document, Event, Row, Terminal, VERSION};
 use clap::App;
 use regex::Regex;
@@ -137,6 +137,7 @@ impl Editor {
     fn process_input(&mut self) {
         // Read a key and act on it
         let key = self.read_key();
+        self.doc[self.tab].show_welcome = false;
         let cursor = self.doc[self.tab].cursor;
         let offset = self.doc[self.tab].offset;
         let current = Position {
@@ -144,40 +145,79 @@ impl Editor {
             y: cursor.y + offset.y - OFFSET,
         };
         match key {
-            Key::Char(c) => self.execute(Event::Insertion(current, c)),
-            Key::Backspace => self.execute(
-                if current.x == 0 {
-                    // Backspace at the start of a line
-                    Event::SpliceUp(current)
-                } else {
-                    // Backspace in the middle of a line
-                    Event::Deletion(current, ' ')
+            Key::Char(c) => {
+                self.doc[self.tab].redo_stack.empty();
+                match c {
+                    '\n' => {
+                        if current.x == 0 {
+                            // Return key pressed at the start of the line
+                            self.execute(Event::InsertLineAbove(current), false);
+                        } else if current.x == self.doc[self.tab].rows[current.y].length() {
+                            // Return key pressed at the end of the line
+                            self.execute(Event::InsertLineBelow(current), false);
+                            self.execute(Event::MoveCursor(1, Direction::Down), false);
+                            self.doc[self.tab].recalculate_graphemes();
+                        } else {
+                            // Return key pressed in the middle of the line
+                            self.execute(Event::SplitDown(current, current), false);
+                        }
+                    }
+                    '\t' => {
+                        // The user pressed the tab key
+                        self.execute(Event::InsertTab(current), false);
+                    }
+                    _ => {
+                        // Other characters
+                        self.execute(Event::Insertion(current, c), false);
+                    }
                 }
-            ),
-            Key::Ctrl('q') => self.execute(Event::Quit(false)),
-            Key::Ctrl('s') => self.execute(Event::Save(None, false)),
-            Key::Ctrl('w') => self.execute(Event::Save(None, true)),
-            Key::Ctrl('p') => self.execute(Event::SaveAll),
-            Key::Ctrl('n') => self.execute(Event::New),
-            Key::Ctrl('o') => self.execute(Event::Open(None)),
-            Key::Ctrl('d') => self.execute(Event::PrevTab),
-            Key::Ctrl('h') => self.execute(Event::NextTab),
-            Key::Ctrl('u') => self.undo(),
-            //Key::Ctrl('y') => self.doc[self.tab].redo(&self.config, &self.term.size),
+            }
+            Key::Backspace => {
+                self.doc[self.tab].redo_stack.empty();
+                self.execute(
+                    if current.x == 0 {
+                        // Backspace at the start of a line
+                        Event::SpliceUp(current, current)
+                    } else {
+                        // Backspace in the middle of a line
+                        let row = self.doc[self.tab].rows[current.y].clone();
+                        let boundaries = row.boundaries();
+                        let chars = row.string.chars();
+                        let current = Position {
+                            x: current.x.saturating_sub(1),
+                            y: current.y,
+                        };
+                        Event::Deletion(current, chars.collect::<Vec<_>>()[boundaries[current.x]])
+                    },
+                    false,
+                );
+            }
+            Key::Ctrl('q') => self.execute(Event::Quit(false), false),
+            Key::Ctrl('s') => self.execute(Event::Save(None, false), false),
+            Key::Ctrl('w') => self.execute(Event::Save(None, true), false),
+            Key::Ctrl('p') => self.execute(Event::SaveAll, false),
+            Key::Ctrl('n') => self.execute(Event::New, false),
+            Key::Ctrl('o') => self.execute(Event::Open(None), false),
+            Key::Ctrl('d') => self.execute(Event::PrevTab, false),
+            Key::Ctrl('h') => self.execute(Event::NextTab, false),
+            Key::Ctrl('z') => self.execute(Event::Undo, false),
+            Key::Ctrl('y') => self.execute(Event::Redo, false),
             Key::Ctrl('f') => self.search(),
             Key::Ctrl('r') => self.replace(),
             Key::Ctrl('a') => self.replace_all(),
             Key::Alt('a') => self.cmd(),
-            Key::Left | Key::Right | Key::Up | Key::Down => {
-                self.doc[self.tab].move_cursor(key, &self.term.size)
-            }
-            Key::PageDown | Key::PageUp | Key::Home | Key::End => {
-                self.doc[self.tab].leap_cursor(key, &self.term.size)
-            }
+            Key::Up => self.execute(Event::MoveCursor(1, Direction::Up), false),
+            Key::Down => self.execute(Event::MoveCursor(1, Direction::Down), false),
+            Key::Left => self.execute(Event::MoveCursor(1, Direction::Left), false),
+            Key::Right => self.execute(Event::MoveCursor(1, Direction::Right), false),
+            Key::PageDown => self.execute(Event::PageDown, false),
+            Key::PageUp => self.execute(Event::PageUp, false),
+            Key::Home => self.execute(Event::Home, false),
+            Key::End => self.execute(Event::End, false),
             _ => (),
         }
     }
-    pub fn execute(&mut self, event: Event) {
+    pub fn execute(&mut self, event: Event, reversed: bool) {
         // Event executor
         match event {
             Event::New => {
@@ -254,7 +294,7 @@ impl Editor {
                     );
                 }
                 // Commit to undo stack on document save
-                self.execute(Event::Commit);
+                self.execute(Event::Commit, false);
             }
             Event::SaveAll => {
                 for i in 0..self.doc.len() {
@@ -277,7 +317,7 @@ impl Editor {
                         );
                     }
                     // Commit to undo stack on document save
-                    self.execute(Event::Commit);
+                    self.execute(Event::Commit, false);
                 }
             }
             Event::Quit(force) => {
@@ -301,7 +341,7 @@ impl Editor {
             Event::QuitAll(force) => {
                 self.tab = 0;
                 while !self.quit {
-                    self.execute(Event::Quit(force));
+                    self.execute(Event::Quit(force), false);
                 }
             }
             Event::NextTab => {
@@ -311,18 +351,19 @@ impl Editor {
             }
             Event::PrevTab => self.tab = self.tab.saturating_sub(1),
             Event::Commit => self.doc[self.tab].undo_stack.commit(),
-            //Event::Undo => self.doc[self.tab].undo(&self.config, &self.term.size),
-            //Event::Redo => self.doc[self.tab].redo(&self.config, &self.term.size),
-            Event::Overwrite(_before, after) => {
+            Event::Overwrite(ref _before, ref after) => {
+                self.doc[self.tab].dirty = true;
                 self.doc[self.tab].rows = after.to_vec();
-                self.execute(Event::GotoCursor(Position { x: 0, y: 0 }));
+                self.execute(Event::GotoCursor(Position { x: 0, y: 0 }), false);
+                if !reversed {
+                    self.doc[self.tab].undo_stack.push(event);
+                }
             }
-            Event::GotoCursor(mut position) => {
-                if self.doc[self.tab].rows.len() > position.y
-                    && self.doc[self.tab].rows[position.y].length() >= position.x
-                {
-                    position.y += OFFSET;
-                    self.goto(&position);
+            Event::GotoCursor(mut pos) => {
+                let rows = &self.doc[self.tab].rows;
+                if rows.len() > pos.y && rows[pos.y].length() >= pos.x {
+                    pos.y += OFFSET;
+                    self.goto(&pos);
                 }
             }
             Event::MoveCursor(magnitude, direction) => {
@@ -338,70 +379,128 @@ impl Editor {
                     );
                 }
             }
-            Event::UpdateLine(y, _before, after) => self.doc[self.tab].rows[y] = *after.clone(),
-            Event::DeleteLine(y, _before) => {
-                if self.doc[self.tab].rows.len() > 1 {
-                    self.doc[self.tab].rows.remove(y);
-                    if y < self.doc[self.tab].cursor.y {
-                        self.execute(Event::MoveCursor(1, Direction::Up));
-                    }
+            Event::UpdateLine(ref pos, ref offset, ref _before, ref after) => {
+                self.doc[self.tab].dirty = true;
+                let ind = line_offset(pos.y, *offset, self.doc[self.tab].rows.len());
+                self.doc[self.tab].rows[ind] = *after.clone();
+                self.execute(Event::GotoCursor(Position { x: pos.x, y: ind }), false);
+                if !reversed {
+                    self.doc[self.tab].undo_stack.push(event);
                 }
             }
-            Event::Insertion(pos, ch) => {
+            Event::DeleteLine(ref pos, ref offset, ref _before) => {
                 self.doc[self.tab].dirty = true;
-                self.doc[self.tab].show_welcome = false;
-                match ch {
-                    '\n' => {
-                        if pos.x == 0 {
-                            // Return key pressed at the start of the line
-                            self.execute(Event::InsertLineAbove(pos.y));
-                        } else if pos.x == self.doc[self.tab].rows[pos.y].length() {
-                            // Return key pressed at the end of the line
-                            self.execute(Event::InsertLineBelow(pos.y));
-                            self.execute(Event::MoveCursor(1, Direction::Down));
-                            self.doc[self.tab].recalculate_graphemes();
-                        } else {
-                            // Return key pressed in the middle of the line
-                            self.execute(Event::SplitDown(pos));
-                        }
-                        self.doc[self.tab].undo_stack.push(event);
+                let ind = line_offset(pos.y, *offset, self.doc[self.tab].rows.len());
+                if self.doc[self.tab].rows.len() > 1 {
+                    self.doc[self.tab].rows.remove(ind);
+                }
+                self.execute(Event::GotoCursor(*pos), false);
+                if !reversed {
+                    self.doc[self.tab].undo_stack.push(event);
+                }
+            }
+            Event::Insertion(mut pos, ch) => {
+                self.doc[self.tab].dirty = true;
+                self.doc[self.tab].rows[pos.y].insert(ch, pos.x);
+                self.doc[self.tab].move_cursor(Key::Right, &self.term.size);
+                pos.x = pos.x.saturating_add(1);
+                self.execute(Event::GotoCursor(pos), false);
+                if !reversed {
+                    self.doc[self.tab].undo_stack.push(event);
+                    if ch == ' ' {
                         self.doc[self.tab].undo_stack.commit();
                     }
-                    '\t' => {
-                        // The user pressed the tab key
-                        self.doc[self.tab].tab(&pos, &self.config, &self.term.size);
-                        for i in 0..self.config.general.tab_width {
-                            self.doc[self.tab].undo_stack.push(Event::Insertion(Position{ x: pos.x + i, y: pos.y }, ' '));
-                        }
-                    }
-                    _ => {
-                        // Other characters
-                        // TODO: Update relavent lines here
-                        // Commit to the undo stack if space key pressed
-                        self.doc[self.tab].rows[pos.y].insert(ch, pos.x);
-                        self.doc[self.tab].move_cursor(Key::Right, &self.term.size);
-                        self.doc[self.tab].undo_stack.push(event);
-                        if ch == ' ' {
-                            self.doc[self.tab].undo_stack.commit();
-                        }
-                    }
                 }
             }
-            Event::Deletion(pos, _ch) => {
+            Event::Deletion(mut pos, _ch) => {
                 self.doc[self.tab].dirty = true;
                 self.doc[self.tab].show_welcome = false;
-                self.doc[self.tab].rows[pos.y].delete(pos.x.saturating_sub(1));
-                self.doc[self.tab].move_cursor(Key::Left, &self.term.size);
+                if reversed {
+                    pos.x = pos.x.saturating_sub(1);
+                    self.execute(Event::GotoCursor(pos), false);
+                } else {
+                    self.execute(Event::GotoCursor(pos), false);
+                    self.doc[self.tab].undo_stack.push(event);
+                }
+                self.doc[self.tab].rows[pos.y].delete(pos.x);
             }
-            Event::InsertLineAbove(y) => {
+            Event::InsertLineAbove(pos) => {
+                self.doc[self.tab].dirty = true;
+                self.doc[self.tab].rows.insert(pos.y, Row::from(""));
+                self.execute(Event::GotoCursor(pos), false);
+                self.execute(Event::MoveCursor(1, Direction::Down), false);
+                if !reversed {
+                    self.doc[self.tab].undo_stack.push(event);
+                    self.doc[self.tab].undo_stack.commit();
+                }
+            }
+            Event::InsertLineBelow(pos) => {
+                self.doc[self.tab].dirty = true;
                 self.doc[self.tab]
                     .rows
-                    .insert(y, Row::from(""));
-                self.doc[self.tab].move_cursor(Key::Down, &self.term.size)
+                    .insert(pos.y.saturating_add(1), Row::from(""));
+                self.execute(Event::GotoCursor(pos), false);
+                if !reversed {
+                    self.doc[self.tab].undo_stack.push(event);
+                    self.doc[self.tab].undo_stack.commit();
+                }
             }
-            Event::InsertLineBelow(y) => self.doc[self.tab].rows.insert(y.saturating_add(1), Row::from("")),
-            Event::SpliceUp(_pos) => self.doc[self.tab].splice_up(&self.term.size),
-            Event::SplitDown(_pos) => self.doc[self.tab].split_down(&self.term.size),
+            Event::SpliceUp(pos, other) => {
+                self.doc[self.tab].dirty = true;
+                let above = self.doc[self.tab].rows[pos.y.saturating_sub(1)].clone();
+                let current = self.doc[self.tab].rows[pos.y].clone();
+                let new = format!("{}{}", above.string, current.string);
+                self.doc[self.tab].rows[pos.y.saturating_sub(1)] = Row::from(&new[..]);
+                self.doc[self.tab].rows.remove(pos.y);
+                if reversed {
+                    self.goto(&Position {
+                        x: other.x,
+                        y: other.y.saturating_add(1),
+                    });
+                } else {
+                    let other = Position {
+                        x: above.length(),
+                        y: pos.y.saturating_sub(1),
+                    };
+                    self.goto(&Position {
+                        x: other.x,
+                        y: other.y.saturating_add(1),
+                    });
+                    self.doc[self.tab]
+                        .undo_stack
+                        .push(Event::SpliceUp(pos, other));
+                    self.doc[self.tab].undo_stack.commit();
+                }
+            }
+            Event::SplitDown(pos, other) => {
+                self.doc[self.tab].dirty = true;
+                let current = self.doc[self.tab].rows[pos.y].clone();
+                let left: String = current.string.chars().take(pos.x).collect();
+                let right: String = current.string.chars().skip(pos.x).collect();
+                self.doc[self.tab].rows[pos.y] = Row::from(&left[..]);
+                self.doc[self.tab]
+                    .rows
+                    .insert(pos.y.saturating_add(1), Row::from(&right[..]));
+                if reversed {
+                    self.goto(&Position {
+                        x: other.x,
+                        y: other.y.saturating_add(1),
+                    });
+                } else {
+                    let other = Position {
+                        x: 0,
+                        y: pos.y.saturating_add(1),
+                    };
+                    self.goto(&Position {
+                        x: other.x,
+                        y: other.y.saturating_add(1),
+                    });
+                    self.doc[self.tab]
+                        .undo_stack
+                        .push(Event::SplitDown(pos, other));
+                    self.doc[self.tab].undo_stack.commit();
+                }
+            }
             Event::Store(kind, bank) => {
                 let cursor = self.doc[self.tab].cursor;
                 let offset = self.doc[self.tab].offset;
@@ -440,12 +539,41 @@ impl Editor {
                     BankType::Line => {
                         if let Some(row) = self.row_bank.get(&bank) {
                             self.doc[self.tab].rows.insert(current.y, row.clone());
-                            self.execute(Event::MoveCursor(1, Direction::Down));
+                            self.execute(Event::MoveCursor(1, Direction::Down), false);
                         }
                     }
                 }
             }
-            _ => (),
+            Event::Home => self.doc[self.tab].leap_cursor(Key::Home, &self.term.size),
+            Event::End => self.doc[self.tab].leap_cursor(Key::End, &self.term.size),
+            Event::PageUp => self.doc[self.tab].leap_cursor(Key::PageUp, &self.term.size),
+            Event::PageDown => self.doc[self.tab].leap_cursor(Key::PageDown, &self.term.size),
+            Event::Undo => self.undo(),
+            Event::Redo => self.redo(),
+            Event::InsertTab(pos) => {
+                self.doc[self.tab].dirty = true;
+                self.goto(&Position {
+                    x: pos.x,
+                    y: pos.y.saturating_add(1),
+                });
+                self.doc[self.tab].tab(&pos, &self.config, &self.term.size);
+                if !reversed {
+                    self.doc[self.tab].undo_stack.push(event);
+                }
+            }
+            Event::DeleteTab(pos) => {
+                self.doc[self.tab].dirty = true;
+                self.goto(&Position {
+                    x: pos.x,
+                    y: pos.y.saturating_add(1),
+                });
+                for _ in 0..self.config.general.tab_width {
+                    self.doc[self.tab].rows[pos.y].delete(pos.x);
+                }
+                if !reversed {
+                    self.doc[self.tab].undo_stack.push(event);
+                }
+            }
         }
     }
     fn cmd(&mut self) {
@@ -463,14 +591,27 @@ impl Editor {
                     },
                     self.doc[self.tab].graphemes,
                     &self.doc[self.tab].rows,
-                    &self.config,
                 );
-                self.doc[self.tab].set_command_line(format!("{:?}", instruction), Type::Info);
                 // Execute the instruction
                 if let Some(instruct) = instruction {
                     for i in instruct {
-                        self.execute(i);
+                        match i {
+                            Event::SpliceUp(_, _)
+                            | Event::SplitDown(_, _)
+                            | Event::InsertLineAbove(_)
+                            | Event::InsertLineBelow(_)
+                            | Event::Deletion(_, _)
+                            | Event::Insertion(_, _)
+                            | Event::InsertTab(_)
+                            | Event::DeleteTab(_)
+                            | Event::DeleteLine(_, _, _)
+                            | Event::UpdateLine(_, _, _, _)
+                            | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
+                            _ => (),
+                        }
+                        self.execute(i, false);
                     }
+                    self.doc[self.tab].undo_stack.commit();
                 };
             }
         }
@@ -478,13 +619,29 @@ impl Editor {
     pub fn undo(&mut self) {
         self.doc[self.tab].undo_stack.commit();
         if let Some(events) = self.doc[self.tab].undo_stack.pop() {
-            for event in events {
-                if let Some(reversed) = reverse(event) {
-                    std::thread::sleep(std::time::Duration::from_millis(200));
-                    self.execute(reversed);
+            for event in events.clone() {
+                if let Some(reversed) = reverse(event, self.doc[self.tab].rows.len()) {
+                    for i in reversed {
+                        self.execute(i, true);
+                    }
                     self.update();
                 }
             }
+            self.doc[self.tab]
+                .redo_stack
+                .append(events.into_iter().rev().collect());
+        } else {
+            self.doc[self.tab].set_command_line("Empty Undo Stack".to_string(), Type::Error);
+        }
+    }
+    pub fn redo(&mut self) {
+        if let Some(events) = self.doc[self.tab].redo_stack.pop() {
+            for event in events {
+                self.execute(event, false);
+                self.update();
+            }
+        } else {
+            self.doc[self.tab].set_command_line("Empty Redo Stack".to_string(), Type::Error);
         }
     }
     fn search(&mut self) {
@@ -653,7 +810,11 @@ impl Editor {
                             if before.string != after.string {
                                 // Push the replace event to the undo stack
                                 self.doc[self.tab].undo_stack.push(Event::UpdateLine(
-                                    cursor.y + offset.y - OFFSET,
+                                    Position {
+                                        x: cursor.x + offset.x,
+                                        y: cursor.y + offset.y - OFFSET,
+                                    },
+                                    0,
                                     Box::new(before.clone()),
                                     Box::new(after.clone()),
                                 ));
@@ -692,7 +853,8 @@ impl Editor {
                     let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
                     if before.string != after.string {
                         self.doc[self.tab].undo_stack.push(Event::UpdateLine(
-                            c,
+                            Position { x: 0, y: c },
+                            0,
                             Box::new(before.clone()),
                             Box::new(after.clone()),
                         ));

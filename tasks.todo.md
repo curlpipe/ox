@@ -1,7 +1,6 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
-  - [ ] Create unified event executor (28th)
-    - [ ] Allow undo via reverse execution
+  - [ ] Create unified event executor (2nd)
     - [ ] Clippy
     - [ ] Thorough Testing
     - [X] Document functions
@@ -14,23 +13,29 @@
     - [X] Return functions
     - [X] Storage functions
     - [X] Allow multiple event execution
-  - [ ] Write documentation for oxa (29th)
-  - [ ] Have a few example macros (29th)
+    - [X] Allow undo via reverse execution
+      - [X] Split up events as much as possible
+      - [X] Write the reverses for them
+      - [X] Redo
+      - [X] Fix committing issues
+  - [ ] Write documentation for oxa (3rd)
+  - [ ] Have a few example macros (3rd)
     - [ ] Move forward a word
     - [ ] Move backward a word
     - [ ] Move line
     - [X] Goto line number
     - [X] Delete line
     - [X] Move cursor
-  - [ ] Allow binding of macros to some keys (30th)
+  - [ ] Allow binding of macros to some keys (4th)
   - [X] Allow special command mode
   - [X] Create Oxa parser (25th)
-- [ ] Add more configuration options in the config file (30th)
+- [ ] Add more configuration options in the config file (5th)
 - [X] Fix file tab issue (27th)
 - [X] Fix (0, 0) deletion issues
 
 0.2.7 (Small patches) { Small tweaks to make Ox more comfy }
 - [ ] General Editing
+  - [ ] Goto only if not on screen
   - [ ] File overwrite prevention
   - [ ] Better file save error messages
   - [ ] Ctrl + Z for undo
