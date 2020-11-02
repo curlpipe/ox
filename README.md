@@ -94,6 +94,14 @@ Install `ox-bin` or `ox-git` from the Arch User Repository.
 
 That's all there is to it!
 
+#### Homebrew
+
+Install `ox` from Homebrew core tap.
+
+```sh
+brew install ox
+```
+
 <!-- USAGE EXAMPLES -->
 ## Usage
 
