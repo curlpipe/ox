@@ -188,9 +188,8 @@ Here is the current summary
  - [X] Syntax highlighting (0.2.4) [1894 lines]
  - [X] Tabs for multitasking (0.2.5) [2050 lines]
  - [ ] Macros (0.2.6)
- - [ ] Tweaks #1 (0.2.7)
- - [ ] Tweaks #2 (0.2.8)
- - [ ] Mouse support (0.2.9)
+ - [ ] Tweaks (0.2.7)
+ - [ ] Mouse support (0.2.8)
  - [ ] Auto indentation (0.3.0)
  - [ ] Prettifier / Automatic code formatter (0.3.0)
  - [ ] Built In linter (0.3.0)

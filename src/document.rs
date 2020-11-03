@@ -1,8 +1,8 @@
 // Document.rs - For managing external files
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
-use crate::util::{spaces_to_tabs, tabs_to_spaces};
-use crate::{EventStack, Position, Row, Size};
+use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
+use crate::{Event, EventStack, Position, Row, Size};
 use regex::Regex;
 use std::{cmp, fs};
 use termion::event::Key;
@@ -324,6 +324,204 @@ impl Document {
         for _ in 0..config.general.tab_width {
             self.rows[pos.y].insert(' ', pos.x);
             self.move_cursor(Key::Right, term);
+        }
+    }
+    fn overwrite(&mut self, after: &[Row]) {
+        // Override the entire contents of the document
+        self.dirty = true;
+        self.rows = after.to_vec();
+    }
+    fn update_line(&mut self, pos: &Position, after: Row, offset: i128) -> usize {
+        // Update a line in the document
+        self.dirty = true;
+        let ind = line_offset(pos.y, offset, self.rows.len());
+        self.rows[ind] = after;
+        ind
+    }
+    fn delete_line(&mut self, pos: &Position, offset: i128) {
+        // Delete a line in the document
+        self.dirty = true;
+        let ind = line_offset(pos.y, offset, self.rows.len());
+        if self.rows.len() > 1 {
+            self.rows.remove(ind);
+        }
+    }
+    fn splice_up(&mut self, pos: &Position, reversed: bool, term: &Size, other: &Position) {
+        // Splice the line up to the next
+        self.dirty = true;
+        let above = self.rows[pos.y.saturating_sub(1)].clone();
+        let current = self.rows[pos.y].clone();
+        let new = format!("{}{}", above.string, current.string);
+        self.rows[pos.y.saturating_sub(1)] = Row::from(&new[..]);
+        self.rows.remove(pos.y);
+        if reversed {
+            self.goto(
+                *other,
+                term,
+            );
+        } else {
+            let other = Position {
+                x: above.length(),
+                y: pos.y.saturating_sub(1),
+            };
+            self.goto(
+                Position {
+                    x: other.x,
+                    y: other.y,
+                },
+                term,
+            );
+            self.undo_stack.push(Event::SpliceUp(*pos, other));
+            self.undo_stack.commit();
+        }
+    }
+    fn split_down(&mut self, pos: &Position, reversed: bool, term: &Size, other: &Position) {
+        // Split the line in half
+        self.dirty = true;
+        let current = self.rows[pos.y].clone();
+        let left: String = current.string.chars().take(pos.x).collect();
+        let right: String = current.string.chars().skip(pos.x).collect();
+        self.rows[pos.y] = Row::from(&left[..]);
+        self.rows
+            .insert(pos.y.saturating_add(1), Row::from(&right[..]));
+        if reversed {
+            self.goto(
+                *other,
+                term,
+            );
+        } else {
+            let other = Position {
+                x: 0,
+                y: pos.y.saturating_add(1),
+            };
+            self.goto(
+                other,
+                term,
+            );
+            self.undo_stack.push(Event::SplitDown(*pos, other));
+            self.undo_stack.commit();
+        }
+    }
+    pub fn execute(&mut self, event: Event, reversed: bool, term: &Size, config: &Reader) {
+        // Document edit event executor
+        match event {
+            Event::Overwrite(_, ref after) => {
+                self.overwrite(after);
+                self.goto(Position { x: 0, y: 0 }, term);
+                if !reversed {
+                    self.undo_stack.push(event);
+                }
+            }
+            Event::UpdateLine(pos, offset, _, ref after) => {
+                let ind = self.update_line(&pos, *after.clone(), offset);
+                self.goto(Position { x: pos.x, y: ind }, term);
+                if !reversed {
+                    self.undo_stack.push(event);
+                }
+            }
+            Event::DeleteLine(pos, offset, _) => {
+                self.delete_line(&pos, offset);
+                self.goto(pos, term);
+                if !reversed {
+                    self.undo_stack.push(event);
+                }
+            }
+            Event::Insertion(mut pos, ch) => {
+                self.dirty = true;
+                self.rows[pos.y].insert(ch, pos.x);
+                self.move_cursor(Key::Right, term);
+                pos.x = pos.x.saturating_add(1);
+                self.goto(pos, term);
+                if !reversed {
+                    self.undo_stack.push(event);
+                    if ch == ' ' {
+                        self.undo_stack.commit();
+                    }
+                }
+            }
+            Event::Deletion(mut pos, _ch) => {
+                self.dirty = true;
+                self.show_welcome = false;
+                if reversed {
+                    pos.x = pos.x.saturating_sub(1);
+                } else {
+                    self.undo_stack.push(event);
+                }
+                self.goto(pos, term);
+                self.rows[pos.y].delete(pos.x);
+            }
+            Event::InsertLineAbove(pos) => {
+                self.dirty = true;
+                self.rows.insert(pos.y, Row::from(""));
+                self.goto(pos, term);
+                self.move_cursor(Key::Down, term);
+                if !reversed {
+                    self.undo_stack.push(event);
+                    self.undo_stack.commit();
+                }
+            }
+            Event::InsertLineBelow(pos) => {
+                self.dirty = true;
+                self.rows.insert(pos.y.saturating_add(1), Row::from(""));
+                self.goto(pos, term);
+                if !reversed {
+                    self.undo_stack.push(event);
+                    self.undo_stack.commit();
+                }
+            }
+            Event::SpliceUp(pos, other) => self.splice_up(&pos, reversed, term, &other),
+            Event::SplitDown(pos, other) => self.split_down(&pos, reversed, term, &other),
+            Event::InsertTab(pos) => {
+                self.dirty = true;
+                self.goto(pos, term);
+                self.tab(&pos, &config, term);
+                if !reversed {
+                    self.undo_stack.push(event);
+                }
+            }
+            Event::DeleteTab(pos) => {
+                self.dirty = true;
+                self.goto(pos, term);
+                for _ in 0..config.general.tab_width {
+                    self.rows[pos.y].delete(pos.x);
+                }
+                if !reversed {
+                    self.undo_stack.push(event);
+                }
+            }
+            _ => (),
+        }
+    }
+    pub fn goto(&mut self, mut pos: Position, term: &Size) {
+        // Move the cursor to a specific location
+        let max_y = term.height.saturating_sub(3);
+        let max_x = (term.width).saturating_sub(self.line_offset);
+        let halfway_y = max_y / 2;
+        let halfway_x = max_x / 2;
+        pos.y = pos.y.saturating_add(1);
+        if self.offset.x == 0 && pos.y < max_y && pos.x < max_x {
+            // Cursor is on the screen
+            self.offset = Position { x: 0, y: 0 };
+            self.cursor = pos;
+        } else {
+            // Cursor is off the screen, move to the Y position
+            self.offset.y = pos.y.saturating_sub(halfway_y);
+            self.cursor.y = halfway_y;
+            // Change the X
+            if pos.x >= max_x {
+                // Move to the center
+                self.offset.x = pos.x.saturating_sub(halfway_x);
+                self.cursor.x = halfway_x;
+            } else {
+                // No offset
+                self.offset.x = 0;
+                self.cursor.x = pos.x;
+            }
+            if self.offset.y + self.cursor.y != pos.y {
+                // Fix cursor misplacement
+                self.offset.y = 0;
+                self.cursor.y = pos.y;
+            }
         }
     }
     pub fn save(&self, path: &str, tab: usize) -> std::io::Result<()> {

@@ -44,11 +44,13 @@ pub fn interpret_line(
                 "set" => events.push(set_command(&args, &cursor, &rows)),
                 "split" => events.push(Event::SplitDown(cursor, cursor)),
                 "splice" => events.push(Event::SpliceUp(cursor, cursor)),
-                "line" => if let Some(line) = line_command(&args, &cursor) {
-                    events.push(line);
-                } else {
-                    return None;
-                },
+                "line" => {
+                    if let Some(line) = line_command(&args, &cursor) {
+                        events.push(line);
+                    } else {
+                        return None;
+                    }
+                }
                 _ => {
                     let i = match instruction {
                         "save" => save_command(&args),

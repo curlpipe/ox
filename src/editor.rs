@@ -3,7 +3,7 @@ use crate::config::{Reader, Status};
 use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
-use crate::util::{is_ahead, is_behind, line_offset, title, trim_end, Exp};
+use crate::util::{is_ahead, is_behind, title, trim_end, Exp};
 use crate::{Document, Event, Row, Terminal, VERSION};
 use clap::App;
 use regex::Regex;
@@ -217,153 +217,146 @@ impl Editor {
             _ => (),
         }
     }
+    fn new_document(&mut self) {
+        // Create a new document
+        self.doc.push(Document::new(&self.config, &self.status));
+        self.tab = self.doc.len().saturating_sub(1);
+    }
+    fn open_document(&mut self, file: Option<String>) {
+        // Open a document
+        let to_open = if let Some(path) = file {
+            // File was specified
+            path
+        } else if let Some(path) = self.prompt("Open", ": ", &|_, _, _| {}) {
+            // Ask for a file and open it
+            path
+        } else {
+            // User cancelled
+            return;
+        };
+        if let Some(doc) = Document::open(&self.config, &self.status, &to_open) {
+            // Overwrite the current document
+            self.doc.push(doc);
+            self.tab = self.doc.len().saturating_sub(1);
+        } else {
+            self.doc[self.tab].set_command_line("File couldn't be opened".to_string(), Type::Error);
+        }
+    }
+    fn save_document(&mut self, file: Option<String>, prompt: bool) {
+        // Save the document
+        let save = if let Some(file) = file {
+            // File was specified
+            file
+        } else {
+            // File not specified
+            if prompt {
+                // Save as
+                if let Some(path) = self.prompt("Save as", ": ", &|_, _, _| {}) {
+                    path
+                } else {
+                    // User cancelled
+                    return;
+                }
+            } else {
+                // Use current document
+                self.doc[self.tab].path.clone()
+            }
+        };
+        // Attempt document save
+        let tab_width = self.config.general.tab_width;
+        if self.doc[self.tab].save(&save, tab_width).is_ok() {
+            // The document saved successfully
+            let ext = save.split('.').last().unwrap_or(&"");
+            self.doc[self.tab].dirty = false;
+            self.doc[self.tab]
+                .set_command_line(format!("File saved to {} successfully", save), Type::Info);
+            // Update the current documents details in case of filetype change
+            self.doc[self.tab].kind = Document::identify(&save).0.to_string();
+            self.doc[self.tab].icon = Document::identify(&save).1.to_string();
+            self.doc[self.tab].name = save.clone();
+            self.doc[self.tab].path = save.clone();
+            self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
+        } else {
+            // The document couldn't save due to permission errors / invalid name
+            self.doc[self.tab]
+                .set_command_line(format!("Failed to save file to {}", save), Type::Error);
+        }
+        // Commit to undo stack on document save
+        self.execute(Event::Commit, false);
+    }
+    fn save_every_document(&mut self) {
+        // Save every document in the editor
+        let tab_width = self.config.general.tab_width;
+        let mut successes = 0;
+        let mut failiures = 0;
+        for i in 0..self.doc.len() {
+            let path = self.doc[i].path.clone();
+            if self.doc[i].save(&path, tab_width).is_ok() {
+                // The document saved successfully
+                self.doc[i].dirty = false;
+                successes += 1;
+            } else {
+                // The document couldn't save due to permission errors
+                failiures += 1;
+            }
+            self.doc[i].set_command_line(
+                format!("Saved {} documents, {} failed", successes, failiures),
+                Type::Info,
+            );
+            // Commit to undo stack on document save
+            self.execute(Event::Commit, false);
+        }
+    }
+    fn quit_document(&mut self, force: bool) {
+        // For handling a quit event
+        if force || self.dirty_prompt('q', "quit") {
+            if self.doc.len() <= 1 {
+                // Quit Ox
+                self.quit = true;
+                return;
+            } else if self.tab == self.doc.len().saturating_sub(1) {
+                // Close current tab and move right
+                self.doc.remove(self.tab);
+                self.tab -= 1;
+            } else {
+                // Close current tab and move left
+                self.doc.remove(self.tab);
+            }
+            self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
+        }
+    }
+    fn quit_all(&mut self, force: bool) {
+        // Quit all the documents in the editor
+        self.tab = 0;
+        while !self.quit {
+            self.execute(Event::Quit(force), false);
+        }
+    }
+    fn next_tab(&mut self) {
+        // Move to the next tab
+        if self.tab.saturating_add(1) < self.doc.len() {
+            self.tab = self.tab.saturating_add(1);
+        }
+    }
+    fn prev_tab(&mut self) {
+        // Move to the previous tab
+        self.tab = self.tab.saturating_sub(1);
+    }
     pub fn execute(&mut self, event: Event, reversed: bool) {
         // Event executor
         match event {
-            Event::New => {
-                self.doc.push(Document::new(&self.config, &self.status));
-                self.tab = self.doc.len().saturating_sub(1);
-                self.doc[self.tab].dirty = false;
-                self.doc[self.tab].show_welcome = true;
-                self.doc[self.tab].cursor.y = OFFSET;
-                self.doc[self.tab].offset.y = 0;
-                self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
-            }
-            Event::Open(file) => {
-                let to_open = if let Some(path) = file {
-                    path
-                } else if let Some(path) = self.prompt("Open", ": ", &|_, _, _| {}) {
-                    path
-                } else {
-                    return;
-                };
-                if let Some(doc) = Document::open(&self.config, &self.status, &to_open) {
-                    // Overwrite the current document
-                    self.doc.push(doc);
-                    self.tab = self.doc.len().saturating_sub(1);
-                    self.doc[self.tab].dirty = false;
-                    self.doc[self.tab].show_welcome = false;
-                    self.doc[self.tab].cursor.y = OFFSET;
-                    self.doc[self.tab].offset.y = 0;
-                    self.doc[self.tab].leap_cursor(Key::Home, &self.term.size);
-                } else {
-                    self.doc[self.tab]
-                        .set_command_line("File couldn't be opened".to_string(), Type::Error);
-                }
-            }
-            Event::Save(file, prompt) => {
-                // Handle save event
-                let to_save = if let Some(file) = file {
-                    // Specified file
-                    file
-                } else {
-                    // File not specified
-                    if prompt {
-                        // Prompt for file when unspecified
-                        if let Some(path) = self.prompt("Save as", ": ", &|_, _, _| {}) {
-                            path
-                        } else {
-                            return;
-                        }
-                    } else {
-                        // Use current document
-                        self.doc[self.tab].path.clone()
-                    }
-                };
-                if self.doc[self.tab]
-                    .save(&to_save, self.config.general.tab_width)
-                    .is_ok()
-                {
-                    // The document saved successfully
-                    let ext = to_save.split('.').last().unwrap_or(&"");
-                    self.doc[self.tab].dirty = false;
-                    self.doc[self.tab].set_command_line(
-                        format!("File saved to {} successfully", to_save),
-                        Type::Info,
-                    );
-                    self.doc[self.tab].kind = Document::identify(&to_save).0.to_string();
-                    self.doc[self.tab].icon = Document::identify(&to_save).1.to_string();
-                    self.doc[self.tab].name = to_save.clone();
-                    self.doc[self.tab].path = to_save.clone();
-                    self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
-                } else {
-                    // The document couldn't save due to permission errors
-                    self.doc[self.tab].set_command_line(
-                        format!("Failed to save file to {}", to_save),
-                        Type::Error,
-                    );
-                }
-                // Commit to undo stack on document save
-                self.execute(Event::Commit, false);
-            }
-            Event::SaveAll => {
-                for i in 0..self.doc.len() {
-                    let path = self.doc[i].path.clone();
-                    if self.doc[i]
-                        .save(&path, self.config.general.tab_width)
-                        .is_ok()
-                    {
-                        // The document saved successfully
-                        self.doc[i].dirty = false;
-                        self.doc[i].set_command_line(
-                            format!("File saved to {} successfully", path),
-                            Type::Info,
-                        );
-                    } else {
-                        // The document couldn't save due to permission errors
-                        self.doc[i].set_command_line(
-                            format!("Failed to save file to {}", path),
-                            Type::Error,
-                        );
-                    }
-                    // Commit to undo stack on document save
-                    self.execute(Event::Commit, false);
-                }
-            }
-            Event::Quit(force) => {
-                // For handling a quit event
-                if force || self.dirty_prompt('q', "quit") {
-                    if self.doc.len() <= 1 {
-                        // Quit Ox
-                        self.quit = true;
-                        return;
-                    } else if self.tab == self.doc.len().saturating_sub(1) {
-                        // Close current tab and move right
-                        self.doc.remove(self.tab);
-                        self.tab -= 1;
-                    } else {
-                        // Close current tab and move left
-                        self.doc.remove(self.tab);
-                    }
-                    self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
-                }
-            }
-            Event::QuitAll(force) => {
-                self.tab = 0;
-                while !self.quit {
-                    self.execute(Event::Quit(force), false);
-                }
-            }
-            Event::NextTab => {
-                if self.tab.saturating_add(1) < self.doc.len() {
-                    self.tab = self.tab.saturating_add(1);
-                }
-            }
-            Event::PrevTab => self.tab = self.tab.saturating_sub(1),
-            Event::Commit => self.doc[self.tab].undo_stack.commit(),
-            Event::Overwrite(ref _before, ref after) => {
-                self.doc[self.tab].dirty = true;
-                self.doc[self.tab].rows = after.to_vec();
-                self.execute(Event::GotoCursor(Position { x: 0, y: 0 }), false);
-                if !reversed {
-                    self.doc[self.tab].undo_stack.push(event);
-                }
-            }
-            Event::GotoCursor(mut pos) => {
+            Event::New => self.new_document(),
+            Event::Open(file) => self.open_document(file),
+            Event::Save(file, prompt) => self.save_document(file, prompt),
+            Event::SaveAll => self.save_every_document(),
+            Event::Quit(force) => self.quit_document(force),
+            Event::QuitAll(force) => self.quit_all(force),
+            Event::NextTab => self.next_tab(),
+            Event::PrevTab => self.prev_tab(),
+            Event::GotoCursor(pos) => {
                 let rows = &self.doc[self.tab].rows;
                 if rows.len() > pos.y && rows[pos.y].length() >= pos.x {
-                    pos.y += OFFSET;
-                    self.goto(&pos);
+                    self.doc[self.tab].goto(pos, &self.term.size);
                 }
             }
             Event::MoveCursor(magnitude, direction) => {
@@ -379,134 +372,13 @@ impl Editor {
                     );
                 }
             }
-            Event::UpdateLine(ref pos, ref offset, ref _before, ref after) => {
-                self.doc[self.tab].dirty = true;
-                let ind = line_offset(pos.y, *offset, self.doc[self.tab].rows.len());
-                self.doc[self.tab].rows[ind] = *after.clone();
-                self.execute(Event::GotoCursor(Position { x: pos.x, y: ind }), false);
-                if !reversed {
-                    self.doc[self.tab].undo_stack.push(event);
-                }
-            }
-            Event::DeleteLine(ref pos, ref offset, ref _before) => {
-                self.doc[self.tab].dirty = true;
-                let ind = line_offset(pos.y, *offset, self.doc[self.tab].rows.len());
-                if self.doc[self.tab].rows.len() > 1 {
-                    self.doc[self.tab].rows.remove(ind);
-                }
-                self.execute(Event::GotoCursor(*pos), false);
-                if !reversed {
-                    self.doc[self.tab].undo_stack.push(event);
-                }
-            }
-            Event::Insertion(mut pos, ch) => {
-                self.doc[self.tab].dirty = true;
-                self.doc[self.tab].rows[pos.y].insert(ch, pos.x);
-                self.doc[self.tab].move_cursor(Key::Right, &self.term.size);
-                pos.x = pos.x.saturating_add(1);
-                self.execute(Event::GotoCursor(pos), false);
-                if !reversed {
-                    self.doc[self.tab].undo_stack.push(event);
-                    if ch == ' ' {
-                        self.doc[self.tab].undo_stack.commit();
-                    }
-                }
-            }
-            Event::Deletion(mut pos, _ch) => {
-                self.doc[self.tab].dirty = true;
-                self.doc[self.tab].show_welcome = false;
-                if reversed {
-                    pos.x = pos.x.saturating_sub(1);
-                    self.execute(Event::GotoCursor(pos), false);
-                } else {
-                    self.execute(Event::GotoCursor(pos), false);
-                    self.doc[self.tab].undo_stack.push(event);
-                }
-                self.doc[self.tab].rows[pos.y].delete(pos.x);
-            }
-            Event::InsertLineAbove(pos) => {
-                self.doc[self.tab].dirty = true;
-                self.doc[self.tab].rows.insert(pos.y, Row::from(""));
-                self.execute(Event::GotoCursor(pos), false);
-                self.execute(Event::MoveCursor(1, Direction::Down), false);
-                if !reversed {
-                    self.doc[self.tab].undo_stack.push(event);
-                    self.doc[self.tab].undo_stack.commit();
-                }
-            }
-            Event::InsertLineBelow(pos) => {
-                self.doc[self.tab].dirty = true;
-                self.doc[self.tab]
-                    .rows
-                    .insert(pos.y.saturating_add(1), Row::from(""));
-                self.execute(Event::GotoCursor(pos), false);
-                if !reversed {
-                    self.doc[self.tab].undo_stack.push(event);
-                    self.doc[self.tab].undo_stack.commit();
-                }
-            }
-            Event::SpliceUp(pos, other) => {
-                self.doc[self.tab].dirty = true;
-                let above = self.doc[self.tab].rows[pos.y.saturating_sub(1)].clone();
-                let current = self.doc[self.tab].rows[pos.y].clone();
-                let new = format!("{}{}", above.string, current.string);
-                self.doc[self.tab].rows[pos.y.saturating_sub(1)] = Row::from(&new[..]);
-                self.doc[self.tab].rows.remove(pos.y);
-                if reversed {
-                    self.goto(&Position {
-                        x: other.x,
-                        y: other.y.saturating_add(1),
-                    });
-                } else {
-                    let other = Position {
-                        x: above.length(),
-                        y: pos.y.saturating_sub(1),
-                    };
-                    self.goto(&Position {
-                        x: other.x,
-                        y: other.y.saturating_add(1),
-                    });
-                    self.doc[self.tab]
-                        .undo_stack
-                        .push(Event::SpliceUp(pos, other));
-                    self.doc[self.tab].undo_stack.commit();
-                }
-            }
-            Event::SplitDown(pos, other) => {
-                self.doc[self.tab].dirty = true;
-                let current = self.doc[self.tab].rows[pos.y].clone();
-                let left: String = current.string.chars().take(pos.x).collect();
-                let right: String = current.string.chars().skip(pos.x).collect();
-                self.doc[self.tab].rows[pos.y] = Row::from(&left[..]);
-                self.doc[self.tab]
-                    .rows
-                    .insert(pos.y.saturating_add(1), Row::from(&right[..]));
-                if reversed {
-                    self.goto(&Position {
-                        x: other.x,
-                        y: other.y.saturating_add(1),
-                    });
-                } else {
-                    let other = Position {
-                        x: 0,
-                        y: pos.y.saturating_add(1),
-                    };
-                    self.goto(&Position {
-                        x: other.x,
-                        y: other.y.saturating_add(1),
-                    });
-                    self.doc[self.tab]
-                        .undo_stack
-                        .push(Event::SplitDown(pos, other));
-                    self.doc[self.tab].undo_stack.commit();
-                }
-            }
+            Event::Commit => self.doc[self.tab].undo_stack.commit(),
             Event::Store(kind, bank) => {
                 let cursor = self.doc[self.tab].cursor;
                 let offset = self.doc[self.tab].offset;
                 let current = Position {
                     x: cursor.x + offset.x,
-                    y: cursor.y + offset.y + OFFSET - 1,
+                    y: cursor.y + offset.y - OFFSET,
                 };
                 match kind {
                     BankType::Cursor => {
@@ -515,7 +387,7 @@ impl Editor {
                     BankType::Line => {
                         self.row_bank.insert(
                             bank,
-                            self.doc[self.tab].rows[current.y.saturating_sub(1)].clone(),
+                            self.doc[self.tab].rows[current.y].clone(),
                         );
                     }
                 }
@@ -525,16 +397,16 @@ impl Editor {
                 let offset = self.doc[self.tab].offset;
                 let current = Position {
                     x: cursor.x + offset.x,
-                    y: cursor.y + offset.y + OFFSET - 1,
+                    y: cursor.y + offset.y - OFFSET,
                 };
                 match kind {
                     BankType::Cursor => {
                         let cursor = *self.position_bank.get(&bank).unwrap_or(&current);
-                        self.goto(&cursor);
+                        self.doc[self.tab].goto(cursor, &self.term.size);
                     }
                     BankType::Line => {
                         if let Some(row) = self.row_bank.get(&bank) {
-                            self.doc[self.tab].rows.insert(current.y, row.clone());
+                            self.doc[self.tab].rows.insert(current.y.saturating_add(1), row.clone());
                             self.execute(Event::MoveCursor(1, Direction::Down), false);
                         }
                     }
@@ -546,30 +418,8 @@ impl Editor {
             Event::PageDown => self.doc[self.tab].leap_cursor(Key::PageDown, &self.term.size),
             Event::Undo => self.undo(),
             Event::Redo => self.redo(),
-            Event::InsertTab(pos) => {
-                self.doc[self.tab].dirty = true;
-                self.goto(&Position {
-                    x: pos.x,
-                    y: pos.y.saturating_add(1),
-                });
-                self.doc[self.tab].tab(&pos, &self.config, &self.term.size);
-                if !reversed {
-                    self.doc[self.tab].undo_stack.push(event);
-                }
-            }
-            Event::DeleteTab(pos) => {
-                self.doc[self.tab].dirty = true;
-                self.goto(&Position {
-                    x: pos.x,
-                    y: pos.y.saturating_add(1),
-                });
-                for _ in 0..self.config.general.tab_width {
-                    self.doc[self.tab].rows[pos.y].delete(pos.x);
-                }
-                if !reversed {
-                    self.doc[self.tab].undo_stack.push(event);
-                }
-            }
+            // Event is a document event, send to current document
+            _ => self.doc[self.tab].execute(event, reversed, &self.term.size, &self.config),
         }
     }
     fn cmd(&mut self) {
@@ -662,7 +512,7 @@ impl Editor {
                                 },
                                 &p,
                             ) {
-                                s.goto(&p);
+                                s.doc[s.tab].goto(*p, &s.term.size);
                                 s.doc[s.tab].recalculate_graphemes();
                                 break;
                             }
@@ -678,7 +528,7 @@ impl Editor {
                                 },
                                 &p,
                             ) {
-                                s.goto(&p);
+                                s.doc[s.tab].goto(p, &s.term.size);
                                 s.doc[s.tab].recalculate_graphemes();
                                 break;
                             }
@@ -706,7 +556,7 @@ impl Editor {
                                 },
                                 &p,
                             ) {
-                                s.goto(&p);
+                                s.doc[s.tab].goto(p, &s.term.size);
                                 s.doc[s.tab].recalculate_graphemes();
                                 break;
                             }
@@ -738,7 +588,7 @@ impl Editor {
                         },
                         &p,
                     ) {
-                        self.goto(&p);
+                        self.doc[self.tab].goto(*p, &self.term.size);
                         self.doc[self.tab].recalculate_graphemes();
                         self.update();
                         break;
@@ -760,7 +610,7 @@ impl Editor {
                                     },
                                     &p,
                                 ) {
-                                    self.goto(&p);
+                                    self.doc[self.tab].goto(*p, &self.term.size);
                                     self.doc[self.tab].recalculate_graphemes();
                                     self.update();
                                     break;
@@ -780,7 +630,7 @@ impl Editor {
                                     },
                                     &p,
                                 ) {
-                                    self.goto(&p);
+                                    self.doc[self.tab].goto(*p, &self.term.size);
                                     self.doc[self.tab].recalculate_graphemes();
                                     self.update();
                                     break;
@@ -937,37 +787,6 @@ impl Editor {
             self.update();
         }
         Some(result)
-    }
-    fn goto(&mut self, pos: &Position) {
-        // Move the cursor to a specific location
-        let max_y = self.term.size.height.saturating_sub(3);
-        let max_x = (self.term.size.width).saturating_sub(self.doc[self.tab].line_offset);
-        let halfway_y = max_y / 2;
-        let halfway_x = max_x / 2;
-        if self.doc[self.tab].offset.x == 0 && pos.y < max_y && pos.x < max_x {
-            // Cursor is on the screen
-            self.doc[self.tab].offset = Position { x: 0, y: 0 };
-            self.doc[self.tab].cursor = *pos;
-        } else {
-            // Cursor is off the screen, move to the Y position
-            self.doc[self.tab].offset.y = pos.y.saturating_sub(halfway_y);
-            self.doc[self.tab].cursor.y = halfway_y;
-            // Change the X
-            if pos.x >= max_x {
-                // Move to the center
-                self.doc[self.tab].offset.x = pos.x.saturating_sub(halfway_x);
-                self.doc[self.tab].cursor.x = halfway_x;
-            } else {
-                // No offset
-                self.doc[self.tab].offset.x = 0;
-                self.doc[self.tab].cursor.x = pos.x;
-            }
-            if self.doc[self.tab].offset.y + self.doc[self.tab].cursor.y != pos.y {
-                // Fix cursor misplacement
-                self.doc[self.tab].offset.y = 0;
-                self.doc[self.tab].cursor.y = pos.y;
-            }
-        }
     }
     fn update(&mut self) {
         // Move the cursor and render the screen

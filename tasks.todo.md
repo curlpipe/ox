@@ -1,7 +1,6 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
   - [ ] Create unified event executor (2nd)
-    - [ ] Clippy
     - [ ] Thorough Testing
     - [X] Document functions
     - [X] Cursor functions
@@ -18,7 +17,8 @@
       - [X] Write the reverses for them
       - [X] Redo
       - [X] Fix committing issues
-  - [ ] Write documentation for oxa (3rd)
+    - [X] Clippy
+  - [ ] Write documentation for Ox (3rd)
   - [ ] Have a few example macros (3rd)
     - [ ] Move forward a word
     - [ ] Move backward a word
@@ -30,6 +30,8 @@
   - [X] Allow special command mode
   - [X] Create Oxa parser (25th)
 - [ ] Add more configuration options in the config file (5th)
+  - [ ] Multiple themes
+  - [ ] Unicode fallback
 - [X] Fix file tab issue (27th)
 - [X] Fix (0, 0) deletion issues
 
@@ -38,22 +40,25 @@
   - [ ] Goto only if not on screen
   - [ ] File overwrite prevention
   - [ ] Better file save error messages
-  - [ ] Ctrl + Z for undo
   - [ ] Save as sudo / read only files
   - [ ] Backup
+  - [ ] Add support for cursor line wrapping
+  - [X] Ctrl + Z for undo
 - [ ] Searching
   - [ ] Exit search when typing characters and catch up with events
 - [ ] Undoing
   - [ ] Undoing to origin makes file not dirty
   - [ ] Undo / Redo patch limit to prevent high memory usage
-  - [ ] Have a goto call for Undo / Redo
-
-0.2.8 (Small patches #2) { Larger tweaks to make Ox more efficient and compatible }
+- [ ] Rewrite using crossterm for windows support and efficiency
+  - [ ] Build RGB ansi code function
+  - [ ] Fix unwrap on terminal size
+  - [ ] Properly implement terminal resizing
 - [ ] Themes
   - [ ] Small line specific retokenization for performance
   - [ ] Highlight search and replace messages
   - [ ] Transparent background
   - [ ] Improved language syntax highlighting support
+  - [ ] 8/16 bit colour fallback
   - [ ] Live / Command for reloading of the config file
   - [ ] Line number background
   - [ ] Add more languages
@@ -63,12 +68,8 @@
     - [ ] C#
     - [ ] Java
     - [ ] SQL
-- [ ] Rewrite using crossterm for windows support and efficiency
-  - [ ] Build RGB ansi code function
-  - [ ] Fix unwrap on terminal size
-  - [ ] Properly implement terminal resizing
 
-0.2.9 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
+0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support
   - [ ] Read mouse events
   - [ ] Move the cursor when clicking with mouse
