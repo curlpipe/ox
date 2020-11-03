@@ -8,7 +8,7 @@
   <h1 align="center" style="font-size: 50px;">Ox editor</h1>
 
   <p align="center" style="font-size: 20px;">
-    Ox is a fast text editor that runs in your terminal.
+    Ox is a code editor that runs in your terminal.
     <br><br>
     <div align="center" style="display:inline;">
       <img src="https://i.postimg.cc/nrs9jksB/image.png" width="49%">
@@ -23,7 +23,9 @@
 
 ## About The Project
 
-Ox is a text editor with IDE-like features. It was written in Rust using ANSI escape sequences. It assists developers with programming by providing several tools to speed up and make programming easier and a refreshing alternative to heavily bloated and resource hungry editors such as VS Code and JetBrains. Ox is so lightweight that it can be used on older computers.
+Ox is a code editor. It was written in Rust using ANSI escape sequences. It assists developers with programming by providing several tools to speed up and make programming easier and a refreshing alternative to heavily bloated and resource hungry editors such as VS Code and JetBrains. Ox is lightweight so it can be used on older computers.
+
+Bear in mind, this is a personal project and is nowhere near ready to replace your existing tools just yet. 
 
 It runs in the terminal and runs on platforms like Linux and macOS but doesn't work on Windows directly (it works if you use WSL) due to a lack of a good command line. There are many text editors out there and each one of them has their flaws and I hope to have a text editor that overcomes many of the burdens and issues.
 
