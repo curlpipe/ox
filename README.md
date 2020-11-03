@@ -84,6 +84,11 @@ You must have `curl` installed in order to run this command.
 
 ### Installation
 
+#### Icons
+Ox uses NerdFonts to display icons. You can install nerdfonts from https://nerdfonts.com
+If you use Arch Linux, you can install it by installing the package `ttf-nerd-fonts-symbols-mono`.
+There is a potential that you will need to add it to your terminal emulator.
+
 #### Manual
 
 ```sh
