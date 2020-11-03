@@ -34,7 +34,7 @@ Ox aims to be an editor that takes features from some of the most popular editor
 
 **Vim** http://vim.org: Vim provides a plugin system for adding features to it as it is very minimal and only provides basic text editing functionality by default. It is quite extensive and has its own programming language for configuring and writing plugins for it. It has a steep learning curve due to being a “modal” text editor, having special modes for editing text. Ox is easier to use than Vim because it doesn’t have modes where the keyboard is repurposed, however it takes the idea of being a keyboard-only editor and being able to act just like an IDE after some configuration.
 
-**Nano** https://www.nano-editor.org/: Nano is an editor that is very simple to grasp due to its intuitive key bindings such as “Ctrl+S” to save and “Ctrl+?” for the help menu etc. Ox took the idea for the key bindings from this editor, they are simple to remember, “Ctrl+F” for “Find”, “Ctrl+Q” for “Quit”, meaning that Ox doesn’t have as steep a learning curve.
+**Nano** https://www.nano-editor.org/: Nano is an editor that is very simple to grasp due to its intuitive key bindings such as <kbd>Ctrl</kbd>+<kbd>S</kbd> to save and <kbd>Ctrl</kbd>+<kbd>?</kbd> for the help menu etc. Ox took the idea for the key bindings from this editor, they are simple to remember, <kbd>Ctrl</kbd>+<kbd>F</kbd> for “Find”, <kbd>Ctrl</kbd>+<kbd>Q</kbd> for “Quit”, meaning that Ox doesn’t have as steep a learning curve.
 
 **Micro** https://micro-editor.github.io/: Micro has a plugin system that is programmed with a language called Lua however I can’t seem to find any up to date plugins for it and it lacks features such as a file tree. It is micro that inspired me to add mouse functionality and other features.
 
@@ -108,14 +108,14 @@ brew install ox
 #### Opening files in Ox
 
 At the moment, you can open ox by using the command
-```
+```sh
 ox
 ```
 
 This will open up an empty document.
 
 If you wish to open a file straight from the command line, you can run
-```
+```sh
 ox /path/to/file
 ```
 To open and edit a file.
@@ -125,7 +125,7 @@ You can also open a file from within Ox by using the <kbd>Ctrl + O</kbd> Key bin
 If at any time, you wish to create a new file, you can use <kbd>Ctrl + N</kbd> to do so.
 
 You can find more command line options for Ox by typing:
-```
+```sh
 ox --help
 ```
 
