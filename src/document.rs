@@ -492,6 +492,20 @@ impl Document {
             _ => (),
         }
     }
+    pub fn word_left(&mut self, term: &Size) {
+        self.move_cursor(Key::Left, term);
+        let row = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
+        while self.cursor.x + self.offset.x != 0 && row.chars()[self.graphemes.saturating_sub(1)] != " " {
+            self.move_cursor(Key::Left, term);
+        }
+    }
+    pub fn word_right(&mut self, term: &Size) {
+        let row = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
+        while self.cursor.x + self.offset.x != row.length() && row.chars()[self.graphemes] != " " {
+            self.move_cursor(Key::Right, term);
+        }
+        self.move_cursor(Key::Right, term);
+    }
     pub fn goto(&mut self, mut pos: Position, term: &Size) {
         // Move the cursor to a specific location
         let max_y = term.height.saturating_sub(3);

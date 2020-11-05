@@ -26,6 +26,7 @@ pub enum Event {
     UpdateLine(Position, i128, Box<Row>, Box<Row>), // For holding entire line updates
     MoveCursor(i128, Direction),          // For moving the cursor
     GotoCursor(Position),                 // For setting the cursor position
+    MoveWord(Direction),                  // Move cursor through words
     Home,                                 // Moving cursor to the start of line
     End,                                  // Moving cursor to the end of line
     PageUp,                               // Moving cursor one page up

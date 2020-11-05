@@ -353,6 +353,13 @@ impl Editor {
             Event::QuitAll(force) => self.quit_all(force),
             Event::NextTab => self.next_tab(),
             Event::PrevTab => self.prev_tab(),
+            Event::MoveWord(direction) => {
+                match direction {
+                    Direction::Left => self.doc[self.tab].word_left(&self.term.size),
+                    Direction::Right => self.doc[self.tab].word_right(&self.term.size),
+                    _ => return,
+                }
+            }
             Event::GotoCursor(pos) => {
                 let rows = &self.doc[self.tab].rows;
                 if rows.len() > pos.y && rows[pos.y].length() >= pos.x {

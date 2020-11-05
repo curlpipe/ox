@@ -27,3 +27,12 @@ ron = "0.6.2"
 serde = "1.0.117"
 regex = "1.4.1"
 directories = "3.0.1"
+
+[package.metadata.rpm]
+package = "ox"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+ox = { path = "/usr/bin/ox" }

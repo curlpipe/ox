@@ -240,18 +240,27 @@ fn put_command(args: &[&str], cursor: &Position) -> Option<Vec<Event>> {
 fn move_command(args: &[&str]) -> Option<Vec<Event>> {
     let mut events = vec![];
     if args.len() == 2 {
-        let magnitude: usize = args[0].parse().unwrap_or_default();
-        let direction = args[1];
-        events.push(Event::MoveCursor(
-            magnitude as i128,
-            match direction {
-                "up" => Direction::Up,
-                "down" => Direction::Down,
+        if let Ok(magnitude) = args[0].parse::<usize>() {
+            let direction = args[1];
+            events.push(Event::MoveCursor(
+                magnitude as i128,
+                match direction {
+                    "up" => Direction::Up,
+                    "down" => Direction::Down,
+                    "left" => Direction::Left,
+                    "right" => Direction::Right,
+                    _ => return None,
+                },
+            ));
+        } else if args[0] == "word" {
+            events.push(Event::MoveWord(match args[1] {
                 "left" => Direction::Left,
                 "right" => Direction::Right,
                 _ => return None,
-            },
-        ));
+            }));
+        } else {
+            return None;
+        }
     } else if let Some(direction) = args.get(0) {
         events.push(match *direction {
             "home" => Event::Home,

@@ -1,7 +1,9 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Macro system
-  - [ ] Create unified event executor (2nd)
-    - [ ] Thorough Testing
+  - [ ] Allow binding of macros to some keys (4th)
+  - [X] Allow special command mode
+  - [X] Create Oxa parser (25th)
+  - [X] Create unified event executor (2nd)
     - [X] Document functions
     - [X] Cursor functions
     - [X] Mass edit functions
@@ -18,17 +20,15 @@
       - [X] Redo
       - [X] Fix committing issues
     - [X] Clippy
-  - [ ] Write documentation for Ox (3rd)
-  - [ ] Have a few example macros (3rd)
-    - [ ] Move forward a word
-    - [ ] Move backward a word
-    - [ ] Move line
+    - [X] Thorough Testing
+  - [X] Write documentation for Ox (3rd)
+  - [X] Have a few example macros (3rd)
     - [X] Goto line number
     - [X] Delete line
     - [X] Move cursor
-  - [ ] Allow binding of macros to some keys (4th)
-  - [X] Allow special command mode
-  - [X] Create Oxa parser (25th)
+    - [X] Move line
+    - [X] Move forward a word
+    - [X] Move backward a word
 - [ ] Add more configuration options in the config file (5th)
   - [ ] Multiple themes
   - [ ] Unicode fallback
@@ -36,20 +36,28 @@
 - [X] Fix (0, 0) deletion issues
 
 0.2.7 (Small patches) { Small tweaks to make Ox more comfy }
+- [ ] Bug Fixing
+  - [ ] Fix file hanging*
+  - [ ] Fix windows linebreak issue*
+  - [ ] Fix potential tab issues
 - [ ] General Editing
+  - [ ] Don't load entire file into memory*
   - [ ] Goto only if not on screen
   - [ ] File overwrite prevention
   - [ ] Better file save error messages
-  - [ ] Save as sudo / read only files
+  - [ ] Save as sudo / read only files*
   - [ ] Backup
-  - [ ] Add support for cursor line wrapping
+  - [ ] Add support for cursor line wrapping*
+  - [ ] Add help menu to view keybindings*
   - [X] Ctrl + Z for undo
 - [ ] Searching
   - [ ] Exit search when typing characters and catch up with events
 - [ ] Undoing
   - [ ] Undoing to origin makes file not dirty
   - [ ] Undo / Redo patch limit to prevent high memory usage
-- [ ] Rewrite using crossterm for windows support and efficiency
+- [ ] CLI
+  - [ ] Allow jump to lines*
+- [ ] Rewrite using crossterm for windows support and efficiency*
   - [ ] Build RGB ansi code function
   - [ ] Fix unwrap on terminal size
   - [ ] Properly implement terminal resizing
@@ -58,7 +66,7 @@
   - [ ] Highlight search and replace messages
   - [ ] Transparent background
   - [ ] Improved language syntax highlighting support
-  - [ ] 8/16 bit colour fallback
+  - [ ] 8/16 bit colour fallback*
   - [ ] Live / Command for reloading of the config file
   - [ ] Line number background
   - [ ] Add more languages
@@ -70,7 +78,7 @@
     - [ ] SQL
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
-- [ ] Mouse selection support
+- [ ] Mouse selection support*
   - [ ] Read mouse events
   - [ ] Move the cursor when clicking with mouse
   - [ ] Add selection mode to document
@@ -104,7 +112,7 @@
   - [ ] Move them around when pressing enter
 
 0.3.2 (IDE level features #3) { Even more IDE features }
-- [ ] Auto complete
+- [ ] Auto complete*
   - [ ] Get information from racer and display it in a menu
   - [ ] Add configuration entries for the autocomplete
   - [ ] Add support for file autocomplete too
