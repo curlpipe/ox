@@ -101,6 +101,15 @@ Install `ox-bin` or `ox-git` from the Arch User Repository.
 
 That's all there is to it!
 
+#### Fedora/CentOS
+
+Install `ox` from the [COPR Repository](https://copr.fedorainfracloud.org/coprs/atim/ox/): 
+
+```
+sudo dnf copr enable atim/ox -y
+sudo dnf install ox
+```
+
 #### Homebrew
 
 Install `ox` from Homebrew core tap.
