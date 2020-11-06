@@ -2,8 +2,10 @@
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
 use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
-use crate::{Event, EventStack, Position, Row, Size};
+use crate::{Event, EventStack, Position, Row, Size, VERSION};
 use regex::Regex;
+use std::ffi::OsStr;
+use std::path::Path;
 use std::{cmp, fs};
 use termion::event::Key;
 use unicode_width::UnicodeWidthStr;
@@ -84,7 +86,12 @@ impl Document {
             let ext = path.split('.').last().unwrap_or(&"");
             Some(Self {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
-                name: path.to_string(),
+                name: Path::new(path)
+                    .file_name()
+                    .unwrap_or(OsStr::new(path))
+                    .to_str()
+                    .unwrap_or(&path)
+                    .to_string(),
                 dirty: false,
                 cmd_line: Document::config_to_commandline(&status),
                 path: path.to_string(),
@@ -151,6 +158,32 @@ impl Document {
                 Status::Parse(_) => Type::Error,
             },
         }
+    }
+    pub fn format(&self, template: &str) -> String {
+        // Form data from a template
+        return template
+            .replace("%f", &self.name)
+            .replace("%F", &self.path)
+            .replace("%i", &self.icon)
+            .replace(
+                "%I",
+                &if self.icon.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", self.icon)
+                },
+            )
+            .replace("%n", &self.kind)
+            .replace(
+                "%l",
+                &format!("{}", self.cursor.y + self.offset.y - OFFSET + 1),
+            )
+            .replace("%L", &format!("{}", self.rows.len()))
+            .replace("%x", &format!("{}", self.cursor.x + self.offset.x))
+            .replace("%y", &format!("{}", self.cursor.y + self.offset.y))
+            .replace("%v", VERSION)
+            .replace("%d", if self.dirty { "[+]" } else { "" })
+            .replace("%D", if self.dirty { "\u{fb12} " } else { "\u{f723} " });
     }
     pub fn move_cursor(&mut self, direction: Key, term: &Size) {
         // Move the cursor around the editor
@@ -355,10 +388,7 @@ impl Document {
         self.rows[pos.y.saturating_sub(1)] = Row::from(&new[..]);
         self.rows.remove(pos.y);
         if reversed {
-            self.goto(
-                *other,
-                term,
-            );
+            self.goto(*other, term);
         } else {
             let other = Position {
                 x: above.length(),
@@ -385,19 +415,13 @@ impl Document {
         self.rows
             .insert(pos.y.saturating_add(1), Row::from(&right[..]));
         if reversed {
-            self.goto(
-                *other,
-                term,
-            );
+            self.goto(*other, term);
         } else {
             let other = Position {
                 x: 0,
                 y: pos.y.saturating_add(1),
             };
-            self.goto(
-                other,
-                term,
-            );
+            self.goto(other, term);
             self.undo_stack.push(Event::SplitDown(*pos, other));
             self.undo_stack.commit();
         }
@@ -495,7 +519,9 @@ impl Document {
     pub fn word_left(&mut self, term: &Size) {
         self.move_cursor(Key::Left, term);
         let row = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
-        while self.cursor.x + self.offset.x != 0 && row.chars()[self.graphemes.saturating_sub(1)] != " " {
+        while self.cursor.x + self.offset.x != 0
+            && row.chars()[self.graphemes.saturating_sub(1)] != " "
+        {
             self.move_cursor(Key::Left, term);
         }
     }

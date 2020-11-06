@@ -47,11 +47,13 @@ pub fn interpret_line(
                 "search" => events.push(Event::Search),
                 "cmd" => events.push(Event::Cmd),
                 "replace" => events.push(replace_command(&args)),
-                "theme" => if let Some(theme) = theme_command(&args) {
-                    events.push(theme)
-                } else {
-                    return None;
-                },
+                "theme" => {
+                    if let Some(theme) = theme_command(&args) {
+                        events.push(theme)
+                    } else {
+                        return None;
+                    }
+                }
                 "line" => {
                     if let Some(line) = line_command(&args, &cursor) {
                         events.push(line);

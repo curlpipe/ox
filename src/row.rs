@@ -149,7 +149,13 @@ impl Row {
     ) {
         // Update the syntax highlighting indices for this row
         self.syntax = remove_nested_tokens(
-            &highlight(&self.string, &doc, index, &syntax, &config.highlights[theme]),
+            &highlight(
+                &self.string,
+                &doc,
+                index,
+                &syntax,
+                &config.highlights[theme],
+            ),
             &self.string,
         );
     }

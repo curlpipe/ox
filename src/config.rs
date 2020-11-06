@@ -125,6 +125,9 @@ pub struct General {
     pub line_number_padding_left: usize,
     pub tab_width: usize,
     pub undo_period: u64,
+    pub status_left: String,
+    pub status_right: String,
+    pub tab: String,
 }
 
 // Struct for storing theme information

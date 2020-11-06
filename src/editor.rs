@@ -1,5 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{Reader, Status, KeyBinding};
+use crate::config::{KeyBinding, Reader, Status};
 use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
@@ -196,17 +196,21 @@ impl Editor {
                 );
             }
             // Detect control key binding
-            Key::Ctrl(c) => if let Some(commands) = config.keys.get(&KeyBinding::Ctrl(c)) {
-                for i in commands.clone() {
-                    self.text_to_event(&i);
+            Key::Ctrl(c) => {
+                if let Some(commands) = config.keys.get(&KeyBinding::Ctrl(c)) {
+                    for i in commands.clone() {
+                        self.text_to_event(&i);
+                    }
                 }
-            },
+            }
             // Detect alt key binding
-            Key::Alt(c) => if let Some(commands) = config.keys.get(&KeyBinding::Alt(c)) {
-                for i in commands.clone() {
-                    self.text_to_event(&i);
+            Key::Alt(c) => {
+                if let Some(commands) = config.keys.get(&KeyBinding::Alt(c)) {
+                    for i in commands.clone() {
+                        self.text_to_event(&i);
+                    }
                 }
-            },
+            }
             Key::Up => self.execute(Event::MoveCursor(1, Direction::Up), false),
             Key::Down => self.execute(Event::MoveCursor(1, Direction::Down), false),
             Key::Left => self.execute(Event::MoveCursor(1, Direction::Left), false),
@@ -362,13 +366,11 @@ impl Editor {
                 self.theme = name;
                 self.update();
             }
-            Event::MoveWord(direction) => {
-                match direction {
-                    Direction::Left => self.doc[self.tab].word_left(&self.term.size),
-                    Direction::Right => self.doc[self.tab].word_right(&self.term.size),
-                    _ => return,
-                }
-            }
+            Event::MoveWord(direction) => match direction {
+                Direction::Left => self.doc[self.tab].word_left(&self.term.size),
+                Direction::Right => self.doc[self.tab].word_right(&self.term.size),
+                _ => return,
+            },
             Event::GotoCursor(pos) => {
                 let rows = &self.doc[self.tab].rows;
                 if rows.len() > pos.y && rows[pos.y].length() >= pos.x {
@@ -401,10 +403,8 @@ impl Editor {
                         self.position_bank.insert(bank, current);
                     }
                     BankType::Line => {
-                        self.row_bank.insert(
-                            bank,
-                            self.doc[self.tab].rows[current.y].clone(),
-                        );
+                        self.row_bank
+                            .insert(bank, self.doc[self.tab].rows[current.y].clone());
                     }
                 }
             }
@@ -422,7 +422,9 @@ impl Editor {
                     }
                     BankType::Line => {
                         if let Some(row) = self.row_bank.get(&bank) {
-                            self.doc[self.tab].rows.insert(current.y.saturating_add(1), row.clone());
+                            self.doc[self.tab]
+                                .rows
+                                .insert(current.y.saturating_add(1), row.clone());
                             self.execute(Event::MoveCursor(1, Direction::Down), false);
                         }
                     }
@@ -850,25 +852,9 @@ impl Editor {
     fn status_line(&mut self) -> String {
         // Produce the status line
         // Create the left part of the status line
-        let left = format!(
-            " {}{} \u{2502} {} {} ",
-            self.doc[self.tab].name,
-            if self.doc[self.tab].dirty {
-                "[+] \u{fb12} "
-            } else {
-                " \u{f723} "
-            },
-            self.doc[self.tab].kind,
-            self.doc[self.tab].icon,
-        );
+        let left = self.doc[self.tab].format(&self.config.general.status_left);
         // Create the right part of the status line
-        let right = format!(
-            " \u{fa70} {} / {} \u{2502} \u{fae6}({}, {}) ",
-            self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y + 1 - OFFSET,
-            self.doc[self.tab].rows.len(),
-            self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x + 1,
-            self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y + 1 - OFFSET,
-        );
+        let right = self.doc[self.tab].format(&self.config.general.status_right);
         // Get the padding value
         let padding = self.term.align_break(&left, &right);
         // Generate it
@@ -929,21 +915,15 @@ impl Editor {
         let active_foreground = Reader::rgb_fg(self.config.theme.active_tab_fg);
         let inactive_foreground = Reader::rgb_fg(self.config.theme.inactive_tab_fg);
         // Iterate through documents and create their tab text
-        for (num, doc) in self.doc.iter().enumerate() {
+        for num in 0..self.doc.len() {
             let this = format!(
-                "{} {}{}{} {}{}{}\u{2502}",
+                "{} {} {}{}{}\u{2502}",
                 if num == self.tab {
                     format!("{}{}{}", style::Bold, active_background, active_foreground)
                 } else {
                     format!("{}{}", inactive_background, inactive_foreground)
                 },
-                if doc.icon.is_empty() {
-                    doc.icon.to_string()
-                } else {
-                    format!("{} ", doc.icon)
-                },
-                doc.name,
-                if doc.dirty { "[+]" } else { "" },
+                self.doc[num].format(&self.config.general.tab),
                 style::Reset,
                 inactive_background.to_string(),
                 inactive_foreground.to_string(),

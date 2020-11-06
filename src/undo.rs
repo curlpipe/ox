@@ -12,42 +12,42 @@ pub enum BankType {
 // Event enum to store the types of events that occur
 #[derive(Debug, Clone)]
 pub enum Event {
-    Store(BankType, usize),        // Store an item in a bank
-    Load(BankType, usize),         // Load an item from a bank
-    SpliceUp(Position, Position),  // Delete from start
-    SplitDown(Position, Position), // Return from middle of the line
-    InsertLineAbove(Position),     // Return key in the middle of line
-    InsertLineBelow(Position),     // Return on the end of line
-    Deletion(Position, char),      // Delete from middle
-    Insertion(Position, char),     // Insert character
-    InsertTab(Position),          // Insert a tab character
-    DeleteTab(Position),          // Delete a tab character
-    DeleteLine(Position, i128, Box<Row>), // For deleting a line
+    Store(BankType, usize),                         // Store an item in a bank
+    Load(BankType, usize),                          // Load an item from a bank
+    SpliceUp(Position, Position),                   // Delete from start
+    SplitDown(Position, Position),                  // Return from middle of the line
+    InsertLineAbove(Position),                      // Return key in the middle of line
+    InsertLineBelow(Position),                      // Return on the end of line
+    Deletion(Position, char),                       // Delete from middle
+    Insertion(Position, char),                      // Insert character
+    InsertTab(Position),                            // Insert a tab character
+    DeleteTab(Position),                            // Delete a tab character
+    DeleteLine(Position, i128, Box<Row>),           // For deleting a line
     UpdateLine(Position, i128, Box<Row>, Box<Row>), // For holding entire line updates
-    MoveCursor(i128, Direction),          // For moving the cursor
-    GotoCursor(Position),                 // For setting the cursor position
-    MoveWord(Direction),                  // Move cursor through words
-    Theme(String),                        // Theme change event
-    Search,                               // Search the document
-    Replace,                              // Replace certain occurances
-    ReplaceAll,                           // Replace everything
-    Cmd,                                  // Trigger command mode
-    Home,                                 // Moving cursor to the start of line
-    End,                                  // Moving cursor to the end of line
-    PageUp,                               // Moving cursor one page up
-    PageDown,                             // Moving cursor one page down
-    Overwrite(Vec<Row>, Vec<Row>),        // Overwrite document
-    New,                                  // New document
-    Open(Option<String>),                 // Open document
-    Save(Option<String>, bool),           // Save document
-    SaveAll,                              // Save all documents
-    Undo,                                 // Undo event
-    Redo,                                 // Redo event
-    Commit,                               // Commit undo event
-    Quit(bool),                           // Quit document
-    QuitAll(bool),                        // Quit all
-    NextTab,                              // Next tab
-    PrevTab,                              // Previous tab
+    MoveCursor(i128, Direction),                    // For moving the cursor
+    GotoCursor(Position),                           // For setting the cursor position
+    MoveWord(Direction),                            // Move cursor through words
+    Theme(String),                                  // Theme change event
+    Search,                                         // Search the document
+    Replace,                                        // Replace certain occurances
+    ReplaceAll,                                     // Replace everything
+    Cmd,                                            // Trigger command mode
+    Home,                                           // Moving cursor to the start of line
+    End,                                            // Moving cursor to the end of line
+    PageUp,                                         // Moving cursor one page up
+    PageDown,                                       // Moving cursor one page down
+    Overwrite(Vec<Row>, Vec<Row>),                  // Overwrite document
+    New,                                            // New document
+    Open(Option<String>),                           // Open document
+    Save(Option<String>, bool),                     // Save document
+    SaveAll,                                        // Save all documents
+    Undo,                                           // Undo event
+    Redo,                                           // Redo event
+    Commit,                                         // Commit undo event
+    Quit(bool),                                     // Quit document
+    QuitAll(bool),                                  // Quit all
+    NextTab,                                        // Next tab
+    PrevTab,                                        // Previous tab
 }
 
 // A struct for holding all the events taken by the user
