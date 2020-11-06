@@ -1,15 +1,18 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
 - [ ] Add more configuration options in the config file (6th)
-  - [ ] Status line format
-    - [ ] Form structure for information
-    - [ ] Allow config file reading
-    - [ ] Apply it
   - [ ] Predefined macros
     - [ ] Create it in config file
     - [ ] Read and allow execution
   - [X] Multiple themes
     - [X] Read from config file
     - [X] Allow switching via command
+  - [X] Status line format
+    - [X] Form structure for information
+    - [X] Allow config file reading
+    - [X] Apply it
+  - [X] Tab line format
+    - [X] Add to configuration file
+    - [X] Apply it
 - [X] Fix file tab issue (27th)
 - [X] Fix (0, 0) deletion issues
 - [X] Macro system
@@ -74,6 +77,7 @@
   - [ ] Fix unwrap on terminal size
   - [ ] Properly implement terminal resizing
 - [ ] Themes
+  - [ ] Allow changing of colours of warning, info and error messages in config file
   - [ ] Small line specific retokenization for performance
   - [ ] Highlight search and replace messages
   - [ ] Transparent background
@@ -82,6 +86,10 @@
   - [ ] Live / Command for reloading of the config file
   - [ ] Line number background
   - [ ] Add more languages
+    - [ ] PHP*
+    - [ ] JSON*
+    - [ ] HTML*
+    - [ ] CSS*
     - [ ] x86 Assembly
     - [ ] Go
     - [ ] C++
