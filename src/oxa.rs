@@ -44,6 +44,14 @@ pub fn interpret_line(
                 "set" => events.push(set_command(&args, &cursor, &rows)),
                 "split" => events.push(Event::SplitDown(cursor, cursor)),
                 "splice" => events.push(Event::SpliceUp(cursor, cursor)),
+                "search" => events.push(Event::Search),
+                "cmd" => events.push(Event::Cmd),
+                "replace" => events.push(replace_command(&args)),
+                "theme" => if let Some(theme) = theme_command(&args) {
+                    events.push(theme)
+                } else {
+                    return None;
+                },
                 "line" => {
                     if let Some(line) = line_command(&args, &cursor) {
                         events.push(line);
@@ -73,6 +81,22 @@ pub fn interpret_line(
         }
     }
     Some(events)
+}
+
+fn theme_command(args: &[&str]) -> Option<Event> {
+    if !args.is_empty() {
+        Some(Event::Theme(args[0].to_string()))
+    } else {
+        None
+    }
+}
+
+fn replace_command(args: &[&str]) -> Event {
+    if !args.is_empty() && args[0] == "*" {
+        Event::ReplaceAll
+    } else {
+        Event::Replace
+    }
 }
 
 fn open_command(args: &[&str]) -> Event {
@@ -143,6 +167,8 @@ fn save_command(args: &[&str]) -> Option<Vec<Event>> {
     } else {
         events.push(if args[0] == "*" {
             Event::SaveAll
+        } else if args[0] == "?" {
+            Event::Save(None, true)
         } else {
             Event::Save(Some(args[0].to_string()), false)
         })

@@ -21,12 +21,20 @@ pub enum Status {
     Success,
 }
 
+// Key binding type
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Deserialize)]
+pub enum KeyBinding {
+    Ctrl(char),
+    Alt(char),
+}
+
 // Struct for storing and managing configuration
 #[derive(Debug, Deserialize, Clone)]
 pub struct Reader {
     pub general: General,
     pub theme: Theme,
-    pub highlights: HashMap<String, (u8, u8, u8)>,
+    pub highlights: HashMap<String, HashMap<String, (u8, u8, u8)>>,
+    pub keys: HashMap<KeyBinding, Vec<String>>,
     pub languages: Vec<Language>,
 }
 
@@ -131,6 +139,7 @@ pub struct Theme {
     pub inactive_tab_bg: (u8, u8, u8),
     pub active_tab_fg: (u8, u8, u8),
     pub active_tab_bg: (u8, u8, u8),
+    pub default_theme: String,
 }
 
 // Struct for storing language information

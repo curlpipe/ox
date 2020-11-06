@@ -1,6 +1,18 @@
 0.2.6 (Macros) { Allow for more keybindings and operations }
-- [ ] Macro system
-  - [ ] Allow binding of macros to some keys (4th)
+- [ ] Add more configuration options in the config file (6th)
+  - [ ] Status line format
+    - [ ] Form structure for information
+    - [ ] Allow config file reading
+    - [ ] Apply it
+  - [ ] Predefined macros
+    - [ ] Create it in config file
+    - [ ] Read and allow execution
+  - [X] Multiple themes
+    - [X] Read from config file
+    - [X] Allow switching via command
+- [X] Fix file tab issue (27th)
+- [X] Fix (0, 0) deletion issues
+- [X] Macro system
   - [X] Allow special command mode
   - [X] Create Oxa parser (25th)
   - [X] Create unified event executor (2nd)
@@ -29,11 +41,11 @@
     - [X] Move line
     - [X] Move forward a word
     - [X] Move backward a word
-- [ ] Add more configuration options in the config file (5th)
-  - [ ] Multiple themes
-  - [ ] Unicode fallback
-- [X] Fix file tab issue (27th)
-- [X] Fix (0, 0) deletion issues
+  - [X] Allow binding of macros to some keys (4th)
+- [X] Distribution
+  - [X] Rpm
+  - [X] Deb
+  - [X] Homebrew
 
 0.2.7 (Small patches) { Small tweaks to make Ox more comfy }
 - [ ] Bug Fixing

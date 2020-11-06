@@ -1,5 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{Reader, Status};
+use crate::config::{Reader, Status, KeyBinding};
 use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
@@ -56,6 +56,7 @@ pub struct Editor {
     exp: Exp,                                // For holding expressions
     position_bank: HashMap<usize, Position>, // Bank for cursor positions
     row_bank: HashMap<usize, Row>,           // Bank for lines
+    theme: String,                           // Currently used theme
 }
 
 // Implementing methods for our editor struct / class
@@ -88,6 +89,7 @@ impl Editor {
             exp: Exp::new(),
             position_bank: HashMap::new(),
             row_bank: HashMap::new(),
+            theme: config.0.theme.default_theme,
         })
     }
     pub fn run(&mut self) {
@@ -144,6 +146,7 @@ impl Editor {
             x: cursor.x + offset.x,
             y: cursor.y + offset.y - OFFSET,
         };
+        let config = &self.config;
         match key {
             Key::Char(c) => {
                 self.doc[self.tab].redo_stack.empty();
@@ -192,20 +195,18 @@ impl Editor {
                     false,
                 );
             }
-            Key::Ctrl('q') => self.execute(Event::Quit(false), false),
-            Key::Ctrl('s') => self.execute(Event::Save(None, false), false),
-            Key::Ctrl('w') => self.execute(Event::Save(None, true), false),
-            Key::Ctrl('p') => self.execute(Event::SaveAll, false),
-            Key::Ctrl('n') => self.execute(Event::New, false),
-            Key::Ctrl('o') => self.execute(Event::Open(None), false),
-            Key::Ctrl('d') => self.execute(Event::PrevTab, false),
-            Key::Ctrl('h') => self.execute(Event::NextTab, false),
-            Key::Ctrl('z') => self.execute(Event::Undo, false),
-            Key::Ctrl('y') => self.execute(Event::Redo, false),
-            Key::Ctrl('f') => self.search(),
-            Key::Ctrl('r') => self.replace(),
-            Key::Ctrl('a') => self.replace_all(),
-            Key::Alt('a') => self.cmd(),
+            // Detect control key binding
+            Key::Ctrl(c) => if let Some(commands) = config.keys.get(&KeyBinding::Ctrl(c)) {
+                for i in commands.clone() {
+                    self.text_to_event(&i);
+                }
+            },
+            // Detect alt key binding
+            Key::Alt(c) => if let Some(commands) = config.keys.get(&KeyBinding::Alt(c)) {
+                for i in commands.clone() {
+                    self.text_to_event(&i);
+                }
+            },
             Key::Up => self.execute(Event::MoveCursor(1, Direction::Up), false),
             Key::Down => self.execute(Event::MoveCursor(1, Direction::Down), false),
             Key::Left => self.execute(Event::MoveCursor(1, Direction::Left), false),
@@ -353,6 +354,14 @@ impl Editor {
             Event::QuitAll(force) => self.quit_all(force),
             Event::NextTab => self.next_tab(),
             Event::PrevTab => self.prev_tab(),
+            Event::Search => self.search(),
+            Event::Replace => self.replace(),
+            Event::ReplaceAll => self.replace_all(),
+            Event::Cmd => self.cmd(),
+            Event::Theme(name) => {
+                self.theme = name;
+                self.update();
+            }
             Event::MoveWord(direction) => {
                 match direction {
                     Direction::Left => self.doc[self.tab].word_left(&self.term.size),
@@ -434,40 +443,43 @@ impl Editor {
         if let Some(command) = self.prompt(":", "", &|_, _, _| {}) {
             // Parse and Lex instruction
             for command in command.split('|') {
-                let cursor = self.doc[self.tab].cursor;
-                let offset = self.doc[self.tab].offset;
-                let instruction = interpret_line(
-                    &command,
-                    &Position {
-                        x: cursor.x + offset.x,
-                        y: cursor.y + offset.y - OFFSET,
-                    },
-                    self.doc[self.tab].graphemes,
-                    &self.doc[self.tab].rows,
-                );
-                // Execute the instruction
-                if let Some(instruct) = instruction {
-                    for i in instruct {
-                        match i {
-                            Event::SpliceUp(_, _)
-                            | Event::SplitDown(_, _)
-                            | Event::InsertLineAbove(_)
-                            | Event::InsertLineBelow(_)
-                            | Event::Deletion(_, _)
-                            | Event::Insertion(_, _)
-                            | Event::InsertTab(_)
-                            | Event::DeleteTab(_)
-                            | Event::DeleteLine(_, _, _)
-                            | Event::UpdateLine(_, _, _, _)
-                            | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
-                            _ => (),
-                        }
-                        self.execute(i, false);
-                    }
-                    self.doc[self.tab].undo_stack.commit();
-                };
+                self.text_to_event(command);
             }
         }
+    }
+    fn text_to_event(&mut self, command: &str) {
+        let cursor = self.doc[self.tab].cursor;
+        let offset = self.doc[self.tab].offset;
+        let instruction = interpret_line(
+            &command,
+            &Position {
+                x: cursor.x + offset.x,
+                y: cursor.y + offset.y - OFFSET,
+            },
+            self.doc[self.tab].graphemes,
+            &self.doc[self.tab].rows,
+        );
+        // Execute the instruction
+        if let Some(instruct) = instruction {
+            for i in instruct {
+                match i {
+                    Event::SpliceUp(_, _)
+                    | Event::SplitDown(_, _)
+                    | Event::InsertLineAbove(_)
+                    | Event::InsertLineBelow(_)
+                    | Event::Deletion(_, _)
+                    | Event::Insertion(_, _)
+                    | Event::InsertTab(_)
+                    | Event::DeleteTab(_)
+                    | Event::DeleteLine(_, _, _)
+                    | Event::UpdateLine(_, _, _, _)
+                    | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
+                    _ => (),
+                }
+                self.execute(i, false);
+            }
+            self.doc[self.tab].undo_stack.commit();
+        };
     }
     pub fn undo(&mut self) {
         self.doc[self.tab].undo_stack.commit();
@@ -974,7 +986,7 @@ impl Editor {
         for row in OFFSET..self.term.size.height {
             let row = row.saturating_sub(OFFSET);
             if let Some(r) = self.doc[self.tab].rows.get_mut(offset.y + row) {
-                r.update_syntax(&self.config, &reg, &rendered, offset.y + row);
+                r.update_syntax(&self.config, &reg, &rendered, offset.y + row, &self.theme);
             }
             if row == self.term.size.height - 1 - OFFSET {
                 // Render command line

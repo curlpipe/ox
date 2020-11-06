@@ -20,13 +20,18 @@ pub enum Event {
     InsertLineBelow(Position),     // Return on the end of line
     Deletion(Position, char),      // Delete from middle
     Insertion(Position, char),     // Insert character
-    InsertTab(Position),
-    DeleteTab(Position),
+    InsertTab(Position),          // Insert a tab character
+    DeleteTab(Position),          // Delete a tab character
     DeleteLine(Position, i128, Box<Row>), // For deleting a line
     UpdateLine(Position, i128, Box<Row>, Box<Row>), // For holding entire line updates
     MoveCursor(i128, Direction),          // For moving the cursor
     GotoCursor(Position),                 // For setting the cursor position
     MoveWord(Direction),                  // Move cursor through words
+    Theme(String),                        // Theme change event
+    Search,                               // Search the document
+    Replace,                              // Replace certain occurances
+    ReplaceAll,                           // Replace everything
+    Cmd,                                  // Trigger command mode
     Home,                                 // Moving cursor to the start of line
     End,                                  // Moving cursor to the end of line
     PageUp,                               // Moving cursor one page up
