@@ -26,7 +26,6 @@ mod undo;
 mod util;
 
 use clap::{App, Arg};
-use dirs_next::config_dir;
 use document::Document;
 use editor::{Editor, Position};
 use row::Row;
@@ -41,7 +40,6 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() {
     // Attempt to start an editor instance
     let result = panic::catch_unwind(|| {
-        let config_dir = load_config().unwrap_or_else(|| " ~/.config/ox/ox.ron".to_string());
         // Gather the command line arguments
         let cli = App::new("Ox")
             .version(VERSION)
@@ -58,7 +56,6 @@ fn main() {
                     .long("config")
                     .short("c")
                     .takes_value(true)
-                    .default_value(&config_dir)
                     .help("The directory of the config file"),
             );
         // Fire up the editor, ensuring that no start up problems occured
@@ -71,9 +68,4 @@ fn main() {
         // Pause for a few seconds to catch debug information
         thread::sleep(Duration::from_secs(3));
     }
-}
-
-fn load_config() -> Option<String> {
-    // Load the configuration file
-    Some(format!("{}/ox/ox.ron", config_dir()?.display()))
 }

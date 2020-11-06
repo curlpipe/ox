@@ -52,7 +52,7 @@ impl Editor {
         let args = args.get_matches();
         // Set up the arguments
         let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
-        let config = Reader::read(args.value_of("config").unwrap_or_default());
+        let config = Reader::read(args.value_of("config"));
         let mut documents = vec![];
         if files.is_empty() {
             documents.push(Document::new(&config.0, &config.1));

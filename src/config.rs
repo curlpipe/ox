@@ -1,4 +1,5 @@
 // Config.rs - In charge of storing configuration information
+use dirs_next::config_dir;
 use regex::Regex;
 use ron::de::from_str;
 use serde::Deserialize;
@@ -31,13 +32,19 @@ pub struct Reader {
 }
 
 impl Reader {
-    pub fn read(config: &str) -> (Self, Status) {
+    pub fn read(config: Option<&str>) -> (Self, Status) {
         // Read the config file, if it fails, use a hard-coded configuration
         // Expand the path to get rid of any filepath issues
-        let config = if let Ok(config) = shellexpand::full(config) {
-            (*config).to_string()
+        let config = if let Some(path) = config {
+            if let Ok(config) = shellexpand::full(path) {
+                (*config).into()
+            } else {
+                path.into()
+            }
+        } else if let Some(config) = config_dir() {
+            config
         } else {
-            config.to_string()
+            return (from_str(DEFAULT).unwrap(), Status::File);
         };
         // Attempt to read and parse the configuration file
         if let Ok(file) = fs::read_to_string(config) {
