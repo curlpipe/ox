@@ -1,5 +1,9 @@
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::cast_possible_truncation, clippy::used_underscore_binding)]
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::used_underscore_binding,
+    clippy::cast_sign_loss
+)]
 
 /*
     Ox editor is a text editor written in the Rust programming language.
@@ -20,6 +24,7 @@ mod config;
 mod document;
 mod editor;
 mod highlight;
+mod oxa;
 mod row;
 mod terminal;
 mod undo;
@@ -28,7 +33,7 @@ mod util;
 use clap::{App, Arg};
 use directories::BaseDirs;
 use document::Document;
-use editor::{Editor, Position};
+use editor::{Direction, Editor, Position};
 use row::Row;
 use std::time::Duration;
 use std::{env, panic, thread};

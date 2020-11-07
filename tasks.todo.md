@@ -1,55 +1,121 @@
-0.2.6 (Macros) { Allow for more keybindings and operations }
-- [ ] Macro system
-  - [ ] Allow special command mode
-  - [ ] Have a few example macros
-    - [ ] Goto line number
-    - [ ] Move forward a word
-    - [ ] Move backward a word
-    - [ ] Delete line
-    - [ ] Move line
-    - [ ] Move cursor
-  - [ ] Allow binding of macros to some keys
-
-0.2.7 (Small patches) { Small tweaks to make Ox more comfy }
-- [ ] General Editing
-  - [ ] File overwrite prevention
-  - [ ] Better file save error messages
-  - [ ] Ctrl + Z for undo
-  - [ ] Save as sudo / read only files
-  - [ ] Backup
-  - [ ] Fix (0, 0) deletion issues
-- [ ] Searching
-  - [ ] Exit search when typing characters and catch up with events
+0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
+- [ ] Rewrite using crossterm for windows support and efficiency*
+  - [ ] Build RGB ansi code function
+  - [ ] Fix unwrap on terminal size
+  - [ ] Properly implement terminal resizing
 - [ ] Undoing
   - [ ] Undoing to origin makes file not dirty
+    - [ ] Add last save index (0) to document
+    - [ ] Set to patch number on save event
+    - [ ] Detect when at last save index
+      - [ ] Make not dirty
   - [ ] Undo / Redo patch limit to prevent high memory usage
-  - [ ] Have a goto call for Undo / Redo
-
-0.2.8 (Small patches #2) { Larger tweaks to make Ox more efficient and compatible }
+    - [ ] When undo stack reaches a length over patch limit
+    - [ ] Ensure that the file doesn't go back to not dirty!!!
+- [ ] Bug Fixing
+  - [ ] Add log file
+    - [ ] Add command line option for log file location
+    - [ ] Add support for appending to the log file
+    - [ ] Add option to clear log file on start
+    - [ ] Set up log file
+  - [ ] Fix potential tab issues
+    - [ ] Reproduce
+    - [ ] Fix
+  - [ ] Fix windows linebreak issue*
+    - [ ] Reproduce
+    - [ ] Fix
+  - [ ] Fix file hanging*
+    - [ ] Reproduce
+    - [ ] Fix
+- [ ] CLI
+  - [ ] Allow jump to lines*
+    - [ ] Add to help menu
+    - [ ] Parse file name
 - [ ] Themes
+  - [ ] Allow changing of colours of warning, info and error messages in config file
+    - [ ] Add to configuration file
+    - [ ] Apply
   - [ ] Small line specific retokenization for performance
+    - [ ] Added edited flag to each line
+      - [ ] Update flag on edit
+      - [ ] Update flag on retokenization
+    - [ ] Add group list to each line
+      - [ ] Update when group is edited
+      - [ ] Update when group is retokenized
+    - [ ] Only initially render if in view
   - [ ] Highlight search and replace messages
+    - [ ] Add token priorities and background tokens
   - [ ] Transparent background
+    - [ ] Add option to configuration file
+    - [ ] Strip background colour
   - [ ] Improved language syntax highlighting support
+  - [ ] 8/16 bit colour fallback*
+    - [ ] Create 8 bit colours
+    - [ ] Detect when fallback is required
+      - [ ] Use colours
   - [ ] Live / Command for reloading of the config file
+    - [ ] Create config reload command
+    - [ ] Actually reload the config
+  - [ ] Line number background
+    - [ ] Add to configuration file
+    - [ ] Add to line renderer
   - [ ] Add more languages
+    - [ ] PHP*
+    - [ ] JSON*
+    - [ ] HTML*
+    - [ ] CSS*
     - [ ] x86 Assembly
     - [ ] Go
     - [ ] C++
     - [ ] C#
     - [ ] Java
     - [ ] SQL
-- [ ] Rewrite using crossterm for windows support and efficiency
-  - [ ] Build RGB ansi code function
-  - [ ] Fix unwrap on terminal size
-  - [ ] Properly implement terminal resizing
+- [ ] General Editing
+  - [ ] File overwrite prevention
+    - [ ] Detect if file exists
+      - [ ] Add overwrite confirmation
+  - [ ] Fix hardcoded values
+    - [ ] Fix confirm prompt values
+  - [ ] Goto only if not on screen
+    - [ ] Detect if cursor is on screen
+      - [ ] Decide what to do
+  - [ ] Better file save error messages
+    - [ ] Fix weird behaviour when file has no path
+  - [ ] Add support for cursor line wrapping*
+    - [ ] Add option to config file
+    - [ ] Apply
+  - [ ] Save as sudo / read only files*
+    - [ ] Add -r flag
+    - [ ] Create read only mode
+  - [ ] Don't load entire file into memory*
+    - [ ] Research
+    - [ ] Implement
+  - [ ] Backup
+    - [ ] Add configuration options
+    - [ ] Backup to specific folder somewhere
+  - [ ] Add help menu to view keybindings*
+    - [ ] Add API to display boxes over existing text
+    - [ ] Show overlay
+    - [ ] Hide overlay
+    - [ ] Handle resizes
+  - [X] Ctrl + Z for undo
+- [ ] Searching
+  - [ ] Exit search when typing characters and catch up with events
+- [ ] Formatting
+  - [ ] Clippy
+  - [ ] Rustfmt
 
-0.2.9 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
-- [ ] Mouse selection support
+0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
+- [ ] Mouse selection support*
   - [ ] Read mouse events
   - [ ] Move the cursor when clicking with mouse
   - [ ] Add selection mode to document
   - [ ] Allow text selection with the mouse cursor
+
+0.2.9 (Extensibility) { To allow even more extension to the editor }
+- [ ] Delete word
+- [ ] Move word
+- [ ] Add option to hide parts of the editor (e.g. status line, tab line)
 
 0.3.0 (IDE level features) { Allow for IDE level features to smooth out development experience }
 - [ ] Auto indentation 
@@ -79,7 +145,7 @@
   - [ ] Move them around when pressing enter
 
 0.3.2 (IDE level features #3) { Even more IDE features }
-- [ ] Auto complete
+- [ ] Auto complete*
   - [ ] Get information from racer and display it in a menu
   - [ ] Add configuration entries for the autocomplete
   - [ ] Add support for file autocomplete too
@@ -110,6 +176,7 @@
 - [ ] Add detailed help menu / document / mode
 
 Further ideas { Further fun ideas to look at }
+- [ ] File encryption and decryption
 - [ ] Automatically closing status line
 - [ ] Discord rich presence
 - [ ] Nice, personal greeting
@@ -267,4 +334,57 @@ Further ideas { Further fun ideas to look at }
   - [X] Write function
   - [X] Set up keybinding
 - [X] Dynamic tab offset
+
+0.2.6 (Macros) { Allow for more keybindings and operations }
+- [X] Fix file tab issue (27th)
+- [X] Fix (0, 0) deletion issues
+- [X] Macro system
+  - [X] Allow special command mode
+  - [X] Create Oxa parser (25th)
+  - [X] Create unified event executor (2nd)
+    - [X] Document functions
+    - [X] Cursor functions
+    - [X] Mass edit functions
+    - [X] Tab functions
+    - [X] Insertion function
+    - [X] Allow repeated Ox commands
+    - [X] Backspace functions
+    - [X] Return functions
+    - [X] Storage functions
+    - [X] Allow multiple event execution
+    - [X] Allow undo via reverse execution
+      - [X] Split up events as much as possible
+      - [X] Write the reverses for them
+      - [X] Redo
+      - [X] Fix committing issues
+    - [X] Clippy
+    - [X] Thorough Testing
+  - [X] Write documentation for Ox (3rd)
+  - [X] Have a few example macros (3rd)
+    - [X] Goto line number
+    - [X] Delete line
+    - [X] Move cursor
+    - [X] Move line
+    - [X] Move forward a word
+    - [X] Move backward a word
+  - [X] Allow binding of macros to some keys (4th)
+- [X] Distribution
+  - [X] Rpm
+  - [X] Deb
+  - [X] Homebrew
+- [X] Add more configuration options in the config file (6th)
+  - [X] Multiple themes
+    - [X] Read from config file
+    - [X] Allow switching via command
+  - [X] Status line format
+    - [X] Form structure for information
+    - [X] Allow config file reading
+    - [X] Apply it
+  - [X] Tab line format
+    - [X] Add to configuration file
+    - [X] Apply it
+  - [X] Predefined macros
+    - [X] Create it in config file
+    - [X] Read and allow execution
+  - [X] Update wiki
 

@@ -1,0 +1,54 @@
+Hello! Welcome to the Ox code editor.
+Let's learn how to use it!
+
+Move your cursor down and across using the arrow keys
+to start an activity
+
+First off, type your name here: 
+Name: 
+
+Now, indent this line below:
+<- Press tab at the start of this line
+
+Press enter at the start of this line
+<- Press enter here
+
+Press enter at the end of this line
+Press enter here ->
+###################
+
+Now, put your cursor into the middle of this line
+And press the enter key to split up the line
+
+Split here ->  <- Split here
+
+Next, delete this
+Delete: DELETE_THIS_HERE
+
+Now put your cursor on the start "join from here" line
+Press backspace and watch the lines splice upwards
+
+Join to here -> 
+<- Join from here
+
+Next, press delete at the start of this line
+
+<- Delete here
+
+Now use the line above command to insert line above
+Insert line above here /\
+
+Now use the line above command to insert line below
+Insert line below here \/
+#############
+
+Now go to the line below and delete it
+DELETE THIS LINE
+
+Update this line to say "Hello World" using the set command
+UPDATE THIS LINE
+
+Finally, overwrite this entire document with "Finished!"
+use the overwrite command
+
+Congratulations! You are now a certified "Oxer"

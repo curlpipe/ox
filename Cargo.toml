@@ -1,7 +1,7 @@
 [package]
 name = "ox"
-version = "0.2.5"
-authors = ["Curly <11898833+curlpipe@users.noreply.github.com>"]
+version = "0.2.6"
+authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 edition = "2018"
 description = "A Rust powered text editor."
 homepage = "https://github.com/curlpipe/ox"
@@ -27,3 +27,12 @@ ron = "0.6.2"
 serde = "1.0.117"
 regex = "1.4.1"
 directories = "3.0.1"
+
+[package.metadata.rpm]
+package = "ox"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+ox = { path = "/usr/bin/ox" }
