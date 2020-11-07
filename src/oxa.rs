@@ -19,65 +19,54 @@ pub fn interpret_line(
 ) -> Option<Vec<Event>> {
     // Take an instruction of Oxa and interpret it
     let mut events = vec![];
-    let mut line = line.trim_start_matches(' ').split(' ');
-    let mut start = line.next();
-    let times;
-    if let Ok(repeat) = start.unwrap_or_default().parse::<usize>() {
-        times = repeat;
-        start = line.next();
-    } else {
-        times = 1;
-    }
-    let cursor = *cursor;
-    if let Some(instruction) = start {
+    let mut line = line.split(' ');
+    if let Some(instruction) = line.next() {
         let args: Vec<&str> = line.collect();
-        for _ in 0..times {
-            match instruction {
-                "new" => events.push(Event::New),
-                "open" => events.push(open_command(&args)),
-                "undo" => events.push(Event::Undo),
-                "commit" => events.push(Event::Commit),
-                "redo" => events.push(Event::Redo),
-                "quit" => events.push(quit_command(&args)),
-                "prev" => events.push(Event::PrevTab),
-                "next" => events.push(Event::NextTab),
-                "set" => events.push(set_command(&args, &cursor, &rows)),
-                "split" => events.push(Event::SplitDown(cursor, cursor)),
-                "splice" => events.push(Event::SpliceUp(cursor, cursor)),
-                "search" => events.push(Event::Search),
-                "cmd" => events.push(Event::Cmd),
-                "replace" => events.push(replace_command(&args)),
-                "theme" => {
-                    if let Some(theme) = theme_command(&args) {
-                        events.push(theme)
-                    } else {
-                        return None;
-                    }
+        match instruction {
+            "new" => events.push(Event::New),
+            "open" => events.push(open_command(&args)),
+            "undo" => events.push(Event::Undo),
+            "commit" => events.push(Event::Commit),
+            "redo" => events.push(Event::Redo),
+            "quit" => events.push(quit_command(&args)),
+            "prev" => events.push(Event::PrevTab),
+            "next" => events.push(Event::NextTab),
+            "set" => events.push(set_command(&args, &cursor, &rows)),
+            "split" => events.push(Event::SplitDown(*cursor, *cursor)),
+            "splice" => events.push(Event::SpliceUp(*cursor, *cursor)),
+            "search" => events.push(Event::Search),
+            "cmd" => events.push(Event::Cmd),
+            "replace" => events.push(replace_command(&args)),
+            "theme" => {
+                if let Some(theme) = theme_command(&args) {
+                    events.push(theme)
+                } else {
+                    return None;
                 }
-                "line" => {
-                    if let Some(line) = line_command(&args, &cursor) {
-                        events.push(line);
-                    } else {
-                        return None;
-                    }
+            }
+            "line" => {
+                if let Some(line) = line_command(&args, &cursor) {
+                    events.push(line);
+                } else {
+                    return None;
                 }
-                _ => {
-                    let i = match instruction {
-                        "save" => save_command(&args),
-                        "goto" => goto_command(&args),
-                        "move" => move_command(&args),
-                        "put" => put_command(&args, &cursor),
-                        "delete" => delete_command(&args, &cursor, graphemes, &rows),
-                        "load" => load_command(&args),
-                        "store" => store_command(&args),
-                        "overwrite" => overwrite_command(&args, &rows),
-                        _ => return None,
-                    };
-                    if let Some(mut command) = i {
-                        events.append(&mut command);
-                    } else {
-                        return None;
-                    }
+            }
+            _ => {
+                let i = match instruction {
+                    "save" => save_command(&args),
+                    "goto" => goto_command(&args),
+                    "move" => move_command(&args),
+                    "put" => put_command(&args, &cursor),
+                    "delete" => delete_command(&args, &cursor, graphemes, &rows),
+                    "load" => load_command(&args),
+                    "store" => store_command(&args),
+                    "overwrite" => overwrite_command(&args, &rows),
+                    _ => return None,
+                };
+                if let Some(mut command) = i {
+                    events.append(&mut command);
+                } else {
+                    return None;
                 }
             }
         }

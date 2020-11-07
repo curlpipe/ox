@@ -422,10 +422,7 @@ impl Editor {
                     }
                     BankType::Line => {
                         if let Some(row) = self.row_bank.get(&bank) {
-                            self.doc[self.tab]
-                                .rows
-                                .insert(current.y.saturating_add(1), row.clone());
-                            self.execute(Event::MoveCursor(1, Direction::Down), false);
+                            self.doc[self.tab].rows[current.y] = row.clone();
                         }
                     }
                 }
@@ -449,39 +446,71 @@ impl Editor {
             }
         }
     }
-    fn text_to_event(&mut self, command: &str) {
-        let cursor = self.doc[self.tab].cursor;
-        let offset = self.doc[self.tab].offset;
-        let instruction = interpret_line(
-            &command,
-            &Position {
-                x: cursor.x + offset.x,
-                y: cursor.y + offset.y - OFFSET,
-            },
-            self.doc[self.tab].graphemes,
-            &self.doc[self.tab].rows,
-        );
-        // Execute the instruction
-        if let Some(instruct) = instruction {
-            for i in instruct {
-                match i {
-                    Event::SpliceUp(_, _)
-                    | Event::SplitDown(_, _)
-                    | Event::InsertLineAbove(_)
-                    | Event::InsertLineBelow(_)
-                    | Event::Deletion(_, _)
-                    | Event::Insertion(_, _)
-                    | Event::InsertTab(_)
-                    | Event::DeleteTab(_)
-                    | Event::DeleteLine(_, _, _)
-                    | Event::UpdateLine(_, _, _, _)
-                    | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
-                    _ => (),
-                }
-                self.execute(i, false);
-            }
-            self.doc[self.tab].undo_stack.commit();
+    fn execute_macro(&mut self, command: &str) {
+        // Work out number of times to execute it
+        let mut command = command.to_string();
+        let times = if let Ok(times) = command.split(' ').next().unwrap_or("").parse::<usize>() {
+            command = command.split(' ').skip(1).collect::<Vec<_>>().join(" ");
+            times
+        } else {
+            1
         };
+        // Build and execute the macro
+        for _ in 0..times {
+            for i in self.config.macros[&command].clone() {
+                self.text_to_event(&i);
+            }
+        }
+    }
+    fn text_to_event(&mut self, command: &str) {
+        let command = command.trim_start_matches(' ');
+        let mut cmd = command.split(' ');
+        let actual_command;
+        let times = if let Ok(repeat) = cmd.next().unwrap_or_default().parse::<usize>() {
+            actual_command = cmd.collect::<Vec<_>>().join(" ");
+            repeat
+        } else {
+            actual_command = command.to_string();
+            1
+        };
+        for _ in 0..times {
+            if self.config.macros.contains_key(&actual_command) {
+                self.execute_macro(&actual_command);
+            } else {
+                let cursor = self.doc[self.tab].cursor;
+                let offset = self.doc[self.tab].offset;
+                let instruction = interpret_line(
+                    &actual_command,
+                    &Position {
+                        x: cursor.x + offset.x,
+                        y: cursor.y + offset.y - OFFSET,
+                    },
+                    self.doc[self.tab].graphemes,
+                    &self.doc[self.tab].rows,
+                    );
+                // Execute the instruction
+                if let Some(instruct) = instruction {
+                    for i in instruct {
+                        match i {
+                            Event::SpliceUp(_, _)
+                                | Event::SplitDown(_, _)
+                                | Event::InsertLineAbove(_)
+                                | Event::InsertLineBelow(_)
+                                | Event::Deletion(_, _)
+                                | Event::Insertion(_, _)
+                                | Event::InsertTab(_)
+                                | Event::DeleteTab(_)
+                                | Event::DeleteLine(_, _, _)
+                                | Event::UpdateLine(_, _, _, _)
+                                | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
+                            _ => (),
+                        }
+                        self.execute(i, false);
+                    }
+                    self.doc[self.tab].undo_stack.commit();
+                }
+            }
+        }
     }
     pub fn undo(&mut self) {
         self.doc[self.tab].undo_stack.commit();

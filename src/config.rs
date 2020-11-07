@@ -33,6 +33,7 @@ pub enum KeyBinding {
 pub struct Reader {
     pub general: General,
     pub theme: Theme,
+    pub macros: HashMap<String, Vec<String>>,
     pub highlights: HashMap<String, HashMap<String, (u8, u8, u8)>>,
     pub keys: HashMap<KeyBinding, Vec<String>>,
     pub languages: Vec<Language>,
