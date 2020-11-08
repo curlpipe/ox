@@ -98,6 +98,7 @@
     - [ ] Show overlay
     - [ ] Hide overlay
     - [ ] Handle resizes
+  - [ ] Function keys and ctrl+shift keys
   - [X] Ctrl + Z for undo
 - [ ] Searching
   - [ ] Exit search when typing characters and catch up with events
