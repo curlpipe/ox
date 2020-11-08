@@ -8,10 +8,11 @@ use crate::{Document, Event, Row, Terminal, VERSION};
 use clap::App;
 use regex::Regex;
 use std::time::{Duration, Instant};
-use std::{collections::HashMap, io::Error, thread};
+use std::{collections::HashMap, thread};
 use termion::event::Key;
 use termion::input::{Keys, TermRead};
 use termion::{async_stdin, color, style, AsyncReader};
+use crossterm::ErrorKind;
 
 // Set up color resets
 pub const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
@@ -61,7 +62,7 @@ pub struct Editor {
 
 // Implementing methods for our editor struct / class
 impl Editor {
-    pub fn new(args: App) -> Result<Self, Error> {
+    pub fn new(args: App) -> Result<Self, ErrorKind> {
         // Create a new editor instance
         let args = args.get_matches();
         // Set up the arguments
@@ -99,6 +100,8 @@ impl Editor {
             self.update();
             self.process_input();
         }
+        // Leave alternative screen and disable raw mode
+        self.term.exit();
     }
     fn read_key(&mut self) -> Key {
         // Wait until a key is pressed and then return it
