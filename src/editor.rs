@@ -4,18 +4,18 @@ use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
 use crate::util::{is_ahead, is_behind, title, trim_end, Exp};
-use crate::{Document, Event, Row, Terminal, VERSION};
+use crate::{Document, Event, Row, Terminal, VERSION, Size};
 use clap::App;
 use regex::Regex;
 use std::time::{Duration, Instant};
-use std::{collections::HashMap, io::Error, thread};
-use termion::event::Key;
-use termion::input::{Keys, TermRead};
-use termion::{async_stdin, color, style, AsyncReader};
+use std::collections::HashMap;
+use crossterm::ErrorKind;
+use crossterm::style::{SetForegroundColor, SetBackgroundColor, Color, Attribute};
+use crossterm::event::{Event as InputEvent, KeyEvent, KeyCode, KeyModifiers};
 
 // Set up color resets
-pub const RESET_BG: color::Bg<color::Reset> = color::Bg(color::Reset);
-pub const RESET_FG: color::Fg<color::Reset> = color::Fg(color::Reset);
+pub const RESET_BG: SetBackgroundColor = SetBackgroundColor(Color::Reset);
+pub const RESET_FG: SetForegroundColor = SetForegroundColor(Color::Reset);
 
 // Set up offset rules
 pub const OFFSET: usize = 1;
@@ -24,7 +24,7 @@ pub const OFFSET: usize = 1;
 enum PromptEvent {
     Update,
     CharPress,
-    KeyPress(Key),
+    KeyPress(KeyCode),
 }
 
 // For representing positions
@@ -52,7 +52,6 @@ pub struct Editor {
     doc: Vec<Document>,                      // For holding our document
     tab: usize,                              // Holds the number of the current tab
     last_keypress: Option<Instant>,          // For holding the time of the last input event
-    stdin: Keys<AsyncReader>,                // Asynchronous stdin
     exp: Exp,                                // For holding expressions
     position_bank: HashMap<usize, Position>, // Bank for cursor positions
     row_bank: HashMap<usize, Row>,           // Bank for lines
@@ -61,7 +60,7 @@ pub struct Editor {
 
 // Implementing methods for our editor struct / class
 impl Editor {
-    pub fn new(args: App) -> Result<Self, Error> {
+    pub fn new(args: App) -> Result<Self, ErrorKind> {
         // Create a new editor instance
         let args = args.get_matches();
         // Set up the arguments
@@ -83,7 +82,6 @@ impl Editor {
             tab: 0,
             doc: documents,
             last_keypress: None,
-            stdin: async_stdin().keys(),
             config: config.0.clone(),
             status: config.1,
             exp: Exp::new(),
@@ -99,29 +97,19 @@ impl Editor {
             self.update();
             self.process_input();
         }
+        // Leave alternative screen and disable raw mode
+        Terminal::exit();
     }
-    fn read_key(&mut self) -> Key {
-        // Wait until a key is pressed and then return it
+    fn read_event(&mut self) -> InputEvent {
+        // Wait until a key, mouse or terminal resize event
         loop {
-            if let Some(key) = self.stdin.next() {
-                // When a keypress was detected
-                self.last_keypress = Some(Instant::now());
-                if let Ok(key) = key {
+            if let Ok(true) = crossterm::event::poll(Duration::from_millis(16)) {
+                if let Ok(key) = crossterm::event::read() {
+                    // When a keypress was detected
+                    self.last_keypress = Some(Instant::now());
                     return key;
-                } else {
-                    continue;
                 }
             } else {
-                // Run code that we want to run when the key isn't pressed
-                if self.term.check_resize() {
-                    // The terminal has changed in size
-                    if self.doc[self.tab].cursor.y > self.term.size.height.saturating_sub(3) {
-                        // Prevent cursor going off the screen and breaking everything
-                        self.doc[self.tab].cursor.y = self.term.size.height.saturating_sub(3);
-                    }
-                    // Re-render everything to the new size
-                    self.update();
-                }
                 // Check for a period of inactivity
                 if let Some(time) = self.last_keypress {
                     // Check to see if it's over the config undo period
@@ -131,57 +119,43 @@ impl Editor {
                         self.last_keypress = None;
                     }
                 }
-                // FPS cap to stop using the entire CPU
-                thread::sleep(Duration::from_millis(16));
             }
         }
     }
-    fn process_input(&mut self) {
-        // Read a key and act on it
-        let key = self.read_key();
-        self.doc[self.tab].show_welcome = false;
+    fn process_key(&mut self, key: KeyEvent) {
         let cursor = self.doc[self.tab].cursor;
         let offset = self.doc[self.tab].offset;
         let current = Position {
             x: cursor.x + offset.x,
             y: cursor.y + offset.y - OFFSET,
         };
-        let config = &self.config;
-        match key {
-            Key::Char(c) => {
+        match (key.code, key.modifiers) {
+            (KeyCode::Enter, KeyModifiers::NONE) => {
                 self.doc[self.tab].redo_stack.empty();
-                match c {
-                    '\n' => {
-                        if current.x == 0 {
-                            // Return key pressed at the start of the line
-                            self.execute(Event::InsertLineAbove(current), false);
-                        } else if current.x == self.doc[self.tab].rows[current.y].length() {
-                            // Return key pressed at the end of the line
-                            self.execute(Event::InsertLineBelow(current), false);
-                            self.execute(Event::MoveCursor(1, Direction::Down), false);
-                            self.doc[self.tab].recalculate_graphemes();
-                        } else {
-                            // Return key pressed in the middle of the line
-                            self.execute(Event::SplitDown(current, current), false);
-                        }
-                    }
-                    '\t' => {
-                        // The user pressed the tab key
-                        self.execute(Event::InsertTab(current), false);
-                    }
-                    _ => {
-                        // Other characters
-                        self.execute(Event::Insertion(current, c), false);
-                    }
+                if current.x == 0 {
+                    // Return key pressed at the start of the line
+                    self.execute(Event::InsertLineAbove(current), false);
+                } else if current.x == self.doc[self.tab].rows[current.y].length() {
+                    // Return key pressed at the end of the line
+                    self.execute(Event::InsertLineBelow(current), false);
+                    self.execute(Event::MoveCursor(1, Direction::Down), false);
+                    self.doc[self.tab].recalculate_graphemes();
+                } else {
+                    // Return key pressed in the middle of the line
+                    self.execute(Event::SplitDown(current, current), false);
                 }
             }
-            Key::Backspace => {
+            (KeyCode::Tab, KeyModifiers::NONE) => {
+                self.doc[self.tab].redo_stack.empty();
+                self.execute(Event::InsertTab(current), false);
+            }
+            (KeyCode::Backspace, KeyModifiers::NONE) => {
                 self.doc[self.tab].redo_stack.empty();
                 self.execute(
-                    if current.x == 0 {
+                    if current.x == 0 && current.y != 0 {
                         // Backspace at the start of a line
                         Event::SpliceUp(current, current)
-                    } else {
+                    } else if current.y != 0 {
                         // Backspace in the middle of a line
                         let row = self.doc[self.tab].rows[current.y].clone();
                         let boundaries = row.boundaries();
@@ -191,34 +165,67 @@ impl Editor {
                             y: current.y,
                         };
                         Event::Deletion(current, chars.collect::<Vec<_>>()[boundaries[current.x]])
+                    } else {
+                        return;
                     },
                     false,
                 );
             }
             // Detect control key binding
-            Key::Ctrl(c) => {
-                if let Some(commands) = config.keys.get(&KeyBinding::Ctrl(c)) {
+            (KeyCode::Char(c), KeyModifiers::CONTROL) => {
+                if let Some(commands) = self.config.keys.get(&KeyBinding::Ctrl(c)) {
                     for i in commands.clone() {
                         self.text_to_event(&i);
                     }
                 }
             }
             // Detect alt key binding
-            Key::Alt(c) => {
-                if let Some(commands) = config.keys.get(&KeyBinding::Alt(c)) {
+            (KeyCode::Char(c), KeyModifiers::ALT) => {
+                if let Some(commands) = self.config.keys.get(&KeyBinding::Alt(c)) {
                     for i in commands.clone() {
                         self.text_to_event(&i);
                     }
                 }
             }
-            Key::Up => self.execute(Event::MoveCursor(1, Direction::Up), false),
-            Key::Down => self.execute(Event::MoveCursor(1, Direction::Down), false),
-            Key::Left => self.execute(Event::MoveCursor(1, Direction::Left), false),
-            Key::Right => self.execute(Event::MoveCursor(1, Direction::Right), false),
-            Key::PageDown => self.execute(Event::PageDown, false),
-            Key::PageUp => self.execute(Event::PageUp, false),
-            Key::Home => self.execute(Event::Home, false),
-            Key::End => self.execute(Event::End, false),
+            (KeyCode::Char(c), _) => {
+                self.doc[self.tab].redo_stack.empty();
+                self.execute(Event::Insertion(current, c), false);
+            }
+            (KeyCode::Up, KeyModifiers::NONE) => 
+                self.execute(Event::MoveCursor(1, Direction::Up), false),
+            (KeyCode::Down, KeyModifiers::NONE) => 
+                self.execute(Event::MoveCursor(1, Direction::Down), false),
+            (KeyCode::Left, KeyModifiers::NONE) => 
+                self.execute(Event::MoveCursor(1, Direction::Left), false),
+            (KeyCode::Right, KeyModifiers::NONE) => 
+                self.execute(Event::MoveCursor(1, Direction::Right), false),
+            (KeyCode::PageDown, KeyModifiers::NONE) => 
+                self.execute(Event::PageDown, false),
+            (KeyCode::PageUp, KeyModifiers::NONE) => 
+                self.execute(Event::PageUp, false),
+            (KeyCode::Home, KeyModifiers::NONE) => 
+                self.execute(Event::Home, false),
+            (KeyCode::End, KeyModifiers::NONE) => 
+                self.execute(Event::End, false),
+            _ => (),
+        }
+    }
+    fn process_input(&mut self) {
+        // Read a key and act on it
+        self.doc[self.tab].show_welcome = false;
+        match self.read_event() {
+            InputEvent::Key(key) => self.process_key(key),
+            InputEvent::Resize(width, height) => {
+                // Terminal resize event
+                self.term.size = Size { width: width as usize, height: height as usize };
+                // Move cursor if needed
+                if self.doc[self.tab].cursor.y > self.term.size.height.saturating_sub(3) {
+                    // Prevent cursor going off the screen and breaking everything
+                    self.doc[self.tab].cursor.y = self.term.size.height.saturating_sub(3);
+                }
+                // Re-render everything to the new size
+                self.update();
+            }
             _ => (),
         }
     }
@@ -381,10 +388,10 @@ impl Editor {
                 for _ in 0..magnitude {
                     self.doc[self.tab].move_cursor(
                         match direction {
-                            Direction::Up => Key::Up,
-                            Direction::Down => Key::Down,
-                            Direction::Left => Key::Left,
-                            Direction::Right => Key::Right,
+                            Direction::Up => KeyCode::Up,
+                            Direction::Down => KeyCode::Down,
+                            Direction::Left => KeyCode::Left,
+                            Direction::Right => KeyCode::Right,
                         },
                         &self.term.size,
                     );
@@ -427,10 +434,10 @@ impl Editor {
                     }
                 }
             }
-            Event::Home => self.doc[self.tab].leap_cursor(Key::Home, &self.term.size),
-            Event::End => self.doc[self.tab].leap_cursor(Key::End, &self.term.size),
-            Event::PageUp => self.doc[self.tab].leap_cursor(Key::PageUp, &self.term.size),
-            Event::PageDown => self.doc[self.tab].leap_cursor(Key::PageDown, &self.term.size),
+            Event::Home => self.doc[self.tab].leap_cursor(KeyCode::Home, &self.term.size),
+            Event::End => self.doc[self.tab].leap_cursor(KeyCode::End, &self.term.size),
+            Event::PageUp => self.doc[self.tab].leap_cursor(KeyCode::PageUp, &self.term.size),
+            Event::PageDown => self.doc[self.tab].leap_cursor(KeyCode::PageDown, &self.term.size),
             Event::Undo => self.undo(),
             Event::Redo => self.redo(),
             // Event is a document event, send to current document
@@ -487,22 +494,22 @@ impl Editor {
                     },
                     self.doc[self.tab].graphemes,
                     &self.doc[self.tab].rows,
-                    );
+                );
                 // Execute the instruction
                 if let Some(instruct) = instruction {
                     for i in instruct {
                         match i {
                             Event::SpliceUp(_, _)
-                                | Event::SplitDown(_, _)
-                                | Event::InsertLineAbove(_)
-                                | Event::InsertLineBelow(_)
-                                | Event::Deletion(_, _)
-                                | Event::Insertion(_, _)
-                                | Event::InsertTab(_)
-                                | Event::DeleteTab(_)
-                                | Event::DeleteLine(_, _, _)
-                                | Event::UpdateLine(_, _, _, _)
-                                | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
+                            | Event::SplitDown(_, _)
+                            | Event::InsertLineAbove(_)
+                            | Event::InsertLineBelow(_)
+                            | Event::Deletion(_, _)
+                            | Event::Insertion(_, _)
+                            | Event::InsertTab(_)
+                            | Event::DeleteTab(_)
+                            | Event::DeleteLine(_, _, _)
+                            | Event::UpdateLine(_, _, _, _)
+                            | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
                             _ => (),
                         }
                         self.execute(i, false);
@@ -552,7 +559,7 @@ impl Editor {
             let offset = s.doc[s.tab].offset;
             match e {
                 PromptEvent::KeyPress(k) => match k {
-                    Key::Left | Key::Up => {
+                    KeyCode::Left | KeyCode::Up => {
                         // User wants to search backwards
                         for p in search_points.iter().rev() {
                             if is_behind(
@@ -568,7 +575,7 @@ impl Editor {
                             }
                         }
                     }
-                    Key::Right | Key::Down => {
+                    KeyCode::Right | KeyCode::Down => {
                         // User wants to search forwards
                         for p in search_points {
                             if is_ahead(
@@ -584,7 +591,7 @@ impl Editor {
                             }
                         }
                     }
-                    Key::Esc => {
+                    KeyCode::Esc => {
                         // Restore cursor and offset position
                         s.doc[s.tab].cursor = initial_cursor;
                         s.doc[s.tab].offset = initial_offset;
@@ -646,9 +653,17 @@ impl Editor {
                 }
                 loop {
                     // Handle key press events while in replace mode
-                    let key = self.read_key();
-                    match key {
-                        Key::Up | Key::Left => {
+                    let key = if let InputEvent::Key(key) = self.read_event() {
+                        if key.modifiers == KeyModifiers::NONE {
+                            key
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    };
+                    match key.code {
+                        KeyCode::Up | KeyCode::Left => {
                             // User wishes to search backwards
                             for p in (&search_points).iter().rev() {
                                 if is_behind(
@@ -667,7 +682,7 @@ impl Editor {
                                 }
                             }
                         }
-                        Key::Down | Key::Right => {
+                        KeyCode::Down | KeyCode::Right => {
                             // User wishes to search forwards
                             for p in &search_points {
                                 if is_ahead(
@@ -687,7 +702,7 @@ impl Editor {
                                 }
                             }
                         }
-                        Key::Char('\n') | Key::Char('y') | Key::Char(' ') => {
+                        KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char(' ') => {
                             let cursor = self.doc[self.tab].cursor;
                             let offset = self.doc[self.tab].offset;
                             // Commit current changes to undo stack
@@ -724,7 +739,7 @@ impl Editor {
                             // Update search locations
                             search_points = self.doc[self.tab].scan(&target, OFFSET);
                         }
-                        Key::Esc => break,
+                        KeyCode::Esc => break,
                         _ => (),
                     }
                 }
@@ -778,18 +793,20 @@ impl Editor {
                 Type::Warning,
             );
             self.update();
-            match self.read_key() {
-                Key::Char('\n') => return true,
-                Key::Ctrl(k) => {
-                    if k == key {
-                        return true;
-                    } else {
-                        self.doc[self.tab]
-                            .set_command_line(format!("{} cancelled", title(subject)), Type::Info);
+            if let InputEvent::Key(KeyEvent { code: c, modifiers: m }) = self.read_event() {
+                match (c, m) {
+                    (KeyCode::Enter, KeyModifiers::NONE) => return true,
+                    (KeyCode::Char(k), KeyModifiers::CONTROL) => {
+                        if k == key {
+                            return true;
+                        } else {
+                            self.doc[self.tab]
+                                .set_command_line(format!("{} cancelled", title(subject)), Type::Info);
+                        }
                     }
+                    _ => self.doc[self.tab]
+                        .set_command_line(format!("{} cancelled", title(subject)), Type::Info),
                 }
-                _ => self.doc[self.tab]
-                    .set_command_line(format!("{} cancelled", title(subject)), Type::Info),
             }
         } else {
             return true;
@@ -807,29 +824,30 @@ impl Editor {
         self.update();
         let mut result = String::new();
         'p: loop {
-            let key = self.read_key();
-            match key {
-                Key::Char(c) => {
-                    // Update the prompt contents
-                    if c == '\n' {
+            if let InputEvent::Key(KeyEvent { code: c, modifiers: m }) = self.read_event() {
+                match (c, m) {
+                    (KeyCode::Enter, KeyModifiers::NONE) => {
                         // Exit on enter key
                         break 'p;
-                    } else {
-                        result.push(c);
                     }
-                    func(self, PromptEvent::CharPress, &result)
+                    (KeyCode::Char(c), KeyModifiers::NONE) |
+                    (KeyCode::Char(c), KeyModifiers::SHIFT) => {
+                        // Update the prompt contents
+                        result.push(c);
+                        func(self, PromptEvent::CharPress, &result)
+                    }
+                    (KeyCode::Backspace, KeyModifiers::NONE) => {
+                        // Handle backspace event
+                        result.pop();
+                        func(self, PromptEvent::CharPress, &result)
+                    }
+                    (KeyCode::Esc, KeyModifiers::NONE) => {
+                        // Handle escape key
+                        func(self, PromptEvent::KeyPress(c), &result);
+                        return None;
+                    }
+                    _ => func(self, PromptEvent::KeyPress(c), &result),
                 }
-                Key::Backspace => {
-                    // Handle backspace event
-                    result.pop();
-                    func(self, PromptEvent::CharPress, &result)
-                }
-                Key::Esc => {
-                    // Handle escape key
-                    func(self, PromptEvent::KeyPress(key), &result);
-                    return None;
-                }
-                _ => func(self, PromptEvent::KeyPress(key), &result),
             }
             self.doc[self.tab]
                 .set_command_line(format!("{}{}{}", prompt, ending, result), Type::Info);
@@ -854,7 +872,7 @@ impl Editor {
         self.term.show_cursor();
         self.term.flush();
     }
-    fn welcome_message(&self, text: &str, colour: color::Fg<color::Rgb>) -> String {
+    fn welcome_message(&self, text: &str, colour: SetForegroundColor) -> String {
         // Render the welcome message
         let pad = " ".repeat((self.term.size.width / 2).saturating_sub(text.len() / 2));
         let pad_right = " ".repeat(
@@ -889,7 +907,7 @@ impl Editor {
         // Generate it
         format!(
             "{}{}{}{}{}{}{}",
-            style::Bold,
+            Attribute::Bold,
             Reader::rgb_fg(self.config.theme.status_fg),
             Reader::rgb_bg(self.config.theme.status_bg),
             trim_end(
@@ -898,7 +916,7 @@ impl Editor {
             ),
             RESET_BG,
             RESET_FG,
-            style::Reset,
+            Attribute::Reset,
         )
     }
     fn add_background(&self, text: &str) -> String {
@@ -918,19 +936,19 @@ impl Editor {
         match self.doc[self.tab].cmd_line.msg {
             Type::Error => self.add_background(&format!(
                 "{}{}{}{}{}",
-                style::Bold,
-                color::Fg(color::Red),
+                Attribute::Bold,
+                SetForegroundColor(Color::Red),
                 self.add_background(&trim_end(&line, self.term.size.width)),
-                color::Fg(color::Reset),
-                style::Reset
+                RESET_FG,
+                Attribute::Reset
             )),
             Type::Warning => self.add_background(&format!(
                 "{}{}{}{}{}",
-                style::Bold,
-                color::Fg(color::Yellow),
+                Attribute::Bold,
+                SetForegroundColor(Color::Yellow),
                 self.add_background(&trim_end(&line, self.term.size.width)),
-                color::Fg(color::Reset),
-                style::Reset
+                RESET_FG,
+                Attribute::Reset
             )),
             Type::Info => self.add_background(&trim_end(&line, self.term.size.width)),
         }
@@ -948,12 +966,12 @@ impl Editor {
             let this = format!(
                 "{} {} {}{}{}\u{2502}",
                 if num == self.tab {
-                    format!("{}{}{}", style::Bold, active_background, active_foreground)
+                    format!("{}{}{}", Attribute::Bold, active_background, active_foreground)
                 } else {
                     format!("{}{}", inactive_background, inactive_foreground)
                 },
                 self.doc[num].format(&self.config.general.tab),
-                style::Reset,
+                Attribute::Reset,
                 inactive_background.to_string(),
                 inactive_foreground.to_string(),
             );

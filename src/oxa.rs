@@ -75,10 +75,10 @@ pub fn interpret_line(
 }
 
 fn theme_command(args: &[&str]) -> Option<Event> {
-    if !args.is_empty() {
-        Some(Event::Theme(args[0].to_string()))
-    } else {
+    if args.is_empty() {
         None
+    } else {
+        Some(Event::Theme(args[0].to_string()))
     }
 }
 

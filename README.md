@@ -51,7 +51,7 @@ Ox aims to be an editor that takes features from some of the most popular editor
 Ox is super minimal and aims to use as few dependencies as possible, allowing for rapid compile time and low risk of breakage.
 
 * [Rust language](https://rust-lang.org)
-* [Termion](https://github.com/redox-os/termion)
+* [Crossterm](https://github.com/crossterm-rs/crossterm)
 * [Unicode-rs](https://unicode-rs.github.io/)
 * [Clap](https://clap.rs/)
 * [Regex](https://docs.rs/regex/1.3.9/regex/)

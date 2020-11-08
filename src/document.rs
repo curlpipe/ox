@@ -7,7 +7,7 @@ use regex::Regex;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::{cmp, fs};
-use termion::event::Key;
+use crossterm::event::KeyCode as Key;
 use unicode_width::UnicodeWidthStr;
 
 // For holding the info in the command line
@@ -88,7 +88,7 @@ impl Document {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: Path::new(path)
                     .file_name()
-                    .unwrap_or(OsStr::new(path))
+                    .unwrap_or_else(|| OsStr::new(path))
                     .to_str()
                     .unwrap_or(&path)
                     .to_string(),

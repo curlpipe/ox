@@ -1,11 +1,11 @@
 // Config.rs - In charge of storing configuration information
 use dirs_next::config_dir;
+use crossterm::style::{SetForegroundColor, SetBackgroundColor, Color};
 use regex::Regex;
 use ron::de::from_str;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
-use termion::color;
 
 // Enum for determining what type of token it is
 #[derive(Clone)]
@@ -116,13 +116,13 @@ impl Reader {
         }
         result
     }
-    pub fn rgb_fg(colour: (u8, u8, u8)) -> color::Fg<color::Rgb> {
+    pub fn rgb_fg(colour: (u8, u8, u8)) -> SetForegroundColor {
         // Get the text ANSI code from an RGB value
-        color::Fg(color::Rgb(colour.0, colour.1, colour.2))
+        SetForegroundColor(Color::Rgb{r: colour.0, g: colour.1, b: colour.2})
     }
-    pub fn rgb_bg(colour: (u8, u8, u8)) -> color::Bg<color::Rgb> {
+    pub fn rgb_bg(colour: (u8, u8, u8)) -> SetBackgroundColor {
         // Get the background ANSI code from an RGB value
-        color::Bg(color::Rgb(colour.0, colour.1, colour.2))
+        SetBackgroundColor(Color::Rgb{r: colour.0, g: colour.1, b: colour.2})
     }
 }
 
@@ -164,8 +164,10 @@ pub struct Language {
 }
 
 // Default configuration format
+// Minify using:
+// (| )//[a-zA-Z0-9 ]+ on https://www.regextester.com/
+// https://codebeautify.org/text-minifier
 const DEFAULT: &str = r#"
-// General settings for Ox
 (
 	general: General(
 		line_number_padding_right: 2, // Line number padding on the right

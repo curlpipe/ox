@@ -1,8 +1,4 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
-- [ ] Rewrite using crossterm for windows support and efficiency*
-  - [ ] Build RGB ansi code function
-  - [ ] Fix unwrap on terminal size
-  - [ ] Properly implement terminal resizing
 - [ ] Undoing
   - [ ] Undoing to origin makes file not dirty
     - [ ] Add last save index (0) to document
@@ -27,6 +23,7 @@
   - [ ] Fix file hanging*
     - [ ] Reproduce
     - [ ] Fix
+  - [X] Fix line deletion runtime error
 - [ ] CLI
   - [ ] Allow jump to lines*
     - [ ] Add to help menu
@@ -98,12 +95,19 @@
     - [ ] Show overlay
     - [ ] Hide overlay
     - [ ] Handle resizes
+  - [ ] Function keys and ctrl+shift keys
   - [X] Ctrl + Z for undo
 - [ ] Searching
   - [ ] Exit search when typing characters and catch up with events
 - [ ] Formatting
   - [ ] Clippy
   - [ ] Rustfmt
+- [X] Rewrite using crossterm for windows support and efficiency*
+  - [X] Properly implement terminal resizing
+  - [X] Build RGB ansi code function
+  - [X] Fix unwrap on terminal size
+  - [X] Update all files
+  - [X] Test and fix issues
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*
