@@ -42,7 +42,7 @@ impl Terminal {
         write!(
             stdout(),
             "{}",
-            termion::cursor::Goto(p.x.saturating_add(1) as u16, p.y.saturating_add(1) as u16)
+            crossterm::cursor::MoveTo(p.x as u16, p.y as u16)
         )
         .unwrap();
     }
@@ -51,10 +51,10 @@ impl Terminal {
         stdout().flush().unwrap();
     }
     pub fn hide_cursor(&mut self) {
-        write!(stdout(), "{}", termion::cursor::Hide).unwrap();
+        write!(stdout(), "{}", crossterm::cursor::Hide).unwrap();
     }
     pub fn show_cursor(&mut self) {
-        write!(stdout(), "{}", termion::cursor::Show).unwrap();
+        write!(stdout(), "{}", crossterm::cursor::Show).unwrap();
     }
     pub fn align_break(&self, l: &str, r: &str) -> String {
         // Align two items to the left and right
@@ -68,18 +68,5 @@ impl Terminal {
         let length = self.regex.ansi_len(text);
         let padding = (self.size.width as usize).saturating_sub(length);
         " ".repeat(padding as usize)
-    }
-    pub fn check_resize(&mut self) -> bool {
-        // Check for and handle resize events
-        let size = terminal::size().unwrap();
-        if size == (self.size.width as u16, self.size.height as u16) {
-            false
-        } else {
-            self.size = Size {
-                width: size.0 as usize,
-                height: size.1 as usize,
-            };
-            true
-        }
     }
 }

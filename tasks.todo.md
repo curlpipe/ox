@@ -1,8 +1,10 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] Rewrite using crossterm for windows support and efficiency*
-  - [ ] Build RGB ansi code function
-  - [ ] Fix unwrap on terminal size
-  - [ ] Properly implement terminal resizing
+  - [ ] Update all files
+  - [ ] Test and fix issues
+  - [X] Properly implement terminal resizing
+  - [X] Build RGB ansi code function
+  - [X] Fix unwrap on terminal size
 - [ ] Undoing
   - [ ] Undoing to origin makes file not dirty
     - [ ] Add last save index (0) to document

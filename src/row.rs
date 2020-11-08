@@ -1,10 +1,9 @@
 // Row.rs - Handling the rows of a document and their appearance
 use crate::config::{Reader, TokenType};
-use crate::editor::RESET_FG;
 use crate::highlight::{highlight, remove_nested_tokens, Token};
 use crate::util::Exp;
+use crate::editor::RESET_FG;
 use std::collections::HashMap;
-use termion::color;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
@@ -95,7 +94,7 @@ impl Row {
                             break 'a;
                         }
                     }
-                    result.push_str(&color::Fg(color::Reset).to_string());
+                    result.push_str(&RESET_FG.to_string());
                 } else if let Some(ch) = dna.get(&start) {
                     // There is a character here
                     if start + UnicodeWidthStr::width(*ch) > end {

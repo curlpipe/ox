@@ -18,7 +18,6 @@ panic = "abort"
 codegen-units = 1
 
 [dependencies]
-termion = "1.5.5"
 unicode-segmentation = "1.6.0"
 unicode-width = "0.1.8"
 clap = "2.33.3"

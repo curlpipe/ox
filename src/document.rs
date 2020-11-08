@@ -7,7 +7,7 @@ use regex::Regex;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::{cmp, fs};
-use termion::event::Key;
+use crossterm::event::KeyCode as Key;
 use unicode_width::UnicodeWidthStr;
 
 // For holding the info in the command line

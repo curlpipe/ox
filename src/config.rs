@@ -1,10 +1,10 @@
 // Config.rs - In charge of storing configuration information
+use crossterm::style::{SetForegroundColor, SetBackgroundColor, Color};
 use regex::Regex;
 use ron::de::from_str;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
-use termion::color;
 
 // Enum for determining what type of token it is
 #[derive(Clone)]
@@ -109,13 +109,13 @@ impl Reader {
         }
         result
     }
-    pub fn rgb_fg(colour: (u8, u8, u8)) -> color::Fg<color::Rgb> {
+    pub fn rgb_fg(colour: (u8, u8, u8)) -> SetForegroundColor {
         // Get the text ANSI code from an RGB value
-        color::Fg(color::Rgb(colour.0, colour.1, colour.2))
+        SetForegroundColor(Color::Rgb{r: colour.0, g: colour.1, b: colour.2})
     }
-    pub fn rgb_bg(colour: (u8, u8, u8)) -> color::Bg<color::Rgb> {
+    pub fn rgb_bg(colour: (u8, u8, u8)) -> SetBackgroundColor {
         // Get the background ANSI code from an RGB value
-        color::Bg(color::Rgb(colour.0, colour.1, colour.2))
+        SetBackgroundColor(Color::Rgb{r: colour.0, g: colour.1, b: colour.2})
     }
 }
 
