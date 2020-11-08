@@ -487,22 +487,22 @@ impl Editor {
                     },
                     self.doc[self.tab].graphemes,
                     &self.doc[self.tab].rows,
-                    );
+                );
                 // Execute the instruction
                 if let Some(instruct) = instruction {
                     for i in instruct {
                         match i {
                             Event::SpliceUp(_, _)
-                                | Event::SplitDown(_, _)
-                                | Event::InsertLineAbove(_)
-                                | Event::InsertLineBelow(_)
-                                | Event::Deletion(_, _)
-                                | Event::Insertion(_, _)
-                                | Event::InsertTab(_)
-                                | Event::DeleteTab(_)
-                                | Event::DeleteLine(_, _, _)
-                                | Event::UpdateLine(_, _, _, _)
-                                | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
+                            | Event::SplitDown(_, _)
+                            | Event::InsertLineAbove(_)
+                            | Event::InsertLineBelow(_)
+                            | Event::Deletion(_, _)
+                            | Event::Insertion(_, _)
+                            | Event::InsertTab(_)
+                            | Event::DeleteTab(_)
+                            | Event::DeleteLine(_, _, _)
+                            | Event::UpdateLine(_, _, _, _)
+                            | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
                             _ => (),
                         }
                         self.execute(i, false);
