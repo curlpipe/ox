@@ -75,6 +75,7 @@ fn main() {
     if result.is_err() {
         // Pause for a few seconds to catch debug information
         thread::sleep(Duration::from_secs(3));
+        Terminal::exit();
     }
 }
 

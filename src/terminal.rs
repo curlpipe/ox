@@ -33,7 +33,7 @@ impl Terminal {
             regex: Exp::new(),
         })
     }
-    pub fn exit(&mut self) {
+    pub fn exit() {
         execute!(stdout(), terminal::LeaveAlternateScreen).unwrap();
         terminal::disable_raw_mode().unwrap();
     }

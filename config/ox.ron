@@ -117,6 +117,8 @@
         Ctrl('f'): ["search"], // Trigger search command
         Ctrl('r'): ["replace"], // Trigger replace command
         Ctrl('a'): ["replace *"], // Trigger replace all command
+        Ctrl('v'): ["move line up"], // Move line up
+        Ctrl('k'): ["move line down"], // Move line down
         Alt('a'):  ["cmd"], // Open the command line
     },
     // Language specific settings

@@ -98,7 +98,7 @@ impl Editor {
             self.process_input();
         }
         // Leave alternative screen and disable raw mode
-        self.term.exit();
+        Terminal::exit();
     }
     fn read_event(&mut self) -> InputEvent {
         // Wait until a key, mouse or terminal resize event
@@ -152,10 +152,10 @@ impl Editor {
             (KeyCode::Backspace, KeyModifiers::NONE) => {
                 self.doc[self.tab].redo_stack.empty();
                 self.execute(
-                    if current.x == 0 {
+                    if current.x == 0 && current.y != 0 {
                         // Backspace at the start of a line
                         Event::SpliceUp(current, current)
-                    } else {
+                    } else if current.y != 0 {
                         // Backspace in the middle of a line
                         let row = self.doc[self.tab].rows[current.y].clone();
                         let boundaries = row.boundaries();
@@ -165,9 +165,11 @@ impl Editor {
                             y: current.y,
                         };
                         Event::Deletion(current, chars.collect::<Vec<_>>()[boundaries[current.x]])
+                    } else {
+                        return;
                     },
                     false,
-                    );
+                );
             }
             // Detect control key binding
             (KeyCode::Char(c), KeyModifiers::CONTROL) => {

@@ -23,6 +23,7 @@
   - [ ] Fix file hanging*
     - [ ] Reproduce
     - [ ] Fix
+  - [X] Fix line deletion runtime error
 - [ ] CLI
   - [ ] Allow jump to lines*
     - [ ] Add to help menu
