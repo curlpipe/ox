@@ -118,6 +118,15 @@ Install `ox` from Homebrew core tap.
 brew install ox
 ```
 
+#### MacPorts
+
+On macOS, you can install `ox` via [MacPorts](https://www.macports.org)
+
+```sh
+sudo port selfupdate
+sudo port install ox
+```
+
 <!-- USAGE EXAMPLES -->
 ## Usage
 
