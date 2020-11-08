@@ -161,7 +161,7 @@ impl Document {
     }
     pub fn format(&self, template: &str) -> String {
         // Form data from a template
-        return template
+        template
             .replace("%f", &self.name)
             .replace("%F", &self.path)
             .replace("%i", &self.icon)
@@ -183,7 +183,7 @@ impl Document {
             .replace("%y", &format!("{}", self.cursor.y + self.offset.y))
             .replace("%v", VERSION)
             .replace("%d", if self.dirty { "[+]" } else { "" })
-            .replace("%D", if self.dirty { "\u{fb12} " } else { "\u{f723} " });
+            .replace("%D", if self.dirty { "\u{fb12} " } else { "\u{f723} " })
     }
     pub fn move_cursor(&mut self, direction: Key, term: &Size) {
         // Move the cursor around the editor
