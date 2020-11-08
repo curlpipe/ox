@@ -130,32 +130,24 @@ impl Editor {
             y: cursor.y + offset.y - OFFSET,
         };
         match (key.code, key.modifiers) {
-            (KeyCode::Char(c), KeyModifiers::NONE) => {
+            (KeyCode::Enter, KeyModifiers::NONE) => {
                 self.doc[self.tab].redo_stack.empty();
-                match c {
-                    '\n' => {
-                        if current.x == 0 {
-                            // Return key pressed at the start of the line
-                            self.execute(Event::InsertLineAbove(current), false);
-                        } else if current.x == self.doc[self.tab].rows[current.y].length() {
-                            // Return key pressed at the end of the line
-                            self.execute(Event::InsertLineBelow(current), false);
-                            self.execute(Event::MoveCursor(1, Direction::Down), false);
-                            self.doc[self.tab].recalculate_graphemes();
-                        } else {
-                            // Return key pressed in the middle of the line
-                            self.execute(Event::SplitDown(current, current), false);
-                        }
-                    }
-                    '\t' => {
-                        // The user pressed the tab key
-                        self.execute(Event::InsertTab(current), false);
-                    }
-                    _ => {
-                        // Other characters
-                        self.execute(Event::Insertion(current, c), false);
-                    }
+                if current.x == 0 {
+                    // Return key pressed at the start of the line
+                    self.execute(Event::InsertLineAbove(current), false);
+                } else if current.x == self.doc[self.tab].rows[current.y].length() {
+                    // Return key pressed at the end of the line
+                    self.execute(Event::InsertLineBelow(current), false);
+                    self.execute(Event::MoveCursor(1, Direction::Down), false);
+                    self.doc[self.tab].recalculate_graphemes();
+                } else {
+                    // Return key pressed in the middle of the line
+                    self.execute(Event::SplitDown(current, current), false);
                 }
+            }
+            (KeyCode::Tab, KeyModifiers::NONE) => {
+                self.doc[self.tab].redo_stack.empty();
+                self.execute(Event::InsertTab(current), false);
             }
             (KeyCode::Backspace, KeyModifiers::NONE) => {
                 self.doc[self.tab].redo_stack.empty();
@@ -193,14 +185,26 @@ impl Editor {
                     }
                 }
             }
-            (KeyCode::Up, KeyModifiers::NONE) => self.execute(Event::MoveCursor(1, Direction::Up), false),
-            (KeyCode::Down, KeyModifiers::NONE) => self.execute(Event::MoveCursor(1, Direction::Down), false),
-            (KeyCode::Left, KeyModifiers::NONE) => self.execute(Event::MoveCursor(1, Direction::Left), false),
-            (KeyCode::Right, KeyModifiers::NONE) => self.execute(Event::MoveCursor(1, Direction::Right), false),
-            (KeyCode::PageDown, KeyModifiers::NONE) => self.execute(Event::PageDown, false),
-            (KeyCode::PageUp, KeyModifiers::NONE) => self.execute(Event::PageUp, false),
-            (KeyCode::Home, KeyModifiers::NONE) => self.execute(Event::Home, false),
-            (KeyCode::End, KeyModifiers::NONE) => self.execute(Event::End, false),
+            (KeyCode::Char(c), _) => {
+                self.doc[self.tab].redo_stack.empty();
+                self.execute(Event::Insertion(current, c), false);
+            }
+            (KeyCode::Up, KeyModifiers::NONE) => 
+                self.execute(Event::MoveCursor(1, Direction::Up), false),
+            (KeyCode::Down, KeyModifiers::NONE) => 
+                self.execute(Event::MoveCursor(1, Direction::Down), false),
+            (KeyCode::Left, KeyModifiers::NONE) => 
+                self.execute(Event::MoveCursor(1, Direction::Left), false),
+            (KeyCode::Right, KeyModifiers::NONE) => 
+                self.execute(Event::MoveCursor(1, Direction::Right), false),
+            (KeyCode::PageDown, KeyModifiers::NONE) => 
+                self.execute(Event::PageDown, false),
+            (KeyCode::PageUp, KeyModifiers::NONE) => 
+                self.execute(Event::PageUp, false),
+            (KeyCode::Home, KeyModifiers::NONE) => 
+                self.execute(Event::Home, false),
+            (KeyCode::End, KeyModifiers::NONE) => 
+                self.execute(Event::End, false),
             _ => (),
         }
     }
@@ -696,7 +700,7 @@ impl Editor {
                                 }
                             }
                         }
-                        KeyCode::Char('\n') | KeyCode::Char('y') | KeyCode::Char(' ') => {
+                        KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char(' ') => {
                             let cursor = self.doc[self.tab].cursor;
                             let offset = self.doc[self.tab].offset;
                             // Commit current changes to undo stack
@@ -789,7 +793,7 @@ impl Editor {
             self.update();
             if let InputEvent::Key(KeyEvent { code: c, modifiers: m }) = self.read_event() {
                 match (c, m) {
-                    (KeyCode::Char('\n'), KeyModifiers::NONE) => return true,
+                    (KeyCode::Enter, KeyModifiers::NONE) => return true,
                     (KeyCode::Char(k), KeyModifiers::CONTROL) => {
                         if k == key {
                             return true;
@@ -820,14 +824,14 @@ impl Editor {
         'p: loop {
             if let InputEvent::Key(KeyEvent { code: c, modifiers: m }) = self.read_event() {
                 match (c, m) {
-                    (KeyCode::Char(c), KeyModifiers::NONE) => {
+                    (KeyCode::Enter, KeyModifiers::NONE) => {
+                        // Exit on enter key
+                        break 'p;
+                    }
+                    (KeyCode::Char(c), KeyModifiers::NONE) |
+                    (KeyCode::Char(c), KeyModifiers::SHIFT) => {
                         // Update the prompt contents
-                        if c == '\n' {
-                            // Exit on enter key
-                            break 'p;
-                        } else {
-                            result.push(c);
-                        }
+                        result.push(c);
                         func(self, PromptEvent::CharPress, &result)
                     }
                     (KeyCode::Backspace, KeyModifiers::NONE) => {
