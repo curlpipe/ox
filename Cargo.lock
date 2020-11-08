@@ -184,7 +184,7 @@ checksum = "b8f8bdf33df195859076e54ab11ee78a1b208382d3a26ec40d142ffc1ecc49ef"
 
 [[package]]
 name = "ox"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "clap",
  "directories",
