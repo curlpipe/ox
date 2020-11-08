@@ -31,6 +31,7 @@ fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
 }
 
 fn multi_to_single(doc: &str, m: &regex::Match) -> ((usize, usize), (usize, usize)) {
+    // Multiline tokens to single line tokens
     let b = bounds(&m, &doc);
     let start_y = doc[..m.start()].matches('\n').count();
     let end_y = doc[..m.end()].matches('\n').count();

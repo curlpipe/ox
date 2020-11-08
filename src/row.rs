@@ -54,7 +54,7 @@ impl Row {
             " ".repeat(post_padding),
             index,
             " ".repeat(config.general.line_number_padding_right),
-            RESET_FG,
+            Reader::rgb_fg(config.theme.editor_fg),
         );
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
@@ -145,10 +145,17 @@ impl Row {
         syntax: &[TokenType],
         doc: &str,
         index: usize,
+        theme: &str,
     ) {
         // Update the syntax highlighting indices for this row
         self.syntax = remove_nested_tokens(
-            &highlight(&self.string, &doc, index, &syntax, &config.highlights),
+            &highlight(
+                &self.string,
+                &doc,
+                index,
+                &syntax,
+                &config.highlights[theme],
+            ),
             &self.string,
         );
     }

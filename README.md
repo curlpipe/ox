@@ -118,6 +118,15 @@ Install `ox` from Homebrew core tap.
 brew install ox
 ```
 
+#### MacPorts
+
+On macOS, you can install `ox` via [MacPorts](https://www.macports.org)
+
+```sh
+sudo port selfupdate
+sudo port install ox
+```
+
 <!-- USAGE EXAMPLES -->
 ## Usage
 
@@ -211,10 +220,9 @@ Here is the current summary
  - [X] Replacing text (0.2.3) [1549 lines]
  - [X] Syntax highlighting (0.2.4) [1894 lines]
  - [X] Tabs for multitasking (0.2.5) [2050 lines]
- - [ ] Macros (0.2.6)
- - [ ] Tweaks #1 (0.2.7)
- - [ ] Tweaks #2 (0.2.8)
- - [ ] Mouse support (0.2.9)
+ - [X] Macros (0.2.6) [3414 lines]
+ - [ ] Tweaks (0.2.7)
+ - [ ] Mouse support (0.2.8)
  - [ ] Auto indentation (0.3.0)
  - [ ] Prettifier / Automatic code formatter (0.3.0)
  - [ ] Built In linter (0.3.0)

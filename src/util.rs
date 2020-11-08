@@ -1,5 +1,5 @@
 // Util.rs - Utilities for the rest of the program
-use crate::{Position, Row};
+use crate::Position;
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -73,19 +73,62 @@ pub fn is_ahead(current: &Position, position: &Position) -> bool {
     }
 }
 
-pub fn raw_to_grapheme(x: usize, string: &str) -> usize {
-    // Convert raw cursor position to grapheme cursor position
-    let mut graphemes = 0;
-    let current = Row::from(string);
-    let jumps = current.get_jumps();
-    let mut counter = 0;
-    for (mut counter2, i) in jumps.into_iter().enumerate() {
-        if counter == x {
-            break;
+pub fn line_offset(point: usize, offset: i128, limit: usize) -> usize {
+    if offset.is_negative() {
+        if point as i128 + offset >= 0 {
+            (point as i128 + offset) as usize
+        } else {
+            0
         }
-        counter2 += 1;
-        graphemes = counter2;
-        counter += i;
+    } else if point as i128 + offset < limit as i128 {
+        (point as i128 + offset) as usize
+    } else {
+        limit.saturating_sub(1)
     }
-    graphemes
+}
+
+pub fn spaces_to_tabs(code: &str, tab_width: usize) -> String {
+    // Convert spaces to tabs
+    let mut result = vec![];
+    for mut line in code.split('\n') {
+        // Count the number of spaces
+        let mut spaces = 0;
+        for c in line.chars() {
+            if c == ' ' {
+                spaces += 1;
+            } else {
+                break;
+            }
+        }
+        // Divide by tab width
+        let tabs = spaces / tab_width;
+        // Remove spaces
+        line = &line[spaces..];
+        // Add tabs
+        result.push(format!("{}{}", "\t".repeat(tabs), line));
+    }
+    result.join("\n")
+}
+
+pub fn tabs_to_spaces(code: &str, tab_width: usize) -> String {
+    // Convert tabs to spaces
+    let mut result = vec![];
+    for mut line in code.split('\n') {
+        // Count the number of spaces
+        let mut tabs = 0;
+        for c in line.chars() {
+            if c == '\t' {
+                tabs += 1;
+            } else {
+                break;
+            }
+        }
+        // Divide by tab width
+        let spaces = tabs * tab_width;
+        // Remove spaces
+        line = &line[tabs..];
+        // Add tabs
+        result.push(format!("{}{}", " ".repeat(spaces), line));
+    }
+    result.join("\n")
 }
