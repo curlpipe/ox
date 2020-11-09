@@ -11,9 +11,9 @@ use crossterm::style::{Attribute, Color, SetBackgroundColor, SetForegroundColor}
 use crossterm::ErrorKind;
 use regex::Regex;
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
 use std::ffi::OsStr;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 // Set up color resets
 pub const RESET_BG: SetBackgroundColor = SetBackgroundColor(Color::Reset);
@@ -65,6 +65,8 @@ impl Editor {
     pub fn new(args: App) -> Result<Self, ErrorKind> {
         // Create a new editor instance
         let args = args.get_matches();
+        // Set up terminal
+        let term = Terminal::new()?;
         // Set up the arguments
         let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
         let config = Reader::read(args.value_of("config").unwrap_or_default());
@@ -73,14 +75,14 @@ impl Editor {
             documents.push(Document::new(&config.0, &config.1));
         } else {
             for file in &files {
-                documents.push(Document::from(&config.0, &config.1, file));
+                documents.push(Document::from(&config.0, &config.1, file, &term.size));
             }
         }
         // Create the new editor instance
         Ok(Self {
             quit: false,
             // Display information about the config file into text for the status line
-            term: Terminal::new()?,
+            term,
             tab: 0,
             doc: documents,
             last_keypress: None,
@@ -158,7 +160,9 @@ impl Editor {
                     if current.x == 0 && current.y != 0 {
                         // Backspace at the start of a line
                         Event::SpliceUp(current, current)
-                    } else if current.x != 0 {
+                    } else if current.x == 0 {
+                        return;
+                    } else {
                         // Backspace in the middle of a line
                         let row = self.doc[self.tab].rows[current.y].clone();
                         let boundaries = row.boundaries();
@@ -168,8 +172,6 @@ impl Editor {
                             y: current.y,
                         };
                         Event::Deletion(current, chars.collect::<Vec<_>>()[boundaries[current.x]])
-                    } else {
-                        return;
                     },
                     false,
                 );
@@ -231,7 +233,7 @@ impl Editor {
                 // Re-render everything to the new size
                 self.update();
             }
-            _ => (),
+            InputEvent::Mouse(_) => (),
         }
     }
     fn new_document(&mut self) {
@@ -251,7 +253,7 @@ impl Editor {
             // User cancelled
             return;
         };
-        if let Some(doc) = Document::open(&self.config, &self.status, &to_open) {
+        if let Some(doc) = Document::open(&self.config, &self.status, &to_open, &self.term.size) {
             // Overwrite the current document
             self.doc.push(doc);
             self.tab = self.doc.len().saturating_sub(1);
@@ -882,19 +884,19 @@ impl Editor {
     }
     fn update(&mut self) {
         // Move the cursor and render the screen
-        self.term.hide_cursor();
-        self.term.goto(&Position { x: 0, y: 0 });
+        Terminal::hide_cursor();
+        Terminal::goto(&Position { x: 0, y: 0 });
         self.doc[self.tab].recalculate_offset(&self.config);
         self.render();
-        self.term.goto(&Position {
+        Terminal::goto(&Position {
             x: self.doc[self.tab]
                 .cursor
                 .x
                 .saturating_add(self.doc[self.tab].line_offset),
             y: self.doc[self.tab].cursor.y,
         });
-        self.term.show_cursor();
-        self.term.flush();
+        Terminal::show_cursor();
+        Terminal::flush();
     }
     fn welcome_message(&self, text: &str, colour: SetForegroundColor) -> String {
         // Render the welcome message

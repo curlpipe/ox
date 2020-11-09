@@ -19,11 +19,6 @@
   - [X] Stop hiding welcome screen on resize
   - [X] Fix file name issue
   - [X] Fix line 0 deletion errors
-- [ ] CLI
-  - [ ] Allow jump to lines*
-    - [ ] Add to help menu
-    - [ ] Parse file name
-    - [ ] Jump to line
 - [ ] Themes
   - [ ] Allow changing of colours of warning, info and error messages in config file
     - [ ] Add to configuration file
@@ -110,6 +105,11 @@
     - [X] Set to patch number on save event
     - [X] Detect when at last save index
       - [X] Make not dirty
+- [X] CLI
+  - [X] Allow jump to lines*
+    - [X] Add to help menu
+    - [X] Parse file name
+    - [X] Jump to line
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*

@@ -56,7 +56,11 @@ fn main() {
                 Arg::with_name("files")
                     .multiple(true)
                     .takes_value(true)
-                    .help("The files you wish to edit"),
+                    .help(
+                        r#"The files you wish to edit
+You can also provide the line number to jump to by doing this:
+file.txt:100 (This will go to line 100 in file.txt)"#,
+                    ),
             )
             .arg(
                 Arg::with_name("config")

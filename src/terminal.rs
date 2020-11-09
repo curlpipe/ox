@@ -37,24 +37,23 @@ impl Terminal {
         execute!(stdout(), terminal::LeaveAlternateScreen).unwrap();
         terminal::disable_raw_mode().unwrap();
     }
-    pub fn goto(&mut self, p: &Position) {
+    pub fn goto(p: &Position) {
         // Move the cursor to a position
-        write!(
-            stdout(),
-            "{}",
+        execute!(
+            stdout(), 
             crossterm::cursor::MoveTo(p.x as u16, p.y as u16)
         )
         .unwrap();
     }
-    pub fn flush(&mut self) {
+    pub fn flush() {
         // Flush the screen to prevent weird behaviour
         stdout().flush().unwrap();
     }
-    pub fn hide_cursor(&mut self) {
-        write!(stdout(), "{}", crossterm::cursor::Hide).unwrap();
+    pub fn hide_cursor() {
+        execute!(stdout(), crossterm::cursor::Hide).unwrap();
     }
-    pub fn show_cursor(&mut self) {
-        write!(stdout(), "{}", crossterm::cursor::Show).unwrap();
+    pub fn show_cursor() {
+        execute!(stdout(), crossterm::cursor::Show).unwrap();
     }
     pub fn align_break(&self, l: &str, r: &str) -> String {
         // Align two items to the left and right

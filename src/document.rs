@@ -69,8 +69,19 @@ impl Document {
             last_save_index: 0,
         }
     }
-    pub fn open(config: &Reader, status: &Status, path: &str) -> Option<Self> {
+    pub fn open(config: &Reader, status: &Status, mut path: &str, term: &Size) -> Option<Self> {
         // Create a new document from a path
+        let mut start = 0;
+        let mut offset = 0;
+        if path.contains(':') {
+            let mut split = path.split(':');
+            path = split.next().unwrap_or(path);
+            start = split.next().unwrap_or("").parse().unwrap_or(0);
+            if term.height.saturating_sub(2 + OFFSET) < start {
+                offset = start - term.height.saturating_sub(2 + OFFSET);
+                start = term.height.saturating_sub(2 + OFFSET);
+            }
+        }
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
             let file = tabs_to_spaces(&file, config.general.tab_width);
@@ -106,8 +117,8 @@ impl Document {
                 icon: Self::identify(path).1.to_string(),
                 show_welcome: false,
                 graphemes: 0,
-                cursor: Position { x: 0, y: OFFSET },
-                offset: Position { x: 0, y: 0 },
+                cursor: Position { x: 0, y: start },
+                offset: Position { x: 0, y: offset },
                 tabs: file.contains(&"\n\t"),
                 last_save_index: 0,
             })
@@ -116,9 +127,9 @@ impl Document {
             None
         }
     }
-    pub fn from(config: &Reader, status: &Status, path: &str) -> Self {
+    pub fn from(config: &Reader, status: &Status, path: &str, term: &Size) -> Self {
         // Create a new document from a path with empty document on error
-        if let Some(doc) = Document::open(&config, &status, path) {
+        if let Some(doc) = Document::open(&config, &status, path, term) {
             doc
         } else {
             // Create blank document
