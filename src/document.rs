@@ -156,9 +156,17 @@ impl Document {
     pub fn correct_path(&mut self, term: &Size) {
         if self.true_path.contains(':') {
             let split: Vec<&str> = self.true_path.split(':').collect();
-            let y = split.get(1).unwrap_or(&"").parse().unwrap_or(0) - OFFSET;
-            let x = split.get(2).unwrap_or(&"").parse().unwrap_or(0);
-            self.goto(Position { x, y }, term);
+            let mut y = split.get(1).unwrap_or(&"").parse().unwrap_or(0);
+            let mut x = split.get(2).unwrap_or(&"").parse().unwrap_or(0);
+            if y >= self.rows.len() {
+                self.set_command_line(format!("Row {} out of scope", y), Type::Warning);
+                y = self.rows.len();
+            }
+            if x >= self.rows[y.saturating_sub(1)].length() {
+                self.set_command_line(format!("Column {} out of scope", x), Type::Warning);
+                x = self.rows[y.saturating_sub(1)].length();
+            }
+            self.goto(Position { x, y: y.saturating_sub(1) }, term);
         }
     }
     pub fn set_command_line(&mut self, text: String, msg: Type) {
