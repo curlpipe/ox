@@ -1,10 +1,5 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] Bug Fixing
-  - [ ] Add log file
-    - [ ] Add command line option for log file location
-    - [ ] Add support for appending to the log file
-    - [ ] Add option to clear log file on start
-    - [ ] Set up log file
   - [ ] Fix potential tab issues
     - [ ] Reproduce
     - [ ] Fix
@@ -19,18 +14,13 @@
   - [X] Stop hiding welcome screen on resize
   - [X] Fix file name issue
   - [X] Fix line 0 deletion errors
+  - [X] Add log file
+    - [X] Add support for appending to the log file
+    - [X] Set up log file
 - [ ] Themes
   - [ ] Allow changing of colours of warning, info and error messages in config file
     - [ ] Add to configuration file
     - [ ] Apply
-  - [ ] Small line specific retokenization for performance
-    - [ ] Add group list to each line
-      - [ ] Update when group is edited
-      - [ ] Update when group is retokenized
-    - [ ] Only initially render if in view
-    - [X] Added edited flag to each line
-      - [X] Update flag on edit
-      - [X] Update flag on retokenization
   - [ ] Highlight search and replace messages
     - [ ] Add token priorities and background tokens
   - [ ] Transparent background
@@ -58,6 +48,11 @@
     - [ ] C#
     - [ ] Java
     - [ ] SQL
+  - [X] Small line specific retokenization for performance
+    - [X] Added edited flag to each line
+      - [X] Update flag on edit
+      - [X] Update flag on retokenization
+    - [X] Only initially render if in view
 - [ ] General Editing
   - [ ] File overwrite prevention
     - [ ] Detect if file exists

@@ -4,7 +4,7 @@ use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
 use crate::util::{is_ahead, is_behind, title, trim_end, Exp};
-use crate::{Document, Event, Row, Size, Terminal, VERSION};
+use crate::{Document, Event, Row, Size, Terminal, VERSION, log};
 use clap::App;
 use crossterm::event::{Event as InputEvent, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{Attribute, Color, SetBackgroundColor, SetForegroundColor};
@@ -99,7 +99,7 @@ impl Editor {
     }
     pub fn run(&mut self) {
         // Run the editor instance
-        // TODO: Render entire document row here
+        log!("Ox opened", "Ox was opened successfully");
         while !self.quit {
             self.update();
             self.process_input();
@@ -748,7 +748,6 @@ impl Editor {
                                     Box::new(before.clone()),
                                     Box::new(after.clone()),
                                 ));
-                                // TODO: Update relavent lines here
                                 self.doc[self.tab].rows[cursor.y + offset.y - OFFSET] = after;
                             }
                             self.update();
@@ -788,7 +787,6 @@ impl Editor {
                             Box::new(before.clone()),
                             Box::new(after.clone()),
                         ));
-                        // TODO: Update relavent lines here
                         self.doc[self.tab].rows[c] = after;
                     }
                 }
