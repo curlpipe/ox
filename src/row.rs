@@ -1,8 +1,8 @@
 // Row.rs - Handling the rows of a document and their appearance
 use crate::config::{Reader, TokenType};
+use crate::editor::RESET_FG;
 use crate::highlight::{highlight, remove_nested_tokens, Token};
 use crate::util::Exp;
-use crate::editor::RESET_FG;
 use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;

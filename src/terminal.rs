@@ -1,10 +1,10 @@
 // Terminal.rs - Handling low level terminal operations
 use crate::util::Exp;
 use crate::Position;
-use std::io::{stdout, Write};
-use unicode_width::UnicodeWidthStr;
 use crossterm::terminal;
 use crossterm::{execute, ErrorKind};
+use std::io::{stdout, Write};
+use unicode_width::UnicodeWidthStr;
 
 // Struct to hold size
 pub struct Size {
@@ -14,8 +14,8 @@ pub struct Size {
 
 // The terminal struct
 pub struct Terminal {
-    pub size: Size,                           // For holding the size of the terminal
-    regex: Exp,                               // For holding the regex
+    pub size: Size, // For holding the size of the terminal
+    regex: Exp,     // For holding the regex
 }
 
 // Implement methods into the terminal struct / class

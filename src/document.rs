@@ -3,11 +3,11 @@ use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
 use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
 use crate::{Event, EventStack, Position, Row, Size, VERSION};
+use crossterm::event::KeyCode as Key;
 use regex::Regex;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::{cmp, fs};
-use crossterm::event::KeyCode as Key;
 use unicode_width::UnicodeWidthStr;
 
 // For holding the info in the command line
@@ -41,6 +41,7 @@ pub struct Document {
     pub offset: Position,       // For holding the offset on the X and Y axes
     pub graphemes: usize,       // For holding the special grapheme cursor
     pub tabs: bool,             // For detecting if tabs are used over spaces
+    pub last_save_index: usize, // For holding the last save index
 }
 
 // Add methods to the document struct
@@ -65,6 +66,7 @@ impl Document {
             cursor: Position { x: 0, y: OFFSET },
             offset: Position { x: 0, y: 0 },
             tabs: false,
+            last_save_index: 0,
         }
     }
     pub fn open(config: &Reader, status: &Status, path: &str) -> Option<Self> {
@@ -107,6 +109,7 @@ impl Document {
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
                 tabs: file.contains(&"\n\t"),
+                last_save_index: 0,
             })
         } else {
             // File doesn't exist
@@ -138,6 +141,7 @@ impl Document {
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
                 tabs: false,
+                last_save_index: 0,
             }
         }
     }
@@ -446,6 +450,9 @@ impl Document {
             Event::DeleteLine(pos, offset, _) => {
                 self.delete_line(&pos, offset);
                 self.goto(pos, term);
+                if self.cursor.y + self.offset.y - OFFSET >= self.rows.len() {
+                    self.move_cursor(Key::Up, term);
+                }
                 if !reversed {
                     self.undo_stack.push(event);
                 }

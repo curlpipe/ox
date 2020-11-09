@@ -1,5 +1,5 @@
 // Config.rs - In charge of storing configuration information
-use crossterm::style::{SetForegroundColor, SetBackgroundColor, Color};
+use crossterm::style::{Color, SetBackgroundColor, SetForegroundColor};
 use regex::Regex;
 use ron::de::from_str;
 use serde::Deserialize;
@@ -111,11 +111,19 @@ impl Reader {
     }
     pub fn rgb_fg(colour: (u8, u8, u8)) -> SetForegroundColor {
         // Get the text ANSI code from an RGB value
-        SetForegroundColor(Color::Rgb{r: colour.0, g: colour.1, b: colour.2})
+        SetForegroundColor(Color::Rgb {
+            r: colour.0,
+            g: colour.1,
+            b: colour.2,
+        })
     }
     pub fn rgb_bg(colour: (u8, u8, u8)) -> SetBackgroundColor {
         // Get the background ANSI code from an RGB value
-        SetBackgroundColor(Color::Rgb{r: colour.0, g: colour.1, b: colour.2})
+        SetBackgroundColor(Color::Rgb {
+            r: colour.0,
+            g: colour.1,
+            b: colour.2,
+        })
     }
 }
 
