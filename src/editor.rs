@@ -75,8 +75,11 @@ impl Editor {
             documents.push(Document::new(&config.0, &config.1));
         } else {
             for file in &files {
-                documents.push(Document::from(&config.0, &config.1, file, &term.size));
+                documents.push(Document::from(&config.0, &config.1, file));
             }
+        }
+        for d in &mut documents {
+            d.correct_path(&term.size);
         }
         // Create the new editor instance
         Ok(Self {
@@ -253,7 +256,7 @@ impl Editor {
             // User cancelled
             return;
         };
-        if let Some(doc) = Document::open(&self.config, &self.status, &to_open, &self.term.size) {
+        if let Some(doc) = Document::open(&self.config, &self.status, &to_open) {
             // Overwrite the current document
             self.doc.push(doc);
             self.tab = self.doc.len().saturating_sub(1);

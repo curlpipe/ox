@@ -42,6 +42,7 @@ pub struct Document {
     pub graphemes: usize,       // For holding the special grapheme cursor
     pub tabs: bool,             // For detecting if tabs are used over spaces
     pub last_save_index: usize, // For holding the last save index
+    pub true_path: String,      // For holding the path that was provided as argument
 }
 
 // Add methods to the document struct
@@ -67,21 +68,13 @@ impl Document {
             offset: Position { x: 0, y: 0 },
             tabs: false,
             last_save_index: 0,
+            true_path: String::new(),
         }
     }
-    pub fn open(config: &Reader, status: &Status, mut path: &str, term: &Size) -> Option<Self> {
+    pub fn open(config: &Reader, status: &Status, path: &str) -> Option<Self> {
         // Create a new document from a path
-        let mut start = OFFSET;
-        let mut offset = 0;
-        if path.contains(':') {
-            let mut split = path.split(':');
-            path = split.next().unwrap_or(path);
-            start = split.next().unwrap_or("").parse().unwrap_or(0);
-            if term.height.saturating_sub(2 + OFFSET) < start {
-                offset = start - term.height.saturating_sub(2 + OFFSET);
-                start = term.height.saturating_sub(2 + OFFSET);
-            }
-        }
+        let true_path = path.to_string();
+        let path = path.split(':').next().unwrap();
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
             let file = tabs_to_spaces(&file, config.general.tab_width);
@@ -117,19 +110,22 @@ impl Document {
                 icon: Self::identify(path).1.to_string(),
                 show_welcome: false,
                 graphemes: 0,
-                cursor: Position { x: 0, y: start },
-                offset: Position { x: 0, y: offset },
+                cursor: Position { x: 0, y: OFFSET },
+                offset: Position { x: 0, y: 0 },
                 tabs: file.contains(&"\n\t"),
                 last_save_index: 0,
+                true_path,
             })
         } else {
             // File doesn't exist
             None
         }
     }
-    pub fn from(config: &Reader, status: &Status, path: &str, term: &Size) -> Self {
+    pub fn from(config: &Reader, status: &Status, path: &str) -> Self {
         // Create a new document from a path with empty document on error
-        if let Some(doc) = Document::open(&config, &status, path, term) {
+        let true_path = path.to_string();
+        let path = path.split(':').next().unwrap();
+        if let Some(doc) = Document::open(&config, &status, &true_path) {
             doc
         } else {
             // Create blank document
@@ -153,7 +149,16 @@ impl Document {
                 offset: Position { x: 0, y: 0 },
                 tabs: false,
                 last_save_index: 0,
+                true_path,
             }
+        }
+    }
+    pub fn correct_path(&mut self, term: &Size) {
+        if self.true_path.contains(':') {
+            let split: Vec<&str> = self.true_path.split(':').collect();
+            let y = split.get(1).unwrap_or(&"").parse().unwrap_or(0) - OFFSET;
+            let x = split.get(2).unwrap_or(&"").parse().unwrap_or(0);
+            self.goto(Position { x, y }, term);
         }
     }
     pub fn set_command_line(&mut self, text: String, msg: Type) {
