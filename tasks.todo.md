@@ -24,6 +24,8 @@
     - [ ] Reproduce
     - [ ] Fix
   - [X] Fix line deletion runtime error
+  - [X] Fix delete line issue
+  - [X] Stop hiding welcome screen on resize
 - [ ] CLI
   - [ ] Allow jump to lines*
     - [ ] Add to help menu

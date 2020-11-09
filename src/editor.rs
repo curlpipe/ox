@@ -12,6 +12,8 @@ use crossterm::ErrorKind;
 use regex::Regex;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use std::ffi::OsStr;
+use std::path::Path;
 
 // Set up color resets
 pub const RESET_BG: SetBackgroundColor = SetBackgroundColor(Color::Reset);
@@ -288,7 +290,12 @@ impl Editor {
             // Update the current documents details in case of filetype change
             self.doc[self.tab].kind = Document::identify(&save).0.to_string();
             self.doc[self.tab].icon = Document::identify(&save).1.to_string();
-            self.doc[self.tab].name = save.clone();
+            self.doc[self.tab].name = Path::new(&save)
+                .file_name()
+                .unwrap_or_else(|| OsStr::new(&save))
+                .to_str()
+                .unwrap_or(&save)
+                .to_string();
             self.doc[self.tab].path = save.clone();
             self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
         } else {
