@@ -19,6 +19,7 @@ pub enum Status {
     Parse(String),
     File,
     Success,
+    Empty,
 }
 
 // Key binding type
@@ -52,6 +53,9 @@ impl Reader {
         if let Ok(file) = fs::read_to_string(config) {
             let result: (Self, Status) = if let Ok(contents) = from_str(&file) {
                 (contents, Status::Success)
+            } else if file.is_empty() {
+                // When configuration file is empty
+                (from_str(DEFAULT).unwrap(), Status::Empty)
             } else {
                 // There is a syntax issue with the config file
                 let result: Result<Self, ron::Error> = from_str(&file);

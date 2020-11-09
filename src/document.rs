@@ -179,11 +179,13 @@ impl Document {
                 Status::Success => "Welcome to Ox".to_string(),
                 Status::File => "Config file not found, using default values".to_string(),
                 Status::Parse(error) => format!("Failed to parse: {:?}", error),
+                Status::Empty => "Config file is empty, using defaults".to_string(),
             },
             msg: match status {
                 Status::Success => Type::Info,
                 Status::File => Type::Warning,
                 Status::Parse(_) => Type::Error,
+                Status::Empty => Type::Info,
             },
         }
     }
