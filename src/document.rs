@@ -71,7 +71,7 @@ impl Document {
     }
     pub fn open(config: &Reader, status: &Status, mut path: &str, term: &Size) -> Option<Self> {
         // Create a new document from a path
-        let mut start = 0;
+        let mut start = OFFSET;
         let mut offset = 0;
         if path.contains(':') {
             let mut split = path.split(':');
