@@ -916,7 +916,7 @@ impl Editor {
             colour,
             trim_end(
                 &format!("{}{}", pad, text),
-                self.term.size.width.saturating_sub(1)
+                self.term.size.width.saturating_sub(2)
             ),
             pad_right,
             RESET_FG,

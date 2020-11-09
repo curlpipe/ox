@@ -1,6 +1,6 @@
 /* 
-	Ox 0.2.6
-	Now with a new scripting language and more extensibility
+	Ox 0.2.7
+	More efficient, more developed and fully cross platform.
 */
 
 pub const PI = 3.14159;

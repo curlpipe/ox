@@ -140,7 +140,7 @@
                 "u8", "u16", "u32", "u64", "u128", "usize",
                 "i8", "i16", "i32", "i64", "i128", "isize",
                 "f32", "f64", "String", "Vec", "str", "Some", "bool",
-                "None", "Box", "Result", "Option", "Ok", "Err",
+                "None", "Box", "Result", "Option", "Ok", "Err", "Self"
             ],
             // Syntax definitions
             definitions: {
@@ -150,6 +150,9 @@
                 ],
                 "strings":    [
                     "(\".*?\")",
+                    "(r\".*?\")",
+                    "(?ms)(r#\".*?\"#)",
+                    "(?ms)(#\".*?\"#)",
                 ],
                 "characters": [
                     "('.')", 
