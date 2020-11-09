@@ -158,7 +158,7 @@ impl Editor {
                     if current.x == 0 && current.y != 0 {
                         // Backspace at the start of a line
                         Event::SpliceUp(current, current)
-                    } else if current.y != 0 {
+                    } else if current.x != 0 {
                         // Backspace in the middle of a line
                         let row = self.doc[self.tab].rows[current.y].clone();
                         let boundaries = row.boundaries();
@@ -288,6 +288,7 @@ impl Editor {
             self.doc[self.tab]
                 .set_command_line(format!("File saved to {} successfully", save), Type::Info);
             // Update the current documents details in case of filetype change
+            self.doc[self.tab].last_save_index = self.doc[self.tab].undo_stack.len();
             self.doc[self.tab].kind = Document::identify(&save).0.to_string();
             self.doc[self.tab].icon = Document::identify(&save).1.to_string();
             self.doc[self.tab].name = Path::new(&save)
@@ -545,6 +546,9 @@ impl Editor {
                 .append(events.into_iter().rev().collect());
         } else {
             self.doc[self.tab].set_command_line("Empty Undo Stack".to_string(), Type::Error);
+        }
+        if self.doc[self.tab].undo_stack.len() == self.doc[self.tab].last_save_index {
+            self.doc[self.tab].dirty = false;
         }
     }
     pub fn redo(&mut self) {

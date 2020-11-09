@@ -89,6 +89,10 @@ impl EventStack {
             self.current_patch.clear();
         }
     }
+    pub fn len(&self) -> usize {
+        // Find the length of the undo stack
+        self.history.len()
+    }
 }
 
 pub fn reverse(before: Event, limit: usize) -> Option<Vec<Event>> {
