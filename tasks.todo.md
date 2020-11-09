@@ -1,13 +1,4 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
-- [ ] Undoing
-  - [ ] Undoing to origin makes file not dirty
-    - [ ] Add last save index (0) to document
-    - [ ] Set to patch number on save event
-    - [ ] Detect when at last save index
-      - [ ] Make not dirty
-  - [ ] Undo / Redo patch limit to prevent high memory usage
-    - [ ] When undo stack reaches a length over patch limit
-    - [ ] Ensure that the file doesn't go back to not dirty!!!
 - [ ] Bug Fixing
   - [ ] Add log file
     - [ ] Add command line option for log file location
@@ -27,22 +18,24 @@
   - [X] Fix delete line issue
   - [X] Stop hiding welcome screen on resize
   - [X] Fix file name issue
+  - [X] Fix line 0 deletion errors
 - [ ] CLI
   - [ ] Allow jump to lines*
     - [ ] Add to help menu
     - [ ] Parse file name
+    - [ ] Jump to line
 - [ ] Themes
   - [ ] Allow changing of colours of warning, info and error messages in config file
     - [ ] Add to configuration file
     - [ ] Apply
   - [ ] Small line specific retokenization for performance
-    - [ ] Added edited flag to each line
-      - [ ] Update flag on edit
-      - [ ] Update flag on retokenization
     - [ ] Add group list to each line
       - [ ] Update when group is edited
       - [ ] Update when group is retokenized
     - [ ] Only initially render if in view
+    - [X] Added edited flag to each line
+      - [X] Update flag on edit
+      - [X] Update flag on retokenization
   - [ ] Highlight search and replace messages
     - [ ] Add token priorities and background tokens
   - [ ] Transparent background
@@ -111,6 +104,12 @@
   - [X] Fix unwrap on terminal size
   - [X] Update all files
   - [X] Test and fix issues
+- [X] Undoing
+  - [X] Undoing to origin makes file not dirty
+    - [X] Add last save index (0) to document
+    - [X] Set to patch number on save event
+    - [X] Detect when at last save index
+      - [X] Make not dirty
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*

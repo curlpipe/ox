@@ -12,6 +12,7 @@ use unicode_width::UnicodeWidthStr;
 pub struct Row {
     pub string: String,                // For holding the contents of the row
     pub syntax: HashMap<usize, Token>, // Hashmap for syntax
+    pub updated: bool,                 // Line needs to be redrawn
     regex: Exp,                        // For holding the regex expression
 }
 
@@ -23,6 +24,7 @@ impl From<&str> for Row {
             string: s.to_string(),
             syntax: HashMap::new(),
             regex: Exp::new(),
+            updated: true,
         }
     }
 }
@@ -194,6 +196,7 @@ impl Row {
     }
     pub fn insert(&mut self, ch: char, pos: usize) {
         // Insert a character
+        self.updated = true;
         let mut before: String = self.string.graphemes(true).take(pos as usize).collect();
         let after: String = self.string.graphemes(true).skip(pos as usize).collect();
         before.push(ch);
@@ -202,6 +205,7 @@ impl Row {
     }
     pub fn delete(&mut self, pos: usize) -> Option<char> {
         // Remove a character
+        self.updated = true;
         let before: String = self.string.graphemes(true).take(pos as usize).collect();
         let after: String = self.string.graphemes(true).skip(1 + pos as usize).collect();
         let result: Option<char>;

@@ -1042,7 +1042,10 @@ impl Editor {
         for row in OFFSET..self.term.size.height {
             let row = row.saturating_sub(OFFSET);
             if let Some(r) = self.doc[self.tab].rows.get_mut(offset.y + row) {
-                r.update_syntax(&self.config, &reg, &rendered, offset.y + row, &self.theme);
+                if r.updated {
+                    r.update_syntax(&self.config, &reg, &rendered, offset.y + row, &self.theme);
+                    r.updated = false;
+                }
             }
             if row == self.term.size.height - 1 - OFFSET {
                 // Render command line
