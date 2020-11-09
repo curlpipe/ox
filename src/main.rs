@@ -42,7 +42,7 @@ use undo::{Event, EventStack};
 // Create log macro
 #[macro_export]
 macro_rules! log {
-    ($type:literal, $msg:expr) => { 
+    ($type:literal, $msg:expr) => {
         use std::fs::OpenOptions;
         use std::io::Write;
         let file = OpenOptions::new()
@@ -54,7 +54,7 @@ macro_rules! log {
         } else {
             panic!("{:?}", file);
         }
-    }
+    };
 }
 
 // Get the current version of Ox
@@ -67,7 +67,7 @@ fn main() {
         Terminal::exit();
         // Set hook to log crash reason
         log!("Unexpected panic", e);
-        // Print exception
+        // Print panic info
         eprintln!("{}", e);
     }));
     // Attempt to start an editor instance

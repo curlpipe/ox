@@ -166,7 +166,13 @@ impl Document {
                 self.set_command_line(format!("Column {} out of scope", x), Type::Warning);
                 x = self.rows[y.saturating_sub(1)].length();
             }
-            self.goto(Position { x, y: y.saturating_sub(1) }, term);
+            self.goto(
+                Position {
+                    x,
+                    y: y.saturating_sub(1),
+                },
+                term,
+            );
         }
     }
     pub fn set_command_line(&mut self, text: String, msg: Type) {

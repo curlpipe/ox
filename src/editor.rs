@@ -4,7 +4,7 @@ use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
 use crate::util::{is_ahead, is_behind, title, trim_end, Exp};
-use crate::{Document, Event, Row, Size, Terminal, VERSION, log};
+use crate::{log, Document, Event, Row, Size, Terminal, VERSION};
 use clap::App;
 use crossterm::event::{Event as InputEvent, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{Attribute, Color, SetBackgroundColor, SetForegroundColor};

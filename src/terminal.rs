@@ -39,11 +39,7 @@ impl Terminal {
     }
     pub fn goto(p: &Position) {
         // Move the cursor to a position
-        execute!(
-            stdout(), 
-            crossterm::cursor::MoveTo(p.x as u16, p.y as u16)
-        )
-        .unwrap();
+        execute!(stdout(), crossterm::cursor::MoveTo(p.x as u16, p.y as u16)).unwrap();
     }
     pub fn flush() {
         // Flush the screen to prevent weird behaviour
