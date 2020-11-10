@@ -27,10 +27,6 @@
     - [ ] Add option to configuration file
     - [ ] Strip background colour
   - [ ] Improved language syntax highlighting support
-  - [ ] 8/16 bit colour fallback*
-    - [ ] Create 8 bit colours
-    - [ ] Detect when fallback is required
-      - [ ] Use colours
   - [ ] Live / Command for reloading of the config file
     - [ ] Create config reload command
     - [ ] Actually reload the config
@@ -52,6 +48,10 @@
       - [X] Update flag on edit
       - [X] Update flag on retokenization
     - [X] Only initially render if in view
+  - [X] 16 bit colour fallback*
+    - [X] Create 16 bit colours
+    - [X] Detect when fallback is required
+      - [X] Use colours
 - [ ] Oxa
   - [ ] Delete word
   - [ ] Move word

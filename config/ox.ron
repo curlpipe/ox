@@ -65,6 +65,7 @@
         inactive_tab_fg:  (255, 255, 255), // The text color of the inactive tab(s)
         inactive_tab_bg:  (59, 59, 84), // The text color of the inactive tab(s)
         default_theme:    "default", // The default syntax highlights to use
+        fallback:         true, // Enables use of fallback themes (if detected)
     ),
     // Colours for the syntax highlighting
     highlights: {

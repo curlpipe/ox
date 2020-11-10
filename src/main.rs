@@ -61,6 +61,7 @@ macro_rules! log {
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
+    log!("Ox started", "Ox has just been started");
     // Set up panic hook in case of unexpected crash
     panic::set_hook(Box::new(|e| {
         // Reenter canonical mode

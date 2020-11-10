@@ -1,5 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{KeyBinding, Reader, Status};
+use crate::config::{KeyBinding, Reader, Status, Theme};
 use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
@@ -69,7 +69,50 @@ impl Editor {
         let term = Terminal::new()?;
         // Set up the arguments
         let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
-        let config = Reader::read(args.value_of("config").unwrap_or_default());
+        let mut config = Reader::read(args.value_of("config").unwrap_or_default());
+        // Check for fallback colours
+        if config.0.theme.fallback {
+            let max = Terminal::availablility();
+            log!("Available Colours", max);
+            if max != 24 {
+                // Fallback to 16 bit colours
+                config.0.highlights.insert(
+                    "16fallback".to_string(),
+                    [
+                        ("comments".to_string(), (128, 128, 128)),
+                        ("keywords".to_string(), (0, 0, 255)),
+                        ("references".to_string(), (0, 0, 128)),
+                        ("strings".to_string(), (0, 128, 0)),
+                        ("characters".to_string(), (0, 128, 128)),
+                        ("digits".to_string(), (0, 128, 128)),
+                        ("booleans".to_string(), (0, 255, 0)),
+                        ("functions".to_string(), (0, 128, 128)),
+                        ("structs".to_string(), (0, 128, 128)),
+                        ("macros".to_string(), (128, 0, 128)),
+                        ("attributes".to_string(), (0, 128, 128)),
+                        ("headers".to_string(), (0, 128, 128)),
+                        ("symbols".to_string(), (128, 128, 0)),
+                        ("global".to_string(), (0, 255, 0)),
+                    ]
+                    .iter()
+                    .cloned()
+                    .collect(),
+                );
+                config.0.theme = Theme {
+                    editor_bg: (0, 0, 0),
+                    editor_fg: (255, 255, 255),
+                    status_bg: (128, 128, 128),
+                    status_fg: (0, 0, 0),
+                    line_number_fg: (255, 255, 255),
+                    active_tab_fg: (0, 0, 0),
+                    inactive_tab_fg: (255, 255, 255),
+                    active_tab_bg: (128, 128, 128),
+                    inactive_tab_bg: (0, 0, 0),
+                    default_theme: "16fallback".to_string(),
+                    fallback: true,
+                };
+            }
+        }
         let mut documents = vec![];
         if files.is_empty() {
             documents.push(Document::new(&config.0, &config.1));

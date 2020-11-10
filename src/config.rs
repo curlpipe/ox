@@ -156,6 +156,7 @@ pub struct Theme {
     pub active_tab_fg: (u8, u8, u8),
     pub active_tab_bg: (u8, u8, u8),
     pub default_theme: String,
+    pub fallback: bool,
 }
 
 // Struct for storing language information

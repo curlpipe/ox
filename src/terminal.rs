@@ -3,7 +3,9 @@ use crate::util::Exp;
 use crate::Position;
 use crossterm::terminal;
 use crossterm::{execute, ErrorKind};
+use std::env;
 use std::io::{stdout, Write};
+use term::terminfo::TermInfo;
 use unicode_width::UnicodeWidthStr;
 
 // Struct to hold size
@@ -63,5 +65,19 @@ impl Terminal {
         let length = self.regex.ansi_len(text);
         let padding = (self.size.width as usize).saturating_sub(length);
         " ".repeat(padding as usize)
+    }
+    pub fn availablility() -> usize {
+        let colour = env::var("COLORTERM");
+        if colour.unwrap_or("".to_string()) == "truecolor" {
+            24
+        } else if let Ok(info) = TermInfo::from_env() {
+            if info.numbers.get("colors").unwrap() == &256 {
+                256
+            } else {
+                16
+            }
+        } else {
+            16
+        }
     }
 }
