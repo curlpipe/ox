@@ -387,6 +387,7 @@ impl Editor {
             Event::Cmd => self.cmd(),
             Event::Theme(name) => {
                 self.theme = name;
+                self.doc[self.tab].mass_redraw();
                 self.update();
             }
             Event::MoveWord(direction) => match direction {

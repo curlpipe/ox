@@ -38,21 +38,23 @@
     - [ ] Add to configuration file
     - [ ] Add to line renderer
   - [ ] Add more languages
-    - [ ] PHP*
-    - [ ] JSON*
-    - [ ] HTML*
-    - [ ] CSS*
-    - [ ] x86 Assembly
-    - [ ] Go
-    - [ ] C++
-    - [ ] C#
-    - [ ] Java
-    - [ ] SQL
+    - [ ] JSON* (easy)
+    - [ ] HTML* (easy)
+    - [ ] CSS* (easy)
+    - [ ] Markdown (easy)
+    - [ ] SQL (easy)
+    - [ ] x86 Assembly (easy)
+    - [ ] PHP* (medium)
+    - [ ] Java (medium)
+    - [ ] TypeScript (medium)
   - [X] Small line specific retokenization for performance
     - [X] Added edited flag to each line
       - [X] Update flag on edit
       - [X] Update flag on retokenization
     - [X] Only initially render if in view
+- [ ] Oxa
+  - [ ] Delete word
+  - [ ] Move word
 - [ ] General Editing
   - [ ] File overwrite prevention
     - [ ] Detect if file exists
@@ -112,19 +114,41 @@
   - [ ] Move the cursor when clicking with mouse
   - [ ] Add selection mode to document
   - [ ] Allow text selection with the mouse cursor
-
-0.2.9 (Extensibility) { To allow even more extension to the editor }
-- [ ] Delete word
-- [ ] Move word
+  - [ ] Allow for copy, cut and paste
 - [ ] Add option to hide parts of the editor (e.g. status line, tab line)
+- [ ] Deleting left bracket removes other bracket
+- [ ] Look to add support for background colors in status and tab line
+- [ ] Allow full transparency of editing components
+- [ ] Cursor in status line
+- [ ] Adding support for many popular languages
+  - [ ] Swift (medium)
+  - [ ] Groovy (medium)
+  - [ ] Lua (medium)
+  - [ ] Julia (medium)
+  - [ ] Elixr (medium)
+  - [ ] F# (medium)
+  - [ ] Lisp (medium)
+  - [ ] Elm (medium)
+  - [ ] Vim Script (medium)
+  - [ ] Scala (medium)
+  - [ ] C# (medium)
+  - [ ] R (medium)
+  - [ ] Go (medium)
+  - [ ] Dart (medium)
+  - [ ] Kotlin (medium)
+  - [ ] D lang (medium)
+  - [ ] Haskell (medium)
+  - [ ] C++ (hard)
 
 0.3.0 (IDE level features) { Allow for IDE level features to smooth out development experience }
 - [ ] Auto indentation 
   - [ ] Detect when to auto indent
+    - [ ] Look for the tabs above vs below
   - [ ] Find the amount of tabs needed
   - [ ] Insert tabs there
 - [ ] Prettier
   - [ ] Find a way to access the prettier API
+  - [ ] Add oxa command
   - [ ] Add a confirmation
 - [ ] Linting
   - [ ] Read output from cargo's JSON
@@ -177,25 +201,25 @@
 - [ ] Add detailed help menu / document / mode
 
 Further ideas { Further fun ideas to look at }
-- [ ] File encryption and decryption
-- [ ] Automatically closing status line
 - [ ] Discord rich presence
+- [ ] Todo lists
+- [ ] Automatically closing status line
+- [ ] File encryption and decryption
 - [ ] Nice, personal greeting
-- [ ] Theme changing depending on time of day
 - [ ] Live HTML editor
+- [ ] HTML expansion like emmet
 - [ ] Split editors
 - [ ] Terminal integration
-- [ ] Todo list
+- [ ] Theme builder
 - [ ] Cheatsheet downloader
 - [ ] Stack overflow searcher
-- [ ] HTML expansion like emmet
 - [ ] Documentation viewer
 - [ ] Pomodoro timer for work / rest balance
-- [ ] Easter eggs
-- [ ] Automated tests
-- [ ] Theme builder
 - [ ] Typing speed tests / statistics
+- [ ] Automated tests
 - [ ] Package manager
+- [ ] Theme changing depending on time of day
+- [ ] Easter eggs
 
 0.1.1
 - [X] Go to the next line at end of line

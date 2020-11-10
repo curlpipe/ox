@@ -179,6 +179,11 @@ impl Document {
         // Function to update the command line
         self.cmd_line = CommandLine { text, msg };
     }
+    pub fn mass_redraw(&mut self) {
+        for i in self.rows.iter_mut() {
+            i.updated = true;
+        }
+    }
     fn config_to_commandline(status: &Status) -> CommandLine {
         CommandLine {
             text: match status {
