@@ -77,14 +77,9 @@ impl Document {
         let path = path.split(':').next().unwrap();
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
-            let delimeter = if Document::is_dos(&file) {
-                "\r\n"
-            } else {
-                "\n"
-            };
-            let tabs = file.contains(&format!("{}\t", delimeter));
+            let tabs = file.contains("\n\t");
             let file = tabs_to_spaces(&file, config.general.tab_width);
-            let mut file = file.split(delimeter).collect::<Vec<&str>>();
+            let mut file = Document::split_file(&file);
             // Handle newline on last line
             if let Some(line) = file.iter().last() {
                 if line.is_empty() {
@@ -161,11 +156,10 @@ impl Document {
             }
         }
     }
-    pub fn is_dos(contents: &str) -> bool {
+    pub fn split_file(contents: &str) -> Vec<&str> {
         // Detect DOS line ending
-        let dos = contents.ends_with("\r\n");
-        log!("Is DOS line ending", dos);
-        dos
+        let splitter = Regex::new("(?ms)(\r\n|\n)").unwrap();
+        splitter.split(contents).collect()
     }
     pub fn correct_path(&mut self, term: &Size) {
         if self.true_path.contains(':') {
