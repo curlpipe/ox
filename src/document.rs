@@ -2,7 +2,7 @@
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
 use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
-use crate::{Event, EventStack, Position, Row, Size, VERSION};
+use crate::{Event, EventStack, Position, Row, Size, VERSION, log};
 use crossterm::event::KeyCode as Key;
 use regex::Regex;
 use std::ffi::OsStr;
@@ -77,6 +77,7 @@ impl Document {
         let path = path.split(':').next().unwrap();
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
+            let tabs = file.contains("\n\t");
             let file = tabs_to_spaces(&file, config.general.tab_width);
             let mut file = file.split('\n').collect::<Vec<&str>>();
             // Handle newline on last line
@@ -112,7 +113,7 @@ impl Document {
                 graphemes: 0,
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
-                tabs: file.contains(&"\n\t"),
+                tabs,
                 last_save_index: 0,
                 true_path,
             })
@@ -494,12 +495,12 @@ impl Document {
                     self.undo_stack.push(event);
                 }
             }
-            Event::Insertion(mut pos, ch) => {
+            Event::Insertion(pos, ch) => {
                 self.dirty = true;
                 self.rows[pos.y].insert(ch, pos.x);
                 self.move_cursor(Key::Right, term);
-                pos.x = pos.x.saturating_add(1);
                 self.goto(pos, term);
+                self.move_cursor(Key::Right, term);
                 if !reversed {
                     self.undo_stack.push(event);
                     if ch == ' ' {
@@ -507,16 +508,17 @@ impl Document {
                     }
                 }
             }
-            Event::Deletion(mut pos, _ch) => {
+            Event::Deletion(pos, _) => {
                 self.dirty = true;
                 self.show_welcome = false;
+                self.recalculate_graphemes();
+                self.goto(pos, term);
                 if reversed {
-                    pos.x = pos.x.saturating_sub(1);
+                    self.move_cursor(Key::Left, term);
                 } else {
                     self.undo_stack.push(event);
                 }
-                self.goto(pos, term);
-                self.rows[pos.y].delete(pos.x);
+                self.rows[pos.y].delete(self.graphemes.saturating_sub(1));
             }
             Event::InsertLineAbove(pos) => {
                 self.dirty = true;
@@ -559,6 +561,7 @@ impl Document {
             }
             _ => (),
         }
+        self.recalculate_graphemes();
     }
     pub fn word_left(&mut self, term: &Size) {
         self.move_cursor(Key::Left, term);
@@ -610,7 +613,8 @@ impl Document {
     }
     pub fn save(&self, path: &str, tab: usize) -> std::io::Result<()> {
         // Save a file
-        let contents = self.render(true, tab);
+        let contents = self.render(self.tabs, tab);
+        log!("Saved file", format!("File tab status is {}", self.tabs));
         fs::write(path, contents)
     }
     pub fn scan(&self, needle: &str, offset: usize) -> Vec<Position> {

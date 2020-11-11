@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::time::{Duration, Instant};
+use unicode_width::UnicodeWidthStr;
 
 // Set up color resets
 pub const RESET_BG: SetBackgroundColor = SetBackgroundColor(Color::Reset);
@@ -190,7 +191,6 @@ impl Editor {
                     // Return key pressed at the end of the line
                     self.execute(Event::InsertLineBelow(current), false);
                     self.execute(Event::MoveCursor(1, Direction::Down), false);
-                    self.doc[self.tab].recalculate_graphemes();
                 } else {
                     // Return key pressed in the middle of the line
                     self.execute(Event::SplitDown(current, current), false);
@@ -211,13 +211,16 @@ impl Editor {
                     } else {
                         // Backspace in the middle of a line
                         let row = self.doc[self.tab].rows[current.y].clone();
-                        let boundaries = row.boundaries();
-                        let chars = row.string.chars();
+                        let chr = if let Some(chr) = row.ext_chars().get(current.x.saturating_sub(1)) {
+                            *chr
+                        } else {
+                            " "
+                        };
                         let current = Position {
-                            x: current.x.saturating_sub(1),
+                            x: current.x.saturating_sub(UnicodeWidthStr::width(chr)),
                             y: current.y,
                         };
-                        Event::Deletion(current, chars.collect::<Vec<_>>()[boundaries[current.x]])
+                        Event::Deletion(current, chr.parse().unwrap_or(' '))
                     },
                     false,
                 );
@@ -503,6 +506,7 @@ impl Editor {
             // Event is a document event, send to current document
             _ => self.doc[self.tab].execute(event, reversed, &self.term.size, &self.config),
         }
+        self.doc[self.tab].recalculate_graphemes();
     }
     fn cmd(&mut self) {
         // Recieve macro command
