@@ -100,11 +100,13 @@ impl Editor {
                     .collect(),
                 );
                 config.0.theme = Theme {
+                    transparent_editor: true,
                     editor_bg: (0, 0, 0),
                     editor_fg: (255, 255, 255),
                     status_bg: (128, 128, 128),
                     status_fg: (0, 0, 0),
                     line_number_fg: (255, 255, 255),
+                    line_number_bg: (0, 0, 0),
                     active_tab_fg: (0, 0, 0),
                     inactive_tab_fg: (255, 255, 255),
                     active_tab_bg: (128, 128, 128),
@@ -957,15 +959,18 @@ impl Editor {
         let pad_right = " ".repeat(
             (self.term.size.width.saturating_sub(1))
                 .saturating_sub(text.len() + pad.len())
-                .saturating_sub(self.config.general.line_number_padding_left),
+                .saturating_sub(self.config.general.line_number_padding_left)
+                .saturating_sub(self.config.general.line_number_padding_right),
         );
         format!(
-            "{}{}{}~{}{}{}{}{}{}",
-            Reader::rgb_bg(self.config.theme.editor_bg),
+            "{}{}{}~{}{}{}{}{}{}{}{}",
+            Reader::rgb_bg(self.config.theme.line_number_bg),
             Reader::rgb_fg(self.config.theme.line_number_fg),
             " ".repeat(self.config.general.line_number_padding_left),
             RESET_FG,
             colour,
+            " ".repeat(self.config.general.line_number_padding_right),
+            Reader::rgb_bg(self.config.theme.editor_bg),
             trim_end(
                 &format!("{}{}", pad, text),
                 self.term.size.width.saturating_sub(2)
@@ -1160,12 +1165,21 @@ impl Editor {
                 )));
             } else {
                 // Render empty lines
+                let o = self.doc[self.tab].line_offset.saturating_sub(
+                    1 +
+                    self.config.general.line_number_padding_right +
+                    self.config.general.line_number_padding_left
+                );
                 frame.push(format!(
                     "{}{}{}",
                     Reader::rgb_fg(self.config.theme.line_number_fg),
                     self.add_background(&format!(
-                        "{}~",
-                        " ".repeat(self.config.general.line_number_padding_left)
+                        "{}{}~{}{}{}",
+                        Reader::rgb_bg(self.config.theme.line_number_bg),
+                        " ".repeat(self.config.general.line_number_padding_left),
+                        " ".repeat(self.config.general.line_number_padding_right),
+                        " ".repeat(o),
+                        Reader::rgb_bg(self.config.theme.editor_bg),
                     )),
                     RESET_FG
                 ));

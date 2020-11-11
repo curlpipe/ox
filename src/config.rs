@@ -146,11 +146,13 @@ pub struct General {
 // Struct for storing theme information
 #[derive(Debug, Deserialize, Clone)]
 pub struct Theme {
+    pub transparent_editor: bool,
     pub editor_bg: (u8, u8, u8),
     pub editor_fg: (u8, u8, u8),
     pub status_bg: (u8, u8, u8),
     pub status_fg: (u8, u8, u8),
     pub line_number_fg: (u8, u8, u8),
+    pub line_number_bg: (u8, u8, u8),
     pub inactive_tab_fg: (u8, u8, u8),
     pub inactive_tab_bg: (u8, u8, u8),
     pub active_tab_fg: (u8, u8, u8),

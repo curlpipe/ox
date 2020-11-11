@@ -1,17 +1,14 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] Themes
-  - [ ] Highlight search and replace messages
-    - [ ] Add token priorities and background tokens
   - [ ] Transparent background
-    - [ ] Add option to configuration file
     - [ ] Strip background colour
+    - [X] Add option to configuration file
   - [ ] Improved language syntax highlighting support
   - [ ] Live / Command for reloading of the config file
     - [ ] Create config reload command
     - [ ] Actually reload the config
-  - [ ] Line number background
-    - [ ] Add to configuration file
-    - [ ] Add to line renderer
+  - [ ] Highlight search and replace messages
+    - [ ] Add token priorities and background tokens
   - [ ] Add more languages
     - [ ] JSON* (easy)
     - [ ] HTML* (easy)
@@ -23,17 +20,11 @@
     - [ ] Java (medium)
     - [ ] TypeScript (medium)
   - [X] Small line specific retokenization for performance
-    - [X] Added edited flag to each line
-      - [X] Update flag on edit
-      - [X] Update flag on retokenization
-    - [X] Only initially render if in view
   - [X] 16 bit colour fallback*
-    - [X] Create 16 bit colours
-    - [X] Detect when fallback is required
-      - [X] Use colours
   - [X] Allow changing of colours of warning, info and error messages in config file
+  - [X] Line number background
     - [X] Add to configuration file
-    - [X] Apply
+    - [X] Add to line renderer
 - [ ] Oxa
   - [ ] Delete word
   - [ ] Move word
@@ -66,7 +57,7 @@
     - [ ] Hide overlay
     - [ ] Handle resizes
   - [ ] Function keys and ctrl+shift keys
-  - [X] Ctrl + Z for undo
+  - [ ] UNIX Keybindings
 - [ ] Searching
   - [ ] Exit search when typing characters and catch up with events
 - [ ] Formatting
@@ -74,22 +65,10 @@
   - [ ] Rustfmt
 - [ ] Update built in config file
 - [X] Rewrite using crossterm for windows support and efficiency*
-  - [X] Properly implement terminal resizing
-  - [X] Build RGB ansi code function
-  - [X] Fix unwrap on terminal size
-  - [X] Update all files
-  - [X] Test and fix issues
 - [X] Undoing
   - [X] Undoing to origin makes file not dirty
-    - [X] Add last save index (0) to document
-    - [X] Set to patch number on save event
-    - [X] Detect when at last save index
-      - [X] Make not dirty
 - [X] CLI
   - [X] Allow jump to lines*
-    - [X] Add to help menu
-    - [X] Parse file name
-    - [X] Jump to line
 - [X] Bug Fixing
   - [X] Fix line deletion runtime error
   - [X] Fix delete line issue
@@ -97,18 +76,10 @@
   - [X] Fix file name issue
   - [X] Fix line 0 deletion errors
   - [X] Add log file
-    - [X] Add support for appending to the log file
-    - [X] Set up log file
   - [X] Fix unicode bug
   - [X] Fix potential tab issues
-    - [X] Reproduce
-    - [X] Fix
   - [X] Fix file hanging*
-    - [X] Reproduce
-    - [X] Fix
   - [X] Fix windows linebreak issue*
-    - [X] Reproduce
-    - [X] Fix
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*

@@ -49,13 +49,15 @@ impl Row {
         );
         // Assemble the line number data
         let line_number = format!(
-            "{}{}{}{}{}{}",
+            "{}{}{}{}{}{}{}{}",
+            Reader::rgb_bg(config.theme.line_number_bg),
             Reader::rgb_fg(config.theme.line_number_fg),
             " ".repeat(config.general.line_number_padding_left),
             " ".repeat(post_padding),
             index,
             " ".repeat(config.general.line_number_padding_right),
             Reader::rgb_fg(config.theme.editor_fg),
+            Reader::rgb_bg(config.theme.editor_bg),
         );
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
