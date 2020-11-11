@@ -1,22 +1,4 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
-- [ ] Bug Fixing
-  - [ ] Fix potential tab issues
-    - [ ] Reproduce
-    - [ ] Fix
-  - [ ] Fix windows linebreak issue*
-    - [ ] Reproduce
-    - [ ] Fix
-  - [ ] Fix file hanging*
-    - [ ] Reproduce
-    - [ ] Fix
-  - [X] Fix line deletion runtime error
-  - [X] Fix delete line issue
-  - [X] Stop hiding welcome screen on resize
-  - [X] Fix file name issue
-  - [X] Fix line 0 deletion errors
-  - [X] Add log file
-    - [X] Add support for appending to the log file
-    - [X] Set up log file
 - [ ] Themes
   - [ ] Allow changing of colours of warning, info and error messages in config file
     - [ ] Add to configuration file
@@ -107,6 +89,25 @@
     - [X] Add to help menu
     - [X] Parse file name
     - [X] Jump to line
+- [X] Bug Fixing
+  - [X] Fix line deletion runtime error
+  - [X] Fix delete line issue
+  - [X] Stop hiding welcome screen on resize
+  - [X] Fix file name issue
+  - [X] Fix line 0 deletion errors
+  - [X] Add log file
+    - [X] Add support for appending to the log file
+    - [X] Set up log file
+  - [X] Fix unicode bug
+  - [X] Fix potential tab issues
+    - [X] Reproduce
+    - [X] Fix
+  - [X] Fix file hanging*
+    - [X] Reproduce
+    - [X] Fix
+  - [X] Fix windows linebreak issue*
+    - [X] Reproduce
+    - [X] Fix
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*

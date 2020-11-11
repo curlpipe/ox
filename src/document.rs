@@ -2,7 +2,7 @@
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
 use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
-use crate::{Event, EventStack, Position, Row, Size, VERSION, log};
+use crate::{log, Event, EventStack, Position, Row, Size, VERSION};
 use crossterm::event::KeyCode as Key;
 use regex::Regex;
 use std::ffi::OsStr;
@@ -77,9 +77,14 @@ impl Document {
         let path = path.split(':').next().unwrap();
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
-            let tabs = file.contains("\n\t");
+            let delimeter = if Document::is_dos(&file) {
+                "\r\n"
+            } else {
+                "\n"
+            };
+            let tabs = file.contains(&format!("{}\t", delimeter));
             let file = tabs_to_spaces(&file, config.general.tab_width);
-            let mut file = file.split('\n').collect::<Vec<&str>>();
+            let mut file = file.split(delimeter).collect::<Vec<&str>>();
             // Handle newline on last line
             if let Some(line) = file.iter().last() {
                 if line.is_empty() {
@@ -127,9 +132,11 @@ impl Document {
         let true_path = path.to_string();
         let path = path.split(':').next().unwrap();
         if let Some(doc) = Document::open(&config, &status, &true_path) {
+            log!("Opening file", "File was found");
             doc
         } else {
             // Create blank document
+            log!("Opening file", "File not found");
             let ext = path.split('.').last().unwrap_or(&"");
             Self {
                 rows: vec![Row::from("")],
@@ -153,6 +160,12 @@ impl Document {
                 true_path,
             }
         }
+    }
+    pub fn is_dos(contents: &str) -> bool {
+        // Detect DOS line ending
+        let dos = contents.ends_with("\r\n");
+        log!("Is DOS line ending", dos);
+        dos
     }
     pub fn correct_path(&mut self, term: &Size) {
         if self.true_path.contains(':') {

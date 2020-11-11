@@ -211,11 +211,12 @@ impl Editor {
                     } else {
                         // Backspace in the middle of a line
                         let row = self.doc[self.tab].rows[current.y].clone();
-                        let chr = if let Some(chr) = row.ext_chars().get(current.x.saturating_sub(1)) {
-                            *chr
-                        } else {
-                            " "
-                        };
+                        let chr =
+                            if let Some(chr) = row.ext_chars().get(current.x.saturating_sub(1)) {
+                                *chr
+                            } else {
+                                " "
+                            };
                         let current = Position {
                             x: current.x.saturating_sub(UnicodeWidthStr::width(chr)),
                             y: current.y,
