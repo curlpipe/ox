@@ -64,6 +64,9 @@
         active_tab_bg:    (41, 41, 61), //  The background color of the active tab
         inactive_tab_fg:  (255, 255, 255), // The text color of the inactive tab(s)
         inactive_tab_bg:  (59, 59, 84), // The text color of the inactive tab(s)
+        warning_fg:       (208, 164, 79), // Text colour of the warning message
+        error_fg:       (224, 113, 113), // Text colour of the warning message
+        info_fg:       (255, 255, 255), // Text colour of the warning message
         default_theme:    "default", // The default syntax highlights to use
         fallback:         true, // Enables use of fallback themes (if detected)
     ),

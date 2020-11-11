@@ -155,6 +155,9 @@ pub struct Theme {
     pub inactive_tab_bg: (u8, u8, u8),
     pub active_tab_fg: (u8, u8, u8),
     pub active_tab_bg: (u8, u8, u8),
+    pub warning_fg: (u8, u8, u8),
+    pub error_fg: (u8, u8, u8),
+    pub info_fg: (u8, u8, u8),
     pub default_theme: String,
     pub fallback: bool,
 }

@@ -1,8 +1,5 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] Themes
-  - [ ] Allow changing of colours of warning, info and error messages in config file
-    - [ ] Add to configuration file
-    - [ ] Apply
   - [ ] Highlight search and replace messages
     - [ ] Add token priorities and background tokens
   - [ ] Transparent background
@@ -34,6 +31,9 @@
     - [X] Create 16 bit colours
     - [X] Detect when fallback is required
       - [X] Use colours
+  - [X] Allow changing of colours of warning, info and error messages in config file
+    - [X] Add to configuration file
+    - [X] Apply
 - [ ] Oxa
   - [ ] Delete word
   - [ ] Move word
@@ -72,6 +72,7 @@
 - [ ] Formatting
   - [ ] Clippy
   - [ ] Rustfmt
+- [ ] Update built in config file
 - [X] Rewrite using crossterm for windows support and efficiency*
   - [X] Properly implement terminal resizing
   - [X] Build RGB ansi code function

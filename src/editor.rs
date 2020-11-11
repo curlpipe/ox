@@ -109,6 +109,9 @@ impl Editor {
                     inactive_tab_fg: (255, 255, 255),
                     active_tab_bg: (128, 128, 128),
                     inactive_tab_bg: (0, 0, 0),
+                    warning_fg: (255, 255, 0),
+                    error_fg: (255, 0, 0),
+                    info_fg: (255, 255, 255),
                     default_theme: "16fallback".to_string(),
                     fallback: true,
                 };
@@ -1013,7 +1016,7 @@ impl Editor {
             Type::Error => self.add_background(&format!(
                 "{}{}{}{}{}",
                 Attribute::Bold,
-                SetForegroundColor(Color::Red),
+                Reader::rgb_fg(self.config.theme.error_fg),
                 self.add_background(&trim_end(&line, self.term.size.width)),
                 RESET_FG,
                 Attribute::Reset
@@ -1021,12 +1024,17 @@ impl Editor {
             Type::Warning => self.add_background(&format!(
                 "{}{}{}{}{}",
                 Attribute::Bold,
-                SetForegroundColor(Color::Yellow),
+                Reader::rgb_fg(self.config.theme.warning_fg),
                 self.add_background(&trim_end(&line, self.term.size.width)),
                 RESET_FG,
                 Attribute::Reset
             )),
-            Type::Info => self.add_background(&trim_end(&line, self.term.size.width)),
+            Type::Info => self.add_background(&format!(
+                "{}{}{}",
+                Reader::rgb_fg(self.config.theme.info_fg),
+                self.add_background(&trim_end(&line, self.term.size.width)),
+                RESET_FG,
+            )),
         }
     }
     fn tab_line(&mut self) -> String {
