@@ -1,6 +1,6 @@
 // Row.rs - Handling the rows of a document and their appearance
 use crate::config::{Reader, TokenType};
-use crate::editor::RESET_FG;
+use crate::editor::{RESET_BG, RESET_FG};
 use crate::highlight::{highlight, remove_nested_tokens, Token};
 use crate::util::Exp;
 use std::collections::HashMap;
@@ -50,14 +50,22 @@ impl Row {
         // Assemble the line number data
         let line_number = format!(
             "{}{}{}{}{}{}{}{}",
-            Reader::rgb_bg(config.theme.line_number_bg),
+            if config.theme.transparent_editor {
+                RESET_BG
+            } else {
+                Reader::rgb_bg(config.theme.line_number_bg)
+            },
             Reader::rgb_fg(config.theme.line_number_fg),
             " ".repeat(config.general.line_number_padding_left),
             " ".repeat(post_padding),
             index,
             " ".repeat(config.general.line_number_padding_right),
             Reader::rgb_fg(config.theme.editor_fg),
-            Reader::rgb_bg(config.theme.editor_bg),
+            if config.theme.transparent_editor {
+                RESET_BG
+            } else {
+                Reader::rgb_bg(config.theme.editor_bg)
+            },
         );
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);

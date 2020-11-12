@@ -955,7 +955,13 @@ impl Editor {
     }
     fn welcome_message(&self, text: &str, colour: SetForegroundColor) -> String {
         // Render the welcome message
-        let pad = " ".repeat((self.term.size.width / 2).saturating_sub(text.len() / 2));
+        let pad = " ".repeat(
+            (self.term.size.width / 2)
+                .saturating_sub(text.len() / 2)
+                .saturating_sub(self.config.general.line_number_padding_right)
+                .saturating_sub(self.config.general.line_number_padding_left)
+                .saturating_sub(1),
+        );
         let pad_right = " ".repeat(
             (self.term.size.width.saturating_sub(1))
                 .saturating_sub(text.len() + pad.len())
@@ -964,16 +970,24 @@ impl Editor {
         );
         format!(
             "{}{}{}~{}{}{}{}{}{}{}{}",
-            Reader::rgb_bg(self.config.theme.line_number_bg),
+            if self.config.theme.transparent_editor {
+                RESET_BG
+            } else {
+                Reader::rgb_bg(self.config.theme.line_number_bg)
+            },
             Reader::rgb_fg(self.config.theme.line_number_fg),
             " ".repeat(self.config.general.line_number_padding_left),
             RESET_FG,
             colour,
             " ".repeat(self.config.general.line_number_padding_right),
-            Reader::rgb_bg(self.config.theme.editor_bg),
+            if self.config.theme.transparent_editor {
+                RESET_BG
+            } else {
+                Reader::rgb_bg(self.config.theme.editor_bg)
+            },
             trim_end(
                 &format!("{}{}", pad, text),
-                self.term.size.width.saturating_sub(2)
+                self.term.size.width.saturating_sub(4)
             ),
             pad_right,
             RESET_FG,
@@ -1005,13 +1019,17 @@ impl Editor {
     }
     fn add_background(&self, text: &str) -> String {
         // Add a background colour to a line
-        format!(
-            "{}{}{}{}",
-            Reader::rgb_bg(self.config.theme.editor_bg),
-            text,
-            self.term.align_left(&text),
-            RESET_BG
-        )
+        if self.config.theme.transparent_editor {
+            text.to_string()
+        } else {
+            format!(
+                "{}{}{}{}",
+                Reader::rgb_bg(self.config.theme.editor_bg),
+                text,
+                self.term.align_left(&text),
+                RESET_BG
+            )
+        }
     }
     fn command_line(&self) -> String {
         // Render the command line
@@ -1059,15 +1077,15 @@ impl Editor {
                         "{}{}{}",
                         Attribute::Bold,
                         active_background,
-                        active_foreground
+                        active_foreground,
                     )
                 } else {
-                    format!("{}{}", inactive_background, inactive_foreground)
+                    format!("{}{}", inactive_background, inactive_foreground,)
                 },
                 self.doc[num].format(&self.config.general.tab),
                 Attribute::Reset,
-                inactive_background.to_string(),
-                inactive_foreground.to_string(),
+                inactive_background,
+                inactive_foreground,
             );
             widths.push(self.exp.ansi_len(this.as_str()));
             result.push(this);
@@ -1090,8 +1108,8 @@ impl Editor {
         let result = result.join("");
         format!(
             "{}{}{}{}{}{}",
-            Reader::rgb_bg(self.config.theme.inactive_tab_bg),
-            Reader::rgb_fg(self.config.theme.inactive_tab_fg),
+            inactive_background,
+            inactive_foreground,
             result,
             self.term.align_left(&result),
             RESET_FG,
@@ -1104,7 +1122,9 @@ impl Editor {
         let mut frame = vec![self.tab_line()];
         let rendered = self.doc[self.tab].render(false, 0);
         let reg = self.doc[self.tab].regex.clone();
+        Terminal::clear();
         for row in OFFSET..self.term.size.height {
+            // Clear the current line
             let row = row.saturating_sub(OFFSET);
             if let Some(r) = self.doc[self.tab].rows.get_mut(offset.y + row) {
                 if r.updated {
@@ -1166,16 +1186,19 @@ impl Editor {
             } else {
                 // Render empty lines
                 let o = self.doc[self.tab].line_offset.saturating_sub(
-                    1 +
-                    self.config.general.line_number_padding_right +
-                    self.config.general.line_number_padding_left
+                    1 + self.config.general.line_number_padding_right
+                        + self.config.general.line_number_padding_left,
                 );
                 frame.push(format!(
                     "{}{}{}",
                     Reader::rgb_fg(self.config.theme.line_number_fg),
                     self.add_background(&format!(
                         "{}{}~{}{}{}",
-                        Reader::rgb_bg(self.config.theme.line_number_bg),
+                        if self.config.theme.transparent_editor {
+                            RESET_BG
+                        } else {
+                            Reader::rgb_bg(self.config.theme.line_number_bg)
+                        },
                         " ".repeat(self.config.general.line_number_padding_left),
                         " ".repeat(self.config.general.line_number_padding_right),
                         " ".repeat(o),

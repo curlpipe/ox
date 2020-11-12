@@ -53,6 +53,9 @@ impl Terminal {
     pub fn show_cursor() {
         execute!(stdout(), crossterm::cursor::Show).unwrap();
     }
+    pub fn clear() {
+        execute!(stdout(), terminal::Clear(terminal::ClearType::All)).unwrap();
+    }
     pub fn align_break(&self, l: &str, r: &str) -> String {
         // Align two items to the left and right
         let left_length = UnicodeWidthStr::width(l);
