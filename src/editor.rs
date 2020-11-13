@@ -281,9 +281,10 @@ impl Editor {
                     height: height as usize,
                 };
                 // Move cursor if needed
-                if self.doc[self.tab].cursor.y > self.term.size.height.saturating_sub(3) {
+                let size = self.term.size.height.saturating_sub(3);
+                if self.doc[self.tab].cursor.y > size && size != 0 {
                     // Prevent cursor going off the screen and breaking everything
-                    self.doc[self.tab].cursor.y = self.term.size.height.saturating_sub(3);
+                    self.doc[self.tab].cursor.y = size;
                 }
                 // Re-render everything to the new size
                 self.update();

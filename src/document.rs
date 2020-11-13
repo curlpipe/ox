@@ -225,7 +225,7 @@ impl Document {
             .replace("%n", &self.kind)
             .replace(
                 "%l",
-                &format!("{}", self.cursor.y + self.offset.y - OFFSET + 1),
+                &format!("{}", self.cursor.y + self.offset.y.saturating_sub(OFFSET) + 1),
             )
             .replace("%L", &format!("{}", self.rows.len()))
             .replace("%x", &format!("{}", self.cursor.x + self.offset.x))

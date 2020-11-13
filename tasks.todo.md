@@ -1,8 +1,5 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] Themes
-  - [ ] Transparent background
-    - [ ] Strip background colour
-    - [X] Add option to configuration file
   - [ ] Improved language syntax highlighting support
   - [ ] Live / Command for reloading of the config file
     - [ ] Create config reload command
@@ -25,6 +22,9 @@
   - [X] Line number background
     - [X] Add to configuration file
     - [X] Add to line renderer
+  - [X] Transparent background
+    - [X] Add option to configuration file
+    - [X] Strip background colour
 - [ ] Oxa
   - [ ] Delete word
   - [ ] Move word
@@ -92,6 +92,7 @@
 - [ ] Deleting left bracket removes other bracket
 - [ ] Look to add support for background colors in status and tab line
 - [ ] Allow full transparency of editing components
+- [ ] Allow file type argument to be passed
 - [ ] Cursor in status line
 - [ ] Adding support for many popular languages
   - [ ] Swift (medium)
