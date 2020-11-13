@@ -1123,7 +1123,10 @@ impl Editor {
         let mut frame = vec![self.tab_line()];
         let rendered = self.doc[self.tab].render(false, 0);
         let reg = self.doc[self.tab].regex.clone();
-        Terminal::clear();
+        if self.config.theme.transparent_editor {
+            // Prevent garbage characters spamming the screen
+            Terminal::clear();
+        }
         for row in OFFSET..self.term.size.height {
             // Clear the current line
             let row = row.saturating_sub(OFFSET);

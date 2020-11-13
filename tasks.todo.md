@@ -80,6 +80,7 @@
   - [X] Fix potential tab issues
   - [X] Fix file hanging*
   - [X] Fix windows linebreak issue*
+  - [X] Fix resize bugs
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*

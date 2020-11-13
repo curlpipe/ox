@@ -44,5 +44,9 @@ pub fn main() -> String {
 	}
 
 	let new_age = age * 2;
+	new_age += 3;
+	
+	if new_age == 4 {}
+	
 	return "Hello World!";
 }
