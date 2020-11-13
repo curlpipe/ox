@@ -382,27 +382,29 @@ impl Document {
     fn splice_up(&mut self, pos: &Position, reversed: bool, term: &Size, other: &Position) {
         // Splice the line up to the next
         self.dirty = true;
-        let above = self.rows[pos.y.saturating_sub(1)].clone();
-        let current = self.rows[pos.y].clone();
-        let new = format!("{}{}", above.string, current.string);
-        self.rows[pos.y.saturating_sub(1)] = Row::from(&new[..]);
-        self.rows.remove(pos.y);
-        if reversed {
-            self.goto(*other, term);
-        } else {
-            let other = Position {
-                x: above.length(),
-                y: pos.y.saturating_sub(1),
-            };
-            self.goto(
-                Position {
-                    x: other.x,
-                    y: other.y,
-                },
-                term,
-            );
-            self.undo_stack.push(Event::SpliceUp(*pos, other));
-            self.undo_stack.commit();
+        let current = self.rows.get(pos.y).map(|a| a.clone());
+        let above = self.rows.get(pos.y.saturating_sub(1)).map(Row::clone);
+        if let (Some(above), Some(current)) = (above, current) {
+            let new = format!("{}{}", above.string, current.string);
+            self.rows[pos.y.saturating_sub(1)] = Row::from(&new[..]);
+            self.rows.remove(pos.y);
+            if reversed {
+                self.goto(*other, term);
+            } else {
+                let other = Position {
+                    x: above.length(),
+                    y: pos.y.saturating_sub(1),
+                };
+                self.goto(
+                    Position {
+                        x: other.x,
+                        y: other.y,
+                    },
+                    term,
+                );
+                self.undo_stack.push(Event::SpliceUp(*pos, other));
+                self.undo_stack.commit();
+            }
         }
     }
     fn split_down(&mut self, pos: &Position, reversed: bool, term: &Size, other: &Position) {
@@ -452,7 +454,11 @@ impl Document {
             }
             Event::Insertion(mut pos, ch) => {
                 self.dirty = true;
-                self.rows[pos.y].insert(ch, pos.x);
+                if self.rows.is_empty() {
+                    self.rows.push(Row::from(String::from(ch).as_str()));
+                } else {
+                    self.rows[pos.y].insert(ch, pos.x);
+                }
                 self.move_cursor(Key::Right, term);
                 pos.x = pos.x.saturating_add(1);
                 self.goto(pos, term);
