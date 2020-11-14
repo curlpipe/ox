@@ -1,11 +1,12 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] Themes
-  - [ ] Improved language syntax highlighting support
   - [ ] Live / Command for reloading of the config file
     - [ ] Create config reload command
     - [ ] Actually reload the config
   - [ ] Highlight search and replace messages
-    - [ ] Add token priorities and background tokens
+    - [ ] Add background tokens
+    - [ ] Apply those tokens
+    - [X] Add token priorities
   - [ ] Add more languages
     - [ ] JSON* (easy)
     - [ ] HTML* (easy)
@@ -25,6 +26,13 @@
   - [X] Transparent background
     - [X] Add option to configuration file
     - [X] Strip background colour
+  - [X] Improved language syntax highlighting support
+    - [X] Rust
+    - [X] Ruby
+    - [X] Crystal
+    - [X] Python
+    - [X] Javascript
+    - [X] C
 - [ ] Oxa
   - [ ] Delete word
   - [ ] Move word
