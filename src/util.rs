@@ -1,5 +1,4 @@
 // Util.rs - Utilities for the rest of the program
-use crate::Position;
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -53,24 +52,6 @@ pub fn trim_end(text: &str, end: usize) -> String {
         }
     }
     result.join("")
-}
-
-pub fn is_behind(current: &Position, position: &Position) -> bool {
-    // Determine whether a position is behind the cursor
-    if position.y > current.y {
-        false
-    } else {
-        !(position.y == current.y && current.x <= position.x)
-    }
-}
-
-pub fn is_ahead(current: &Position, position: &Position) -> bool {
-    // Determine whether a position is ahead the cursor
-    if position.y < current.y {
-        false
-    } else {
-        !(position.y == current.y && current.x >= position.x)
-    }
 }
 
 pub fn line_offset(point: usize, offset: i128, limit: usize) -> usize {

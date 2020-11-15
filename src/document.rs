@@ -624,20 +624,67 @@ impl Document {
         log!("Saved file", format!("File tab status is {}", self.tabs));
         fs::write(path, contents)
     }
-    pub fn scan(&self, needle: &str, offset: usize) -> Vec<Position> {
-        // Find all the points where "needle" occurs
+    pub fn find_prev(&self, needle: &str, current: &Position) -> Option<Position> {
+        // Find all the points where "needle" occurs before the current position
+        let re = Regex::new(needle).ok()?;
+        for (c, r) in self.rows.iter()
+            .take(current.y + 1)
+            .map(|x| x.string.as_str())
+            .enumerate()
+            .rev()
+        {
+            for i in re.captures_iter(r) {
+                for cap in 0..i.len() {
+                    let cap = i.get(cap).unwrap();
+                    if !(c == current.y && cap.start() >= current.x) {
+                        return Some(Position { 
+                            x: cap.start(),
+                            y: c,
+                        });
+                    }
+                }
+            }
+        }
+        None
+    }
+    pub fn find_next(&self, needle: &str, current: &Position) -> Option<Position> {
+        // Find all the points where "needle" occurs after the current position
+        let re = Regex::new(needle).ok()?;
+        for (c, r) in self.rows.iter()
+            .skip(current.y)
+            .map(|x| x.string.as_str())
+            .enumerate() 
+        {
+            for i in re.captures_iter(r) {
+                for cap in 0..i.len() {
+                    let cap = i.get(cap).unwrap();
+                    if c != 0 || cap.start() > current.x {
+                        return Some(Position { 
+                            x: cap.start(),
+                            y: current.y + c,
+                        });
+                    }
+                }
+            }
+        }
+        None
+    }
+    pub fn find_all(&self, needle: &str) -> Option<Vec<Position>> {
+        // Find all the places where the needle is
         let mut result = vec![];
-        if let Ok(re) = Regex::new(needle) {
-            for (i, row) in self.rows.iter().enumerate() {
-                for o in re.find_iter(&row.string) {
+        let re  = Regex::new(needle).ok()?;
+        for (c, r) in self.rows.iter().map(|x| x.string.to_string()).enumerate() {
+            for i in re.captures_iter(&r) {
+                for cap in 0..i.len() {
+                    let cap = i.get(cap).unwrap();
                     result.push(Position {
-                        x: o.start(),
-                        y: i + offset,
+                        x: cap.start(),
+                        y: c,
                     });
                 }
             }
         }
-        result
+        Some(result)
     }
     pub fn render(&self, replace_tab: bool, tab_width: usize) -> String {
         // Render the lines of a document for writing

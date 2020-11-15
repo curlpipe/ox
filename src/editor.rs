@@ -3,7 +3,7 @@ use crate::config::{KeyBinding, Reader, Status, Theme};
 use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
-use crate::util::{is_ahead, is_behind, title, trim_end, Exp};
+use crate::util::{title, trim_end, Exp};
 use crate::{log, Document, Event, Row, Size, Terminal, VERSION};
 use clap::App;
 use crossterm::event::{Event as InputEvent, KeyCode, KeyEvent, KeyModifiers};
@@ -82,6 +82,7 @@ impl Editor {
                     [
                         ("comments".to_string(), (128, 128, 128)),
                         ("keywords".to_string(), (0, 0, 255)),
+                        ("namespaces".to_string(), (0, 0, 255)),
                         ("references".to_string(), (0, 0, 128)),
                         ("strings".to_string(), (0, 128, 0)),
                         ("characters".to_string(), (0, 128, 128)),
@@ -94,13 +95,16 @@ impl Editor {
                         ("headers".to_string(), (0, 128, 128)),
                         ("symbols".to_string(), (128, 128, 0)),
                         ("global".to_string(), (0, 255, 0)),
+                        ("operators".to_string(), (0, 128, 128)),
+                        ("regex".to_string(), (0, 255, 0)),
+                        ("searching".to_string(),  (47, 141, 252)),
                     ]
                     .iter()
                     .cloned()
                     .collect(),
                 );
                 config.0.theme = Theme {
-                    transparent_editor: true,
+                    transparent_editor: false,
                     editor_bg: (0, 0, 0),
                     editor_fg: (255, 255, 255),
                     status_bg: (128, 128, 128),
@@ -517,7 +521,11 @@ impl Editor {
     }
     fn cmd(&mut self) {
         // Recieve macro command
-        if let Some(command) = self.prompt(":", "", &|_, _, _| {}) {
+        if let Some(command) = self.prompt(":", "", &|s, e, _| {
+            if let PromptEvent::KeyPress(KeyCode::Esc) = e {
+                s.doc[s.tab].set_command_line("".to_string(), Type::Info);
+            }
+        }) {
             // Parse and Lex instruction
             for command in command.split('|') {
                 self.text_to_event(command);
@@ -628,73 +636,34 @@ impl Editor {
         // Ask for a search term after saving the current cursor position
         self.prompt("Search", ": ", &|s, e, t| {
             // Find all occurances in the document
-            let search_points = s.doc[s.tab].scan(t, OFFSET);
-            let cursor = s.doc[s.tab].cursor;
-            let offset = s.doc[s.tab].offset;
+            let current = Position {
+                x: s.doc[s.tab].cursor.x + s.doc[s.tab].offset.x,
+                y: s.doc[s.tab].cursor.y + s.doc[s.tab].offset.y - OFFSET,
+            };
             match e {
-                PromptEvent::KeyPress(k) => match k {
-                    KeyCode::Left | KeyCode::Up => {
-                        // User wants to search backwards
-                        for p in search_points.iter().rev() {
-                            if is_behind(
-                                &Position {
-                                    x: cursor.x + offset.x,
-                                    y: cursor.y + offset.y,
-                                },
-                                &p,
-                            ) {
-                                s.doc[s.tab].goto(*p, &s.term.size);
-                                s.doc[s.tab].recalculate_graphemes();
-                                break;
-                            }
+                PromptEvent::KeyPress(c) => match c {
+                    KeyCode::Up | KeyCode::Left => {
+                        if let Some(p) = s.doc[s.tab].find_prev(t, &current) {
+                            s.doc[s.tab].goto(p, &s.term.size);
                         }
                     }
-                    KeyCode::Right | KeyCode::Down => {
-                        // User wants to search forwards
-                        for p in search_points {
-                            if is_ahead(
-                                &Position {
-                                    x: cursor.x + offset.x,
-                                    y: cursor.y + offset.y,
-                                },
-                                &p,
-                            ) {
-                                s.doc[s.tab].goto(p, &s.term.size);
-                                s.doc[s.tab].recalculate_graphemes();
-                                break;
-                            }
+                    KeyCode::Down | KeyCode::Right => {
+                        if let Some(p) = s.doc[s.tab].find_next(t, &current) {
+                            s.doc[s.tab].goto(p, &s.term.size);
                         }
                     }
                     KeyCode::Esc => {
-                        // Restore cursor and offset position
                         s.doc[s.tab].cursor = initial_cursor;
                         s.doc[s.tab].offset = initial_offset;
-                        s.doc[s.tab].recalculate_graphemes();
                     }
                     _ => (),
-                },
+                }
                 PromptEvent::CharPress => {
-                    // When the user is typing the search query
-                    s.doc[s.tab].cursor = initial_cursor;
-                    s.doc[s.tab].offset = initial_offset;
-                    if t != "" {
-                        // Search forward as the user searches
-                        for p in search_points {
-                            if is_ahead(
-                                &Position {
-                                    x: cursor.x + offset.x,
-                                    y: cursor.y + offset.y,
-                                },
-                                &p,
-                            ) {
-                                s.doc[s.tab].goto(p, &s.term.size);
-                                s.doc[s.tab].recalculate_graphemes();
-                                break;
-                            }
-                        }
+                    if let Some(p) = s.doc[s.tab].find_next(t, &current) {
+                        s.doc[s.tab].goto(p, &s.term.size);
                     }
                 }
-                PromptEvent::Update => (),
+                _ => (),
             }
         });
         // User cancelled or found what they were looking for
@@ -704,153 +673,107 @@ impl Editor {
         // Replace text within the document
         let initial_cursor = self.doc[self.tab].cursor;
         let initial_offset = self.doc[self.tab].offset;
+        let current = Position {
+            x: self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x,
+            y: self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET,
+        };
         // After saving the cursor position, ask the user for the information
         if let Some(target) = self.prompt("Replace", ": ", &|_, _, _| {}) {
+            let re = if let Ok(re) = Regex::new(&target) {
+                re
+            } else {
+                self.doc[self.tab].set_command_line("Invalid Regex".to_string(), Type::Error);
+                return
+            };
             if let Some(arrow) = self.prompt("With", ": ", &|_, _, _| {}) {
-                // Construct a regular expression for searching
-                let re = Regex::new(&target).unwrap();
-                let mut search_points = self.doc[self.tab].scan(&target, OFFSET);
-                // Search forward as the user types
-                for p in &search_points {
-                    if is_ahead(
-                        &Position {
-                            x: self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x,
-                            y: self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y,
-                        },
-                        &p,
-                    ) {
-                        self.doc[self.tab].goto(*p, &self.term.size);
-                        self.doc[self.tab].recalculate_graphemes();
-                        self.update();
-                        break;
-                    }
+                if let Some(p) = self.doc[self.tab].find_next(&target, &current) {
+                    self.doc[self.tab].goto(p, &self.term.size);
+                    self.update();
                 }
                 loop {
-                    // Handle key press events while in replace mode
+                    // Read an event
                     let key = if let InputEvent::Key(key) = self.read_event() {
-                        if key.modifiers == KeyModifiers::NONE {
-                            key
-                        } else {
-                            continue;
-                        }
+                        key
                     } else {
-                        continue;
+                        continue
+                    };
+                    let current = Position {
+                        x: self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x,
+                        y: self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET,
                     };
                     match key.code {
                         KeyCode::Up | KeyCode::Left => {
-                            // User wishes to search backwards
-                            for p in (&search_points).iter().rev() {
-                                if is_behind(
-                                    &Position {
-                                        x: self.doc[self.tab].cursor.x
-                                            + self.doc[self.tab].offset.x,
-                                        y: self.doc[self.tab].cursor.y
-                                            + self.doc[self.tab].offset.y,
-                                    },
-                                    &p,
-                                ) {
-                                    self.doc[self.tab].goto(*p, &self.term.size);
-                                    self.doc[self.tab].recalculate_graphemes();
-                                    self.update();
-                                    break;
-                                }
+                            if let Some(p) = self.doc[self.tab].find_prev(&target, &current) {
+                                self.doc[self.tab].goto(p, &self.term.size);
                             }
                         }
                         KeyCode::Down | KeyCode::Right => {
-                            // User wishes to search forwards
-                            for p in &search_points {
-                                if is_ahead(
-                                    &Position {
-                                        x: self.doc[self.tab].cursor.x
-                                            + self.doc[self.tab].offset.x,
-                                        y: self.doc[self.tab].cursor.y
-                                            + self.doc[self.tab].offset.y
-                                            - OFFSET,
-                                    },
-                                    &p,
-                                ) {
-                                    self.doc[self.tab].goto(*p, &self.term.size);
-                                    self.doc[self.tab].recalculate_graphemes();
-                                    self.update();
-                                    break;
-                                }
+                            if let Some(p) = self.doc[self.tab].find_next(&target, &current) {
+                                self.doc[self.tab].goto(p, &self.term.size);
                             }
                         }
-                        KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char(' ') => {
-                            let cursor = self.doc[self.tab].cursor;
-                            let offset = self.doc[self.tab].offset;
-                            // Commit current changes to undo stack
+                        KeyCode::Char('y') | KeyCode::Enter | KeyCode::Char(' ') => {
                             self.doc[self.tab].undo_stack.commit();
-                            // Calculate the new line after the replacement
-                            let line = self.doc[self.tab].rows[self.doc[self.tab].cursor.y
-                                + self.doc[self.tab].offset.y
-                                - OFFSET]
-                                .clone();
-                            let before = self.doc[self.tab].rows[self.doc[self.tab].cursor.y
-                                + self.doc[self.tab].offset.y
-                                - OFFSET]
-                                .clone();
-                            let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
-                            // Check there was actually a change
+                            let before = self.doc[self.tab].rows[current.y].clone();
+                            let after = Row::from(&*re.replace_all(&before.string, &arrow[..]));
+                            self.doc[self.tab].rows[current.y] = after.clone();
                             if before.string != after.string {
-                                // Push the replace event to the undo stack
                                 self.doc[self.tab].undo_stack.push(Event::UpdateLine(
-                                    Position {
-                                        x: cursor.x + offset.x,
-                                        y: cursor.y + offset.y - OFFSET,
-                                    },
+                                    current,
                                     0,
-                                    Box::new(before.clone()),
-                                    Box::new(after.clone()),
+                                    Box::new(before),
+                                    Box::new(after),
                                 ));
-                                self.doc[self.tab].rows[cursor.y + offset.y - OFFSET] = after;
                             }
-                            self.update();
-                            self.doc[self.tab].snap_cursor(&self.term.size);
-                            self.doc[self.tab].prevent_unicode_hell();
-                            self.doc[self.tab].recalculate_graphemes();
-                            // Update search locations
-                            search_points = self.doc[self.tab].scan(&target, OFFSET);
                         }
-                        KeyCode::Esc => break,
+                        KeyCode::Esc => {
+                            self.doc[self.tab].cursor = initial_cursor;
+                            self.doc[self.tab].offset = initial_offset;
+                            self.doc[self.tab].set_command_line(
+                                "Replace finished".to_string(), 
+                                Type::Info
+                            );
+                            break;
+                        }
                         _ => (),
                     }
+                    self.update();
                 }
-                // Restore cursor position and exit
-                self.doc[self.tab].cursor = initial_cursor;
-                self.doc[self.tab].offset = initial_offset;
-                self.doc[self.tab].set_command_line("Replace finished".to_string(), Type::Info);
             }
         }
     }
     fn replace_all(&mut self) {
         // Replace all occurances of a substring
-        if let Some(target) = self.prompt("Replace", ": ", &|_, _, _| {}) {
+        if let Some(target) = self.prompt("Replace all", ": ", &|_, _, _| {}) {
+            let re = if let Ok(re) = Regex::new(&target) {
+                re
+            } else {
+                return
+            };
             if let Some(arrow) = self.prompt("With", ": ", &|_, _, _| {}) {
-                // Commit undo stack changes
-                self.doc[self.tab].undo_stack.commit();
-                let re = Regex::new(&target).unwrap();
-                let lines = self.doc[self.tab].rows.clone();
-                // Replace every occurance
-                for (c, line) in lines.iter().enumerate() {
-                    let before = self.doc[self.tab].rows[c].clone();
-                    let after = Row::from(&*re.replace_all(&line.string[..], &arrow[..]));
+                // Find all occurances
+                let search_points = if let Some(t) = self.doc[self.tab].find_all(&target) {
+                    t
+                } else {
+                    vec![]
+                };
+                for p in search_points {
+                    let before = self.doc[self.tab].rows[p.y].clone();
+                    let after = Row::from(&*re.replace_all(&before.string, &arrow[..]));
+                    self.doc[self.tab].rows[p.y] = after.clone();
                     if before.string != after.string {
                         self.doc[self.tab].undo_stack.push(Event::UpdateLine(
-                            Position { x: 0, y: c },
+                            Position { x: 0, y: p.y },
                             0,
-                            Box::new(before.clone()),
-                            Box::new(after.clone()),
+                            Box::new(before),
+                            Box::new(after),
                         ));
-                        self.doc[self.tab].rows[c] = after;
                     }
                 }
             }
         }
-        self.doc[self.tab].snap_cursor(&self.term.size);
-        self.doc[self.tab].prevent_unicode_hell();
-        self.doc[self.tab].recalculate_graphemes();
-        self.doc[self.tab].set_command_line("Replaced targets".to_string(), Type::Info);
+        // Exit message
+        self.doc[self.tab].set_command_line("Replace finished".to_string(), Type::Info);
     }
     fn dirty_prompt(&mut self, key: char, subject: &str) -> bool {
         // For events that require changes to the document

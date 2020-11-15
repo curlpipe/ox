@@ -1,7 +1,7 @@
 // Row.rs - Handling the rows of a document and their appearance
 use crate::config::{Reader, TokenType};
 use crate::editor::{RESET_BG, RESET_FG};
-use crate::highlight::{highlight, remove_nested_tokens, Token};
+use crate::highlight::{highlight, remove_nested_tokens, Token, ColourGround};
 use crate::util::Exp;
 use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation;
@@ -106,7 +106,13 @@ impl Row {
                             break 'a;
                         }
                     }
-                    result.push_str(&RESET_FG.to_string());
+                    if let ColourGround::Fg = t.ground {
+                        result.push_str(&RESET_FG.to_string());
+                    } else if config.theme.transparent_editor {
+                        result.push_str(&RESET_BG.to_string());
+                    } else {
+                        result.push_str(&Reader::rgb_bg(config.theme.editor_bg).to_string());
+                    }
                 } else if let Some(ch) = dna.get(&start) {
                     // There is a character here
                     if start + UnicodeWidthStr::width(*ch) > end {
@@ -141,7 +147,11 @@ impl Row {
                             real += i.len();
                             ch += UnicodeWidthStr::width(i);
                         }
-                        result.insert_str(real, &RESET_FG.to_string());
+                        if let ColourGround::Fg = t.ground {
+                            result.insert_str(real, &RESET_FG.to_string());
+                        } else {
+                            result.insert_str(real, &RESET_BG.to_string());
+                        }
                         result.insert_str(0, &t.kind);
                     }
                 }

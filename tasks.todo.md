@@ -4,9 +4,9 @@
     - [ ] Create config reload command
     - [ ] Actually reload the config
   - [ ] Highlight search and replace messages
-    - [ ] Add background tokens
     - [ ] Apply those tokens
     - [X] Add token priorities
+    - [X] Add background tokens
   - [ ] Add more languages
     - [ ] JSON* (easy)
     - [ ] HTML* (easy)
@@ -21,18 +21,13 @@
   - [X] 16 bit colour fallback*
   - [X] Allow changing of colours of warning, info and error messages in config file
   - [X] Line number background
-    - [X] Add to configuration file
-    - [X] Add to line renderer
   - [X] Transparent background
-    - [X] Add option to configuration file
-    - [X] Strip background colour
   - [X] Improved language syntax highlighting support
-    - [X] Rust
-    - [X] Ruby
-    - [X] Crystal
-    - [X] Python
-    - [X] Javascript
-    - [X] C
+- [ ] Searching
+  - [ ] Rewrite replace command
+  - [ ] Exit search when typing characters and catch up with events
+  - [X] Fix dodgy search positions
+  - [X] Rewrite replace all command
 - [ ] Oxa
   - [ ] Delete word
   - [ ] Move word
@@ -53,21 +48,8 @@
   - [ ] Save as sudo / read only files*
     - [ ] Add -r flag
     - [ ] Create read only mode
-  - [ ] Don't load entire file into memory*
-    - [ ] Research
-    - [ ] Implement
-  - [ ] Backup
-    - [ ] Add configuration options
-    - [ ] Backup to specific folder somewhere
-  - [ ] Add help menu to view keybindings*
-    - [ ] Add API to display boxes over existing text
-    - [ ] Show overlay
-    - [ ] Hide overlay
-    - [ ] Handle resizes
   - [ ] Function keys and ctrl+shift keys
   - [ ] UNIX Keybindings
-- [ ] Searching
-  - [ ] Exit search when typing characters and catch up with events
 - [ ] Formatting
   - [ ] Clippy
   - [ ] Rustfmt
@@ -99,7 +81,18 @@
   - [ ] Allow for copy, cut and paste
 - [ ] Add option to hide parts of the editor (e.g. status line, tab line)
 - [ ] Deleting left bracket removes other bracket
+- [ ] Add help menu to view keybindings*
+  - [ ] Add API to display boxes over existing text
+  - [ ] Show overlay
+  - [ ] Hide overlay
+  - [ ] Handle resizes
+- [ ] Backup
+  - [ ] Add configuration options
+  - [ ] Backup to specific folder somewhere
 - [ ] Look to add support for background colors in status and tab line
+- [ ] Don't load entire file into memory*
+  - [ ] Research
+  - [ ] Implement
 - [ ] Allow full transparency of editing components
 - [ ] Allow file type argument to be passed
 - [ ] Cursor in status line

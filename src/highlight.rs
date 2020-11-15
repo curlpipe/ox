@@ -3,12 +3,20 @@ use crate::config::{Reader, TokenType};
 use std::collections::HashMap;
 use unicode_width::UnicodeWidthStr;
 
+// For the place to put the colour
+#[derive(Debug, Clone)]
+pub enum ColourGround {
+    Bg,
+    Fg,
+}
+
 // Tokens for storing syntax highlighting info
 #[derive(Debug, Clone)]
 pub struct Token {
     pub span: (usize, usize),
     pub data: String,
     pub kind: String,
+    pub ground: ColourGround,
     pub priority: usize,
 }
 
@@ -69,6 +77,7 @@ pub fn highlight(
                                     span: boundaries,
                                     data: cap.as_str().to_string(),
                                     kind: Reader::rgb_fg(highlights["keywords"]).to_string(),
+                                    ground: ColourGround::Fg,
                                     priority: 0,
                                 },
                                 &mut syntax,
@@ -86,6 +95,7 @@ pub fn highlight(
                                     span: boundaries,
                                     data: cap.as_str().to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
+                                    ground: ColourGround::Fg,
                                     priority: 1,
                                 },
                                 &mut syntax,
@@ -113,6 +123,7 @@ pub fn highlight(
                                     ),
                                     data: row.to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
+                                    ground: ColourGround::Fg,
                                     priority: 2,
                                 },
                                 &mut syntax,
@@ -123,6 +134,7 @@ pub fn highlight(
                                     span: (0, end_x),
                                     data: row.to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
+                                    ground: ColourGround::Fg,
                                     priority: 2,
                                 },
                                 &mut syntax,
@@ -133,6 +145,7 @@ pub fn highlight(
                                     span: (0, UnicodeWidthStr::width(row)),
                                     data: row.to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
+                                    ground: ColourGround::Fg,
                                     priority: 2,
                                 },
                                 &mut syntax,
