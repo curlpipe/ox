@@ -4,6 +4,7 @@ use crate::document::Type;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
 use crate::util::{title, trim_end, Exp};
+use crate::highlight::Token;
 use crate::{log, Document, Event, Row, Size, Terminal, VERSION};
 use clap::App;
 use crossterm::event::{Event as InputEvent, KeyCode, KeyEvent, KeyModifiers};
@@ -26,7 +27,7 @@ pub const OFFSET: usize = 1;
 // Enum for holding prompt events
 enum PromptEvent {
     Update,
-    CharPress,
+    CharPress(bool),
     KeyPress(KeyCode),
 }
 
@@ -97,7 +98,7 @@ impl Editor {
                         ("global".to_string(), (0, 255, 0)),
                         ("operators".to_string(), (0, 128, 128)),
                         ("regex".to_string(), (0, 255, 0)),
-                        ("searching".to_string(),  (47, 141, 252)),
+                        ("searching".to_string(), (47, 141, 252)),
                     ]
                     .iter()
                     .cloned()
@@ -657,16 +658,46 @@ impl Editor {
                         s.doc[s.tab].offset = initial_offset;
                     }
                     _ => (),
-                }
-                PromptEvent::CharPress => {
-                    if let Some(p) = s.doc[s.tab].find_next(t, &current) {
-                        s.doc[s.tab].goto(p, &s.term.size);
+                },
+                PromptEvent::CharPress(backspace) => {
+                    // Highlight the tokens
+                    if !backspace {
+                        if let Some(p) = s.doc[s.tab].find_next(t, &current) {
+                            s.doc[s.tab].goto(p, &s.term.size);
+                        }
+                    }
+                    let occurances = if let Some(o) = s.doc[s.tab].find_all(t) {
+                        o
+                    } else {
+                        return
+                    };
+                    for i in s.doc[s.tab].rows.iter_mut() {
+                        i.bg_syntax.clear();
+                    }
+                    if !t.is_empty() {
+                        for o in occurances {
+                            s.doc[s.tab].rows[o.y].bg_syntax.insert(
+                                o.x,
+                                Token {
+                                    span: (o.x, o.x + UnicodeWidthStr::width(t)),
+                                    data: t.to_string(),
+                                    kind: Reader::rgb_bg(s.config.highlights[&s.theme]["searching"]).to_string(),
+                                    priority: 10,
+
+                                }
+                                );
+                            s.doc[s.tab].rows[o.y].updated = false;
+                        }
                     }
                 }
                 _ => (),
             }
         });
         // User cancelled or found what they were looking for
+        for i in self.doc[self.tab].rows.iter_mut() {
+            i.bg_syntax.clear();
+            i.updated = false;
+        }
         self.doc[self.tab].set_command_line("Search exited".to_string(), Type::Info);
     }
     fn replace(&mut self) {
@@ -683,7 +714,7 @@ impl Editor {
                 re
             } else {
                 self.doc[self.tab].set_command_line("Invalid Regex".to_string(), Type::Error);
-                return
+                return;
             };
             if let Some(arrow) = self.prompt("With", ": ", &|_, _, _| {}) {
                 if let Some(p) = self.doc[self.tab].find_next(&target, &current) {
@@ -695,7 +726,7 @@ impl Editor {
                     let key = if let InputEvent::Key(key) = self.read_event() {
                         key
                     } else {
-                        continue
+                        continue;
                     };
                     let current = Position {
                         x: self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x,
@@ -729,10 +760,8 @@ impl Editor {
                         KeyCode::Esc => {
                             self.doc[self.tab].cursor = initial_cursor;
                             self.doc[self.tab].offset = initial_offset;
-                            self.doc[self.tab].set_command_line(
-                                "Replace finished".to_string(), 
-                                Type::Info
-                            );
+                            self.doc[self.tab]
+                                .set_command_line("Replace finished".to_string(), Type::Info);
                             break;
                         }
                         _ => (),
@@ -748,7 +777,7 @@ impl Editor {
             let re = if let Ok(re) = Regex::new(&target) {
                 re
             } else {
-                return
+                return;
             };
             if let Some(arrow) = self.prompt("With", ": ", &|_, _, _| {}) {
                 // Find all occurances
@@ -839,12 +868,12 @@ impl Editor {
                     | (KeyCode::Char(c), KeyModifiers::SHIFT) => {
                         // Update the prompt contents
                         result.push(c);
-                        func(self, PromptEvent::CharPress, &result)
+                        func(self, PromptEvent::CharPress(false), &result)
                     }
                     (KeyCode::Backspace, KeyModifiers::NONE) => {
                         // Handle backspace event
                         result.pop();
-                        func(self, PromptEvent::CharPress, &result)
+                        func(self, PromptEvent::CharPress(true), &result)
                     }
                     (KeyCode::Esc, KeyModifiers::NONE) => {
                         // Handle escape key

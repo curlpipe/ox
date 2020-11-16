@@ -1,8 +1,8 @@
 // Row.rs - Handling the rows of a document and their appearance
 use crate::config::{Reader, TokenType};
 use crate::editor::{RESET_BG, RESET_FG};
-use crate::highlight::{highlight, remove_nested_tokens, Token, ColourGround};
-use crate::util::Exp;
+use crate::highlight::{highlight, remove_nested_tokens, Token};
+use crate::util::{safe_ansi_insert, Exp};
 use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -12,6 +12,7 @@ use unicode_width::UnicodeWidthStr;
 pub struct Row {
     pub string: String,                // For holding the contents of the row
     pub syntax: HashMap<usize, Token>, // Hashmap for syntax
+    pub bg_syntax: HashMap<usize, Token>, // Hashmap for background syntax colour
     pub updated: bool,                 // Line needs to be redrawn
     regex: Exp,                        // For holding the regex expression
 }
@@ -23,6 +24,7 @@ impl From<&str> for Row {
         Self {
             string: s.to_string(),
             syntax: HashMap::new(),
+            bg_syntax: HashMap::new(),
             regex: Exp::new(),
             updated: true,
         }
@@ -70,8 +72,11 @@ impl Row {
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
         let width = width.saturating_sub(line_number_len);
+        let reset_fg = RESET_FG.to_string();
+        let reset_bg = RESET_BG.to_string();
+        let editor_bg = Reader::rgb_bg(config.theme.editor_bg).to_string();
         let mut initial = start;
-        let mut result = String::new();
+        let mut result = vec![];
         // Ensure that the render isn't impossible
         if width != 0 && start < UnicodeWidthStr::width(&self.string[..]) {
             // Calculate the character positions
@@ -85,46 +90,58 @@ impl Row {
             }
             // Repair dodgy start
             if !dna.contains_key(&start) {
-                result.push(' ');
+                result.push(" ");
                 start += 1;
             }
             // Push across characters
             'a: while start < end {
                 if let Some(t) = self.syntax.get(&start) {
                     // There is a token here
-                    result.push_str(&t.kind);
+                    result.push(&t.kind);
                     while start < end && start < t.span.1 {
                         if let Some(ch) = dna.get(&start) {
                             // The character overlaps with the edge
                             if start + UnicodeWidthStr::width(*ch) > end {
-                                result.push(' ');
+                                result.push(" ");
                                 break 'a;
                             }
-                            result.push_str(ch);
+                            result.push(ch);
                             start += UnicodeWidthStr::width(*ch);
                         } else {
                             break 'a;
                         }
                     }
-                    if let ColourGround::Fg = t.ground {
-                        result.push_str(&RESET_FG.to_string());
-                    } else if config.theme.transparent_editor {
-                        result.push_str(&RESET_BG.to_string());
-                    } else {
-                        result.push_str(&Reader::rgb_bg(config.theme.editor_bg).to_string());
-                    }
+                    result.push(&reset_fg);
                 } else if let Some(ch) = dna.get(&start) {
                     // There is a character here
                     if start + UnicodeWidthStr::width(*ch) > end {
-                        result.push(' ');
+                        result.push(" ");
                         break 'a;
                     }
-                    result.push_str(ch);
+                    result.push(ch);
                     start += UnicodeWidthStr::width(*ch);
                 } else {
                     // The quota has been used up
                     break 'a;
                 }
+            }
+            // Insert background tokens
+            for b in &self.bg_syntax {
+                let bg = if config.theme.transparent_editor {
+                    &reset_bg
+                } else {
+                    &editor_bg
+                };
+                if let Some(a) = safe_ansi_insert(b.1.span.0, &result, &self.regex.ansi) {
+                    result.insert(a, &b.1.kind);
+                } else {
+                    continue;
+                };
+                if let Some(a) = safe_ansi_insert(b.1.span.1, &result, &self.regex.ansi) {
+                    result.insert(a, bg);
+                } else {
+                    continue;
+                };
             }
             // Correct colourization of tokens that are half off the screen and half on the screen
             let initial_initial = initial; // Terrible variable naming, I know
@@ -140,25 +157,21 @@ impl Row {
                         // Insert the correct colours
                         let mut real = 0;
                         let mut ch = 0;
-                        for i in result.graphemes(true) {
+                        for i in &result {
                             if ch == t.span.1 - initial_initial {
                                 break;
                             }
                             real += i.len();
-                            ch += UnicodeWidthStr::width(i);
+                            ch += UnicodeWidthStr::width(i.clone());
                         }
-                        if let ColourGround::Fg = t.ground {
-                            result.insert_str(real, &RESET_FG.to_string());
-                        } else {
-                            result.insert_str(real, &RESET_BG.to_string());
-                        }
-                        result.insert_str(0, &t.kind);
+                        result.insert(real, &reset_fg);
+                        result.insert(0, &t.kind);
                     }
                 }
             }
         }
         // Return the full line string to be rendered
-        line_number + &result
+        line_number + &result.join("")
     }
     pub fn update_syntax(
         &mut self,

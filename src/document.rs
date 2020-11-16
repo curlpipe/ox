@@ -225,7 +225,10 @@ impl Document {
             .replace("%n", &self.kind)
             .replace(
                 "%l",
-                &format!("{}", self.cursor.y + self.offset.y.saturating_sub(OFFSET) + 1),
+                &format!(
+                    "{}",
+                    self.cursor.y + self.offset.y.saturating_sub(OFFSET) + 1
+                ),
             )
             .replace("%L", &format!("{}", self.rows.len()))
             .replace("%x", &format!("{}", self.cursor.x + self.offset.x))
@@ -627,7 +630,9 @@ impl Document {
     pub fn find_prev(&self, needle: &str, current: &Position) -> Option<Position> {
         // Find all the points where "needle" occurs before the current position
         let re = Regex::new(needle).ok()?;
-        for (c, r) in self.rows.iter()
+        for (c, r) in self
+            .rows
+            .iter()
             .take(current.y + 1)
             .map(|x| x.string.as_str())
             .enumerate()
@@ -637,7 +642,7 @@ impl Document {
                 for cap in 0..i.len() {
                     let cap = i.get(cap).unwrap();
                     if !(c == current.y && cap.start() >= current.x) {
-                        return Some(Position { 
+                        return Some(Position {
                             x: cap.start(),
                             y: c,
                         });
@@ -650,16 +655,18 @@ impl Document {
     pub fn find_next(&self, needle: &str, current: &Position) -> Option<Position> {
         // Find all the points where "needle" occurs after the current position
         let re = Regex::new(needle).ok()?;
-        for (c, r) in self.rows.iter()
+        for (c, r) in self
+            .rows
+            .iter()
             .skip(current.y)
             .map(|x| x.string.as_str())
-            .enumerate() 
+            .enumerate()
         {
             for i in re.captures_iter(r) {
                 for cap in 0..i.len() {
                     let cap = i.get(cap).unwrap();
                     if c != 0 || cap.start() > current.x {
-                        return Some(Position { 
+                        return Some(Position {
                             x: cap.start(),
                             y: current.y + c,
                         });
@@ -672,7 +679,7 @@ impl Document {
     pub fn find_all(&self, needle: &str) -> Option<Vec<Position>> {
         // Find all the places where the needle is
         let mut result = vec![];
-        let re  = Regex::new(needle).ok()?;
+        let re = Regex::new(needle).ok()?;
         for (c, r) in self.rows.iter().map(|x| x.string.to_string()).enumerate() {
             for i in re.captures_iter(&r) {
                 for cap in 0..i.len() {

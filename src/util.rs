@@ -6,7 +6,7 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 // For holding general purpose regular expressions
 #[derive(Debug, Clone)]
 pub struct Exp {
-    ansi: Regex,
+    pub ansi: Regex,
 }
 
 impl Exp {
@@ -112,4 +112,21 @@ pub fn tabs_to_spaces(code: &str, tab_width: usize) -> String {
         result.push(format!("{}{}", " ".repeat(spaces), line));
     }
     result.join("\n")
+}
+
+pub fn is_ansi(s: &str, chk: &Regex) -> bool {
+    chk.is_match(s)
+}
+
+pub fn safe_ansi_insert(index: usize, list: &[&str], chk: &Regex) -> Option<usize> {
+    let mut c = 0;
+    for (ac, i) in list.iter().enumerate() {
+        if !is_ansi(i, chk) {
+            c += 1;
+        }
+        if c == index {
+            return Some(ac.saturating_add(1));
+        }
+    }
+    None
 }
