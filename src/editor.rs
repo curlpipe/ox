@@ -630,6 +630,12 @@ impl Editor {
             self.doc[self.tab].set_command_line("Empty Redo Stack".to_string(), Type::Error);
         }
     }
+    fn refresh_view(&mut self) {
+        let offset = self.doc[self.tab].offset.y;
+        for o in self.doc[self.tab].rows.iter_mut().skip(offset).take(self.term.size.width) {
+            o.updated = true;
+        }
+    }
     fn search(&mut self) {
         // For searching the file
         let initial_cursor = self.doc[self.tab].cursor;
@@ -646,11 +652,13 @@ impl Editor {
                     KeyCode::Up | KeyCode::Left => {
                         if let Some(p) = s.doc[s.tab].find_prev(t, &current) {
                             s.doc[s.tab].goto(p, &s.term.size);
+                            s.refresh_view();
                         }
                     }
                     KeyCode::Down | KeyCode::Right => {
                         if let Some(p) = s.doc[s.tab].find_next(t, &current) {
                             s.doc[s.tab].goto(p, &s.term.size);
+                            s.refresh_view();
                         }
                     }
                     KeyCode::Esc => {
@@ -685,8 +693,7 @@ impl Editor {
                                     priority: 10,
 
                                 }
-                                );
-                            s.doc[s.tab].rows[o.y].updated = false;
+                            );
                         }
                     }
                 }
@@ -696,7 +703,6 @@ impl Editor {
         // User cancelled or found what they were looking for
         for i in self.doc[self.tab].rows.iter_mut() {
             i.bg_syntax.clear();
-            i.updated = false;
         }
         self.doc[self.tab].set_command_line("Search exited".to_string(), Type::Info);
     }

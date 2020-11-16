@@ -1,33 +1,21 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] Themes
+  - [ ] Highlight search and replace messages
+    - [ ] Fix runtime errors
+    - [ ] Fix rendering errors
+    - [X] Add token priorities
+    - [X] Add background tokens
+    - [X] Apply those tokens
+    - [X] Remove those tokens
   - [ ] Live / Command for reloading of the config file
     - [ ] Create config reload command
     - [ ] Actually reload the config
-  - [ ] Highlight search and replace messages
-    - [ ] Apply those tokens
-    - [X] Add token priorities
-    - [X] Add background tokens
-  - [ ] Add more languages
-    - [ ] JSON* (easy)
-    - [ ] HTML* (easy)
-    - [ ] CSS* (easy)
-    - [ ] Markdown (easy)
-    - [ ] SQL (easy)
-    - [ ] x86 Assembly (easy)
-    - [ ] PHP* (medium)
-    - [ ] Java (medium)
-    - [ ] TypeScript (medium)
   - [X] Small line specific retokenization for performance
   - [X] 16 bit colour fallback*
   - [X] Allow changing of colours of warning, info and error messages in config file
   - [X] Line number background
   - [X] Transparent background
   - [X] Improved language syntax highlighting support
-- [ ] Searching
-  - [ ] Rewrite replace command
-  - [ ] Exit search when typing characters and catch up with events
-  - [X] Fix dodgy search positions
-  - [X] Rewrite replace all command
 - [ ] Oxa
   - [ ] Delete word
   - [ ] Move word
@@ -71,6 +59,10 @@
   - [X] Fix file hanging*
   - [X] Fix windows linebreak issue*
   - [X] Fix resize bugs
+- [X] Searching
+  - [X] Rewrite replace all command
+  - [X] Fix dodgy search positions
+  - [X] Rewrite replace command
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*
@@ -97,6 +89,15 @@
 - [ ] Allow file type argument to be passed
 - [ ] Cursor in status line
 - [ ] Adding support for many popular languages
+  - [ ] JSON* (easy)
+  - [ ] HTML* (easy)
+  - [ ] CSS* (easy)
+  - [ ] Markdown (easy)
+  - [ ] SQL (easy)
+  - [ ] x86 Assembly (easy)
+  - [ ] PHP* (medium)
+  - [ ] Java (medium)
+  - [ ] TypeScript (medium)
   - [ ] Swift (medium)
   - [ ] Groovy (medium)
   - [ ] Lua (medium)

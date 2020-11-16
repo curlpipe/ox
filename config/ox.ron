@@ -92,6 +92,7 @@
             "global":     (86, 217, 178),
             "operators":  (86, 217, 178),
             "regex":      (40, 198, 232),
+            "searching":  (47, 141, 252),
         },
         "alternative": {
             "comments":   (113, 113, 169),
@@ -111,6 +112,7 @@
             "global":     (76, 224, 179),
             "operators":  (76, 224, 179),
             "regex":      (4, 95, 204),
+            "searching":  (47, 141, 252),
         },
     },
     // Key bindings
