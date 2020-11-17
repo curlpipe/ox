@@ -1,12 +1,5 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] Themes
-  - [ ] Highlight search and replace messages
-    - [ ] Fix runtime errors
-    - [ ] Fix rendering errors
-    - [X] Add token priorities
-    - [X] Add background tokens
-    - [X] Apply those tokens
-    - [X] Remove those tokens
   - [ ] Live / Command for reloading of the config file
     - [ ] Create config reload command
     - [ ] Actually reload the config
@@ -16,6 +9,15 @@
   - [X] Line number background
   - [X] Transparent background
   - [X] Improved language syntax highlighting support
+  - [X] Highlight search and replace messages
+    - [X] Add token priorities
+    - [X] Add background tokens
+    - [X] Apply those tokens
+    - [X] Remove those tokens
+    - [X] Fix rendering errors
+    - [X] Different colour for active search
+    - [X] Fix runtime errors
+    - [X] Add highlighting for replacement too
 - [ ] Oxa
   - [ ] Delete word
   - [ ] Move word

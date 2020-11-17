@@ -32,7 +32,7 @@ enum PromptEvent {
 }
 
 // For representing positions
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -636,6 +636,29 @@ impl Editor {
             o.updated = true;
         }
     }
+    fn highlight_bg_tokens(&mut self, t: &str, current: Position) -> Option<()> {
+        let occurances = self.doc[self.tab].find_all(t)?;
+        for i in self.doc[self.tab].rows.iter_mut() {
+            i.bg_syntax.clear();
+        }
+        if !t.is_empty() {
+            for o in occurances {
+                self.doc[self.tab].rows[o.y].bg_syntax.insert(
+                    o.x,
+                    Token {
+                        span: (o.x, o.x + UnicodeWidthStr::width(t)),
+                        data: t.to_string(),
+                        kind: Reader::rgb_bg(self.config.highlights[&self.theme][
+                             if o == current { "search_active" } else { "search_inactive" }
+                        ]).to_string(),
+                        priority: 10,
+
+                    }
+                );
+            }
+        }
+        None
+    }
     fn search(&mut self) {
         // For searching the file
         let initial_cursor = self.doc[self.tab].cursor;
@@ -653,12 +676,14 @@ impl Editor {
                         if let Some(p) = s.doc[s.tab].find_prev(t, &current) {
                             s.doc[s.tab].goto(p, &s.term.size);
                             s.refresh_view();
+                            s.highlight_bg_tokens(&t, p);
                         }
                     }
                     KeyCode::Down | KeyCode::Right => {
                         if let Some(p) = s.doc[s.tab].find_next(t, &current) {
                             s.doc[s.tab].goto(p, &s.term.size);
                             s.refresh_view();
+                            s.highlight_bg_tokens(&t, p);
                         }
                     }
                     KeyCode::Esc => {
@@ -672,29 +697,10 @@ impl Editor {
                     if !backspace {
                         if let Some(p) = s.doc[s.tab].find_next(t, &current) {
                             s.doc[s.tab].goto(p, &s.term.size);
+                            s.highlight_bg_tokens(&t, p);
                         }
-                    }
-                    let occurances = if let Some(o) = s.doc[s.tab].find_all(t) {
-                        o
                     } else {
-                        return
-                    };
-                    for i in s.doc[s.tab].rows.iter_mut() {
-                        i.bg_syntax.clear();
-                    }
-                    if !t.is_empty() {
-                        for o in occurances {
-                            s.doc[s.tab].rows[o.y].bg_syntax.insert(
-                                o.x,
-                                Token {
-                                    span: (o.x, o.x + UnicodeWidthStr::width(t)),
-                                    data: t.to_string(),
-                                    kind: Reader::rgb_bg(s.config.highlights[&s.theme]["searching"]).to_string(),
-                                    priority: 10,
-
-                                }
-                            );
-                        }
+                        s.highlight_bg_tokens(&t, current);
                     }
                 }
                 _ => (),
@@ -722,9 +728,11 @@ impl Editor {
                 self.doc[self.tab].set_command_line("Invalid Regex".to_string(), Type::Error);
                 return;
             };
+            self.highlight_bg_tokens(&target, current);
             if let Some(arrow) = self.prompt("With", ": ", &|_, _, _| {}) {
                 if let Some(p) = self.doc[self.tab].find_next(&target, &current) {
                     self.doc[self.tab].goto(p, &self.term.size);
+                    self.highlight_bg_tokens(&target, p);
                     self.update();
                 }
                 loop {
@@ -742,11 +750,13 @@ impl Editor {
                         KeyCode::Up | KeyCode::Left => {
                             if let Some(p) = self.doc[self.tab].find_prev(&target, &current) {
                                 self.doc[self.tab].goto(p, &self.term.size);
+                                self.highlight_bg_tokens(&target, p);
                             }
                         }
                         KeyCode::Down | KeyCode::Right => {
                             if let Some(p) = self.doc[self.tab].find_next(&target, &current) {
                                 self.doc[self.tab].goto(p, &self.term.size);
+                                self.highlight_bg_tokens(&target, p);
                             }
                         }
                         KeyCode::Char('y') | KeyCode::Enter | KeyCode::Char(' ') => {
@@ -754,6 +764,7 @@ impl Editor {
                             let before = self.doc[self.tab].rows[current.y].clone();
                             let after = Row::from(&*re.replace_all(&before.string, &arrow[..]));
                             self.doc[self.tab].rows[current.y] = after.clone();
+                            self.highlight_bg_tokens(&target, current);
                             if before.string != after.string {
                                 self.doc[self.tab].undo_stack.push(Event::UpdateLine(
                                     current,
@@ -774,6 +785,9 @@ impl Editor {
                     }
                     self.update();
                 }
+            }
+            for i in self.doc[self.tab].rows.iter_mut() {
+                i.bg_syntax.clear();
             }
         }
     }

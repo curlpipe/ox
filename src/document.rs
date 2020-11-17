@@ -633,20 +633,21 @@ impl Document {
         for (c, r) in self
             .rows
             .iter()
-            .take(current.y + 1)
+            .take(current.y.saturating_add(1))
             .map(|x| x.string.as_str())
             .enumerate()
             .rev()
         {
+            let mut xs = vec![];
             for i in re.captures_iter(r) {
-                for cap in 0..i.len() {
-                    let cap = i.get(cap).unwrap();
-                    if !(c == current.y && cap.start() >= current.x) {
-                        return Some(Position {
-                            x: cap.start(),
-                            y: c,
-                        });
-                    }
+                for j in 0..i.len() {
+                    let j = i.get(j).unwrap();
+                    xs.push(j.start());
+                }
+            }
+            while let Some(i) = xs.pop() {
+                if i < current.x && c == current.y || c != current.y {
+                    return Some(Position { x: i, y: c })
                 }
             }
         }

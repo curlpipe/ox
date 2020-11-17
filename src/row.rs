@@ -125,24 +125,6 @@ impl Row {
                     break 'a;
                 }
             }
-            // Insert background tokens
-            for b in &self.bg_syntax {
-                let bg = if config.theme.transparent_editor {
-                    &reset_bg
-                } else {
-                    &editor_bg
-                };
-                if let Some(a) = safe_ansi_insert(b.1.span.0, &result, &self.regex.ansi) {
-                    result.insert(a, &b.1.kind);
-                } else {
-                    continue;
-                };
-                if let Some(a) = safe_ansi_insert(b.1.span.1, &result, &self.regex.ansi) {
-                    result.insert(a, bg);
-                } else {
-                    continue;
-                };
-            }
             // Correct colourization of tokens that are half off the screen and half on the screen
             let initial_initial = initial; // Terrible variable naming, I know
             if initial > 0 {
@@ -168,6 +150,28 @@ impl Row {
                         result.insert(0, &t.kind);
                     }
                 }
+            }
+            // Insert background tokens
+            for b in &self.bg_syntax {
+                let bg = if config.theme.transparent_editor {
+                    &reset_bg
+                } else {
+                    &editor_bg
+                };
+                if let Some(a) = safe_ansi_insert(b.1.span.0, &result, &self.regex.ansi) {
+                    if a < result.len() {
+                        result.insert(a, &b.1.kind);
+                    }
+                } else {
+                    continue;
+                };
+                if let Some(a) = safe_ansi_insert(b.1.span.1, &result, &self.regex.ansi) {
+                    if a < result.len() {
+                        result.insert(a, bg);
+                    }
+                } else {
+                    continue;
+                };
             }
         }
         // Return the full line string to be rendered
