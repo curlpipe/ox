@@ -51,6 +51,7 @@ pub enum Direction {
 pub struct Editor {
     pub config: Reader,                      // Storage for configuration
     pub status: Status,                      // Holding the status of the config
+    config_path: String,                     // Holds the file path of the config file
     quit: bool,                              // Toggle for cleanly quitting the editor
     term: Terminal,                          // For the handling of the terminal
     doc: Vec<Document>,                      // For holding our document
@@ -71,7 +72,8 @@ impl Editor {
         let term = Terminal::new()?;
         // Set up the arguments
         let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
-        let mut config = Reader::read(args.value_of("config").unwrap_or_default());
+        let config_path = args.value_of("config").unwrap_or_default();
+        let mut config = Reader::read(config_path);
         // Check for fallback colours
         if config.0.theme.fallback {
             let max = Terminal::availablility();
@@ -98,7 +100,8 @@ impl Editor {
                         ("global".to_string(), (0, 255, 0)),
                         ("operators".to_string(), (0, 128, 128)),
                         ("regex".to_string(), (0, 255, 0)),
-                        ("searching".to_string(), (47, 141, 252)),
+                        ("search_inactive".to_string(), (128, 128, 128)),
+                        ("search_active".to_string(), (0, 128, 128)),
                     ]
                     .iter()
                     .cloned()
@@ -144,6 +147,7 @@ impl Editor {
             doc: documents,
             last_keypress: None,
             config: config.0.clone(),
+            config_path: config_path.to_string(),
             status: config.1,
             exp: Exp::new(),
             position_bank: HashMap::new(),
@@ -443,6 +447,11 @@ impl Editor {
             Event::Replace => self.replace(),
             Event::ReplaceAll => self.replace_all(),
             Event::Cmd => self.cmd(),
+            Event::ReloadConfig => {
+                let config = Reader::read(&self.config_path);
+                self.config = config.0;
+                self.doc[self.tab].cmd_line = Document::config_to_commandline(&config.1);
+            }
             Event::Theme(name) => {
                 self.theme = name;
                 self.doc[self.tab].mass_redraw();

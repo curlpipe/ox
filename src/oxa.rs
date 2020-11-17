@@ -35,6 +35,7 @@ pub fn interpret_line(
             "split" => events.push(Event::SplitDown(*cursor, *cursor)),
             "splice" => events.push(Event::SpliceUp(*cursor, *cursor)),
             "search" => events.push(Event::Search),
+            "reload" => events.push(Event::ReloadConfig),
             "cmd" => events.push(Event::Cmd),
             "replace" => events.push(replace_command(&args)),
             "theme" => {

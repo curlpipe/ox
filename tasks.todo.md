@@ -1,23 +1,4 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
-- [ ] Themes
-  - [ ] Live / Command for reloading of the config file
-    - [ ] Create config reload command
-    - [ ] Actually reload the config
-  - [X] Small line specific retokenization for performance
-  - [X] 16 bit colour fallback*
-  - [X] Allow changing of colours of warning, info and error messages in config file
-  - [X] Line number background
-  - [X] Transparent background
-  - [X] Improved language syntax highlighting support
-  - [X] Highlight search and replace messages
-    - [X] Add token priorities
-    - [X] Add background tokens
-    - [X] Apply those tokens
-    - [X] Remove those tokens
-    - [X] Fix rendering errors
-    - [X] Different colour for active search
-    - [X] Fix runtime errors
-    - [X] Add highlighting for replacement too
 - [ ] Oxa
   - [ ] Delete word
   - [ ] Move word
@@ -65,6 +46,25 @@
   - [X] Rewrite replace all command
   - [X] Fix dodgy search positions
   - [X] Rewrite replace command
+- [X] Themes
+  - [X] Small line specific retokenization for performance
+  - [X] 16 bit colour fallback*
+  - [X] Allow changing of colours of warning, info and error messages in config file
+  - [X] Line number background
+  - [X] Transparent background
+  - [X] Improved language syntax highlighting support
+  - [X] Highlight search and replace messages
+    - [X] Add token priorities
+    - [X] Add background tokens
+    - [X] Apply those tokens
+    - [X] Remove those tokens
+    - [X] Fix rendering errors
+    - [X] Different colour for active search
+    - [X] Fix runtime errors
+    - [X] Add highlighting for replacement too
+  - [X] Live / Command for reloading of the config file
+    - [X] Create config reload command
+    - [X] Actually reload the config
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*

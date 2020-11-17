@@ -192,7 +192,7 @@ impl Document {
             i.updated = true;
         }
     }
-    fn config_to_commandline(status: &Status) -> CommandLine {
+    pub fn config_to_commandline(status: &Status) -> CommandLine {
         CommandLine {
             text: match status {
                 Status::Success => "Welcome to Ox".to_string(),

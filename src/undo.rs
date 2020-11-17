@@ -48,6 +48,7 @@ pub enum Event {
     QuitAll(bool),                                  // Quit all
     NextTab,                                        // Next tab
     PrevTab,                                        // Previous tab
+    ReloadConfig,                                   // Reload the configuration file
 }
 
 // A struct for holding all the events taken by the user
