@@ -1,7 +1,4 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
-- [ ] Oxa
-  - [ ] Delete word
-  - [ ] Move word
 - [ ] General Editing
   - [ ] File overwrite prevention
     - [ ] Detect if file exists
@@ -54,17 +51,9 @@
   - [X] Transparent background
   - [X] Improved language syntax highlighting support
   - [X] Highlight search and replace messages
-    - [X] Add token priorities
-    - [X] Add background tokens
-    - [X] Apply those tokens
-    - [X] Remove those tokens
-    - [X] Fix rendering errors
-    - [X] Different colour for active search
-    - [X] Fix runtime errors
-    - [X] Add highlighting for replacement too
   - [X] Live / Command for reloading of the config file
-    - [X] Create config reload command
-    - [X] Actually reload the config
+- [X] Oxa
+  - [X] Delete word
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*

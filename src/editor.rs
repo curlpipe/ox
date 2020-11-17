@@ -681,6 +681,10 @@ impl Editor {
         // For searching the file
         let initial_cursor = self.doc[self.tab].cursor;
         let initial_offset = self.doc[self.tab].offset;
+        let initial = Position {
+            x: initial_cursor.x + initial_offset.x,
+            y: initial_cursor.y + initial_offset.y - OFFSET,
+        };
         // Ask for a search term after saving the current cursor position
         self.prompt("Search", ": ", &|s, e, t| {
             // Find all occurances in the document
@@ -712,13 +716,16 @@ impl Editor {
                 },
                 PromptEvent::CharPress(backspace) => {
                     // Highlight the tokens
-                    if !backspace {
-                        if let Some(p) = s.doc[s.tab].find_next(t, &current) {
-                            s.doc[s.tab].goto(p, &s.term.size);
-                            s.highlight_bg_tokens(&t, p);
-                        }
+                    if backspace {
+                        s.highlight_bg_tokens(&t, initial);
+                    }
+                    if let Some(p) = s.doc[s.tab].find_next(t, &initial) {
+                        s.doc[s.tab].goto(p, &s.term.size);
+                        s.refresh_view();
+                        s.highlight_bg_tokens(&t, p);
                     } else {
-                        s.highlight_bg_tokens(&t, current);
+                        s.doc[s.tab].goto(initial, &s.term.size);
+                        s.highlight_bg_tokens(&t, initial);
                     }
                 }
                 _ => (),
