@@ -346,6 +346,14 @@ impl Editor {
                 self.doc[self.tab].path.clone()
             }
         };
+        if self.doc[self.tab].path != save {
+            if Path::new(&save).exists() {
+                // File already exists, possible loss of data
+                self.doc[self.tab]
+                    .set_command_line(format!("File {} already exists", save), Type::Error);
+                return;
+            }
+        }
         // Attempt document save
         let tab_width = self.config.general.tab_width;
         if self.doc[self.tab].save(&save, tab_width).is_ok() {
