@@ -27,6 +27,7 @@ pub enum Event {
     MoveCursor(i128, Direction),                    // For moving the cursor
     GotoCursor(Position),                           // For setting the cursor position
     MoveWord(Direction),                            // Move cursor through words
+    DeleteWord(Position, String),                   // Delete word
     Theme(String),                                  // Theme change event
     Search,                                         // Search the document
     Replace,                                        // Replace certain occurances

@@ -569,6 +569,7 @@ impl Document {
                     self.undo_stack.push(event);
                 }
             }
+            Event::DeleteWord(pos, _) => self.delete_word(&pos, term),
             _ => (),
         }
         self.recalculate_graphemes();
@@ -588,6 +589,37 @@ impl Document {
             self.move_cursor(Key::Right, term);
         }
         self.move_cursor(Key::Right, term);
+    }
+    pub fn find_word_boundary_left(&self, pos: &Position) -> Option<Position> {
+        self.find_prev(" ", pos)
+    }
+    pub fn find_word_boundary_right(&self, pos: &Position) -> Option<Position> {
+        self.find_next(" ", pos)
+    }
+    pub fn delete_word(&mut self, pos: &Position, term: &Size) {
+        let mut rpos = if let Some(&" ") = self.rows[pos.y].ext_chars().get(pos.x) {
+            *pos
+        } else {
+            self.find_word_boundary_right(pos)
+                .unwrap_or(Position { x: 0, y: pos.y })
+        };
+        let mut lpos = self.find_word_boundary_left(pos).unwrap_or(Position {
+            x: self.rows[pos.y].length(),
+            y: pos.y,
+        });
+        if rpos.y != pos.y {
+            rpos = Position {
+                x: self.rows[pos.y].length(),
+                y: pos.y,
+            };
+        }
+        if lpos.y != pos.y {
+            lpos = Position { x: 0, y: pos.y };
+        }
+        self.goto(lpos, term);
+        for _ in lpos.x..rpos.x {
+            self.rows[pos.y].delete(lpos.x);
+        }
     }
     pub fn goto(&mut self, mut pos: Position, term: &Size) {
         // Move the cursor to a specific location
@@ -647,7 +679,7 @@ impl Document {
             }
             while let Some(i) = xs.pop() {
                 if i < current.x && c == current.y || c != current.y {
-                    return Some(Position { x: i, y: c })
+                    return Some(Position { x: i, y: c });
                 }
             }
         }

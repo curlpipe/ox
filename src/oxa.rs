@@ -310,6 +310,8 @@ fn delete_command(
         {
             events.push(Event::Deletion(*cursor, *ch));
         }
+    } else if args[0] == "word" {
+        events.push(Event::DeleteWord(*cursor, "egg".to_string()));
     } else if let Ok(line) = args[0].parse::<i128>() {
         events.push(Event::DeleteLine(
             *cursor,

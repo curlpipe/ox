@@ -10,11 +10,11 @@ use unicode_width::UnicodeWidthStr;
 // Ensure we can use the Clone trait to copy row structs for manipulation
 #[derive(Debug, Clone)]
 pub struct Row {
-    pub string: String,                // For holding the contents of the row
-    pub syntax: HashMap<usize, Token>, // Hashmap for syntax
+    pub string: String,                   // For holding the contents of the row
+    pub syntax: HashMap<usize, Token>,    // Hashmap for syntax
     pub bg_syntax: HashMap<usize, Token>, // Hashmap for background syntax colour
-    pub updated: bool,                 // Line needs to be redrawn
-    regex: Exp,                        // For holding the regex expression
+    pub updated: bool,                    // Line needs to be redrawn
+    regex: Exp,                           // For holding the regex expression
 }
 
 // Implement a trait (similar method to inheritance) into the row

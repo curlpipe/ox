@@ -36,6 +36,7 @@ impl Terminal {
         })
     }
     pub fn exit() {
+        // Exit the terminal
         execute!(stdout(), terminal::LeaveAlternateScreen).unwrap();
         terminal::disable_raw_mode().unwrap();
     }
@@ -48,6 +49,7 @@ impl Terminal {
         stdout().flush().unwrap();
     }
     pub fn hide_cursor() {
+        // Hide the text cursor
         execute!(stdout(), crossterm::cursor::Hide).unwrap();
     }
     pub fn show_cursor() {

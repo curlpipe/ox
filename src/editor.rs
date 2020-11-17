@@ -1,10 +1,10 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{KeyBinding, Reader, Status, Theme};
 use crate::document::Type;
+use crate::highlight::Token;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
 use crate::util::{title, trim_end, Exp};
-use crate::highlight::Token;
 use crate::{log, Document, Event, Row, Size, Terminal, VERSION};
 use clap::App;
 use crossterm::event::{Event as InputEvent, KeyCode, KeyEvent, KeyModifiers};
@@ -641,7 +641,12 @@ impl Editor {
     }
     fn refresh_view(&mut self) {
         let offset = self.doc[self.tab].offset.y;
-        for o in self.doc[self.tab].rows.iter_mut().skip(offset).take(self.term.size.width) {
+        for o in self.doc[self.tab]
+            .rows
+            .iter_mut()
+            .skip(offset)
+            .take(self.term.size.width)
+        {
             o.updated = true;
         }
     }
@@ -657,12 +662,16 @@ impl Editor {
                     Token {
                         span: (o.x, o.x + UnicodeWidthStr::width(t)),
                         data: t.to_string(),
-                        kind: Reader::rgb_bg(self.config.highlights[&self.theme][
-                             if o == current { "search_active" } else { "search_inactive" }
-                        ]).to_string(),
+                        kind: Reader::rgb_bg(
+                            self.config.highlights[&self.theme][if o == current {
+                                "search_active"
+                            } else {
+                                "search_inactive"
+                            }],
+                        )
+                        .to_string(),
                         priority: 10,
-
-                    }
+                    },
                 );
             }
         }
