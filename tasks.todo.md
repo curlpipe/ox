@@ -1,8 +1,8 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] General Editing
   - [ ] Goto only if not on screen (easy)
-    - [ ] Detect if cursor is on screen
-      - [ ] Decide what to do
+    - [ ] Solve X
+    - [X] Solve Y
   - [ ] Better file save error messages (easy)
     - [ ] Fix weird behaviour when file has no path
   - [ ] Add support for cursor line wrapping* (easy)

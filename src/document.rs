@@ -623,6 +623,14 @@ impl Document {
     }
     pub fn goto(&mut self, mut pos: Position, term: &Size) {
         // Move the cursor to a specific location
+        // Verify that the goto is necessary
+        if pos.y >= self.offset.y && pos.y <= self.offset.y.saturating_add(term.height.saturating_sub(4)) {
+            // No need to adjust offset
+            self.cursor.y = pos.y - self.offset.y + OFFSET;
+            self.cursor.x = pos.x - self.offset.x;
+            return;
+        }
+        // Move to that position
         let max_y = term.height.saturating_sub(3);
         let max_x = (term.width).saturating_sub(self.line_offset);
         let halfway_y = max_y / 2;
