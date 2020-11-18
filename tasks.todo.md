@@ -1,7 +1,5 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] General Editing
-  - [ ] Better file save error messages (easy)
-    - [ ] Fix weird behaviour when file has no path
   - [ ] Save as sudo / read only files* (medium)
     - [ ] Add -r flag
     - [ ] Create read only mode
@@ -13,6 +11,8 @@
   - [X] Fix hardcoded values (easy)
   - [X] Goto only if not on screen (easy)
   - [X] Add support for cursor line wrapping* (easy)
+  - [X] Better file save error messages (easy)
+    - [X] Fix weird behaviour when file has no path
 - [ ] Formatting
   - [ ] Clippy
   - [ ] Rustfmt

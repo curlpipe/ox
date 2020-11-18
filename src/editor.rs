@@ -364,7 +364,7 @@ impl Editor {
             let ext = save.split('.').last().unwrap_or(&"");
             self.doc[self.tab].dirty = false;
             self.doc[self.tab]
-                .set_command_line(format!("File saved to {} successfully", save), Type::Info);
+                .set_command_line(format!("File saved to \"{}\" successfully", save), Type::Info);
             // Update the current documents details in case of filetype change
             self.doc[self.tab].last_save_index = self.doc[self.tab].undo_stack.len();
             self.doc[self.tab].kind = Document::identify(&save).0.to_string();
@@ -377,10 +377,14 @@ impl Editor {
                 .to_string();
             self.doc[self.tab].path = save.clone();
             self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
+        } else if save.is_empty() {
+            // The document couldn't save due to an empty name
+            self.doc[self.tab]
+                .set_command_line("Filename is blank, please specify file name".to_string(), Type::Error);
         } else {
             // The document couldn't save due to permission errors / invalid name
             self.doc[self.tab]
-                .set_command_line(format!("Failed to save file to {}", save), Type::Error);
+                .set_command_line(format!("Failed to save file to \"{}\"", save), Type::Error);
         }
         // Commit to undo stack on document save
         self.execute(Event::Commit, false);
