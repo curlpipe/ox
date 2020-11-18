@@ -57,6 +57,7 @@ pub struct Editor {
     doc: Vec<Document>,                      // For holding our document
     tab: usize,                              // Holds the number of the current tab
     last_keypress: Option<Instant>,          // For holding the time of the last input event
+    keypress: Option<KeyEvent>,            // For holding the last keypress event
     exp: Exp,                                // For holding expressions
     position_bank: HashMap<usize, Position>, // Bank for cursor positions
     row_bank: HashMap<usize, Row>,           // Bank for lines
@@ -146,6 +147,7 @@ impl Editor {
             tab: 0,
             doc: documents,
             last_keypress: None,
+            keypress: None,
             config: config.0.clone(),
             config_path: config_path.to_string(),
             status: config.1,
@@ -188,6 +190,7 @@ impl Editor {
         }
     }
     fn process_key(&mut self, key: KeyEvent) {
+        self.keypress = Some(key);
         self.doc[self.tab].show_welcome = false;
         let cursor = self.doc[self.tab].cursor;
         let offset = self.doc[self.tab].offset;
@@ -407,20 +410,25 @@ impl Editor {
     }
     fn quit_document(&mut self, force: bool) {
         // For handling a quit event
-        if force || self.dirty_prompt('q', "quit") {
-            if self.doc.len() <= 1 {
-                // Quit Ox
-                self.quit = true;
-                return;
-            } else if self.tab == self.doc.len().saturating_sub(1) {
-                // Close current tab and move right
-                self.doc.remove(self.tab);
-                self.tab -= 1;
-            } else {
-                // Close current tab and move left
-                self.doc.remove(self.tab);
+        if let Some(KeyEvent { 
+            code: KeyCode::Char(c), 
+            modifiers: KeyModifiers::CONTROL 
+        }) = self.keypress {
+            if force || self.dirty_prompt(c, "quit") {
+                if self.doc.len() <= 1 {
+                    // Quit Ox
+                    self.quit = true;
+                    return;
+                } else if self.tab == self.doc.len().saturating_sub(1) {
+                    // Close current tab and move right
+                    self.doc.remove(self.tab);
+                    self.tab -= 1;
+                } else {
+                    // Close current tab and move left
+                    self.doc.remove(self.tab);
+                }
+                self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
             }
-            self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
         }
     }
     fn quit_all(&mut self, force: bool) {

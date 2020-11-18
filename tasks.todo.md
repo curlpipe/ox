@@ -1,23 +1,22 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] General Editing
-  - [ ] File overwrite prevention
-    - [ ] Detect if file exists
-      - [ ] Add overwrite confirmation
-  - [ ] Fix hardcoded values
-    - [ ] Fix confirm prompt values
-  - [ ] Goto only if not on screen
+  - [ ] Goto only if not on screen (easy)
     - [ ] Detect if cursor is on screen
       - [ ] Decide what to do
-  - [ ] Better file save error messages
+  - [ ] Better file save error messages (easy)
     - [ ] Fix weird behaviour when file has no path
-  - [ ] Add support for cursor line wrapping*
+  - [ ] Add support for cursor line wrapping* (easy)
     - [ ] Add option to config file
     - [ ] Apply
-  - [ ] Save as sudo / read only files*
+  - [ ] Save as sudo / read only files* (medium)
     - [ ] Add -r flag
     - [ ] Create read only mode
-  - [ ] Function keys and ctrl+shift keys
-  - [ ] UNIX Keybindings
+  - [ ] Function keys and ctrl+shift keys (hard)
+  - [ ] UNIX Keybindings (easy)
+  - [X] File overwrite prevention
+    - [X] Detect if file exists
+      - [X] Add overwrite confirmation
+  - [X] Fix hardcoded values (easy)
 - [ ] Formatting
   - [ ] Clippy
   - [ ] Rustfmt
