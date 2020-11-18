@@ -2,9 +2,6 @@
 - [ ] General Editing
   - [ ] Better file save error messages (easy)
     - [ ] Fix weird behaviour when file has no path
-  - [ ] Add support for cursor line wrapping* (easy)
-    - [ ] Add option to config file
-    - [ ] Apply
   - [ ] Save as sudo / read only files* (medium)
     - [ ] Add -r flag
     - [ ] Create read only mode
@@ -15,8 +12,7 @@
       - [X] Add overwrite confirmation
   - [X] Fix hardcoded values (easy)
   - [X] Goto only if not on screen (easy)
-    - [X] Solve Y
-    - [X] Solve X
+  - [X] Add support for cursor line wrapping* (easy)
 - [ ] Formatting
   - [ ] Clippy
   - [ ] Rustfmt

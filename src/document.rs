@@ -237,7 +237,7 @@ impl Document {
             .replace("%d", if self.dirty { "[+]" } else { "" })
             .replace("%D", if self.dirty { "\u{fb12} " } else { "\u{f723} " })
     }
-    pub fn move_cursor(&mut self, direction: Key, term: &Size) {
+    pub fn move_cursor(&mut self, direction: Key, term: &Size, wrap: bool) {
         // Move the cursor around the editor
         match direction {
             Key::Down => {
@@ -267,7 +267,16 @@ impl Document {
             }
             Key::Right => {
                 // Move the cursor right
-                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET];
+                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
+                // Check for line wrapping
+                if line.length() == self.cursor.x + self.offset.x
+                    && self.cursor.y + self.offset.y - OFFSET != self.rows.len().saturating_sub(1)
+                    && wrap
+                {
+                    self.move_cursor(Key::Down, term, wrap);
+                    self.leap_cursor(Key::Home, term);
+                    return;
+                }
                 // Work out the width of the character to traverse
                 let mut jump = 1;
                 if let Some(chr) = line.ext_chars().get(self.cursor.x + self.offset.x) {
@@ -291,7 +300,15 @@ impl Document {
             }
             Key::Left => {
                 // Move the cursor left
-                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET];
+                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
+                if self.cursor.x + self.offset.x == 0
+                    && self.cursor.y + self.offset.y - OFFSET != 0
+                    && wrap
+                {
+                    self.move_cursor(Key::Up, term, wrap);
+                    self.leap_cursor(Key::End, term);
+                    return;
+                }
                 // Work out the width of the character to traverse
                 let mut jump = 1;
                 if let Some(chr) = line
@@ -408,7 +425,7 @@ impl Document {
         // Insert a tab
         for _ in 0..config.general.tab_width {
             self.rows[pos.y].insert(' ', pos.x);
-            self.move_cursor(Key::Right, term);
+            self.move_cursor(Key::Right, term, config.general.wrap_cursor);
         }
     }
     fn overwrite(&mut self, after: &[Row]) {
@@ -499,7 +516,7 @@ impl Document {
                 self.delete_line(&pos, offset);
                 self.goto(pos, term);
                 if self.cursor.y + self.offset.y - OFFSET >= self.rows.len() {
-                    self.move_cursor(Key::Up, term);
+                    self.move_cursor(Key::Up, term, config.general.wrap_cursor);
                 }
                 if !reversed {
                     self.undo_stack.push(event);
@@ -508,9 +525,9 @@ impl Document {
             Event::Insertion(pos, ch) => {
                 self.dirty = true;
                 self.rows[pos.y].insert(ch, pos.x);
-                self.move_cursor(Key::Right, term);
+                self.move_cursor(Key::Right, term, config.general.wrap_cursor);
                 self.goto(pos, term);
-                self.move_cursor(Key::Right, term);
+                self.move_cursor(Key::Right, term, config.general.wrap_cursor);
                 if !reversed {
                     self.undo_stack.push(event);
                     if ch == ' ' {
@@ -524,7 +541,7 @@ impl Document {
                 self.recalculate_graphemes();
                 self.goto(pos, term);
                 if reversed {
-                    self.move_cursor(Key::Left, term);
+                    self.move_cursor(Key::Left, term, config.general.wrap_cursor);
                 } else {
                     self.undo_stack.push(event);
                 }
@@ -534,7 +551,7 @@ impl Document {
                 self.dirty = true;
                 self.rows.insert(pos.y, Row::from(""));
                 self.goto(pos, term);
-                self.move_cursor(Key::Down, term);
+                self.move_cursor(Key::Down, term, config.general.wrap_cursor);
                 if !reversed {
                     self.undo_stack.push(event);
                     self.undo_stack.commit();
@@ -575,20 +592,20 @@ impl Document {
         self.recalculate_graphemes();
     }
     pub fn word_left(&mut self, term: &Size) {
-        self.move_cursor(Key::Left, term);
+        self.move_cursor(Key::Left, term, false);
         let row = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
         while self.cursor.x + self.offset.x != 0
             && row.chars()[self.graphemes.saturating_sub(1)] != " "
         {
-            self.move_cursor(Key::Left, term);
+            self.move_cursor(Key::Left, term, false);
         }
     }
     pub fn word_right(&mut self, term: &Size) {
         let row = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
         while self.cursor.x + self.offset.x != row.length() && row.chars()[self.graphemes] != " " {
-            self.move_cursor(Key::Right, term);
+            self.move_cursor(Key::Right, term, false);
         }
-        self.move_cursor(Key::Right, term);
+        self.move_cursor(Key::Right, term, false);
     }
     pub fn find_word_boundary_left(&self, pos: &Position) -> Option<Position> {
         self.find_prev(" ", pos)
@@ -623,10 +640,14 @@ impl Document {
     }
     pub fn goto(&mut self, mut pos: Position, term: &Size) {
         // Move the cursor to a specific location
-        let on_y = pos.y >= self.offset.y && 
-            pos.y <= self.offset.y.saturating_add(term.height.saturating_sub(4));
-        let on_x = pos.x >= self.offset.x && 
-            pos.x <= self.offset.x.saturating_add(term.width.saturating_sub(self.line_offset));
+        let on_y = pos.y >= self.offset.y
+            && pos.y <= self.offset.y.saturating_add(term.height.saturating_sub(4));
+        let on_x = pos.x >= self.offset.x
+            && pos.x
+                <= self
+                    .offset
+                    .x
+                    .saturating_add(term.width.saturating_sub(self.line_offset));
         // Verify that the goto is necessary
         if on_y && on_x {
             // No need to adjust offset

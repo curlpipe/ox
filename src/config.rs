@@ -141,6 +141,7 @@ pub struct General {
     pub status_left: String,
     pub status_right: String,
     pub tab: String,
+    pub wrap_cursor: bool,
 }
 
 // Struct for storing theme information

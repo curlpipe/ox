@@ -16,6 +16,7 @@
         line_number_padding_left:  1, // Line number padding on the left
         tab_width:                 4, // The amount of spaces for a tab
         undo_period:               5, // Seconds of inactivity for undo
+        wrap_cursor:            true, // Determines wheter the cursor wraps around
         // Values:
         // %f - File name
         // %F - File name with full path

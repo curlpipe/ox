@@ -57,7 +57,7 @@ pub struct Editor {
     doc: Vec<Document>,                      // For holding our document
     tab: usize,                              // Holds the number of the current tab
     last_keypress: Option<Instant>,          // For holding the time of the last input event
-    keypress: Option<KeyEvent>,            // For holding the last keypress event
+    keypress: Option<KeyEvent>,              // For holding the last keypress event
     exp: Exp,                                // For holding expressions
     position_bank: HashMap<usize, Position>, // Bank for cursor positions
     row_bank: HashMap<usize, Row>,           // Bank for lines
@@ -410,10 +410,11 @@ impl Editor {
     }
     fn quit_document(&mut self, force: bool) {
         // For handling a quit event
-        if let Some(KeyEvent { 
-            code: KeyCode::Char(c), 
-            modifiers: KeyModifiers::CONTROL 
-        }) = self.keypress {
+        if let Some(KeyEvent {
+            code: KeyCode::Char(c),
+            modifiers: KeyModifiers::CONTROL,
+        }) = self.keypress
+        {
             if force || self.dirty_prompt(c, "quit") {
                 if self.doc.len() <= 1 {
                     // Quit Ox
@@ -494,6 +495,7 @@ impl Editor {
                             Direction::Right => KeyCode::Right,
                         },
                         &self.term.size,
+                        self.config.general.wrap_cursor,
                     );
                 }
             }
