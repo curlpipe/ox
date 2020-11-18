@@ -1,8 +1,5 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] General Editing
-  - [ ] Goto only if not on screen (easy)
-    - [ ] Solve X
-    - [X] Solve Y
   - [ ] Better file save error messages (easy)
     - [ ] Fix weird behaviour when file has no path
   - [ ] Add support for cursor line wrapping* (easy)
@@ -17,6 +14,9 @@
     - [X] Detect if file exists
       - [X] Add overwrite confirmation
   - [X] Fix hardcoded values (easy)
+  - [X] Goto only if not on screen (easy)
+    - [X] Solve Y
+    - [X] Solve X
 - [ ] Formatting
   - [ ] Clippy
   - [ ] Rustfmt
