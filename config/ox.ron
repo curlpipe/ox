@@ -53,6 +53,10 @@
             "move 1 down",  // Move cursor down to empty line
             "load line 1",  // Overwrite empty line with line in bank #1
         ],
+        // Macro to save with root permission
+        "save #": [
+            "shcs sudo cat > %F << EOF\n%C\nEOF", // '%F' is the current file name
+        ],
     },
     // RGB values for the colours of Ox
     theme: Theme(

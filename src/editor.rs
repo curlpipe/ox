@@ -29,9 +29,14 @@ pub const OFFSET: usize = 1;
 
 // Macro for running shell commands within the editor
 macro_rules! shell {
-    ($command:expr, $arguments:expr) => {
+    ($command:expr, $confirm:expr, $root:expr) => {
         // Execute a shell command
-        if let Ok(s) = Command::new($command).args($arguments).stdout(Stdio::piped()).spawn() {
+        let command = if $root {
+            Command::new("sudo").arg("bash").arg("-c").arg($command).stdout(Stdio::piped()).spawn()
+        } else {
+            Command::new("bash").arg("-c").arg($command).stdout(Stdio::piped()).spawn()
+        };
+        if let Ok(s) = command {
             log!("Shell", "Command requested");
             if let Ok(s) = s
                 .stdout
@@ -47,9 +52,11 @@ macro_rules! shell {
                     .for_each(|line| println!("{}", line));
                 // Wait for user to press enter, then reenter raw mode
                 log!("Shell", "Exited");
-                println!("Shell command exited. Press [Return] to continue");
-                let mut output = String::new();
-                let _ = std::io::stdin().read_line(&mut output);
+                if $confirm {
+                    println!("Shell command exited. Press [Return] to continue");
+                    let mut output = String::new();
+                    let _ = std::io::stdin().read_line(&mut output);
+                }
                 Terminal::enter();
             } else {
                 log!("Failure to open standard output", "");
@@ -523,11 +530,16 @@ impl Editor {
             Event::Replace => self.replace(),
             Event::ReplaceAll => self.replace_all(),
             Event::Cmd => self.cmd(),
-            Event::Shell(command) => {
-                let mut args = command.split(" ");
-                if let Some(cmd) = args.next() {
-                    shell!(cmd, args.collect::<Vec<_>>());
+            Event::Shell(mut command, confirm, substitution, root) => {
+                if substitution {
+                    let file = self.doc[self.tab].render(
+                        self.doc[self.tab].tabs,
+                        self.config.general.tab_width,
+                    );
+                    command = command.replacen("%F", &self.doc[self.tab].path, 1);
+                    command = command.replacen("%C", &file, 1);
                 }
+                shell!(&command, confirm, root);
             }
             Event::ReloadConfig => {
                 let config = Reader::read(&self.config_path);

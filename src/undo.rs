@@ -50,7 +50,7 @@ pub enum Event {
     NextTab,                                        // Next tab
     PrevTab,                                        // Previous tab
     ReloadConfig,                                   // Reload the configuration file
-    Shell(String),                                  // Running a shell command
+    Shell(String, bool, bool, bool),                // Running a shell command
 }
 
 // A struct for holding all the events taken by the user

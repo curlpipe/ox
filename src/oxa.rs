@@ -21,7 +21,13 @@ pub fn interpret_line(
     let mut events = vec![];
     let mut line = line.split(' ');
     if let Some(instruction) = line.next() {
-        let args: Vec<&str> = line.collect();
+        let mut args: Vec<&str> = line.collect();
+        let root = if let Some(&"sudo") = args.get(0) {
+            args.remove(0);
+            true
+        } else {
+            false
+        };
         match instruction {
             "new" => events.push(Event::New),
             "open" => events.push(open_command(&args)),
@@ -38,7 +44,14 @@ pub fn interpret_line(
             "reload" => events.push(Event::ReloadConfig),
             "cmd" => events.push(Event::Cmd),
             "replace" => events.push(replace_command(&args)),
-            "sh" => events.push(Event::Shell(args.join(" "))),
+            // Shell with substitution and no confirm
+            "shs" => events.push(Event::Shell(args.join(" "), false, true, root)),
+            // Shell with substitution and confirm
+            "shcs" => events.push(Event::Shell(args.join(" "), true, true, root)),
+            // Shell with confirm and no substitution
+            "shc" => events.push(Event::Shell(args.join(" "), true, false, root)),
+            // Shell with no confirm nor substitution
+            "sh" => events.push(Event::Shell(args.join(" "), false, false, root)),
             "theme" => {
                 if let Some(theme) = theme_command(&args) {
                     events.push(theme)
