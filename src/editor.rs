@@ -13,7 +13,9 @@ use crossterm::ErrorKind;
 use regex::Regex;
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::io::{BufRead, BufReader, Error, ErrorKind as Iek};
 use std::path::Path;
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 use unicode_width::UnicodeWidthStr;
 
@@ -23,6 +25,25 @@ pub const RESET_FG: SetForegroundColor = SetForegroundColor(Color::Reset);
 
 // Set up offset rules
 pub const OFFSET: usize = 1;
+
+// Macro for running shell commands within the editor
+macro_rules! shell {
+    ($command:expr) => {
+        if let Ok(s) = Command::new($command).stdout(Stdio::piped()).spawn() {
+            if let Ok(s) = s
+                .stdout
+                .ok_or_else(|| Error::new(Iek::Other, "Could not capture standard output."))
+            {
+                Terminal::exit();
+                BufReader::new(s)
+                    .lines()
+                    .filter_map(|line| line.ok())
+                    .for_each(|line| println!("{}", line));
+                Terminal::enter();
+            }
+        }
+    };
+}
 
 // Enum for holding prompt events
 enum PromptEvent {
@@ -130,10 +151,19 @@ impl Editor {
         }
         let mut documents = vec![];
         if files.is_empty() {
-            documents.push(Document::new(&config.0, &config.1));
+            documents.push(Document::new(
+                &config.0,
+                &config.1,
+                args.is_present("readonly"),
+            ));
         } else {
             for file in &files {
-                documents.push(Document::from(&config.0, &config.1, file));
+                documents.push(Document::from(
+                    &config.0,
+                    &config.1,
+                    file,
+                    args.is_present("readonly"),
+                ));
             }
         }
         for d in &mut documents {
@@ -306,7 +336,8 @@ impl Editor {
     }
     fn new_document(&mut self) {
         // Create a new document
-        self.doc.push(Document::new(&self.config, &self.status));
+        self.doc
+            .push(Document::new(&self.config, &self.status, false));
         self.tab = self.doc.len().saturating_sub(1);
     }
     fn open_document(&mut self, file: Option<String>) {
@@ -321,7 +352,7 @@ impl Editor {
             // User cancelled
             return;
         };
-        if let Some(doc) = Document::open(&self.config, &self.status, &to_open) {
+        if let Some(doc) = Document::open(&self.config, &self.status, &to_open, false) {
             // Overwrite the current document
             self.doc.push(doc);
             self.tab = self.doc.len().saturating_sub(1);
@@ -363,8 +394,10 @@ impl Editor {
             // The document saved successfully
             let ext = save.split('.').last().unwrap_or(&"");
             self.doc[self.tab].dirty = false;
-            self.doc[self.tab]
-                .set_command_line(format!("File saved to \"{}\" successfully", save), Type::Info);
+            self.doc[self.tab].set_command_line(
+                format!("File saved to \"{}\" successfully", save),
+                Type::Info,
+            );
             // Update the current documents details in case of filetype change
             self.doc[self.tab].last_save_index = self.doc[self.tab].undo_stack.len();
             self.doc[self.tab].kind = Document::identify(&save).0.to_string();
@@ -379,8 +412,10 @@ impl Editor {
             self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
         } else if save.is_empty() {
             // The document couldn't save due to an empty name
-            self.doc[self.tab]
-                .set_command_line("Filename is blank, please specify file name".to_string(), Type::Error);
+            self.doc[self.tab].set_command_line(
+                "Filename is blank, please specify file name".to_string(),
+                Type::Error,
+            );
         } else {
             // The document couldn't save due to permission errors / invalid name
             self.doc[self.tab]
@@ -455,6 +490,9 @@ impl Editor {
     }
     pub fn execute(&mut self, event: Event, reversed: bool) {
         // Event executor
+        if self.doc[self.tab].read_only && Editor::will_edit(&event) {
+            return;
+        }
         match event {
             Event::New => self.new_document(),
             Event::Open(file) => self.open_document(file),
@@ -468,6 +506,7 @@ impl Editor {
             Event::Replace => self.replace(),
             Event::ReplaceAll => self.replace_all(),
             Event::Cmd => self.cmd(),
+            Event::Shell(command) => shell!(command),
             Event::ReloadConfig => {
                 let config = Reader::read(&self.config_path);
                 self.config = config.0;
@@ -609,25 +648,32 @@ impl Editor {
                 // Execute the instruction
                 if let Some(instruct) = instruction {
                     for i in instruct {
-                        match i {
-                            Event::SpliceUp(_, _)
-                            | Event::SplitDown(_, _)
-                            | Event::InsertLineAbove(_)
-                            | Event::InsertLineBelow(_)
-                            | Event::Deletion(_, _)
-                            | Event::Insertion(_, _)
-                            | Event::InsertTab(_)
-                            | Event::DeleteTab(_)
-                            | Event::DeleteLine(_, _, _)
-                            | Event::UpdateLine(_, _, _, _)
-                            | Event::Overwrite(_, _) => self.doc[self.tab].redo_stack.empty(),
-                            _ => (),
+                        if Editor::will_edit(&i) {
+                            self.doc[self.tab].redo_stack.empty();
                         }
                         self.execute(i, false);
                     }
                     self.doc[self.tab].undo_stack.commit();
                 }
             }
+        }
+    }
+    pub fn will_edit(event: &Event) -> bool {
+        match event {
+            Event::SpliceUp(_, _)
+            | Event::SplitDown(_, _)
+            | Event::InsertLineAbove(_)
+            | Event::InsertLineBelow(_)
+            | Event::Deletion(_, _)
+            | Event::Insertion(_, _)
+            | Event::InsertTab(_)
+            | Event::DeleteTab(_)
+            | Event::DeleteLine(_, _, _)
+            | Event::UpdateLine(_, _, _, _)
+            | Event::ReplaceAll
+            | Event::Replace
+            | Event::Overwrite(_, _) => true,
+            _ => false,
         }
     }
     pub fn undo(&mut self) {

@@ -2,7 +2,7 @@
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
 use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
-use crate::{log, Event, EventStack, Position, Row, Size, VERSION};
+use crate::{log, Editor, Event, EventStack, Position, Row, Size, VERSION};
 use crossterm::event::KeyCode as Key;
 use regex::Regex;
 use std::ffi::OsStr;
@@ -43,11 +43,12 @@ pub struct Document {
     pub tabs: bool,             // For detecting if tabs are used over spaces
     pub last_save_index: usize, // For holding the last save index
     pub true_path: String,      // For holding the path that was provided as argument
+    pub read_only: bool,        // Boolean to determine if the document is read only
 }
 
 // Add methods to the document struct
 impl Document {
-    pub fn new(config: &Reader, status: &Status) -> Self {
+    pub fn new(config: &Reader, status: &Status, read_only: bool) -> Self {
         // Create a new, empty document
         Self {
             rows: vec![Row::from("")],
@@ -69,9 +70,10 @@ impl Document {
             tabs: false,
             last_save_index: 0,
             true_path: String::new(),
+            read_only,
         }
     }
-    pub fn open(config: &Reader, status: &Status, path: &str) -> Option<Self> {
+    pub fn open(config: &Reader, status: &Status, path: &str, read_only: bool) -> Option<Self> {
         // Create a new document from a path
         let true_path = path.to_string();
         let path = path.split(':').next().unwrap();
@@ -116,17 +118,18 @@ impl Document {
                 tabs,
                 last_save_index: 0,
                 true_path,
+                read_only,
             })
         } else {
             // File doesn't exist
             None
         }
     }
-    pub fn from(config: &Reader, status: &Status, path: &str) -> Self {
+    pub fn from(config: &Reader, status: &Status, path: &str, read_only: bool) -> Self {
         // Create a new document from a path with empty document on error
         let true_path = path.to_string();
         let path = path.split(':').next().unwrap();
-        if let Some(doc) = Document::open(&config, &status, &true_path) {
+        if let Some(doc) = Document::open(&config, &status, &true_path, read_only) {
             log!("Opening file", "File was found");
             doc
         } else {
@@ -153,6 +156,7 @@ impl Document {
                 tabs: false,
                 last_save_index: 0,
                 true_path,
+                read_only,
             }
         }
     }
@@ -497,6 +501,9 @@ impl Document {
     }
     pub fn execute(&mut self, event: Event, reversed: bool, term: &Size, config: &Reader) {
         // Document edit event executor
+        if self.read_only && Editor::will_edit(&event) {
+            return;
+        }
         match event {
             Event::Overwrite(_, ref after) => {
                 self.overwrite(after);

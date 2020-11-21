@@ -38,6 +38,7 @@ pub fn interpret_line(
             "reload" => events.push(Event::ReloadConfig),
             "cmd" => events.push(Event::Cmd),
             "replace" => events.push(replace_command(&args)),
+            "sh" => events.push(Event::Shell(args.join(" "))),
             "theme" => {
                 if let Some(theme) = theme_command(&args) {
                     events.push(theme)

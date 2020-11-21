@@ -1,8 +1,10 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] General Editing
   - [ ] Save as sudo / read only files* (medium)
-    - [ ] Add -r flag
-    - [ ] Create read only mode
+    - [ ] Add root saving command
+    - [X] Add -r flag
+    - [X] Allow for shell command to be executed via Oxa
+    - [X] Create read only mode
   - [ ] Function keys and ctrl+shift keys (hard)
   - [ ] UNIX Keybindings (easy)
   - [X] File overwrite prevention

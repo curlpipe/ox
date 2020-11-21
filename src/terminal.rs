@@ -25,8 +25,7 @@ impl Terminal {
     pub fn new() -> Result<Self, ErrorKind> {
         // Create a new terminal and switch into raw mode
         let size = terminal::size()?;
-        terminal::enable_raw_mode()?;
-        execute!(stdout(), terminal::EnterAlternateScreen)?;
+        Terminal::enter();
         Ok(Self {
             size: Size {
                 width: size.0 as usize,
@@ -34,6 +33,11 @@ impl Terminal {
             },
             regex: Exp::new(),
         })
+    }
+    pub fn enter() {
+        // Enter the current terminal
+        terminal::enable_raw_mode().unwrap();
+        execute!(stdout(), terminal::EnterAlternateScreen).unwrap();
     }
     pub fn exit() {
         // Exit the terminal

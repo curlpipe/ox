@@ -89,6 +89,14 @@ file.txt:100 (This will go to line 100 in file.txt)"#,
                 ),
         )
         .arg(
+            Arg::with_name("readonly")
+                .long("readonly")
+                .short("r")
+                .takes_value(false)
+                .required(false)
+                .help("Enable read only mode"),
+        )
+        .arg(
             Arg::with_name("config")
                 .long("config")
                 .short("c")
