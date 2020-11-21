@@ -27,6 +27,7 @@ pub enum Status {
 pub enum KeyBinding {
     Ctrl(char),
     Alt(char),
+    F(u8),
 }
 
 // Struct for storing and managing configuration

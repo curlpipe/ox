@@ -313,6 +313,14 @@ impl Editor {
                     }
                 }
             }
+            // Detect function key binding
+            (KeyCode::F(c), KeyModifiers::NONE) => {
+                if let Some(commands) = self.config.keys.get(&KeyBinding::F(c)) {
+                    for i in commands.clone() {
+                        self.text_to_event(&i);
+                    }
+                }
+            }
             (KeyCode::Char(c), _) => {
                 self.doc[self.tab].redo_stack.empty();
                 self.execute(Event::Insertion(current, c), false);

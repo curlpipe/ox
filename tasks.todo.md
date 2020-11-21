@@ -1,6 +1,9 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] General Editing
-  - [ ] Function keys and ctrl+shift keys (hard)
+  - [ ] More keybindings (hard)
+    - [ ] Shift keys
+    - [ ] Arrow keys
+    - [X] Function keys
   - [ ] UNIX Keybindings (easy)
   - [X] File overwrite prevention
     - [X] Detect if file exists

@@ -56,6 +56,9 @@
         ],
         // Macro to save with root permission
         "save #": [
+            // SHCS: Shell with confirmation and substitution
+            // With substitution, `%C` becomes the current documents contents
+            // `%F` becomes the file path of the current document
             "shcs sudo cat > %F << EOF\n%CEOF", // '%F' is the current file name
             "is saved", // Set the status of the file to saved
         ],
@@ -143,6 +146,11 @@
         Ctrl('v'): ["move line up"], // Move line up
         Ctrl('k'): ["move line down"], // Move line down
         Alt('a'):  ["cmd"], // Open the command line
+        // Show help message URL
+        F(1):   [
+            "sh echo You can get help here:",
+            "shc echo https://github.com/curlpipe/ox/wiki",
+        ]
     },
     // Language specific settings
     languages: [
