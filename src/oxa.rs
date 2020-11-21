@@ -11,6 +11,11 @@ use crate::undo::BankType;
 use crate::util::line_offset;
 use crate::{Direction, Event, Position, Row};
 
+#[derive(Debug, Copy, Clone)]
+pub enum Variable {
+    Saved
+}
+
 pub fn interpret_line(
     line: &str,
     cursor: &Position,
@@ -52,6 +57,13 @@ pub fn interpret_line(
             "shc" => events.push(Event::Shell(args.join(" "), true, false, root)),
             // Shell with no confirm nor substitution
             "sh" => events.push(Event::Shell(args.join(" "), false, false, root)),
+            "is" => {
+                if let Some(set) = is_command(&args) {
+                    events.push(set)
+                } else {
+                    return None;
+                }
+            }
             "theme" => {
                 if let Some(theme) = theme_command(&args) {
                     events.push(theme)
@@ -87,6 +99,13 @@ pub fn interpret_line(
         }
     }
     Some(events)
+}
+
+fn is_command(args: &[&str]) -> Option<Event> {
+    Some(Event::Set(match &args[0][..] {
+        "saved" => Variable::Saved,
+        _ => return None,
+    }, true))
 }
 
 fn theme_command(args: &[&str]) -> Option<Event> {

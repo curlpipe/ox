@@ -2,7 +2,7 @@
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
 use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
-use crate::{log, Editor, Event, EventStack, Position, Row, Size, VERSION};
+use crate::{log, Editor, Event, EventStack, Position, Row, Size, VERSION, Variable};
 use crossterm::event::KeyCode as Key;
 use regex::Regex;
 use std::ffi::OsStr;
@@ -233,7 +233,7 @@ impl Document {
                 "%l",
                 &format!(
                     "{}",
-                    self.cursor.y + self.offset.y.saturating_sub(OFFSET) + 1
+                    self.cursor.y + self.offset.y.saturating_sub(OFFSET)
                 ),
             )
             .replace("%L", &format!("{}", self.rows.len()))
@@ -507,6 +507,11 @@ impl Document {
             return;
         }
         match event {
+            Event::Set(variable, value) => {
+                match variable {
+                    Variable::Saved => self.dirty = !value,
+                }
+            }
             Event::Overwrite(_, ref after) => {
                 self.overwrite(after);
                 self.goto(Position { x: 0, y: 0 }, term);

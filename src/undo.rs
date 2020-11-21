@@ -1,6 +1,6 @@
 // Undo.rs - Utilities for undoing, redoing and storing events
 use crate::util::line_offset;
-use crate::{Direction, Position, Row};
+use crate::{Direction, Position, Row, Variable};
 
 // Enum for the the types of banks
 #[derive(Debug, Clone)]
@@ -51,6 +51,7 @@ pub enum Event {
     PrevTab,                                        // Previous tab
     ReloadConfig,                                   // Reload the configuration file
     Shell(String, bool, bool, bool),                // Running a shell command
+    Set(Variable, bool),                            // For updating variables of the document
 }
 
 // A struct for holding all the events taken by the user

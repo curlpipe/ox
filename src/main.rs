@@ -37,6 +37,7 @@ use editor::{Direction, Editor, Position};
 use row::Row;
 use std::{env, panic};
 use terminal::{Size, Terminal};
+use oxa::Variable;
 use undo::{Event, EventStack};
 use std::fs::OpenOptions;
 use std::io::Write;
