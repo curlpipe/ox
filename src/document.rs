@@ -9,6 +9,8 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::{cmp, fs};
 use unicode_width::UnicodeWidthStr;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 // For holding the info in the command line
 pub struct CommandLine {

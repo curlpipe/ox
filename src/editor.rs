@@ -13,10 +13,11 @@ use crossterm::ErrorKind;
 use regex::Regex;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::io::{BufRead, BufReader, Error, ErrorKind as Iek};
+use std::io::{BufRead, Write, BufReader, Error, ErrorKind as Iek};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
+use std::fs::OpenOptions;
 use unicode_width::UnicodeWidthStr;
 
 // Set up color resets
@@ -28,19 +29,33 @@ pub const OFFSET: usize = 1;
 
 // Macro for running shell commands within the editor
 macro_rules! shell {
-    ($command:expr) => {
-        if let Ok(s) = Command::new($command).stdout(Stdio::piped()).spawn() {
+    ($command:expr, $arguments:expr) => {
+        // Execute a shell command
+        if let Ok(s) = Command::new($command).args($arguments).stdout(Stdio::piped()).spawn() {
+            log!("Shell", "Command requested");
             if let Ok(s) = s
                 .stdout
                 .ok_or_else(|| Error::new(Iek::Other, "Could not capture standard output."))
             {
+                // Go back into canonical mode to restore normal operation
                 Terminal::exit();
+                log!("Shell", "Ready to go");
+                // Stream the input and output of the command to the current stdout
                 BufReader::new(s)
                     .lines()
                     .filter_map(|line| line.ok())
                     .for_each(|line| println!("{}", line));
+                // Wait for user to press enter, then reenter raw mode
+                log!("Shell", "Exited");
+                println!("Shell command exited. Press [Return] to continue");
+                let mut output = String::new();
+                let _ = std::io::stdin().read_line(&mut output);
                 Terminal::enter();
+            } else {
+                log!("Failure to open standard output", "");
             }
+        } else {
+            log!("Failure to run command", format!("{} {:?}", $command, Command::new($command).stdout(Stdio::piped()).spawn()));
         }
     };
 }
@@ -149,6 +164,7 @@ impl Editor {
                 };
             }
         }
+        // Read in documents
         let mut documents = vec![];
         if files.is_empty() {
             documents.push(Document::new(
@@ -166,6 +182,7 @@ impl Editor {
                 ));
             }
         }
+        // Calculate neater paths
         for d in &mut documents {
             d.correct_path(&term.size);
         }
@@ -506,7 +523,12 @@ impl Editor {
             Event::Replace => self.replace(),
             Event::ReplaceAll => self.replace_all(),
             Event::Cmd => self.cmd(),
-            Event::Shell(command) => shell!(command),
+            Event::Shell(command) => {
+                let mut args = command.split(" ");
+                if let Some(cmd) = args.next() {
+                    shell!(cmd, args.collect::<Vec<_>>());
+                }
+            }
             Event::ReloadConfig => {
                 let config = Reader::read(&self.config_path);
                 self.config = config.0;

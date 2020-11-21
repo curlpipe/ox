@@ -38,13 +38,13 @@ use row::Row;
 use std::{env, panic};
 use terminal::{Size, Terminal};
 use undo::{Event, EventStack};
+use std::fs::OpenOptions;
+use std::io::Write;
 
 // Create log macro
 #[macro_export]
 macro_rules! log {
     ($type:literal, $msg:expr) => {
-        use std::fs::OpenOptions;
-        use std::io::Write;
         let file = OpenOptions::new()
             .create(true)
             .append(true)
