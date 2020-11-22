@@ -1,6 +1,6 @@
 [package]
 name = "ox"
-version = "0.2.7"
+version = "0.2.8"
 authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 edition = "2018"
 description = "A Rust powered text editor."
@@ -18,7 +18,7 @@ panic = "abort"
 codegen-units = 1
 
 [dependencies]
-unicode-segmentation = "1.6.0"
+unicode-segmentation = "1.7.0"
 unicode-width = "0.1.8"
 clap = "2.33.3"
 shellexpand = "2.0.0"
