@@ -166,17 +166,17 @@ Ox is controlled via your keyboard shortcuts. Here are the default shortcuts tha
 | ------------ | ------------ |
 | `Ctrl + Q`  | Exits the current tab or the editor if only one tab open.  | 
 | `Ctrl + S`  | Saves the open file to the disk.  | 
-| `Ctrl + W`  | Prompts you for a file name and saves it to disk as that file name.  | 
-| `Ctrl + P`  | Saves all the currently open files to the disk. | 
+| `Alt + S`   | Prompts you for a file name and saves it to disk as that file name.  | 
+| `Ctrl + W`  | Saves all the currently open files to the disk. | 
 | `Ctrl + N`  | Creates a new tab with a blank document.  | 
 | `Ctrl + O`  | Prompts you for a file and opens that file in a new tab.  | 
 | `Ctrl + F`  | Searches the document for a search query. Allows pressing of <kbd>↑</kbd> and <kbd>←</kbd> to move the cursor to the previous occurance fof the query and <kbd>↓</kbd> and <kbd>→</kbd> to move to the next occurance of the query. Press <kbd>Return</kbd> to cancel the search at the current cursor position or <kbd>Esc</kbd> to cancel the search and return to the initial location of the cursor. Note: this allows you to use regular expressions. | 
-| `Ctrl + U`  | Undoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
+| `Ctrl + Z`  | Undoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
 | `Ctrl + Y`  | Redoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
 | `Ctrl + R`  | Allows replacing of occurances in the document. Uses the same keybindings as the search feature: <kbd>↑</kbd> and <kbd>←</kbd> to move the cursor to the previous occurance fof the query and <kbd>↓</kbd> and <kbd>→</kbd> to move to the next occurance of the query. You can also press <kbd>Return</kbd>, <kbd>y</kbd> or <kbd>Space</kbd> to carry out the replace action. To exit replace mode once you're finished, you can press <kbd>Esc</kbd> to cancel and return back to your initial cursor position. Note: this allows you to use regular expressions. | 
 | `Ctrl + A`  | Carries out a batch replace option. It will prompt you for a target to replace and what you want to replace it with and will then replace every occurance in the document. Note: this allows you to use regular expressions. | 
-| `Ctrl + D`  | Navigates to the previous tab.  | 
-| `Ctrl + H`  | Navigates to the next tab.  | 
+| `Ctrl + Left`  | Navigates to the previous tab.  | 
+| `Ctrl + Right`  | Navigates to the next tab.  | 
 
 #### Configuring Ox
 
@@ -212,7 +212,7 @@ Here is the current summary
  - [X] Syntax highlighting (0.2.4) [1894 lines]
  - [X] Tabs for multitasking (0.2.5) [2050 lines]
  - [X] Macros (0.2.6) [2633 lines]
- - [ ] Tweaks (0.2.7)
+ - [X] Tweaks (0.2.7) [3241 lines]
  - [ ] Mouse support (0.2.8)
  - [ ] Auto indentation (0.3.0)
  - [ ] Prettifier / Automatic code formatter (0.3.0)
@@ -234,3 +234,4 @@ You can contact me on Discord at `curlpipe#1496`. I'll be happy to answer any qu
 
 * [Curlpipe (Luke), for actually building Ox](https://github.com/curlpipe)
 * [Spike, for the logo](https://github.com/spikecodes)
+* [The community, for the ideas and suggestions]
