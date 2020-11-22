@@ -234,4 +234,4 @@ You can contact me on Discord at `curlpipe#1496`. I'll be happy to answer any qu
 
 * [Curlpipe (Luke), for actually building Ox](https://github.com/curlpipe)
 * [Spike, for the logo](https://github.com/spikecodes)
-* [The community, for the ideas and suggestions]
+* The community, for the ideas and suggestions
