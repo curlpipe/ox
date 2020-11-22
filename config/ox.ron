@@ -30,7 +30,6 @@
         // %v - Version of the editor (e.g. 0.2.6)
         // %d - Dirty file indicator text
         // %D - Dirty file indicator icon
-        // %R - Read only file indicator
         status_left:  " %f%d %D │ %n %i", // Left part of status line
         status_right: "並 %l / %L │ 﫦(%x, %y) ", // Right part of status line
         tab: "%I%f%d", // Tab formatting
