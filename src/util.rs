@@ -1,5 +1,4 @@
 // Util.rs - Utilities for the rest of the program
-use crate::Position;
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -7,7 +6,7 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 // For holding general purpose regular expressions
 #[derive(Debug, Clone)]
 pub struct Exp {
-    ansi: Regex,
+    pub ansi: Regex,
 }
 
 impl Exp {
@@ -53,24 +52,6 @@ pub fn trim_end(text: &str, end: usize) -> String {
         }
     }
     result.join("")
-}
-
-pub fn is_behind(current: &Position, position: &Position) -> bool {
-    // Determine whether a position is behind the cursor
-    if position.y > current.y {
-        false
-    } else {
-        !(position.y == current.y && current.x <= position.x)
-    }
-}
-
-pub fn is_ahead(current: &Position, position: &Position) -> bool {
-    // Determine whether a position is ahead the cursor
-    if position.y < current.y {
-        false
-    } else {
-        !(position.y == current.y && current.x >= position.x)
-    }
 }
 
 pub fn line_offset(point: usize, offset: i128, limit: usize) -> usize {
@@ -131,4 +112,21 @@ pub fn tabs_to_spaces(code: &str, tab_width: usize) -> String {
         result.push(format!("{}{}", " ".repeat(spaces), line));
     }
     result.join("\n")
+}
+
+pub fn is_ansi(s: &str, chk: &Regex) -> bool {
+    chk.is_match(s)
+}
+
+pub fn safe_ansi_insert(index: usize, list: &[&str], chk: &Regex) -> Option<usize> {
+    let mut c = 0;
+    for (ac, i) in list.iter().enumerate() {
+        if !is_ansi(i, chk) {
+            c += 1;
+        }
+        if c == index {
+            return Some(ac.saturating_add(1));
+        }
+    }
+    None
 }

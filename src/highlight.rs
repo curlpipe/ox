@@ -9,13 +9,13 @@ pub struct Token {
     pub span: (usize, usize),
     pub data: String,
     pub kind: String,
-    pub priority: bool,
+    pub priority: usize,
 }
 
 pub fn cine(token: &Token, hashmap: &mut HashMap<usize, Token>) {
     // Insert a token into a hashmap
     if let Some(t) = hashmap.get(&token.span.0) {
-        if t.priority {
+        if t.priority > token.priority {
             return;
         }
     }
@@ -69,7 +69,7 @@ pub fn highlight(
                                     span: boundaries,
                                     data: cap.as_str().to_string(),
                                     kind: Reader::rgb_fg(highlights["keywords"]).to_string(),
-                                    priority: false,
+                                    priority: 0,
                                 },
                                 &mut syntax,
                             );
@@ -86,7 +86,7 @@ pub fn highlight(
                                     span: boundaries,
                                     data: cap.as_str().to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
-                                    priority: false,
+                                    priority: 1,
                                 },
                                 &mut syntax,
                             );
@@ -113,7 +113,7 @@ pub fn highlight(
                                     ),
                                     data: row.to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
-                                    priority: true,
+                                    priority: 2,
                                 },
                                 &mut syntax,
                             )
@@ -123,7 +123,7 @@ pub fn highlight(
                                     span: (0, end_x),
                                     data: row.to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
-                                    priority: true,
+                                    priority: 2,
                                 },
                                 &mut syntax,
                             )
@@ -133,7 +133,7 @@ pub fn highlight(
                                     span: (0, UnicodeWidthStr::width(row)),
                                     data: row.to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
-                                    priority: true,
+                                    priority: 2,
                                 },
                                 &mut syntax,
                             )
@@ -150,11 +150,15 @@ pub fn remove_nested_tokens(tokens: &HashMap<usize, Token>, line: &str) -> HashM
     // Remove tokens within tokens
     let mut result = HashMap::new();
     let mut c = 0;
+    // While the line still isn't full
     while c < line.len() {
+        // If the token at this position exists
         if let Some(t) = tokens.get(&c) {
+            // Insert it and jump over everything
             result.insert(t.span.0, t.clone());
             c += t.span.1 - t.span.0;
         } else {
+            // Shift forward
             c += 1;
         }
     }

@@ -1,6 +1,6 @@
 // Undo.rs - Utilities for undoing, redoing and storing events
 use crate::util::line_offset;
-use crate::{Direction, Position, Row};
+use crate::{Direction, Position, Row, Variable};
 
 // Enum for the the types of banks
 #[derive(Debug, Clone)]
@@ -27,6 +27,7 @@ pub enum Event {
     MoveCursor(i128, Direction),                    // For moving the cursor
     GotoCursor(Position),                           // For setting the cursor position
     MoveWord(Direction),                            // Move cursor through words
+    DeleteWord(Position, String),                   // Delete word
     Theme(String),                                  // Theme change event
     Search,                                         // Search the document
     Replace,                                        // Replace certain occurances
@@ -48,6 +49,9 @@ pub enum Event {
     QuitAll(bool),                                  // Quit all
     NextTab,                                        // Next tab
     PrevTab,                                        // Previous tab
+    ReloadConfig,                                   // Reload the configuration file
+    Shell(String, bool, bool, bool),                // Running a shell command
+    Set(Variable, bool),                            // For updating variables of the document
 }
 
 // A struct for holding all the events taken by the user
@@ -88,6 +92,10 @@ impl EventStack {
             self.history.push(self.current_patch.clone());
             self.current_patch.clear();
         }
+    }
+    pub fn len(&self) -> usize {
+        // Find the length of the undo stack
+        self.history.len()
     }
 }
 

@@ -2,12 +2,14 @@
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
 use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
-use crate::{Event, EventStack, Position, Row, Size, VERSION};
+use crate::{log, Editor, Event, EventStack, Position, Row, Size, Variable, VERSION};
+use crossterm::event::KeyCode as Key;
 use regex::Regex;
 use std::ffi::OsStr;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::Path;
 use std::{cmp, fs};
-use termion::event::Key;
 use unicode_width::UnicodeWidthStr;
 
 // For holding the info in the command line
@@ -21,6 +23,13 @@ pub enum Type {
     Error,
     Warning,
     Info,
+}
+
+// Enum to determine which tab type
+#[derive(Debug, Copy, Clone)]
+pub enum TabType {
+    Spaces,
+    Tabs,
 }
 
 // Document struct (class) to manage files and text
@@ -40,12 +49,15 @@ pub struct Document {
     pub cursor: Position,       // For holding the raw cursor location
     pub offset: Position,       // For holding the offset on the X and Y axes
     pub graphemes: usize,       // For holding the special grapheme cursor
-    pub tabs: bool,             // For detecting if tabs are used over spaces
+    pub tabs: TabType,          // For detecting if tabs are used over spaces
+    pub last_save_index: usize, // For holding the last save index
+    pub true_path: String,      // For holding the path that was provided as argument
+    pub read_only: bool,        // Boolean to determine if the document is read only
 }
 
 // Add methods to the document struct
 impl Document {
-    pub fn new(config: &Reader, status: &Status) -> Self {
+    pub fn new(config: &Reader, status: &Status, read_only: bool) -> Self {
         // Create a new, empty document
         Self {
             rows: vec![Row::from("")],
@@ -64,15 +76,21 @@ impl Document {
             graphemes: 0,
             cursor: Position { x: 0, y: OFFSET },
             offset: Position { x: 0, y: 0 },
-            tabs: false,
+            tabs: TabType::Spaces,
+            last_save_index: 0,
+            true_path: String::new(),
+            read_only,
         }
     }
-    pub fn open(config: &Reader, status: &Status, path: &str) -> Option<Self> {
+    pub fn open(config: &Reader, status: &Status, path: &str, read_only: bool) -> Option<Self> {
         // Create a new document from a path
+        let true_path = path.to_string();
+        let path = path.split(':').next().unwrap();
         if let Ok(file) = fs::read_to_string(path) {
             // File exists
+            let tabs = file.contains("\n\t");
             let file = tabs_to_spaces(&file, config.general.tab_width);
-            let mut file = file.split('\n').collect::<Vec<&str>>();
+            let mut file = Document::split_file(&file);
             // Handle newline on last line
             if let Some(line) = file.iter().last() {
                 if line.is_empty() {
@@ -88,7 +106,7 @@ impl Document {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: Path::new(path)
                     .file_name()
-                    .unwrap_or(OsStr::new(path))
+                    .unwrap_or_else(|| OsStr::new(path))
                     .to_str()
                     .unwrap_or(&path)
                     .to_string(),
@@ -106,19 +124,26 @@ impl Document {
                 graphemes: 0,
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
-                tabs: file.contains(&"\n\t"),
+                tabs: if tabs { TabType::Tabs } else { TabType::Spaces },
+                last_save_index: 0,
+                true_path,
+                read_only,
             })
         } else {
             // File doesn't exist
             None
         }
     }
-    pub fn from(config: &Reader, status: &Status, path: &str) -> Self {
+    pub fn from(config: &Reader, status: &Status, path: &str, read_only: bool) -> Self {
         // Create a new document from a path with empty document on error
-        if let Some(doc) = Document::open(&config, &status, path) {
+        let true_path = path.to_string();
+        let path = path.split(':').next().unwrap();
+        if let Some(doc) = Document::open(&config, &status, &true_path, read_only) {
+            log!("Opening file", "File was found");
             doc
         } else {
             // Create blank document
+            log!("Opening file", "File not found");
             let ext = path.split('.').last().unwrap_or(&"");
             Self {
                 rows: vec![Row::from("")],
@@ -137,23 +162,59 @@ impl Document {
                 graphemes: 0,
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
-                tabs: false,
+                tabs: TabType::Spaces,
+                last_save_index: 0,
+                true_path,
+                read_only,
             }
+        }
+    }
+    pub fn split_file(contents: &str) -> Vec<&str> {
+        // Detect DOS line ending
+        let splitter = Regex::new("(?ms)(\r\n|\n)").unwrap();
+        splitter.split(contents).collect()
+    }
+    pub fn correct_path(&mut self, term: &Size) {
+        if self.true_path.contains(':') {
+            let split: Vec<&str> = self.true_path.split(':').collect();
+            let mut y = split.get(1).unwrap_or(&"").parse().unwrap_or(0);
+            let mut x = split.get(2).unwrap_or(&"").parse().unwrap_or(0);
+            if y >= self.rows.len() {
+                self.set_command_line(format!("Row {} out of scope", y), Type::Warning);
+                y = self.rows.len();
+            }
+            if x >= self.rows[y.saturating_sub(1)].length() {
+                self.set_command_line(format!("Column {} out of scope", x), Type::Warning);
+                x = self.rows[y.saturating_sub(1)].length();
+            }
+            self.goto(
+                Position {
+                    x,
+                    y: y.saturating_sub(1),
+                },
+                term,
+            );
         }
     }
     pub fn set_command_line(&mut self, text: String, msg: Type) {
         // Function to update the command line
         self.cmd_line = CommandLine { text, msg };
     }
-    fn config_to_commandline(status: &Status) -> CommandLine {
+    pub fn mass_redraw(&mut self) {
+        for i in &mut self.rows {
+            i.updated = true;
+        }
+    }
+    pub fn config_to_commandline(status: &Status) -> CommandLine {
         CommandLine {
             text: match status {
                 Status::Success => "Welcome to Ox".to_string(),
                 Status::File => "Config file not found, using default values".to_string(),
                 Status::Parse(error) => format!("Failed to parse: {:?}", error),
+                Status::Empty => "Config file is empty, using defaults".to_string(),
             },
             msg: match status {
-                Status::Success => Type::Info,
+                Status::Success | Status::Empty => Type::Info,
                 Status::File => Type::Warning,
                 Status::Parse(_) => Type::Error,
             },
@@ -176,7 +237,7 @@ impl Document {
             .replace("%n", &self.kind)
             .replace(
                 "%l",
-                &format!("{}", self.cursor.y + self.offset.y - OFFSET + 1),
+                &format!("{}", self.cursor.y + self.offset.y.saturating_sub(OFFSET)),
             )
             .replace("%L", &format!("{}", self.rows.len()))
             .replace("%x", &format!("{}", self.cursor.x + self.offset.x))
@@ -185,7 +246,7 @@ impl Document {
             .replace("%d", if self.dirty { "[+]" } else { "" })
             .replace("%D", if self.dirty { "\u{fb12} " } else { "\u{f723} " })
     }
-    pub fn move_cursor(&mut self, direction: Key, term: &Size) {
+    pub fn move_cursor(&mut self, direction: Key, term: &Size, wrap: bool) {
         // Move the cursor around the editor
         match direction {
             Key::Down => {
@@ -215,7 +276,16 @@ impl Document {
             }
             Key::Right => {
                 // Move the cursor right
-                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET];
+                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
+                // Check for line wrapping
+                if line.length() == self.cursor.x + self.offset.x
+                    && self.cursor.y + self.offset.y - OFFSET != self.rows.len().saturating_sub(1)
+                    && wrap
+                {
+                    self.move_cursor(Key::Down, term, wrap);
+                    self.leap_cursor(Key::Home, term);
+                    return;
+                }
                 // Work out the width of the character to traverse
                 let mut jump = 1;
                 if let Some(chr) = line.ext_chars().get(self.cursor.x + self.offset.x) {
@@ -239,7 +309,15 @@ impl Document {
             }
             Key::Left => {
                 // Move the cursor left
-                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET];
+                let line = &self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
+                if self.cursor.x + self.offset.x == 0
+                    && self.cursor.y + self.offset.y - OFFSET != 0
+                    && wrap
+                {
+                    self.move_cursor(Key::Up, term, wrap);
+                    self.leap_cursor(Key::End, term);
+                    return;
+                }
                 // Work out the width of the character to traverse
                 let mut jump = 1;
                 if let Some(chr) = line
@@ -356,7 +434,7 @@ impl Document {
         // Insert a tab
         for _ in 0..config.general.tab_width {
             self.rows[pos.y].insert(' ', pos.x);
-            self.move_cursor(Key::Right, term);
+            self.move_cursor(Key::Right, term, config.general.wrap_cursor);
         }
     }
     fn overwrite(&mut self, after: &[Row]) {
@@ -428,7 +506,13 @@ impl Document {
     }
     pub fn execute(&mut self, event: Event, reversed: bool, term: &Size, config: &Reader) {
         // Document edit event executor
+        if self.read_only && Editor::will_edit(&event) {
+            return;
+        }
         match event {
+            Event::Set(variable, value) => match variable {
+                Variable::Saved => self.dirty = !value,
+            },
             Event::Overwrite(_, ref after) => {
                 self.overwrite(after);
                 self.goto(Position { x: 0, y: 0 }, term);
@@ -446,16 +530,19 @@ impl Document {
             Event::DeleteLine(pos, offset, _) => {
                 self.delete_line(&pos, offset);
                 self.goto(pos, term);
+                if self.cursor.y + self.offset.y - OFFSET >= self.rows.len() {
+                    self.move_cursor(Key::Up, term, config.general.wrap_cursor);
+                }
                 if !reversed {
                     self.undo_stack.push(event);
                 }
             }
-            Event::Insertion(mut pos, ch) => {
+            Event::Insertion(pos, ch) => {
                 self.dirty = true;
                 self.rows[pos.y].insert(ch, pos.x);
-                self.move_cursor(Key::Right, term);
-                pos.x = pos.x.saturating_add(1);
+                self.move_cursor(Key::Right, term, config.general.wrap_cursor);
                 self.goto(pos, term);
+                self.move_cursor(Key::Right, term, config.general.wrap_cursor);
                 if !reversed {
                     self.undo_stack.push(event);
                     if ch == ' ' {
@@ -463,22 +550,23 @@ impl Document {
                     }
                 }
             }
-            Event::Deletion(mut pos, _ch) => {
+            Event::Deletion(pos, _) => {
                 self.dirty = true;
                 self.show_welcome = false;
+                self.recalculate_graphemes();
+                self.goto(pos, term);
                 if reversed {
-                    pos.x = pos.x.saturating_sub(1);
+                    self.move_cursor(Key::Left, term, config.general.wrap_cursor);
                 } else {
                     self.undo_stack.push(event);
                 }
-                self.goto(pos, term);
-                self.rows[pos.y].delete(pos.x);
+                self.rows[pos.y].delete(self.graphemes.saturating_sub(1));
             }
             Event::InsertLineAbove(pos) => {
                 self.dirty = true;
                 self.rows.insert(pos.y, Row::from(""));
                 self.goto(pos, term);
-                self.move_cursor(Key::Down, term);
+                self.move_cursor(Key::Down, term, config.general.wrap_cursor);
                 if !reversed {
                     self.undo_stack.push(event);
                     self.undo_stack.commit();
@@ -513,27 +601,76 @@ impl Document {
                     self.undo_stack.push(event);
                 }
             }
+            Event::DeleteWord(pos, _) => self.delete_word(&pos, term),
             _ => (),
         }
+        self.recalculate_graphemes();
     }
     pub fn word_left(&mut self, term: &Size) {
-        self.move_cursor(Key::Left, term);
+        self.move_cursor(Key::Left, term, false);
         let row = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
         while self.cursor.x + self.offset.x != 0
             && row.chars()[self.graphemes.saturating_sub(1)] != " "
         {
-            self.move_cursor(Key::Left, term);
+            self.move_cursor(Key::Left, term, false);
         }
     }
     pub fn word_right(&mut self, term: &Size) {
         let row = self.rows[self.cursor.y + self.offset.y - OFFSET].clone();
         while self.cursor.x + self.offset.x != row.length() && row.chars()[self.graphemes] != " " {
-            self.move_cursor(Key::Right, term);
+            self.move_cursor(Key::Right, term, false);
         }
-        self.move_cursor(Key::Right, term);
+        self.move_cursor(Key::Right, term, false);
+    }
+    pub fn find_word_boundary_left(&self, pos: &Position) -> Option<Position> {
+        self.find_prev(" ", pos)
+    }
+    pub fn find_word_boundary_right(&self, pos: &Position) -> Option<Position> {
+        self.find_next(" ", pos)
+    }
+    pub fn delete_word(&mut self, pos: &Position, term: &Size) {
+        let mut right = if let Some(&" ") = self.rows[pos.y].ext_chars().get(pos.x) {
+            *pos
+        } else {
+            self.find_word_boundary_right(pos)
+                .unwrap_or(Position { x: 0, y: pos.y })
+        };
+        let mut left = self.find_word_boundary_left(pos).unwrap_or(Position {
+            x: self.rows[pos.y].length(),
+            y: pos.y,
+        });
+        if right.y != pos.y {
+            right = Position {
+                x: self.rows[pos.y].length(),
+                y: pos.y,
+            };
+        }
+        if left.y != pos.y {
+            left = Position { x: 0, y: pos.y };
+        }
+        self.goto(left, term);
+        for _ in left.x..right.x {
+            self.rows[pos.y].delete(left.x);
+        }
     }
     pub fn goto(&mut self, mut pos: Position, term: &Size) {
         // Move the cursor to a specific location
+        let on_y = pos.y >= self.offset.y
+            && pos.y <= self.offset.y.saturating_add(term.height.saturating_sub(4));
+        let on_x = pos.x >= self.offset.x
+            && pos.x
+                <= self
+                    .offset
+                    .x
+                    .saturating_add(term.width.saturating_sub(self.line_offset));
+        // Verify that the goto is necessary
+        if on_y && on_x {
+            // No need to adjust offset
+            self.cursor.y = pos.y - self.offset.y + OFFSET;
+            self.cursor.x = pos.x - self.offset.x;
+            return;
+        }
+        // Move to that position
         let max_y = term.height.saturating_sub(3);
         let max_x = (term.width).saturating_sub(self.line_offset);
         let halfway_y = max_y / 2;
@@ -566,25 +703,78 @@ impl Document {
     }
     pub fn save(&self, path: &str, tab: usize) -> std::io::Result<()> {
         // Save a file
-        let contents = self.render(true, tab);
+        let contents = self.render(self.tabs, tab);
+        log!("Saved file", format!("File tab status is {:?}", self.tabs));
         fs::write(path, contents)
     }
-    pub fn scan(&self, needle: &str, offset: usize) -> Vec<Position> {
-        // Find all the points where "needle" occurs
+    pub fn find_prev(&self, needle: &str, current: &Position) -> Option<Position> {
+        // Find all the points where "needle" occurs before the current position
+        let re = Regex::new(needle).ok()?;
+        for (c, r) in self
+            .rows
+            .iter()
+            .take(current.y.saturating_add(1))
+            .map(|x| x.string.as_str())
+            .enumerate()
+            .rev()
+        {
+            let mut xs = vec![];
+            for i in re.captures_iter(r) {
+                for j in 0..i.len() {
+                    let j = i.get(j).unwrap();
+                    xs.push(j.start());
+                }
+            }
+            while let Some(i) = xs.pop() {
+                if i < current.x || c != current.y {
+                    return Some(Position { x: i, y: c });
+                }
+            }
+        }
+        None
+    }
+    pub fn find_next(&self, needle: &str, current: &Position) -> Option<Position> {
+        // Find all the points where "needle" occurs after the current position
+        let re = Regex::new(needle).ok()?;
+        for (c, r) in self
+            .rows
+            .iter()
+            .skip(current.y)
+            .map(|x| x.string.as_str())
+            .enumerate()
+        {
+            for i in re.captures_iter(r) {
+                for cap in 0..i.len() {
+                    let cap = i.get(cap).unwrap();
+                    if c != 0 || cap.start() > current.x {
+                        return Some(Position {
+                            x: cap.start(),
+                            y: current.y + c,
+                        });
+                    }
+                }
+            }
+        }
+        None
+    }
+    pub fn find_all(&self, needle: &str) -> Option<Vec<Position>> {
+        // Find all the places where the needle is
         let mut result = vec![];
-        if let Ok(re) = Regex::new(needle) {
-            for (i, row) in self.rows.iter().enumerate() {
-                for o in re.find_iter(&row.string) {
+        let re = Regex::new(needle).ok()?;
+        for (c, r) in self.rows.iter().map(|x| x.string.to_string()).enumerate() {
+            for i in re.captures_iter(&r) {
+                for cap in 0..i.len() {
+                    let cap = i.get(cap).unwrap();
                     result.push(Position {
-                        x: o.start(),
-                        y: i + offset,
+                        x: cap.start(),
+                        y: c,
                     });
                 }
             }
         }
-        result
+        Some(result)
     }
-    pub fn render(&self, replace_tab: bool, tab_width: usize) -> String {
+    pub fn render(&self, tab_type: TabType, tab_width: usize) -> String {
         // Render the lines of a document for writing
         let render = self
             .rows
@@ -593,7 +783,7 @@ impl Document {
             .collect::<Vec<String>>()
             .join("\n")
             + "\n";
-        if replace_tab {
+        if let TabType::Tabs = tab_type {
             spaces_to_tabs(&render, tab_width)
         } else {
             render

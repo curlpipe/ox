@@ -1,6 +1,6 @@
 /* 
-	Ox 0.2.6
-	Now with a new scripting language and more extensibility
+	Ox 0.2.7
+	More efficient, more developed and fully cross platform.
 */
 
 pub const PI = 3.14159;
@@ -44,5 +44,9 @@ pub fn main() -> String {
 	}
 
 	let new_age = age * 2;
+	new_age += 3;
+	
+	if new_age == 4 {}
+	
 	return "Hello World!";
 }

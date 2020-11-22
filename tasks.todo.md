@@ -1,129 +1,66 @@
-0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
-- [ ] Rewrite using crossterm for windows support and efficiency*
-  - [ ] Build RGB ansi code function
-  - [ ] Fix unwrap on terminal size
-  - [ ] Properly implement terminal resizing
-- [ ] Undoing
-  - [ ] Undoing to origin makes file not dirty
-    - [ ] Add last save index (0) to document
-    - [ ] Set to patch number on save event
-    - [ ] Detect when at last save index
-      - [ ] Make not dirty
-  - [ ] Undo / Redo patch limit to prevent high memory usage
-    - [ ] When undo stack reaches a length over patch limit
-    - [ ] Ensure that the file doesn't go back to not dirty!!!
-- [ ] Bug Fixing
-  - [ ] Add log file
-    - [ ] Add command line option for log file location
-    - [ ] Add support for appending to the log file
-    - [ ] Add option to clear log file on start
-    - [ ] Set up log file
-  - [ ] Fix potential tab issues
-    - [ ] Reproduce
-    - [ ] Fix
-  - [ ] Fix windows linebreak issue*
-    - [ ] Reproduce
-    - [ ] Fix
-  - [ ] Fix file hanging*
-    - [ ] Reproduce
-    - [ ] Fix
-- [ ] CLI
-  - [ ] Allow jump to lines*
-    - [ ] Add to help menu
-    - [ ] Parse file name
-- [ ] Themes
-  - [ ] Allow changing of colours of warning, info and error messages in config file
-    - [ ] Add to configuration file
-    - [ ] Apply
-  - [ ] Small line specific retokenization for performance
-    - [ ] Added edited flag to each line
-      - [ ] Update flag on edit
-      - [ ] Update flag on retokenization
-    - [ ] Add group list to each line
-      - [ ] Update when group is edited
-      - [ ] Update when group is retokenized
-    - [ ] Only initially render if in view
-  - [ ] Highlight search and replace messages
-    - [ ] Add token priorities and background tokens
-  - [ ] Transparent background
-    - [ ] Add option to configuration file
-    - [ ] Strip background colour
-  - [ ] Improved language syntax highlighting support
-  - [ ] 8/16 bit colour fallback*
-    - [ ] Create 8 bit colours
-    - [ ] Detect when fallback is required
-      - [ ] Use colours
-  - [ ] Live / Command for reloading of the config file
-    - [ ] Create config reload command
-    - [ ] Actually reload the config
-  - [ ] Line number background
-    - [ ] Add to configuration file
-    - [ ] Add to line renderer
-  - [ ] Add more languages
-    - [ ] PHP*
-    - [ ] JSON*
-    - [ ] HTML*
-    - [ ] CSS*
-    - [ ] x86 Assembly
-    - [ ] Go
-    - [ ] C++
-    - [ ] C#
-    - [ ] Java
-    - [ ] SQL
-- [ ] General Editing
-  - [ ] File overwrite prevention
-    - [ ] Detect if file exists
-      - [ ] Add overwrite confirmation
-  - [ ] Fix hardcoded values
-    - [ ] Fix confirm prompt values
-  - [ ] Goto only if not on screen
-    - [ ] Detect if cursor is on screen
-      - [ ] Decide what to do
-  - [ ] Better file save error messages
-    - [ ] Fix weird behaviour when file has no path
-  - [ ] Add support for cursor line wrapping*
-    - [ ] Add option to config file
-    - [ ] Apply
-  - [ ] Save as sudo / read only files*
-    - [ ] Add -r flag
-    - [ ] Create read only mode
-  - [ ] Don't load entire file into memory*
-    - [ ] Research
-    - [ ] Implement
-  - [ ] Backup
-    - [ ] Add configuration options
-    - [ ] Backup to specific folder somewhere
-  - [ ] Add help menu to view keybindings*
-    - [ ] Add API to display boxes over existing text
-    - [ ] Show overlay
-    - [ ] Hide overlay
-    - [ ] Handle resizes
-  - [X] Ctrl + Z for undo
-- [ ] Searching
-  - [ ] Exit search when typing characters and catch up with events
-- [ ] Formatting
-  - [ ] Clippy
-  - [ ] Rustfmt
-
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*
   - [ ] Read mouse events
   - [ ] Move the cursor when clicking with mouse
   - [ ] Add selection mode to document
   - [ ] Allow text selection with the mouse cursor
-
-0.2.9 (Extensibility) { To allow even more extension to the editor }
-- [ ] Delete word
-- [ ] Move word
+  - [ ] Allow for copy, cut and paste
 - [ ] Add option to hide parts of the editor (e.g. status line, tab line)
+- [ ] Deleting left bracket removes other bracket
+- [ ] Add help menu to view keybindings*
+  - [ ] Add API to display boxes over existing text
+  - [ ] Show overlay
+  - [ ] Hide overlay
+  - [ ] Handle resizes
+- [ ] Backup
+  - [ ] Add configuration options
+  - [ ] Backup to specific folder somewhere
+- [ ] Look to add support for background colors in status and tab line
+- [ ] Don't load entire file into memory*
+  - [ ] Research
+  - [ ] Implement
+- [ ] Allow full transparency of editing components
+- [ ] Allow file type argument to be passed
+- [ ] Cursor in status line
+- [ ] Shift keys
+- [ ] Adding support for many popular languages
+  - [ ] JSON* (easy)
+  - [ ] HTML* (easy)
+  - [ ] CSS* (easy)
+  - [ ] Markdown (easy)
+  - [ ] SQL (easy)
+  - [ ] x86 Assembly (easy)
+  - [ ] PHP* (medium)
+  - [ ] Java (medium)
+  - [ ] TypeScript (medium)
+  - [ ] Swift (medium)
+  - [ ] Groovy (medium)
+  - [ ] Lua (medium)
+  - [ ] Julia (medium)
+  - [ ] Elixr (medium)
+  - [ ] F# (medium)
+  - [ ] Lisp (medium)
+  - [ ] Elm (medium)
+  - [ ] Vim Script (medium)
+  - [ ] Scala (medium)
+  - [ ] C# (medium)
+  - [ ] R (medium)
+  - [ ] Go (medium)
+  - [ ] Dart (medium)
+  - [ ] Kotlin (medium)
+  - [ ] D lang (medium)
+  - [ ] Haskell (medium)
+  - [ ] C++ (hard)
 
 0.3.0 (IDE level features) { Allow for IDE level features to smooth out development experience }
 - [ ] Auto indentation 
   - [ ] Detect when to auto indent
+    - [ ] Look for the tabs above vs below
   - [ ] Find the amount of tabs needed
   - [ ] Insert tabs there
 - [ ] Prettier
   - [ ] Find a way to access the prettier API
+  - [ ] Add oxa command
   - [ ] Add a confirmation
 - [ ] Linting
   - [ ] Read output from cargo's JSON
@@ -176,25 +113,25 @@
 - [ ] Add detailed help menu / document / mode
 
 Further ideas { Further fun ideas to look at }
-- [ ] File encryption and decryption
-- [ ] Automatically closing status line
 - [ ] Discord rich presence
+- [ ] Todo lists
+- [ ] Automatically closing status line
+- [ ] File encryption and decryption
 - [ ] Nice, personal greeting
-- [ ] Theme changing depending on time of day
 - [ ] Live HTML editor
+- [ ] HTML expansion like emmet
 - [ ] Split editors
 - [ ] Terminal integration
-- [ ] Todo list
+- [ ] Theme builder
 - [ ] Cheatsheet downloader
 - [ ] Stack overflow searcher
-- [ ] HTML expansion like emmet
 - [ ] Documentation viewer
 - [ ] Pomodoro timer for work / rest balance
-- [ ] Easter eggs
-- [ ] Automated tests
-- [ ] Theme builder
 - [ ] Typing speed tests / statistics
+- [ ] Automated tests
 - [ ] Package manager
+- [ ] Theme changing depending on time of day
+- [ ] Easter eggs
 
 0.1.1
 - [X] Go to the next line at end of line
@@ -387,4 +324,48 @@ Further ideas { Further fun ideas to look at }
     - [X] Create it in config file
     - [X] Read and allow execution
   - [X] Update wiki
+
+0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
+- [X] Rewrite using crossterm for windows support and efficiency*
+- [X] Undoing
+  - [X] Undoing to origin makes file not dirty
+- [X] CLI
+  - [X] Allow jump to lines*
+- [X] Bug Fixing
+  - [X] Fix line deletion runtime error
+  - [X] Fix delete line issue
+  - [X] Stop hiding welcome screen on resize
+  - [X] Fix file name issue
+  - [X] Fix line 0 deletion errors
+  - [X] Add log file
+  - [X] Fix unicode bug
+  - [X] Fix potential tab issues
+  - [X] Fix file hanging*
+  - [X] Fix windows linebreak issue*
+  - [X] Fix resize bugs
+- [X] Searching
+  - [X] Rewrite replace all command
+  - [X] Fix dodgy search positions
+  - [X] Rewrite replace command
+- [X] Themes
+  - [X] Small line specific retokenization for performance
+  - [X] 16 bit colour fallback*
+  - [X] Allow changing of colours of warning, info and error messages in config file
+  - [X] Line number background
+  - [X] Transparent background
+  - [X] Improved language syntax highlighting support
+  - [X] Highlight search and replace messages
+  - [X] Live / Command for reloading of the config file
+- [X] Oxa
+  - [X] Delete word
+- [X] General Editing
+  - [X] File overwrite prevention
+  - [X] Fix hardcoded values (easy)
+  - [X] Goto only if not on screen (easy)
+  - [X] Add support for cursor line wrapping* (easy)
+  - [X] Better file save error messages (easy)
+  - [X] Save as sudo / read only files* (medium)
+  - [X] More keybindings (hard)
+- [X] Formatting
+- [X] Update built in config file
 

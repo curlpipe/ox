@@ -16,6 +16,7 @@
         line_number_padding_left:  1, // Line number padding on the left
         tab_width:                 4, // The amount of spaces for a tab
         undo_period:               5, // Seconds of inactivity for undo
+        wrap_cursor:            true, // Determines wheter the cursor wraps around
         // Values:
         // %f - File name
         // %F - File name with full path
@@ -52,25 +53,40 @@
             "move 1 down",  // Move cursor down to empty line
             "load line 1",  // Overwrite empty line with line in bank #1
         ],
+        // Macro to save with root permission
+        "save #": [
+            // SHCS: Shell with confirmation and substitution
+            // With substitution, `%C` becomes the current documents contents
+            // `%F` becomes the file path of the current document
+            "shcs sudo cat > %F << EOF\n%CEOF", // '%F' is the current file name
+            "is saved", // Set the status of the file to saved
+        ],
     },
     // RGB values for the colours of Ox
     theme: Theme(
-        editor_bg:        (41, 41, 61), // The main background color
-        editor_fg:        (255, 255, 255), // The default text color
-        status_bg:        (59, 59, 84), // The background color of the status line
-        status_fg:        (35, 240, 144), // The text color of the status line
-        line_number_fg:   (65, 65, 98), // The text color of the line numbers
-        active_tab_fg:    (255, 255, 255), // The text color of the active tab
-        active_tab_bg:    (41, 41, 61), //  The background color of the active tab
-        inactive_tab_fg:  (255, 255, 255), // The text color of the inactive tab(s)
-        inactive_tab_bg:  (59, 59, 84), // The text color of the inactive tab(s)
+        transparent_editor: false,         // Makes editor background transparent
+        editor_bg:          (41, 41, 61), // The main background color
+        editor_fg:          (255, 255, 255), // The default text color
+        status_bg:          (59, 59, 84), // The background color of the status line
+        status_fg:          (35, 240, 144), // The text color of the status line
+        line_number_fg:     (73, 73, 110), // The text color of the line numbers
+        line_number_bg:     (49, 49, 73), // The background color of the line numbers
+        active_tab_fg:      (255, 255, 255), // The text color of the active tab
+        active_tab_bg:      (41, 41, 61), //  The background color of the active tab
+        inactive_tab_fg:    (255, 255, 255), // The text color of the inactive tab(s)
+        inactive_tab_bg:    (59, 59, 84), // The text color of the inactive tab(s)
+        warning_fg:         (208, 164, 79), // Text colour of the warning message
+        error_fg:           (224, 113, 113), // Text colour of the warning message
+        info_fg:            (255, 255, 255), // Text colour of the warning message
         default_theme:    "default", // The default syntax highlights to use
+        fallback:         true, // Enables use of fallback themes (if detected)
     ),
     // Colours for the syntax highlighting
     highlights: {
         "default": {
             "comments":   (113, 113, 169),
             "keywords":   (134, 76, 232),
+            "namespaces": (134, 76, 232),
             "references": (134, 76, 232),
             "strings":    (39, 222, 145),
             "characters": (40, 198, 232),
@@ -83,10 +99,15 @@
             "headers":    (47, 141, 252),
             "symbols":    (47, 141, 252),
             "global":     (86, 217, 178),
+            "operators":  (86, 217, 178),
+            "regex":      (40, 198, 232),
+            "search_active":   (41, 73, 131),
+            "search_inactive": (29, 52, 93),
         },
         "alternative": {
             "comments":   (113, 113, 169),
             "keywords":   (64, 86, 244),
+            "namespaces": (64, 86, 244),
             "references": (64, 86, 244),
             "strings":    (76, 224, 179),
             "characters": (110, 94, 206),
@@ -99,25 +120,37 @@
             "headers":    (141, 129, 217),
             "symbols":    (249, 233, 0),
             "global":     (76, 224, 179),
+            "operators":  (76, 224, 179),
+            "regex":      (4, 95, 204),
+            "search_active":   (41, 73, 131),
+            "search_inactive": (29, 52, 93),
         },
     },
     // Key bindings
     keys: {
         // Keybinding: [Oxa commands]
-        Ctrl('q'): ["quit"], // Quit current document
-        Ctrl('s'): ["save"], // Save current document
-        Ctrl('w'): ["save ?"], // Save current document as
-        Ctrl('p'): ["save *"], // Save all open documents
-        Ctrl('n'): ["new"], // Create new document
-        Ctrl('o'): ["open"], // Open document
-        Ctrl('d'): ["prev"], // Move to previous tab
-        Ctrl('h'): ["next"], // Move to next tab
-        Ctrl('z'): ["undo"], // Undo last edit
-        Ctrl('y'): ["redo"], // Redo last edit
-        Ctrl('f'): ["search"], // Trigger search command
-        Ctrl('r'): ["replace"], // Trigger replace command
-        Ctrl('a'): ["replace *"], // Trigger replace all command
-        Alt('a'):  ["cmd"], // Open the command line
+        Ctrl(Char('q')): ["quit"], // Quit current document
+        Ctrl(Char('s')): ["save"], // Save current document
+        Alt(Char('s')):  ["save ?"], // Save current document as
+        Ctrl(Char('w')): ["save *"], // Save all open documents
+        Ctrl(Char('n')): ["new"], // Create new document
+        Ctrl(Char('o')): ["open"], // Open document
+        Ctrl(Left):      ["prev"], // Move to previous tab
+        Ctrl(Right):     ["next"], // Move to next tab
+        Ctrl(Char('z')): ["undo"], // Undo last edit
+        Ctrl(Char('y')): ["redo"], // Redo last edit
+        Ctrl(Char('f')): ["search"], // Trigger search command
+        Ctrl(Char('r')): ["replace"], // Trigger replace command
+        Ctrl(Char('a')): ["replace *"], // Trigger replace all command
+        Ctrl(Up):        ["move line up"], // Move line up
+        Ctrl(Down):      ["move line down"], // Move line down
+        Ctrl(Delete):    ["delete word left"], // Delete word
+        Alt(Char('a')):  ["cmd"], // Open the command line
+        // Show help message URL
+        F(1):   [
+            "sh echo You can get help here:",
+            "shc echo https://github.com/curlpipe/ox/wiki",
+        ]
     },
     // Language specific settings
     languages: [
@@ -138,16 +171,41 @@
                 "u8", "u16", "u32", "u64", "u128", "usize",
                 "i8", "i16", "i32", "i64", "i128", "isize",
                 "f32", "f64", "String", "Vec", "str", "Some", "bool",
-                "None", "Box", "Result", "Option", "Ok", "Err",
+                "None", "Box", "Result", "Option", "Ok", "Err", "Self",
+                "std"
             ],
             // Syntax definitions
             definitions: {
+                "operators":  [
+                    r"(=)",
+                    r"(\+)",
+                    r"(\-)",
+                    r"(\*)",
+                    r"[^/](/)[^/]",
+                    r"(\+=)",
+                    r"(\-=)",
+                    r"(\*=)",
+                    r"(\\=)",
+                    r"(==)",
+                    r"(!=)",
+                    r"(\?)",
+                    r"(>=)",
+                    r"(<=)",
+                    r"(<)",
+                    r"(>)",
+                ],
+                "namespaces": [
+                    r"([a-z_][A-Za-z0-9_]*)::",
+                ],
                 "comments":   [
                     "(?m)(//.*)$", 
                     "(?ms)(/\\*.*?\\*/)",
                 ],
                 "strings":    [
-                    "(\".*?\")",
+                    "\"(?:[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"",
+                    "(r\".*?\")",
+                    "(?ms)(r#\".*?\"#)",
+                    "(?ms)(#\".*?\"#)",
                 ],
                 "characters": [
                     "('.')", 
@@ -163,20 +221,26 @@
                 ],
                 "functions":  [
                     "fn\\s+([a-z_][A-Za-z0-9_]*)\\s*\\(",
+                    r"\.([a-z_][A-Za-z0-9_]*)\s*\(",
+                    r"([a-z_][A-Za-z0-9_]*)\s*\(",
                 ],
                 "structs":    [
                     "(?:trait|enum|struct|impl)\\s+([A-Z][A-Za-z0-9_]*)\\s*", 
                     "impl(?:<.*?>|)\\s+([A-Z][A-Za-z0-9_]*)",
                     "([A-Z][A-Za-z0-9_]*)::",
+                    r"([A-Z][A-Za-z0-9_]*)\s*\(",
                     "impl.*for\\s+([A-Z][A-Za-z0-9_]*)",
+                    r"::\s*([a-z_][A-Za-z0-9_]*)\s*\(",
                 ],
                 "macros":     [
                     "\\b([a-z_][a-zA-Z0-9_]*!)",
+                    r"(\$[a-z_][A-Za-z0-9_]*)",
                 ],
                 "attributes": [
                     "(?ms)^\\s*(#(?:!|)\\[.*?\\])",
                 ],
                 "references": [
+                    "(&)",
                     "&str", "&mut", "&self", 
                     "&i8", "&i16", "&i32", "&i64", "&i128", "&isize",
                     "&u8", "&u16", "&u32", "&u64", "&u128", "&usize",
@@ -196,7 +260,7 @@
                 "for", "if", "in", "module", "next", "nil", "not", "or", "puts",
                 "redo", "rescue", "retry", "return", "self", "super", "then", 
                 "undef", "unless", "until", "when", "while", "yield", "raise",
-                "include", "extend", 
+                "include", "extend", "require" 
             ],
             // Syntax definitions
             definitions: {
@@ -205,8 +269,8 @@
                     "(?ms)(=begin.*=end)", 
                 ],
                 "strings":    [
-                    "((?:f|r|)\".*?\")",
-                    "(\'.*?\')",
+                    "(?:f|r|)\"(?:[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"",
+                    "(?:f|r|)\'(?:[^\'\\\\]*(?:\\\\.[^\'\\\\]*)*)\'",
                 ],
                 "digits":     [
                     r"\b(\d+.\d+|\d+)",
@@ -219,14 +283,39 @@
                     r"class(\s+[A-Za-z0-9_]*)",
                 ],
                 "functions":  [
-                    r"def\s+([a-z_][A-Za-z0-9_]*)",
+                    r"def\s+([a-z_][A-Za-z0-9_\\?!]*)",
+                    "\\.([a-z_][A-Za-z0-9_\\?!]*)\\s*",
+                    "\\b([a-z_][A-Za-z0-9_\\?!]*)\\s*\\(",
                 ],
                 "symbols":    [
                     r"(:[^,\)\.\s=]+)",
                 ],
                 "global":     [
                     r"(\$[a-z_][A-Za-z0-9_]*)\s",
-                ]
+                ],
+                "regex": [
+                    r"/.+/"
+                ],
+                "operators":  [
+                    r"(=)",
+                    r"(\+)",
+                    r"(\-)",
+                    r"(\*)",
+                    r"(\s/\s)",
+                    r"(\+=)",
+                    r"(\-=)",
+                    r"(\*=)",
+                    r"(\\=)",
+                    r"(==)",
+                    r"(!=)",
+                    r"(\&\&)",
+                    r"(\|\|)",
+                    r"(!)\S",
+                    r"(>=)",
+                    r"(<=)",
+                    r"(<)",
+                    r"(>)",
+                ],
             }
         ),
         Language(
@@ -242,7 +331,7 @@
                 "redo", "rescue", "retry", "return", "self", "super", "then", 
                 "undef", "unless", "until", "when", "while", "yield", "raise",
                 "include", "extend", "Int32", "String", "getter", "setter",
-                "property",
+                "property", "Array", "Set", "Hash", "Range", "Proc", "typeof",
             ],
             // Syntax definitions
             definitions: {
@@ -252,11 +341,15 @@
                 ],
                 "strings":    [
                     "(?ms)(\".*?\")",
-                    "((?:f|r|)\".*?\")",
+                    "(?:f|r|)\"(?:[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"",
                     "(\'.*?\')",
                 ],
                 "digits":     [
                     r"\b(\d+.\d+|\d+)",
+                    r"(_i(?:8|16|32|64|128))",
+                    r"(_u(?:8|16|32|64|128))",
+                    r"(_f(?:8|16|32|64|128))",
+                    "0x[A-Fa-f0-9]{6}"
                 ],
                 "booleans":   [
                     r"\b(true)\b", 
@@ -266,14 +359,37 @@
                     r"class(\s+[A-Za-z0-9_]*)",
                 ],
                 "functions":  [
-                    r"def\s+([a-z_][A-Za-z0-9_]*)",
+                    r"def\s+([a-z_][A-Za-z0-9_\\?!]*)",
+                    "\\.([a-z_][A-Za-z0-9_\\?!]*)\\s*",
+                    "\\b([a-z_][A-Za-z0-9_\\?!]*)\\s*\\(",
                 ],
                 "symbols":    [
                     r"(:[^,\}\)\.\s=]+)",
                 ],
                 "global":     [
                     r"(\$[a-z_][A-Za-z0-9_]*)\s",
-                ]
+                ],
+                "operators":  [
+                    r"(=)",
+                    r"(\+)",
+                    r"(\-)",
+                    r"(\*)",
+                    r"(\s/\s)",
+                    r"(\+=)",
+                    r"(\-=)",
+                    r"(\*=)",
+                    r"(\\=)",
+                    r"(==)",
+                    r"(!=)",
+                    r"(\&\&)",
+                    r"(\|\|)",
+                    r"(!)\S",
+                    r"(>=)",
+                    r"(<=)",
+                    r"(<)",
+                    r"(>)",
+                    r"(\?)",
+                ],
             }
         ),
         Language(
@@ -300,8 +416,8 @@
                 "strings":    [
                     "(?ms)(\"\"\".*?\"\"\")",
                     "(?ms)(\'\'\'.*?\'\'\')",
-                    "((?:f|r|)\".*?\")",
-                    "(\'.*?\')",
+                    "(?:f|r|)\"(?:[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"",
+                    "(?:f|r|)\'(?:[^\'\\\\]*(?:\\\\.[^\'\\\\]*)*)\'",
                 ],
                 "digits":     [
                     "\\b(\\d+.\\d+|\\d+)",
@@ -315,10 +431,31 @@
                 ],
                 "functions":  [
                     "def\\s+([a-z_][A-Za-z0-9_]*)",
+                    "\\.([a-z_][A-Za-z0-9_\\?!]*)\\s*",
+                    "\\b([a-z_][A-Za-z0-9_\\?!]*)\\s*\\(",
                 ],
                 "attributes": [
                     "@.*$",
-                ]
+                ],
+                "operators":  [
+                    r"(=)",
+                    r"(\+)",
+                    r"(\-)",
+                    r"(\*)",
+                    r"(\s/\s)",
+                    r"(\s//\s)",
+                    r"(%)",
+                    r"(\+=)",
+                    r"(\-=)",
+                    r"(\*=)",
+                    r"(\\=)",
+                    r"(==)",
+                    r"(!=)",
+                    r"(>=)",
+                    r"(<=)",
+                    r"(<)",
+                    r"(>)",
+                ],
             }
         ),
         Language(
@@ -347,8 +484,8 @@
                 "strings":    [
                     "(?ms)(\"\"\".*?\"\"\")",
                     "(?ms)(\'\'\'.*?\'\'\')",
-                    "((?:f|r|)\".*?\")",
-                    "(\'.*?\')",
+                    "(?:f|r|)\"(?:[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"",
+                    "(?:f|r|)\'(?:[^\'\\\\]*(?:\\\\.[^\'\\\\]*)*)\'",
                 ],
                 "digits":     [
                     "\\b(\\d+.\\d+|\\d+)",
@@ -362,7 +499,31 @@
                 ],
                 "functions":  [
                     "function\\s+([a-z_][A-Za-z0-9_]*)",
-                    "\\b([a-z_][A-Za-z0-9_]*)\\s*\\("
+                    "\\b([a-z_][A-Za-z0-9_]*)\\s*\\(",
+                    "\\.([a-z_][A-Za-z0-9_\\?!]*)\\s*",
+                ],
+                "operators":  [
+                    r"(=)",
+                    r"(\+)",
+                    r"(\-)",
+                    r"(\*)",
+                    r"(\s/\s)",
+                    r"(%)",
+                    r"(\+=)",
+                    r"(\-=)",
+                    r"(\*=)",
+                    r"(\\=)",
+                    r"(==)",
+                    r"(!=)",
+                    r"(>=)",
+                    r"(<=)",
+                    r"(<)",
+                    r"(>)",
+                    r"(<<)",
+                    r"(>>)",
+                    r"(\&\&)",
+                    r"(\|\|)",
+                    r"(!)\S",
                 ],
             }
         ),
@@ -387,7 +548,7 @@
                     "(?ms)(/\\*.*?\\*/)",
                 ],
                 "strings":    [
-                    "(\".*?\")",
+                    "\"(?:[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"",
                 ],
                 "characters": [
                     "('.')", 
@@ -403,6 +564,7 @@
                 ],
                 "functions":  [
                     "(int|bool|void|char|double|long|short|size_t)\\s+([a-z_][A-Za-z0-9_]*)\\s*\\(",
+                    "\\b([a-z_][A-Za-z0-9_]*)\\s*\\(",
                 ],
                 "structs":    [
                     "struct\\s+([A-Za-z0-9_]*)\\s*", 
@@ -412,6 +574,29 @@
                 ],
                 "headers":    [
                     "(<.*?>)",
+                ],
+                "operators":  [
+                    r"(=)",
+                    r"(\+)",
+                    r"(\-)",
+                    r"(\*)",
+                    r"(\s/\s)",
+                    r"(%)",
+                    r"(\+=)",
+                    r"(\-=)",
+                    r"(\*=)",
+                    r"(\\=)",
+                    r"(==)",
+                    r"(!=)",
+                    r"(>=)",
+                    r"(<=)",
+                    r"(<)",
+                    r"(>)",
+                    r"(<<)",
+                    r"(>>)",
+                    r"(\&\&)",
+                    r"(\|\|)",
+                    r"(!)\S",
                 ],
             }
         ),

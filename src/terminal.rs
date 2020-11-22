@@ -1,9 +1,11 @@
 // Terminal.rs - Handling low level terminal operations
 use crate::util::Exp;
 use crate::Position;
-use std::io::{stdout, Error, Stdout, Write};
-use termion::raw::{IntoRawMode, RawTerminal};
-use termion::screen::AlternateScreen;
+use crossterm::terminal;
+use crossterm::{execute, ErrorKind};
+use std::env;
+use std::io::{stdout, Write};
+use term::terminfo::TermInfo;
 use unicode_width::UnicodeWidthStr;
 
 // Struct to hold size
@@ -14,20 +16,17 @@ pub struct Size {
 
 // The terminal struct
 pub struct Terminal {
-    screen: AlternateScreen<std::io::Stdout>, // Holds the screen
-    _stdout: RawTerminal<Stdout>,             // Ensures we're in raw mode for total control
-    pub size: Size,                           // For holding the size of the terminal
-    regex: Exp,                               // For holding the regex
+    pub size: Size, // For holding the size of the terminal
+    regex: Exp,     // For holding the regex
 }
 
 // Implement methods into the terminal struct / class
 impl Terminal {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> Result<Self, ErrorKind> {
         // Create a new terminal and switch into raw mode
-        let size = termion::terminal_size()?;
+        let size = terminal::size()?;
+        Terminal::enter();
         Ok(Self {
-            screen: AlternateScreen::from(stdout()),
-            _stdout: stdout().into_raw_mode()?,
             size: Size {
                 width: size.0 as usize,
                 height: size.1 as usize,
@@ -35,24 +34,33 @@ impl Terminal {
             regex: Exp::new(),
         })
     }
-    pub fn goto(&mut self, p: &Position) {
+    pub fn enter() {
+        // Enter the current terminal
+        terminal::enable_raw_mode().unwrap();
+        execute!(stdout(), terminal::EnterAlternateScreen).unwrap();
+    }
+    pub fn exit() {
+        // Exit the terminal
+        execute!(stdout(), terminal::LeaveAlternateScreen).unwrap();
+        terminal::disable_raw_mode().unwrap();
+    }
+    pub fn goto(p: &Position) {
         // Move the cursor to a position
-        write!(
-            self.screen,
-            "{}",
-            termion::cursor::Goto(p.x.saturating_add(1) as u16, p.y.saturating_add(1) as u16)
-        )
-        .unwrap();
+        execute!(stdout(), crossterm::cursor::MoveTo(p.x as u16, p.y as u16)).unwrap();
     }
-    pub fn flush(&mut self) {
+    pub fn flush() {
         // Flush the screen to prevent weird behaviour
-        self.screen.flush().unwrap();
+        stdout().flush().unwrap();
     }
-    pub fn hide_cursor(&mut self) {
-        write!(self.screen, "{}", termion::cursor::Hide).unwrap();
+    pub fn hide_cursor() {
+        // Hide the text cursor
+        execute!(stdout(), crossterm::cursor::Hide).unwrap();
     }
-    pub fn show_cursor(&mut self) {
-        write!(self.screen, "{}", termion::cursor::Show).unwrap();
+    pub fn show_cursor() {
+        execute!(stdout(), crossterm::cursor::Show).unwrap();
+    }
+    pub fn clear() {
+        execute!(stdout(), terminal::Clear(terminal::ClearType::All)).unwrap();
     }
     pub fn align_break(&self, l: &str, r: &str) -> String {
         // Align two items to the left and right
@@ -67,17 +75,18 @@ impl Terminal {
         let padding = (self.size.width as usize).saturating_sub(length);
         " ".repeat(padding as usize)
     }
-    pub fn check_resize(&mut self) -> bool {
-        // Check for and handle resize events
-        let size = termion::terminal_size().unwrap();
-        if size == (self.size.width as u16, self.size.height as u16) {
-            false
+    pub fn availablility() -> usize {
+        let colour = env::var("COLORTERM");
+        if colour.unwrap_or_else(|_| "".to_string()) == "truecolor" {
+            24
+        } else if let Ok(info) = TermInfo::from_env() {
+            if info.numbers.get("colors").unwrap() == &256 {
+                256
+            } else {
+                16
+            }
         } else {
-            self.size = Size {
-                width: size.0 as usize,
-                height: size.1 as usize,
-            };
-            true
+            16
         }
     }
 }

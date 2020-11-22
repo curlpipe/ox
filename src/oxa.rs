@@ -11,6 +11,11 @@ use crate::undo::BankType;
 use crate::util::line_offset;
 use crate::{Direction, Event, Position, Row};
 
+#[derive(Debug, Copy, Clone)]
+pub enum Variable {
+    Saved,
+}
+
 pub fn interpret_line(
     line: &str,
     cursor: &Position,
@@ -21,7 +26,13 @@ pub fn interpret_line(
     let mut events = vec![];
     let mut line = line.split(' ');
     if let Some(instruction) = line.next() {
-        let args: Vec<&str> = line.collect();
+        let mut args: Vec<&str> = line.collect();
+        let root = if let Some(&"sudo") = args.get(0) {
+            args.remove(0);
+            true
+        } else {
+            false
+        };
         match instruction {
             "new" => events.push(Event::New),
             "open" => events.push(open_command(&args)),
@@ -35,8 +46,24 @@ pub fn interpret_line(
             "split" => events.push(Event::SplitDown(*cursor, *cursor)),
             "splice" => events.push(Event::SpliceUp(*cursor, *cursor)),
             "search" => events.push(Event::Search),
+            "reload" => events.push(Event::ReloadConfig),
             "cmd" => events.push(Event::Cmd),
             "replace" => events.push(replace_command(&args)),
+            // Shell with substitution and no confirm
+            "shs" => events.push(Event::Shell(args.join(" "), false, true, root)),
+            // Shell with substitution and confirm
+            "shcs" => events.push(Event::Shell(args.join(" "), true, true, root)),
+            // Shell with confirm and no substitution
+            "shc" => events.push(Event::Shell(args.join(" "), true, false, root)),
+            // Shell with no confirm nor substitution
+            "sh" => events.push(Event::Shell(args.join(" "), false, false, root)),
+            "is" => {
+                if let Some(set) = is_command(&args) {
+                    events.push(set)
+                } else {
+                    return None;
+                }
+            }
             "theme" => {
                 if let Some(theme) = theme_command(&args) {
                     events.push(theme)
@@ -74,11 +101,21 @@ pub fn interpret_line(
     Some(events)
 }
 
+fn is_command(args: &[&str]) -> Option<Event> {
+    Some(Event::Set(
+        match &args[0][..] {
+            "saved" => Variable::Saved,
+            _ => return None,
+        },
+        true,
+    ))
+}
+
 fn theme_command(args: &[&str]) -> Option<Event> {
-    if !args.is_empty() {
-        Some(Event::Theme(args[0].to_string()))
-    } else {
+    if args.is_empty() {
         None
+    } else {
+        Some(Event::Theme(args[0].to_string()))
     }
 }
 
@@ -309,6 +346,8 @@ fn delete_command(
         {
             events.push(Event::Deletion(*cursor, *ch));
         }
+    } else if args[0] == "word" {
+        events.push(Event::DeleteWord(*cursor, "egg".to_string()));
     } else if let Ok(line) = args[0].parse::<i128>() {
         events.push(Event::DeleteLine(
             *cursor,
