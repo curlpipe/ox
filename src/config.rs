@@ -23,11 +23,36 @@ pub enum Status {
 }
 
 // Key binding type
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Deserialize)]
 pub enum KeyBinding {
-    Ctrl(char),
-    Alt(char),
+    Ctrl(RawKey),
+    Alt(RawKey),
+    Shift(RawKey),
+    Raw(RawKey),
     F(u8),
+    Unsupported,
+}
+
+// Keys without modifiers
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Deserialize)]
+pub enum RawKey {
+    Char(char),
+    Up,
+    Down,
+    Left,
+    Right,
+    Backspace,
+    Enter,
+    Tab,
+    Home,
+    End,
+    PageUp,
+    PageDown,
+    BackTab,
+    Delete,
+    Insert,
+    Null,
+    Esc,
 }
 
 // Struct for storing and managing configuration

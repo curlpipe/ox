@@ -1,5 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{KeyBinding, Reader, Status, Theme};
+use crate::config::{KeyBinding, Reader, Status, Theme, RawKey};
 use crate::document::Type;
 use crate::highlight::Token;
 use crate::oxa::interpret_line;
@@ -100,7 +100,7 @@ pub struct Editor {
     doc: Vec<Document>,                      // For holding our document
     tab: usize,                              // Holds the number of the current tab
     last_keypress: Option<Instant>,          // For holding the time of the last input event
-    keypress: Option<KeyEvent>,              // For holding the last keypress event
+    keypress: KeyBinding,                    // For holding the last keypress event
     exp: Exp,                                // For holding expressions
     position_bank: HashMap<usize, Position>, // Bank for cursor positions
     row_bank: HashMap<usize, Row>,           // Bank for lines
@@ -201,7 +201,7 @@ impl Editor {
             tab: 0,
             doc: documents,
             last_keypress: None,
-            keypress: None,
+            keypress: KeyBinding::Unsupported,
             config: config.0.clone(),
             config_path: config_path.to_string(),
             status: config.1,
@@ -243,8 +243,37 @@ impl Editor {
             }
         }
     }
+    fn key_event_to_ox_key(&mut self, key: KeyCode, modifiers: KeyModifiers) -> KeyBinding {
+        // Convert crossterm's complicated key structure into Ox's simpler one
+        let inner = match key {
+            KeyCode::Char(c) => RawKey::Char(c),
+            KeyCode::BackTab => RawKey::BackTab,
+            KeyCode::Insert => RawKey::Insert,
+            KeyCode::Esc => RawKey::Esc,
+            KeyCode::Backspace => RawKey::Backspace,
+            KeyCode::Tab => RawKey::Tab,
+            KeyCode::Enter => RawKey::Enter,
+            KeyCode::Delete => RawKey::Delete,
+            KeyCode::Null => RawKey::Null,
+            KeyCode::PageUp => RawKey::PageUp,
+            KeyCode::PageDown => RawKey::PageDown,
+            KeyCode::Home => RawKey::Home,
+            KeyCode::End => RawKey::End,
+            KeyCode::Up => RawKey::Up,
+            KeyCode::Down => RawKey::Down,
+            KeyCode::Left => RawKey::Left,
+            KeyCode::Right => RawKey::Right,
+            KeyCode::F(i) => return KeyBinding::F(i),
+        };
+        match modifiers {
+            KeyModifiers::CONTROL => KeyBinding::Ctrl(inner),
+            KeyModifiers::ALT => KeyBinding::Alt(inner),
+            KeyModifiers::SHIFT => KeyBinding::Shift(inner),
+            KeyModifiers::NONE => KeyBinding::Raw(inner),
+            _ => KeyBinding::Unsupported,
+        }
+    }
     fn process_key(&mut self, key: KeyEvent) {
-        self.keypress = Some(key);
         self.doc[self.tab].show_welcome = false;
         let cursor = self.doc[self.tab].cursor;
         let offset = self.doc[self.tab].offset;
@@ -252,8 +281,10 @@ impl Editor {
             x: cursor.x + offset.x,
             y: cursor.y + offset.y - OFFSET,
         };
-        match (key.code, key.modifiers) {
-            (KeyCode::Enter, KeyModifiers::NONE) => {
+        let ox_key = self.key_event_to_ox_key(key.code, key.modifiers);
+        self.keypress = ox_key.clone();
+        match ox_key {
+            KeyBinding::Raw(RawKey::Enter) => {
                 self.doc[self.tab].redo_stack.empty();
                 if current.x == 0 {
                     // Return key pressed at the start of the line
@@ -267,11 +298,11 @@ impl Editor {
                     self.execute(Event::SplitDown(current, current), false);
                 }
             }
-            (KeyCode::Tab, KeyModifiers::NONE) => {
+            KeyBinding::Raw(RawKey::Tab) => {
                 self.doc[self.tab].redo_stack.empty();
                 self.execute(Event::InsertTab(current), false);
             }
-            (KeyCode::Backspace, KeyModifiers::NONE) => {
+            KeyBinding::Raw(RawKey::Backspace) => {
                 self.doc[self.tab].redo_stack.empty();
                 self.execute(
                     if current.x == 0 && current.y != 0 {
@@ -298,49 +329,49 @@ impl Editor {
                 );
             }
             // Detect control key binding
-            (KeyCode::Char(c), KeyModifiers::CONTROL) => {
-                if let Some(commands) = self.config.keys.get(&KeyBinding::Ctrl(c)) {
+            KeyBinding::Ctrl(_) => {
+                if let Some(commands) = self.config.keys.get(&ox_key) {
                     for i in commands.clone() {
                         self.text_to_event(&i);
                     }
                 }
             }
             // Detect alt key binding
-            (KeyCode::Char(c), KeyModifiers::ALT) => {
-                if let Some(commands) = self.config.keys.get(&KeyBinding::Alt(c)) {
+            KeyBinding::Alt(_) => {
+                if let Some(commands) = self.config.keys.get(&ox_key) {
                     for i in commands.clone() {
                         self.text_to_event(&i);
                     }
                 }
             }
-            // Detect function key binding
-            (KeyCode::F(c), KeyModifiers::NONE) => {
-                if let Some(commands) = self.config.keys.get(&KeyBinding::F(c)) {
-                    for i in commands.clone() {
-                        self.text_to_event(&i);
-                    }
-                }
-            }
-            (KeyCode::Char(c), _) => {
+            KeyBinding::Raw(RawKey::Char(c)) | KeyBinding::Shift(RawKey::Char(c)) => {
                 self.doc[self.tab].redo_stack.empty();
                 self.execute(Event::Insertion(current, c), false);
             }
-            (KeyCode::Up, KeyModifiers::NONE) => {
+            // Detect function key binding
+            KeyBinding::F(_) => {
+                if let Some(commands) = self.config.keys.get(&ox_key) {
+                    for i in commands.clone() {
+                        self.text_to_event(&i);
+                    }
+                }
+            }
+            KeyBinding::Raw(RawKey::Up) => {
                 self.execute(Event::MoveCursor(1, Direction::Up), false)
             }
-            (KeyCode::Down, KeyModifiers::NONE) => {
+            KeyBinding::Raw(RawKey::Down) => {
                 self.execute(Event::MoveCursor(1, Direction::Down), false)
             }
-            (KeyCode::Left, KeyModifiers::NONE) => {
+            KeyBinding::Raw(RawKey::Left) => {
                 self.execute(Event::MoveCursor(1, Direction::Left), false)
             }
-            (KeyCode::Right, KeyModifiers::NONE) => {
+            KeyBinding::Raw(RawKey::Right) => {
                 self.execute(Event::MoveCursor(1, Direction::Right), false)
             }
-            (KeyCode::PageDown, KeyModifiers::NONE) => self.execute(Event::PageDown, false),
-            (KeyCode::PageUp, KeyModifiers::NONE) => self.execute(Event::PageUp, false),
-            (KeyCode::Home, KeyModifiers::NONE) => self.execute(Event::Home, false),
-            (KeyCode::End, KeyModifiers::NONE) => self.execute(Event::End, false),
+            KeyBinding::Raw(RawKey::PageDown) => self.execute(Event::PageDown, false),
+            KeyBinding::Raw(RawKey::PageUp) => self.execute(Event::PageUp, false),
+            KeyBinding::Raw(RawKey::Home) => self.execute(Event::Home, false),
+            KeyBinding::Raw(RawKey::End) => self.execute(Event::End, false),
             _ => (),
         }
     }
@@ -481,12 +512,8 @@ impl Editor {
     }
     fn quit_document(&mut self, force: bool) {
         // For handling a quit event
-        if let Some(KeyEvent {
-            code: KeyCode::Char(c),
-            modifiers: KeyModifiers::CONTROL,
-        }) = self.keypress
-        {
-            if force || self.dirty_prompt(c, "quit") {
+        if let KeyBinding::Ctrl(_) | KeyBinding::Alt(_) = self.keypress {
+            if force || self.dirty_prompt(self.keypress, "quit") {
                 if self.doc.len() <= 1 {
                     // Quit Ox
                     self.quit = true;
@@ -959,14 +986,14 @@ impl Editor {
         // Exit message
         self.doc[self.tab].set_command_line("Replace finished".to_string(), Type::Info);
     }
-    fn dirty_prompt(&mut self, key: char, subject: &str) -> bool {
+    fn dirty_prompt(&mut self, key: KeyBinding, subject: &str) -> bool {
         // For events that require changes to the document
         if self.doc[self.tab].dirty {
             // Handle unsaved changes
             self.doc[self.tab].set_command_line(
                 format!(
-                    "Unsaved Changes! Ctrl + {} to force {}",
-                    key.to_uppercase(),
+                    "Unsaved Changes! {:?} to force {}",
+                    key,
                     subject
                 ),
                 Type::Warning,
@@ -977,10 +1004,11 @@ impl Editor {
                 modifiers: m,
             }) = self.read_event()
             {
-                match (c, m) {
-                    (KeyCode::Enter, KeyModifiers::NONE) => return true,
-                    (KeyCode::Char(k), KeyModifiers::CONTROL) => {
-                        if k == key {
+                let ox_key = self.key_event_to_ox_key(c, m);
+                match ox_key {
+                    KeyBinding::Raw(RawKey::Enter) => return true,
+                    KeyBinding::Ctrl(_) | KeyBinding::Alt(_) => {
+                        if ox_key == key {
                             return true;
                         } else {
                             self.doc[self.tab].set_command_line(
@@ -1014,23 +1042,24 @@ impl Editor {
                 modifiers: m,
             }) = self.read_event()
             {
-                match (c, m) {
-                    (KeyCode::Enter, KeyModifiers::NONE) => {
+                match self.key_event_to_ox_key(c, m) {
+                    KeyBinding::Raw(RawKey::Enter) => {
                         // Exit on enter key
                         break 'p;
                     }
-                    (KeyCode::Char(c), KeyModifiers::NONE)
-                    | (KeyCode::Char(c), KeyModifiers::SHIFT) => {
+                    KeyBinding::Raw(RawKey::Char(c)) | 
+                        KeyBinding::Shift(RawKey::Char(c)) => 
+                    {
                         // Update the prompt contents
                         result.push(c);
                         func(self, PromptEvent::CharPress(false), &result)
                     }
-                    (KeyCode::Backspace, KeyModifiers::NONE) => {
+                    KeyBinding::Raw(RawKey::Backspace) => {
                         // Handle backspace event
                         result.pop();
                         func(self, PromptEvent::CharPress(true), &result)
                     }
-                    (KeyCode::Esc, KeyModifiers::NONE) => {
+                    KeyBinding::Raw(RawKey::Esc) => {
                         // Handle escape key
                         func(self, PromptEvent::KeyPress(c), &result);
                         return None;

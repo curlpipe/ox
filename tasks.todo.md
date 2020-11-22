@@ -1,9 +1,5 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
 - [ ] General Editing
-  - [ ] More keybindings (hard)
-    - [ ] Shift keys
-    - [ ] Arrow keys
-    - [X] Function keys
   - [ ] UNIX Keybindings (easy)
   - [X] File overwrite prevention
     - [X] Detect if file exists
@@ -14,6 +10,9 @@
   - [X] Better file save error messages (easy)
     - [X] Fix weird behaviour when file has no path
   - [X] Save as sudo / read only files* (medium)
+  - [X] More keybindings (hard)
+    - [X] Function keys
+    - [X] Arrow keys
 - [ ] Formatting
   - [ ] Clippy
   - [ ] Rustfmt
@@ -75,6 +74,7 @@
 - [ ] Allow full transparency of editing components
 - [ ] Allow file type argument to be passed
 - [ ] Cursor in status line
+- [ ] Shift keys
 - [ ] Adding support for many popular languages
   - [ ] JSON* (easy)
   - [ ] HTML* (easy)

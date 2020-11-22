@@ -130,22 +130,23 @@
     // Key bindings
     keys: {
         // Keybinding: [Oxa commands]
-        Ctrl('q'): ["quit"], // Quit current document
-        Ctrl('s'): ["save"], // Save current document
-        Ctrl('w'): ["save ?"], // Save current document as
-        Ctrl('p'): ["save *"], // Save all open documents
-        Ctrl('n'): ["new"], // Create new document
-        Ctrl('o'): ["open"], // Open document
-        Ctrl('d'): ["prev"], // Move to previous tab
-        Ctrl('h'): ["next"], // Move to next tab
-        Ctrl('z'): ["undo"], // Undo last edit
-        Ctrl('y'): ["redo"], // Redo last edit
-        Ctrl('f'): ["search"], // Trigger search command
-        Ctrl('r'): ["replace"], // Trigger replace command
-        Ctrl('a'): ["replace *"], // Trigger replace all command
-        Ctrl('v'): ["move line up"], // Move line up
-        Ctrl('k'): ["move line down"], // Move line down
-        Alt('a'):  ["cmd"], // Open the command line
+        Ctrl(Char('q')): ["quit"], // Quit current document
+        Ctrl(Char('s')): ["save"], // Save current document
+        Ctrl(Char('w')): ["save ?"], // Save current document as
+        Ctrl(Char('p')): ["save *"], // Save all open documents
+        Ctrl(Char('n')): ["new"], // Create new document
+        Ctrl(Char('o')): ["open"], // Open document
+        Ctrl(Char('d')): ["prev"], // Move to previous tab
+        Ctrl(Char('h')): ["next"], // Move to next tab
+        Ctrl(Char('z')): ["undo"], // Undo last edit
+        Ctrl(Char('y')): ["redo"], // Redo last edit
+        Ctrl(Char('f')): ["search"], // Trigger search command
+        Ctrl(Char('r')): ["replace"], // Trigger replace command
+        Ctrl(Char('a')): ["replace *"], // Trigger replace all command
+        Ctrl(Char('v')): ["move line up"], // Move line up
+        Ctrl(Char('k')): ["move line down"], // Move line down
+        Alt(Char('a')):  ["cmd"], // Open the command line
+        Ctrl(Left): ["quit"],
         // Show help message URL
         F(1):   [
             "sh echo You can get help here:",
