@@ -13,7 +13,7 @@ use crate::{Direction, Event, Position, Row};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Variable {
-    Saved
+    Saved,
 }
 
 pub fn interpret_line(
@@ -102,10 +102,13 @@ pub fn interpret_line(
 }
 
 fn is_command(args: &[&str]) -> Option<Event> {
-    Some(Event::Set(match &args[0][..] {
-        "saved" => Variable::Saved,
-        _ => return None,
-    }, true))
+    Some(Event::Set(
+        match &args[0][..] {
+            "saved" => Variable::Saved,
+            _ => return None,
+        },
+        true,
+    ))
 }
 
 fn theme_command(args: &[&str]) -> Option<Event> {

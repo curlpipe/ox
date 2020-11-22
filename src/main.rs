@@ -34,13 +34,13 @@ use clap::{App, Arg};
 use directories::BaseDirs;
 use document::Document;
 use editor::{Direction, Editor, Position};
-use row::Row;
-use std::{env, panic};
-use terminal::{Size, Terminal};
 use oxa::Variable;
-use undo::{Event, EventStack};
+use row::Row;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::{env, panic};
+use terminal::{Size, Terminal};
+use undo::{Event, EventStack};
 
 // Create log macro
 #[macro_export]

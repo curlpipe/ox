@@ -1,5 +1,5 @@
 // Editor.rs - Controls the editor and brings everything together
-use crate::config::{KeyBinding, Reader, Status, Theme, RawKey};
+use crate::config::{KeyBinding, RawKey, Reader, Status, Theme};
 use crate::document::Type;
 use crate::highlight::Token;
 use crate::oxa::interpret_line;
@@ -13,11 +13,11 @@ use crossterm::ErrorKind;
 use regex::Regex;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::io::{BufRead, Write, BufReader, Error, ErrorKind as Iek};
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader, Error, ErrorKind as Iek, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
-use std::fs::OpenOptions;
 use unicode_width::UnicodeWidthStr;
 
 // Set up color resets
@@ -32,9 +32,18 @@ macro_rules! shell {
     ($command:expr, $confirm:expr, $root:expr) => {
         // Execute a shell command
         let command = if $root {
-            Command::new("sudo").arg("bash").arg("-c").arg($command).stdout(Stdio::piped()).spawn()
+            Command::new("sudo")
+                .arg("bash")
+                .arg("-c")
+                .arg($command)
+                .stdout(Stdio::piped())
+                .spawn()
         } else {
-            Command::new("bash").arg("-c").arg($command).stdout(Stdio::piped()).spawn()
+            Command::new("bash")
+                .arg("-c")
+                .arg($command)
+                .stdout(Stdio::piped())
+                .spawn()
         };
         if let Ok(s) = command {
             log!("Shell", "Command requested");
@@ -62,7 +71,14 @@ macro_rules! shell {
                 log!("Failure to open standard output", "");
             }
         } else {
-            log!("Failure to run command", format!("{} {:?}", $command, Command::new($command).stdout(Stdio::piped()).spawn()));
+            log!(
+                "Failure to run command",
+                format!(
+                    "{} {:?}",
+                    $command,
+                    Command::new($command).stdout(Stdio::piped()).spawn()
+                )
+            );
         }
     };
 }
@@ -356,9 +372,7 @@ impl Editor {
                     }
                 }
             }
-            KeyBinding::Raw(RawKey::Up) => {
-                self.execute(Event::MoveCursor(1, Direction::Up), false)
-            }
+            KeyBinding::Raw(RawKey::Up) => self.execute(Event::MoveCursor(1, Direction::Up), false),
             KeyBinding::Raw(RawKey::Down) => {
                 self.execute(Event::MoveCursor(1, Direction::Down), false)
             }
@@ -567,10 +581,8 @@ impl Editor {
             Event::Cmd => self.cmd(),
             Event::Shell(mut command, confirm, substitution, root) => {
                 if substitution {
-                    let file = self.doc[self.tab].render(
-                        self.doc[self.tab].tabs,
-                        self.config.general.tab_width,
-                    );
+                    let file = self.doc[self.tab]
+                        .render(self.doc[self.tab].tabs, self.config.general.tab_width);
                     command = command.replacen("%F", &self.doc[self.tab].path, 1);
                     command = command.replacen("%C", &file, 1);
                 }
@@ -991,11 +1003,7 @@ impl Editor {
         if self.doc[self.tab].dirty {
             // Handle unsaved changes
             self.doc[self.tab].set_command_line(
-                format!(
-                    "Unsaved Changes! {:?} to force {}",
-                    key,
-                    subject
-                ),
+                format!("Unsaved Changes! {:?} to force {}", key, subject),
                 Type::Warning,
             );
             self.update();
@@ -1047,9 +1055,7 @@ impl Editor {
                         // Exit on enter key
                         break 'p;
                     }
-                    KeyBinding::Raw(RawKey::Char(c)) | 
-                        KeyBinding::Shift(RawKey::Char(c)) => 
-                    {
+                    KeyBinding::Raw(RawKey::Char(c)) | KeyBinding::Shift(RawKey::Char(c)) => {
                         // Update the prompt contents
                         result.push(c);
                         func(self, PromptEvent::CharPress(false), &result)

@@ -2,15 +2,15 @@
 use crate::config::{Reader, Status, TokenType};
 use crate::editor::OFFSET;
 use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
-use crate::{log, Editor, Event, EventStack, Position, Row, Size, VERSION, Variable};
+use crate::{log, Editor, Event, EventStack, Position, Row, Size, Variable, VERSION};
 use crossterm::event::KeyCode as Key;
 use regex::Regex;
 use std::ffi::OsStr;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::Path;
 use std::{cmp, fs};
 use unicode_width::UnicodeWidthStr;
-use std::fs::OpenOptions;
-use std::io::Write;
 
 // For holding the info in the command line
 pub struct CommandLine {
@@ -231,10 +231,7 @@ impl Document {
             .replace("%n", &self.kind)
             .replace(
                 "%l",
-                &format!(
-                    "{}",
-                    self.cursor.y + self.offset.y.saturating_sub(OFFSET)
-                ),
+                &format!("{}", self.cursor.y + self.offset.y.saturating_sub(OFFSET)),
             )
             .replace("%L", &format!("{}", self.rows.len()))
             .replace("%x", &format!("{}", self.cursor.x + self.offset.x))
@@ -507,11 +504,9 @@ impl Document {
             return;
         }
         match event {
-            Event::Set(variable, value) => {
-                match variable {
-                    Variable::Saved => self.dirty = !value,
-                }
-            }
+            Event::Set(variable, value) => match variable {
+                Variable::Saved => self.dirty = !value,
+            },
             Event::Overwrite(_, ref after) => {
                 self.overwrite(after);
                 self.goto(Position { x: 0, y: 0 }, term);

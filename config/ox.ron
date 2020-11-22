@@ -132,21 +132,21 @@
         // Keybinding: [Oxa commands]
         Ctrl(Char('q')): ["quit"], // Quit current document
         Ctrl(Char('s')): ["save"], // Save current document
-        Ctrl(Char('w')): ["save ?"], // Save current document as
-        Ctrl(Char('p')): ["save *"], // Save all open documents
+        Alt(Char('s')):  ["save ?"], // Save current document as
+        Ctrl(Char('w')): ["save *"], // Save all open documents
         Ctrl(Char('n')): ["new"], // Create new document
         Ctrl(Char('o')): ["open"], // Open document
-        Ctrl(Char('d')): ["prev"], // Move to previous tab
-        Ctrl(Char('h')): ["next"], // Move to next tab
+        Ctrl(Left):      ["prev"], // Move to previous tab
+        Ctrl(Right):     ["next"], // Move to next tab
         Ctrl(Char('z')): ["undo"], // Undo last edit
         Ctrl(Char('y')): ["redo"], // Redo last edit
         Ctrl(Char('f')): ["search"], // Trigger search command
         Ctrl(Char('r')): ["replace"], // Trigger replace command
         Ctrl(Char('a')): ["replace *"], // Trigger replace all command
-        Ctrl(Char('v')): ["move line up"], // Move line up
-        Ctrl(Char('k')): ["move line down"], // Move line down
+        Ctrl(Up):        ["move line up"], // Move line up
+        Ctrl(Down):      ["move line down"], // Move line down
+        Ctrl(Delete):    ["delete word left"], // Delete word
         Alt(Char('a')):  ["cmd"], // Open the command line
-        Ctrl(Left): ["quit"],
         // Show help message URL
         F(1):   [
             "sh echo You can get help here:",

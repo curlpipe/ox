@@ -1,18 +1,4 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
-- [ ] General Editing
-  - [ ] UNIX Keybindings (easy)
-  - [X] File overwrite prevention
-    - [X] Detect if file exists
-      - [X] Add overwrite confirmation
-  - [X] Fix hardcoded values (easy)
-  - [X] Goto only if not on screen (easy)
-  - [X] Add support for cursor line wrapping* (easy)
-  - [X] Better file save error messages (easy)
-    - [X] Fix weird behaviour when file has no path
-  - [X] Save as sudo / read only files* (medium)
-  - [X] More keybindings (hard)
-    - [X] Function keys
-    - [X] Arrow keys
 - [ ] Formatting
   - [ ] Clippy
   - [ ] Rustfmt
@@ -49,6 +35,19 @@
   - [X] Live / Command for reloading of the config file
 - [X] Oxa
   - [X] Delete word
+- [X] General Editing
+  - [X] File overwrite prevention
+    - [X] Detect if file exists
+      - [X] Add overwrite confirmation
+  - [X] Fix hardcoded values (easy)
+  - [X] Goto only if not on screen (easy)
+  - [X] Add support for cursor line wrapping* (easy)
+  - [X] Better file save error messages (easy)
+    - [X] Fix weird behaviour when file has no path
+  - [X] Save as sudo / read only files* (medium)
+  - [X] More keybindings (hard)
+    - [X] Function keys
+    - [X] Arrow keys
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*
