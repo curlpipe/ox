@@ -1280,21 +1280,14 @@ impl Editor {
                 && self.doc[self.tab].show_welcome
             {
                 frame.push(self.welcome_message(
-                    "Ctrl + Q: Exit   ",
-                    Reader::rgb_fg(self.config.theme.status_fg),
-                ));
-            } else if row == (self.term.size.height / 4).saturating_add(4) - OFFSET
-                && self.doc[self.tab].show_welcome
-            {
-                frame.push(self.welcome_message(
-                    "Ctrl + S: Save   ",
+                    "To access the wiki: Press F1",
                     Reader::rgb_fg(self.config.theme.status_fg),
                 ));
             } else if row == (self.term.size.height / 4).saturating_add(5) - OFFSET
                 && self.doc[self.tab].show_welcome
             {
                 frame.push(self.welcome_message(
-                    "Ctrl + W: Save as",
+                    "Start typing to begin",
                     Reader::rgb_fg(self.config.theme.status_fg),
                 ));
             } else if let Some(line) = self.doc[self.tab]
