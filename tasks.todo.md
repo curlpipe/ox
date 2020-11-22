@@ -1,54 +1,3 @@
-0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
-- [ ] Update built in config file
-- [X] Rewrite using crossterm for windows support and efficiency*
-- [X] Undoing
-  - [X] Undoing to origin makes file not dirty
-- [X] CLI
-  - [X] Allow jump to lines*
-- [X] Bug Fixing
-  - [X] Fix line deletion runtime error
-  - [X] Fix delete line issue
-  - [X] Stop hiding welcome screen on resize
-  - [X] Fix file name issue
-  - [X] Fix line 0 deletion errors
-  - [X] Add log file
-  - [X] Fix unicode bug
-  - [X] Fix potential tab issues
-  - [X] Fix file hanging*
-  - [X] Fix windows linebreak issue*
-  - [X] Fix resize bugs
-- [X] Searching
-  - [X] Rewrite replace all command
-  - [X] Fix dodgy search positions
-  - [X] Rewrite replace command
-- [X] Themes
-  - [X] Small line specific retokenization for performance
-  - [X] 16 bit colour fallback*
-  - [X] Allow changing of colours of warning, info and error messages in config file
-  - [X] Line number background
-  - [X] Transparent background
-  - [X] Improved language syntax highlighting support
-  - [X] Highlight search and replace messages
-  - [X] Live / Command for reloading of the config file
-- [X] Oxa
-  - [X] Delete word
-- [X] General Editing
-  - [X] File overwrite prevention
-    - [X] Detect if file exists
-      - [X] Add overwrite confirmation
-  - [X] Fix hardcoded values (easy)
-  - [X] Goto only if not on screen (easy)
-  - [X] Add support for cursor line wrapping* (easy)
-  - [X] Better file save error messages (easy)
-    - [X] Fix weird behaviour when file has no path
-  - [X] Save as sudo / read only files* (medium)
-  - [X] More keybindings (hard)
-    - [X] Function keys
-    - [X] Arrow keys
-- [X] Formatting
-  - [X] Rustfmt
-  - [X] Clippy
-
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*
   - [ ] Read mouse events
@@ -375,4 +324,48 @@ Further ideas { Further fun ideas to look at }
     - [X] Create it in config file
     - [X] Read and allow execution
   - [X] Update wiki
+
+0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
+- [X] Rewrite using crossterm for windows support and efficiency*
+- [X] Undoing
+  - [X] Undoing to origin makes file not dirty
+- [X] CLI
+  - [X] Allow jump to lines*
+- [X] Bug Fixing
+  - [X] Fix line deletion runtime error
+  - [X] Fix delete line issue
+  - [X] Stop hiding welcome screen on resize
+  - [X] Fix file name issue
+  - [X] Fix line 0 deletion errors
+  - [X] Add log file
+  - [X] Fix unicode bug
+  - [X] Fix potential tab issues
+  - [X] Fix file hanging*
+  - [X] Fix windows linebreak issue*
+  - [X] Fix resize bugs
+- [X] Searching
+  - [X] Rewrite replace all command
+  - [X] Fix dodgy search positions
+  - [X] Rewrite replace command
+- [X] Themes
+  - [X] Small line specific retokenization for performance
+  - [X] 16 bit colour fallback*
+  - [X] Allow changing of colours of warning, info and error messages in config file
+  - [X] Line number background
+  - [X] Transparent background
+  - [X] Improved language syntax highlighting support
+  - [X] Highlight search and replace messages
+  - [X] Live / Command for reloading of the config file
+- [X] Oxa
+  - [X] Delete word
+- [X] General Editing
+  - [X] File overwrite prevention
+  - [X] Fix hardcoded values (easy)
+  - [X] Goto only if not on screen (easy)
+  - [X] Add support for cursor line wrapping* (easy)
+  - [X] Better file save error messages (easy)
+  - [X] Save as sudo / read only files* (medium)
+  - [X] More keybindings (hard)
+- [X] Formatting
+- [X] Update built in config file
 
