@@ -584,7 +584,7 @@ impl Editor {
             Event::MoveWord(direction) => match direction {
                 Direction::Left => self.doc[self.tab].word_left(&self.term.size),
                 Direction::Right => self.doc[self.tab].word_right(&self.term.size),
-                _ => {}
+                _ => {},
             },
             Event::GotoCursor(pos) => {
                 let rows = &self.doc[self.tab].rows;

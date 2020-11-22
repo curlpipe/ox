@@ -118,6 +118,15 @@ Install `ox` from Homebrew core tap.
 brew install ox
 ```
 
+#### MacPorts
+
+On macOS, you can install `ox` via [MacPorts](https://www.macports.org)
+
+```sh
+sudo port selfupdate
+sudo port install ox
+```
+
 <!-- USAGE EXAMPLES -->
 ## Usage
 
@@ -177,6 +186,8 @@ Ox is controlled via your keyboard shortcuts. Here are the default shortcuts tha
 | `Ctrl + A`  | Carries out a batch replace option. It will prompt you for a target to replace and what you want to replace it with and will then replace every occurance in the document. Note: this allows you to use regular expressions. | 
 | `Ctrl + Left`  | Navigates to the previous tab.  | 
 | `Ctrl + Right`  | Navigates to the next tab.  | 
+| `Alt + A`  | Focuses the command line. | 
+
 
 #### Configuring Ox
 
@@ -211,7 +222,7 @@ Here is the current summary
  - [X] Replacing text (0.2.3) [1549 lines]
  - [X] Syntax highlighting (0.2.4) [1894 lines]
  - [X] Tabs for multitasking (0.2.5) [2050 lines]
- - [X] Macros (0.2.6) [2633 lines]
+ - [X] Macros (0.2.6) [3414 lines]
  - [X] Tweaks (0.2.7) [3241 lines]
  - [ ] Mouse support (0.2.8)
  - [ ] Auto indentation (0.3.0)
