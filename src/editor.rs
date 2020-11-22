@@ -1,6 +1,6 @@
 // Editor.rs - Controls the editor and brings everything together
 use crate::config::{KeyBinding, RawKey, Reader, Status, Theme};
-use crate::document::Type;
+use crate::document::{TabType, Type};
 use crate::highlight::Token;
 use crate::oxa::interpret_line;
 use crate::undo::{reverse, BankType};
@@ -57,7 +57,7 @@ macro_rules! shell {
                 // Stream the input and output of the command to the current stdout
                 BufReader::new(s)
                     .lines()
-                    .filter_map(|line| line.ok())
+                    .filter_map(std::result::Result::ok)
                     .for_each(|line| println!("{}", line));
                 // Wait for user to press enter, then reenter raw mode
                 log!("Shell", "Exited");
@@ -259,7 +259,7 @@ impl Editor {
             }
         }
     }
-    fn key_event_to_ox_key(&mut self, key: KeyCode, modifiers: KeyModifiers) -> KeyBinding {
+    fn key_event_to_ox_key(key: KeyCode, modifiers: KeyModifiers) -> KeyBinding {
         // Convert crossterm's complicated key structure into Ox's simpler one
         let inner = match key {
             KeyCode::Char(c) => RawKey::Char(c),
@@ -297,8 +297,8 @@ impl Editor {
             x: cursor.x + offset.x,
             y: cursor.y + offset.y - OFFSET,
         };
-        let ox_key = self.key_event_to_ox_key(key.code, key.modifiers);
-        self.keypress = ox_key.clone();
+        let ox_key = Editor::key_event_to_ox_key(key.code, key.modifiers);
+        self.keypress = ox_key;
         match ox_key {
             KeyBinding::Raw(RawKey::Enter) => {
                 self.doc[self.tab].redo_stack.empty();
@@ -329,12 +329,10 @@ impl Editor {
                     } else {
                         // Backspace in the middle of a line
                         let row = self.doc[self.tab].rows[current.y].clone();
-                        let chr =
-                            if let Some(chr) = row.ext_chars().get(current.x.saturating_sub(1)) {
-                                *chr
-                            } else {
-                                " "
-                            };
+                        let chr = row
+                            .ext_chars()
+                            .get(current.x.saturating_add(1))
+                            .map_or(" ", |chr| *chr);
                         let current = Position {
                             x: current.x.saturating_sub(UnicodeWidthStr::width(chr)),
                             y: current.y,
@@ -344,16 +342,8 @@ impl Editor {
                     false,
                 );
             }
-            // Detect control key binding
-            KeyBinding::Ctrl(_) => {
-                if let Some(commands) = self.config.keys.get(&ox_key) {
-                    for i in commands.clone() {
-                        self.text_to_event(&i);
-                    }
-                }
-            }
-            // Detect alt key binding
-            KeyBinding::Alt(_) => {
+            // Detect control and alt and function key bindings
+            KeyBinding::Ctrl(_) | KeyBinding::Alt(_) | KeyBinding::F(_) => {
                 if let Some(commands) = self.config.keys.get(&ox_key) {
                     for i in commands.clone() {
                         self.text_to_event(&i);
@@ -363,14 +353,6 @@ impl Editor {
             KeyBinding::Raw(RawKey::Char(c)) | KeyBinding::Shift(RawKey::Char(c)) => {
                 self.doc[self.tab].redo_stack.empty();
                 self.execute(Event::Insertion(current, c), false);
-            }
-            // Detect function key binding
-            KeyBinding::F(_) => {
-                if let Some(commands) = self.config.keys.get(&ox_key) {
-                    for i in commands.clone() {
-                        self.text_to_event(&i);
-                    }
-                }
             }
             KeyBinding::Raw(RawKey::Up) => self.execute(Event::MoveCursor(1, Direction::Up), false),
             KeyBinding::Raw(RawKey::Down) => {
@@ -457,13 +439,11 @@ impl Editor {
                 self.doc[self.tab].path.clone()
             }
         };
-        if self.doc[self.tab].path != save {
-            if Path::new(&save).exists() {
-                // File already exists, possible loss of data
-                self.doc[self.tab]
-                    .set_command_line(format!("File {} already exists", save), Type::Error);
-                return;
-            }
+        if self.doc[self.tab].path != save && Path::new(&save).exists() {
+            // File already exists, possible loss of data
+            self.doc[self.tab]
+                .set_command_line(format!("File {} already exists", save), Type::Error);
+            return;
         }
         // Attempt document save
         let tab_width = self.config.general.tab_width;
@@ -561,6 +541,15 @@ impl Editor {
         // Move to the previous tab
         self.tab = self.tab.saturating_sub(1);
     }
+    pub fn shell(&mut self, mut command: String, substitution: bool, root: bool, confirm: bool) {
+        if substitution {
+            let file =
+                self.doc[self.tab].render(self.doc[self.tab].tabs, self.config.general.tab_width);
+            command = command.replacen("%F", &self.doc[self.tab].path, 1);
+            command = command.replacen("%C", &file, 1);
+        }
+        shell!(&command, confirm, root);
+    }
     pub fn execute(&mut self, event: Event, reversed: bool) {
         // Event executor
         if self.doc[self.tab].read_only && Editor::will_edit(&event) {
@@ -579,14 +568,8 @@ impl Editor {
             Event::Replace => self.replace(),
             Event::ReplaceAll => self.replace_all(),
             Event::Cmd => self.cmd(),
-            Event::Shell(mut command, confirm, substitution, root) => {
-                if substitution {
-                    let file = self.doc[self.tab]
-                        .render(self.doc[self.tab].tabs, self.config.general.tab_width);
-                    command = command.replacen("%F", &self.doc[self.tab].path, 1);
-                    command = command.replacen("%C", &file, 1);
-                }
-                shell!(&command, confirm, root);
+            Event::Shell(command, confirm, substitution, root) => {
+                self.shell(command, confirm, substitution, root)
             }
             Event::ReloadConfig => {
                 let config = Reader::read(&self.config_path);
@@ -740,8 +723,7 @@ impl Editor {
         }
     }
     pub fn will_edit(event: &Event) -> bool {
-        match event {
-            Event::SpliceUp(_, _)
+        matches!(event, Event::SpliceUp(_, _)
             | Event::SplitDown(_, _)
             | Event::InsertLineAbove(_)
             | Event::InsertLineBelow(_)
@@ -753,9 +735,7 @@ impl Editor {
             | Event::UpdateLine(_, _, _, _)
             | Event::ReplaceAll
             | Event::Replace
-            | Event::Overwrite(_, _) => true,
-            _ => false,
-        }
+            | Event::Overwrite(_, _))
     }
     pub fn undo(&mut self) {
         self.doc[self.tab].undo_stack.commit();
@@ -801,7 +781,7 @@ impl Editor {
     }
     fn highlight_bg_tokens(&mut self, t: &str, current: Position) -> Option<()> {
         let occurances = self.doc[self.tab].find_all(t)?;
-        for i in self.doc[self.tab].rows.iter_mut() {
+        for i in &mut self.doc[self.tab].rows {
             i.bg_syntax.clear();
         }
         if !t.is_empty() {
@@ -877,11 +857,11 @@ impl Editor {
                         s.highlight_bg_tokens(&t, initial);
                     }
                 }
-                _ => (),
+                PromptEvent::Update => (),
             }
         });
         // User cancelled or found what they were looking for
-        for i in self.doc[self.tab].rows.iter_mut() {
+        for i in &mut self.doc[self.tab].rows {
             i.bg_syntax.clear();
         }
         self.doc[self.tab].set_command_line("Search exited".to_string(), Type::Info);
@@ -960,7 +940,7 @@ impl Editor {
                     self.update();
                 }
             }
-            for i in self.doc[self.tab].rows.iter_mut() {
+            for i in &mut self.doc[self.tab].rows {
                 i.bg_syntax.clear();
             }
         }
@@ -1012,7 +992,7 @@ impl Editor {
                 modifiers: m,
             }) = self.read_event()
             {
-                let ox_key = self.key_event_to_ox_key(c, m);
+                let ox_key = Editor::key_event_to_ox_key(c, m);
                 match ox_key {
                     KeyBinding::Raw(RawKey::Enter) => return true,
                     KeyBinding::Ctrl(_) | KeyBinding::Alt(_) => {
@@ -1050,7 +1030,7 @@ impl Editor {
                 modifiers: m,
             }) = self.read_event()
             {
-                match self.key_event_to_ox_key(c, m) {
+                match Editor::key_event_to_ox_key(c, m) {
                     KeyBinding::Raw(RawKey::Enter) => {
                         // Exit on enter key
                         break 'p;
@@ -1263,7 +1243,7 @@ impl Editor {
         // Draw the screen to the terminal
         let offset = self.doc[self.tab].offset;
         let mut frame = vec![self.tab_line()];
-        let rendered = self.doc[self.tab].render(false, 0);
+        let rendered = self.doc[self.tab].render(TabType::Spaces, 0);
         let reg = self.doc[self.tab].regex.clone();
         if self.config.theme.transparent_editor {
             // Prevent garbage characters spamming the screen

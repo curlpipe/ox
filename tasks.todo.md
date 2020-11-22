@@ -1,7 +1,4 @@
 0.2.7 (Small patches) { Small tweaks and large rewrites to make Ox more comfy }
-- [ ] Formatting
-  - [ ] Clippy
-  - [ ] Rustfmt
 - [ ] Update built in config file
 - [X] Rewrite using crossterm for windows support and efficiency*
 - [X] Undoing
@@ -48,6 +45,9 @@
   - [X] More keybindings (hard)
     - [X] Function keys
     - [X] Arrow keys
+- [X] Formatting
+  - [X] Rustfmt
+  - [X] Clippy
 
 0.2.8 (Mouse support) { To allow the mouse cursor to move the editor cursor & select text }
 - [ ] Mouse selection support*

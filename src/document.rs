@@ -25,6 +25,13 @@ pub enum Type {
     Info,
 }
 
+// Enum to determine which tab type
+#[derive(Debug, Copy, Clone)]
+pub enum TabType {
+    Spaces,
+    Tabs,
+}
+
 // Document struct (class) to manage files and text
 pub struct Document {
     pub rows: Vec<Row>,         // For holding the contents of the document
@@ -42,7 +49,7 @@ pub struct Document {
     pub cursor: Position,       // For holding the raw cursor location
     pub offset: Position,       // For holding the offset on the X and Y axes
     pub graphemes: usize,       // For holding the special grapheme cursor
-    pub tabs: bool,             // For detecting if tabs are used over spaces
+    pub tabs: TabType,          // For detecting if tabs are used over spaces
     pub last_save_index: usize, // For holding the last save index
     pub true_path: String,      // For holding the path that was provided as argument
     pub read_only: bool,        // Boolean to determine if the document is read only
@@ -69,7 +76,7 @@ impl Document {
             graphemes: 0,
             cursor: Position { x: 0, y: OFFSET },
             offset: Position { x: 0, y: 0 },
-            tabs: false,
+            tabs: TabType::Spaces,
             last_save_index: 0,
             true_path: String::new(),
             read_only,
@@ -117,7 +124,7 @@ impl Document {
                 graphemes: 0,
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
-                tabs,
+                tabs: if tabs { TabType::Tabs } else { TabType::Spaces },
                 last_save_index: 0,
                 true_path,
                 read_only,
@@ -155,7 +162,7 @@ impl Document {
                 graphemes: 0,
                 cursor: Position { x: 0, y: OFFSET },
                 offset: Position { x: 0, y: 0 },
-                tabs: false,
+                tabs: TabType::Spaces,
                 last_save_index: 0,
                 true_path,
                 read_only,
@@ -194,7 +201,7 @@ impl Document {
         self.cmd_line = CommandLine { text, msg };
     }
     pub fn mass_redraw(&mut self) {
-        for i in self.rows.iter_mut() {
+        for i in &mut self.rows {
             i.updated = true;
         }
     }
@@ -207,10 +214,9 @@ impl Document {
                 Status::Empty => "Config file is empty, using defaults".to_string(),
             },
             msg: match status {
-                Status::Success => Type::Info,
+                Status::Success | Status::Empty => Type::Info,
                 Status::File => Type::Warning,
                 Status::Parse(_) => Type::Error,
-                Status::Empty => Type::Info,
             },
         }
     }
@@ -623,28 +629,28 @@ impl Document {
         self.find_next(" ", pos)
     }
     pub fn delete_word(&mut self, pos: &Position, term: &Size) {
-        let mut rpos = if let Some(&" ") = self.rows[pos.y].ext_chars().get(pos.x) {
+        let mut right = if let Some(&" ") = self.rows[pos.y].ext_chars().get(pos.x) {
             *pos
         } else {
             self.find_word_boundary_right(pos)
                 .unwrap_or(Position { x: 0, y: pos.y })
         };
-        let mut lpos = self.find_word_boundary_left(pos).unwrap_or(Position {
+        let mut left = self.find_word_boundary_left(pos).unwrap_or(Position {
             x: self.rows[pos.y].length(),
             y: pos.y,
         });
-        if rpos.y != pos.y {
-            rpos = Position {
+        if right.y != pos.y {
+            right = Position {
                 x: self.rows[pos.y].length(),
                 y: pos.y,
             };
         }
-        if lpos.y != pos.y {
-            lpos = Position { x: 0, y: pos.y };
+        if left.y != pos.y {
+            left = Position { x: 0, y: pos.y };
         }
-        self.goto(lpos, term);
-        for _ in lpos.x..rpos.x {
-            self.rows[pos.y].delete(lpos.x);
+        self.goto(left, term);
+        for _ in left.x..right.x {
+            self.rows[pos.y].delete(left.x);
         }
     }
     pub fn goto(&mut self, mut pos: Position, term: &Size) {
@@ -698,7 +704,7 @@ impl Document {
     pub fn save(&self, path: &str, tab: usize) -> std::io::Result<()> {
         // Save a file
         let contents = self.render(self.tabs, tab);
-        log!("Saved file", format!("File tab status is {}", self.tabs));
+        log!("Saved file", format!("File tab status is {:?}", self.tabs));
         fs::write(path, contents)
     }
     pub fn find_prev(&self, needle: &str, current: &Position) -> Option<Position> {
@@ -720,7 +726,7 @@ impl Document {
                 }
             }
             while let Some(i) = xs.pop() {
-                if i < current.x && c == current.y || c != current.y {
+                if i < current.x || c != current.y {
                     return Some(Position { x: i, y: c });
                 }
             }
@@ -768,7 +774,7 @@ impl Document {
         }
         Some(result)
     }
-    pub fn render(&self, replace_tab: bool, tab_width: usize) -> String {
+    pub fn render(&self, tab_type: TabType, tab_width: usize) -> String {
         // Render the lines of a document for writing
         let render = self
             .rows
@@ -777,7 +783,7 @@ impl Document {
             .collect::<Vec<String>>()
             .join("\n")
             + "\n";
-        if replace_tab {
+        if let TabType::Tabs = tab_type {
             spaces_to_tabs(&render, tab_width)
         } else {
             render

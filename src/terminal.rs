@@ -77,7 +77,7 @@ impl Terminal {
     }
     pub fn availablility() -> usize {
         let colour = env::var("COLORTERM");
-        if colour.unwrap_or("".to_string()) == "truecolor" {
+        if colour.unwrap_or_else(|_| "".to_string()) == "truecolor" {
             24
         } else if let Ok(info) = TermInfo::from_env() {
             if info.numbers.get("colors").unwrap() == &256 {

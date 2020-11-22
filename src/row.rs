@@ -33,24 +33,13 @@ impl From<&str> for Row {
 
 // Add methods to the Row struct / class
 impl Row {
-    pub fn render(
-        &self,
-        mut start: usize,
-        width: usize,
-        index: usize,
-        offset: usize,
-        config: &Reader,
-    ) -> String {
-        // Render the row by trimming it to the correct size
-        let index = index.saturating_add(1);
-        // Padding to align line numbers to the right
+    pub fn render_line_number(config: &Reader, offset: usize, index: usize) -> String {
         let post_padding = offset.saturating_sub(
             index.to_string().len() +         // Length of the number
             config.general.line_number_padding_right + // Length of the right padding
             config.general.line_number_padding_left, // Length of the left padding
         );
-        // Assemble the line number data
-        let line_number = format!(
+        format!(
             "{}{}{}{}{}{}{}{}",
             if config.theme.transparent_editor {
                 RESET_BG
@@ -68,12 +57,26 @@ impl Row {
             } else {
                 Reader::rgb_bg(config.theme.editor_bg)
             },
-        );
+        )
+    }
+    pub fn render(
+        &self,
+        mut start: usize,
+        width: usize,
+        index: usize,
+        offset: usize,
+        config: &Reader,
+    ) -> String {
+        // Render the row by trimming it to the correct size
+        let index = index.saturating_add(1);
+        // Padding to align line numbers to the right
+        // Assemble the line number data
+        let line_number = Row::render_line_number(config, offset, index);
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
         let width = width.saturating_sub(line_number_len);
-        let reset_fg = RESET_FG.to_string();
-        let reset_bg = RESET_BG.to_string();
+        let reset_foreground = RESET_FG.to_string();
+        let reset_background = RESET_BG.to_string();
         let editor_bg = Reader::rgb_bg(config.theme.editor_bg).to_string();
         let mut initial = start;
         let mut result = vec![];
@@ -111,7 +114,7 @@ impl Row {
                             break 'a;
                         }
                     }
-                    result.push(&reset_fg);
+                    result.push(&reset_foreground);
                 } else if let Some(ch) = dna.get(&start) {
                     // There is a character here
                     if start + UnicodeWidthStr::width(*ch) > end {
@@ -144,9 +147,9 @@ impl Row {
                                 break;
                             }
                             real += i.len();
-                            ch += UnicodeWidthStr::width(i.clone());
+                            ch += UnicodeWidthStr::width(*i);
                         }
-                        result.insert(real, &reset_fg);
+                        result.insert(real, &reset_foreground);
                         result.insert(0, &t.kind);
                     }
                 }
@@ -154,7 +157,7 @@ impl Row {
             // Insert background tokens
             for b in &self.bg_syntax {
                 let bg = if config.theme.transparent_editor {
-                    &reset_bg
+                    &reset_background
                 } else {
                     &editor_bg
                 };
@@ -162,15 +165,11 @@ impl Row {
                     if a < result.len() {
                         result.insert(a, &b.1.kind);
                     }
-                } else {
-                    continue;
                 };
                 if let Some(a) = safe_ansi_insert(b.1.span.1, &result, &self.regex.ansi) {
                     if a < result.len() {
                         result.insert(a, bg);
                     }
-                } else {
-                    continue;
                 };
             }
         }

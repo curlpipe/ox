@@ -225,8 +225,8 @@ const DEFAULT: &str = r#"
         // %v - Version of the editor (e.g. 0.2.6)
         // %d - Dirty file indicator text
         // %D - Dirty file indicator icon
-        status_left:  " %f%d %D │ %n %i", // Left part of status line
-        status_right: "並 %l / %L │ 﫦(%x, %y) ", // Right part of status line
+        status_left:  " %f%d %D \u{2502} %n %i", // Left part of status line
+        status_right: "\u{4e26} %l / %L \u{2502} \u{fae6}(%x, %y) ", // Right part of status line
         tab: "%I%f%d", // Tab formatting
     ),
     // Custom defined macros
@@ -331,7 +331,7 @@ const DEFAULT: &str = r#"
     languages: [
         Language(
             name: "Rust", // Name of the language
-            icon: " ", // Icon for the language
+            icon: "\u{e7a8} ", // Icon for the language
             extensions: ["rs"], // Extensions of the language
             // Keywords of the language
             keywords: [
@@ -418,7 +418,7 @@ const DEFAULT: &str = r#"
         ),
         Language(
             name: "Ruby", // Name of the language
-            icon: " ", // Icon for the language
+            icon: "\u{e739} ", // Icon for the language
             extensions: ["rb"], // Extensions of the language
             // Keywords of the language
             keywords: [
@@ -463,7 +463,7 @@ const DEFAULT: &str = r#"
         ),
         Language(
             name: "Crystal", // Name of the language
-            icon: " ", // Icon for the language
+            icon: "\u{e7a3} ", // Icon for the language
             extensions: ["cr"], // Extensions of the language
             // Keywords of the language
             keywords: [
@@ -510,7 +510,7 @@ const DEFAULT: &str = r#"
         ),
         Language(
             name: "Python", // Name of the language
-            icon: " ", // Icon for the language
+            icon: "\u{e73c} ", // Icon for the language
             extensions: ["py", "pyw"], // Extensions of the language
             // Keywords of the language
             keywords: [
@@ -555,7 +555,7 @@ const DEFAULT: &str = r#"
         ),
         Language(
             name: "Javascript", // Name of the language
-            icon: " ", // Icon for the language
+            icon: "\u{e74e} ", // Icon for the language
             extensions: ["js"], // Extensions of the language
             // Keywords of the language
             keywords: [
@@ -600,7 +600,7 @@ const DEFAULT: &str = r#"
         ),
         Language(
             name: "C", // Name of the language
-            icon: " ", // Icon for the language
+            icon: "\u{e61e} ", // Icon for the language
             extensions: ["c", "h"], // Extensions of the language
             // Keywords of the language
             keywords: [
