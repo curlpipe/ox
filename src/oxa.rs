@@ -344,7 +344,7 @@ fn delete_command(
             .collect::<Vec<_>>()
             .get(graphemes)
         {
-            events.push(Event::Deletion(*cursor, *ch));
+            events.push(Event::Deletion(*cursor, false, *ch));
         }
     } else if args[0] == "word" {
         events.push(Event::DeleteWord(*cursor, "egg".to_string()));
