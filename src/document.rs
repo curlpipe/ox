@@ -4,6 +4,7 @@ use crate::editor::OFFSET;
 use crate::util::{line_offset, spaces_to_tabs, tabs_to_spaces};
 use crate::{log, Editor, Event, EventStack, Position, Row, Size, Variable, VERSION};
 use crossterm::event::KeyCode as Key;
+use directories::BaseDirs;
 use regex::Regex;
 use std::ffi::OsStr;
 use std::fs::OpenOptions;

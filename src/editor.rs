@@ -10,6 +10,7 @@ use clap::App;
 use crossterm::event::{Event as InputEvent, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{Attribute, Color, SetBackgroundColor, SetForegroundColor};
 use crossterm::ErrorKind;
+use directories::BaseDirs;
 use regex::Regex;
 use std::collections::HashMap;
 use std::ffi::OsStr;
