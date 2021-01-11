@@ -114,8 +114,5 @@ file.txt:100 (This will go to line 100 in file.txt)"#,
 fn load_config() -> Option<String> {
     // Load the configuration file
     let base_dirs = BaseDirs::new()?;
-    Some(format!(
-        "{}/ox/ox.ron",
-        base_dirs.config_dir().to_str()?.to_string()
-    ))
+    Some(format!("{}/ox/ox.ron", base_dirs.config_dir().to_str()?))
 }

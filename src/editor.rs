@@ -218,13 +218,13 @@ impl Editor {
             doc: documents,
             last_keypress: None,
             keypress: KeyBinding::Unsupported,
-            config: config.0.clone(),
+            theme: config.0.theme.default_theme.clone(),
+            config: config.0,
             config_path: config_path.to_string(),
             status: config.1,
             exp: Exp::new(),
             position_bank: HashMap::new(),
             row_bank: HashMap::new(),
-            theme: config.0.theme.default_theme,
         })
     }
     pub fn run(&mut self) {
@@ -465,8 +465,8 @@ impl Editor {
                 .to_str()
                 .unwrap_or(&save)
                 .to_string();
-            self.doc[self.tab].path = save.clone();
             self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
+            self.doc[self.tab].path = save;
         } else if save.is_empty() {
             // The document couldn't save due to an empty name
             self.doc[self.tab].set_command_line(
