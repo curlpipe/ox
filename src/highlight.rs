@@ -12,14 +12,14 @@ pub struct Token {
     pub priority: usize,
 }
 
-pub fn cine(token: &Token, hashmap: &mut HashMap<usize, Token>) {
+pub fn cine(token: Token, hashmap: &mut HashMap<usize, Token>) {
     // Insert a token into a hashmap
     if let Some(t) = hashmap.get(&token.span.0) {
         if t.priority > token.priority {
             return;
         }
     }
-    hashmap.insert(token.span.0, token.clone());
+    hashmap.insert(token.span.0, token);
 }
 
 fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
@@ -65,7 +65,7 @@ pub fn highlight(
                             let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
                             let boundaries = bounds(&cap, row);
                             cine(
-                                &Token {
+                                Token {
                                     span: boundaries,
                                     data: cap.as_str().to_string(),
                                     kind: Reader::rgb_fg(highlights["keywords"]).to_string(),
@@ -82,7 +82,7 @@ pub fn highlight(
                             let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
                             let boundaries = bounds(&cap, row);
                             cine(
-                                &Token {
+                                Token {
                                     span: boundaries,
                                     data: cap.as_str().to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
@@ -102,7 +102,7 @@ pub fn highlight(
                         let ((start_x, start_y), (end_x, end_y)) = multi_to_single(doc, &cap);
                         if start_y == index {
                             cine(
-                                &Token {
+                                Token {
                                     span: (
                                         start_x,
                                         if start_y == end_y {
@@ -119,7 +119,7 @@ pub fn highlight(
                             )
                         } else if end_y == index {
                             cine(
-                                &Token {
+                                Token {
                                     span: (0, end_x),
                                     data: row.to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
@@ -129,7 +129,7 @@ pub fn highlight(
                             )
                         } else if (start_y..=end_y).contains(&index) {
                             cine(
-                                &Token {
+                                Token {
                                     span: (0, UnicodeWidthStr::width(row)),
                                     data: row.to_string(),
                                     kind: Reader::rgb_fg(highlights[name]).to_string(),
