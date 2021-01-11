@@ -32,7 +32,7 @@ fn bounds(reg: &regex::Match, line: &str) -> (usize, usize) {
 
 fn multi_to_single(doc: &str, m: &regex::Match) -> ((usize, usize), (usize, usize)) {
     // Multiline tokens to single line tokens
-    let b = bounds(&m, &doc);
+    let b = bounds(m, doc);
     let start_y = doc[..m.start()].matches('\n').count();
     let end_y = doc[..m.end()].matches('\n').count();
     let start_x = b.0
@@ -63,7 +63,7 @@ pub fn highlight(
                         // Locate keywords
                         for cap in kw.captures_iter(row) {
                             let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-                            let boundaries = bounds(&cap, &row);
+                            let boundaries = bounds(&cap, row);
                             cine(
                                 &Token {
                                     span: boundaries,
@@ -80,7 +80,7 @@ pub fn highlight(
                         // Locate expressions
                         for cap in exp.captures_iter(row) {
                             let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-                            let boundaries = bounds(&cap, &row);
+                            let boundaries = bounds(&cap, row);
                             cine(
                                 &Token {
                                     span: boundaries,
@@ -99,7 +99,7 @@ pub fn highlight(
                 for exp in regex {
                     for cap in exp.captures_iter(doc) {
                         let cap = cap.get(cap.len().saturating_sub(1)).unwrap();
-                        let ((start_x, start_y), (end_x, end_y)) = multi_to_single(&doc, &cap);
+                        let ((start_x, start_y), (end_x, end_y)) = multi_to_single(doc, &cap);
                         if start_y == index {
                             cine(
                                 &Token {

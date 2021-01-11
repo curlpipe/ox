@@ -63,13 +63,13 @@ impl Document {
             rows: vec![Row::from("")],
             name: String::from("[No name]"),
             dirty: false,
-            cmd_line: Document::config_to_commandline(&status),
+            cmd_line: Self::config_to_commandline(status),
             path: String::new(),
             line_offset: config.general.line_number_padding_right
                 + config.general.line_number_padding_left,
             undo_stack: EventStack::new(),
             redo_stack: EventStack::new(),
-            regex: Reader::get_syntax_regex(&config, ""),
+            regex: Reader::get_syntax_regex(config, ""),
             icon: String::new(),
             kind: String::new(),
             show_welcome: true,
@@ -90,7 +90,7 @@ impl Document {
             // File exists
             let tabs = file.contains("\n\t");
             let file = tabs_to_spaces(&file, config.general.tab_width);
-            let mut file = Document::split_file(&file);
+            let mut file = Self::split_file(&file);
             // Handle newline on last line
             if let Some(line) = file.iter().last() {
                 if line.is_empty() {
@@ -101,23 +101,23 @@ impl Document {
             if file.is_empty() {
                 file.push("");
             }
-            let ext = path.split('.').last().unwrap_or(&"");
+            let extension = path.split('.').last().unwrap_or("");
             Some(Self {
                 rows: file.iter().map(|row| Row::from(*row)).collect(),
                 name: Path::new(path)
                     .file_name()
                     .unwrap_or_else(|| OsStr::new(path))
                     .to_str()
-                    .unwrap_or(&path)
+                    .unwrap_or(path)
                     .to_string(),
                 dirty: false,
-                cmd_line: Document::config_to_commandline(&status),
+                cmd_line: Self::config_to_commandline(status),
                 path: path.to_string(),
                 line_offset: config.general.line_number_padding_right
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
-                regex: Reader::get_syntax_regex(&config, ext),
+                regex: Reader::get_syntax_regex(config, extension),
                 kind: Self::identify(path).0.to_string(),
                 icon: Self::identify(path).1.to_string(),
                 show_welcome: false,
@@ -138,24 +138,24 @@ impl Document {
         // Create a new document from a path with empty document on error
         let true_path = path.to_string();
         let path = path.split(':').next().unwrap();
-        if let Some(doc) = Document::open(&config, &status, &true_path, read_only) {
+        if let Some(doc) = Self::open(config, status, &true_path, read_only) {
             log!("Opening file", "File was found");
             doc
         } else {
             // Create blank document
             log!("Opening file", "File not found");
-            let ext = path.split('.').last().unwrap_or(&"");
+            let ext = path.split('.').last().unwrap_or("");
             Self {
                 rows: vec![Row::from("")],
                 name: path.to_string(),
                 path: path.to_string(),
                 dirty: false,
-                cmd_line: Document::config_to_commandline(&status),
+                cmd_line: Self::config_to_commandline(status),
                 line_offset: config.general.line_number_padding_right
                     + config.general.line_number_padding_left,
                 undo_stack: EventStack::new(),
                 redo_stack: EventStack::new(),
-                regex: Reader::get_syntax_regex(&config, ext),
+                regex: Reader::get_syntax_regex(config, ext),
                 kind: Self::identify(path).0.to_string(),
                 icon: Self::identify(path).1.to_string(),
                 show_welcome: false,
@@ -265,9 +265,9 @@ impl Document {
             }
             Key::Up => {
                 // Move the cursor up
-                if self.cursor.y - OFFSET == 0 {
+                if self.cursor.y == OFFSET {
                     self.offset.y = self.offset.y.saturating_sub(1);
-                } else if self.cursor.y != OFFSET {
+                } else {
                     self.cursor.y = self.cursor.y.saturating_sub(1);
                 }
                 self.snap_cursor(term);
@@ -586,7 +586,7 @@ impl Document {
             Event::InsertTab(pos) => {
                 self.dirty = true;
                 self.goto(pos, term);
-                self.tab(&pos, &config, term);
+                self.tab(&pos, config, term);
                 if !reversed {
                     self.undo_stack.push(event);
                 }

@@ -42,7 +42,7 @@ pub fn interpret_line(
             "quit" => events.push(quit_command(&args)),
             "prev" => events.push(Event::PrevTab),
             "next" => events.push(Event::NextTab),
-            "set" => events.push(set_command(&args, &cursor, &rows)),
+            "set" => events.push(set_command(&args, cursor, rows)),
             "split" => events.push(Event::SplitDown(*cursor, *cursor)),
             "splice" => events.push(Event::SpliceUp(*cursor, *cursor)),
             "search" => events.push(Event::Search),
@@ -72,7 +72,7 @@ pub fn interpret_line(
                 }
             }
             "line" => {
-                if let Some(line) = line_command(&args, &cursor) {
+                if let Some(line) = line_command(&args, cursor) {
                     events.push(line);
                 } else {
                     return None;
@@ -83,11 +83,11 @@ pub fn interpret_line(
                     "save" => save_command(&args),
                     "goto" => goto_command(&args)?,
                     "move" => move_command(&args)?,
-                    "put" => put_command(&args, &cursor),
-                    "delete" => delete_command(&args, &cursor, graphemes, &rows)?,
+                    "put" => put_command(&args, cursor),
+                    "delete" => delete_command(&args, cursor, graphemes, rows)?,
                     "load" => load_command(&args)?,
                     "store" => store_command(&args)?,
-                    "overwrite" => overwrite_command(&args, &rows),
+                    "overwrite" => overwrite_command(&args, rows),
                     _ => return None,
                 };
                 events.append(&mut command);

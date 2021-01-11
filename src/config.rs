@@ -110,12 +110,12 @@ impl Reader {
                     for expr in reg {
                         if expr.starts_with("(?ms)") || expr.starts_with("(?sm)") {
                             // Multiline regular expression
-                            if let Ok(regx) = Regex::new(&expr) {
+                            if let Ok(regx) = Regex::new(expr) {
                                 multi.push(regx);
                             }
                         } else {
                             // Single line regular expression
-                            if let Ok(regx) = Regex::new(&expr) {
+                            if let Ok(regx) = Regex::new(expr) {
                                 single.push(regx);
                             }
                         }
@@ -139,7 +139,7 @@ impl Reader {
         }
         result
     }
-    pub fn rgb_fg(colour: (u8, u8, u8)) -> SetForegroundColor {
+    pub const fn rgb_fg(colour: (u8, u8, u8)) -> SetForegroundColor {
         // Get the text ANSI code from an RGB value
         SetForegroundColor(Color::Rgb {
             r: colour.0,
@@ -147,7 +147,7 @@ impl Reader {
             b: colour.2,
         })
     }
-    pub fn rgb_bg(colour: (u8, u8, u8)) -> SetBackgroundColor {
+    pub const fn rgb_bg(colour: (u8, u8, u8)) -> SetBackgroundColor {
         // Get the background ANSI code from an RGB value
         SetBackgroundColor(Color::Rgb {
             r: colour.0,

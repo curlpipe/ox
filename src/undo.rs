@@ -63,7 +63,7 @@ pub struct EventStack {
 
 // Methods for the EventStack
 impl EventStack {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         // Initialise an Event stack
         Self {
             history: vec![],
