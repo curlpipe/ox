@@ -282,6 +282,7 @@ dependencies = [
  "clap",
  "crossterm",
  "directories",
+ "lazy_static",
  "regex",
  "ron",
  "serde",
