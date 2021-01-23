@@ -6,14 +6,20 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 // For holding general purpose regular expressions
 #[derive(Debug, Clone)]
 pub struct Exp {
-    pub ansi: Regex,
+    pub ansi: &'static Regex,
+}
+
+lazy_static::lazy_static!{
+    static ref ANSI_REGEX: Regex = {
+        Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap()
+    };
 }
 
 impl Exp {
     pub fn new() -> Self {
         // Create the regular expressions
         Self {
-            ansi: Regex::new(r"\u{1b}\[[0-?]*[ -/]*[@-~]").unwrap(),
+            ansi: &*ANSI_REGEX, 
         }
     }
     pub fn ansi_len(&self, string: &str) -> usize {

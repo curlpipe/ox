@@ -28,6 +28,7 @@ regex = "1.4.2"
 directories = "3.0.1"
 crossterm = "0.18.2"
 term = "0.6.1"
+lazy_static = "1.4.0"
 
 [package.metadata.rpm]
 package = "ox"
