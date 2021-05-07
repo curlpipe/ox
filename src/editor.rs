@@ -331,7 +331,7 @@ impl Editor {
                         let row = self.doc[self.tab].rows[current.y].clone();
                         let chr = row
                             .ext_chars()
-                            .get(current.x.saturating_add(1))
+                            .get(current.x.saturating_sub(1))
                             .map_or(" ", |chr| *chr);
                         let current = Position {
                             x: current.x.saturating_sub(UnicodeWidthStr::width(chr)),
