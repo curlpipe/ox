@@ -337,10 +337,40 @@ impl Editor {
                             x: current.x.saturating_sub(UnicodeWidthStr::width(chr)),
                             y: current.y,
                         };
-                        Event::Deletion(current, chr.parse().unwrap_or(' '))
+                        Event::Deletion(current, false, chr.parse().unwrap_or(' '))
                     },
                     false,
                 );
+            }
+            KeyBinding::Raw(RawKey::Delete) => {
+                self.doc[self.tab].redo_stack.empty();
+
+                let current_doc = &self.doc[self.tab];
+
+                let event = if current.x == current_doc.rows[current.y].length() {
+                    // Do nothing if its the last row
+                    if current.y == current_doc.rows.len() - 1 {
+                        return;
+                    }
+                    // Delete at the end of the line
+                    else {
+                        let row_below = Position {
+                            x: current.x,
+                            y: current.y.saturating_add(1),
+                        };
+                        Event::SpliceUp(row_below, row_below)
+                    }
+                } else {
+                    // Delete in the middle of a line
+                    let chr = current_doc.rows[current.y]
+                        .ext_chars()
+                        .get(current.x.saturating_add(1))
+                        .map_or(" ", |chr| *chr);
+
+                    Event::Deletion(current, true, chr.parse().unwrap_or(' '))
+                };
+
+                self.execute(event, false);
             }
             // Detect control and alt and function key bindings
             KeyBinding::Ctrl(_) | KeyBinding::Alt(_) | KeyBinding::F(_) => {
@@ -727,7 +757,7 @@ impl Editor {
             | Event::SplitDown(_, _)
             | Event::InsertLineAbove(_)
             | Event::InsertLineBelow(_)
-            | Event::Deletion(_, _)
+            | Event::Deletion(_, _, _)
             | Event::Insertion(_, _)
             | Event::InsertTab(_)
             | Event::DeleteTab(_)

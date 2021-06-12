@@ -550,17 +550,26 @@ impl Document {
                     }
                 }
             }
-            Event::Deletion(pos, _) => {
+            Event::Deletion(pos, forward, _) => {
                 self.dirty = true;
                 self.show_welcome = false;
                 self.recalculate_graphemes();
                 self.goto(pos, term);
                 if reversed {
-                    self.move_cursor(Key::Left, term, config.general.wrap_cursor);
+                    self.move_cursor(
+                        if forward { Key::Right } else { Key::Left },
+                        term,
+                        config.general.wrap_cursor,
+                    );
                 } else {
                     self.undo_stack.push(event);
                 }
-                self.rows[pos.y].delete(self.graphemes.saturating_sub(1));
+                let delete_pos = if forward {
+                    self.graphemes
+                } else {
+                    self.graphemes.saturating_sub(1)
+                };
+                self.rows[pos.y].delete(delete_pos);
             }
             Event::InsertLineAbove(pos) => {
                 self.dirty = true;
