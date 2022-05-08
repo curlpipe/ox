@@ -63,7 +63,8 @@ macro_rules! log {
         } else {
             panic!("{:?}", file);
         }
-  
+    };
+}
 
 // Get the current version of Ox
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
