@@ -43,7 +43,7 @@ use terminal::{Size, Terminal};
 use undo::{Event, EventStack};
 
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "android")))]
 const LOG_PATH: &'static str = "/tmp/ox.log";
 #[cfg(target_os = "android")]
 const LOG_PATH: &'static str = "/data/data/com.termux/usr/tmp/ox.log";
