@@ -42,6 +42,14 @@ use std::{env, panic};
 use terminal::{Size, Terminal};
 use undo::{Event, EventStack};
 
+
+#[cfg(not(any(target_os = "windows", target_os = "android")))]
+const LOG_PATH: &'static str = "/tmp/ox.log";
+#[cfg(target_os = "android")]
+const LOG_PATH: &'static str = "/data/data/com.termux/files/usr/tmp/ox.log";
+#[cfg(target_os = "windows")]
+const LOG_PATH: &'static str = "C:\\Windows\\Temp\\ox.log";
+
 // Create log macro
 #[macro_export]
 macro_rules! log {
@@ -49,7 +57,7 @@ macro_rules! log {
         let file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open("/tmp/ox.log");
+            .open(crate::LOG_PATH);
         if let Ok(mut log) = file {
             writeln!(log, "{}: {}", $type, $msg).unwrap();
         } else {

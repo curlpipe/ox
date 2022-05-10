@@ -31,20 +31,29 @@ pub const OFFSET: usize = 1;
 macro_rules! shell {
     ($command:expr, $confirm:expr, $root:expr) => {
         // Execute a shell command
-        let command = if $root {
-            Command::new("sudo")
-                .arg("bash")
-                .arg("-c")
+        let command = if cfg!(windows) {
+            Command::new("cmd.exe")
+                .arg("/c")
                 .arg($command)
                 .stdout(Stdio::piped())
                 .spawn()
         } else {
-            Command::new("bash")
-                .arg("-c")
-                .arg($command)
-                .stdout(Stdio::piped())
-                .spawn()
+            if $root {
+                Command::new("sudo")
+                    .arg("bash")
+                    .arg("-c")
+                    .arg($command)
+                    .stdout(Stdio::piped())
+                    .spawn()
+            } else {
+                Command::new("bash")
+                    .arg("-c")
+                    .arg($command)
+                    .stdout(Stdio::piped())
+                    .spawn()
+            }
         };
+
         if let Ok(s) = command {
             log!("Shell", "Command requested");
             if let Ok(s) = s
@@ -584,7 +593,7 @@ impl Editor {
             Event::MoveWord(direction) => match direction {
                 Direction::Left => self.doc[self.tab].word_left(&self.term.size),
                 Direction::Right => self.doc[self.tab].word_right(&self.term.size),
-                _ => {},
+                _ => {}
             },
             Event::GotoCursor(pos) => {
                 let rows = &self.doc[self.tab].rows;
@@ -723,19 +732,22 @@ impl Editor {
         }
     }
     pub fn will_edit(event: &Event) -> bool {
-        matches!(event, Event::SpliceUp(_, _)
-            | Event::SplitDown(_, _)
-            | Event::InsertLineAbove(_)
-            | Event::InsertLineBelow(_)
-            | Event::Deletion(_, _)
-            | Event::Insertion(_, _)
-            | Event::InsertTab(_)
-            | Event::DeleteTab(_)
-            | Event::DeleteLine(_, _, _)
-            | Event::UpdateLine(_, _, _, _)
-            | Event::ReplaceAll
-            | Event::Replace
-            | Event::Overwrite(_, _))
+        matches!(
+            event,
+            Event::SpliceUp(_, _)
+                | Event::SplitDown(_, _)
+                | Event::InsertLineAbove(_)
+                | Event::InsertLineBelow(_)
+                | Event::Deletion(_, _)
+                | Event::Insertion(_, _)
+                | Event::InsertTab(_)
+                | Event::DeleteTab(_)
+                | Event::DeleteLine(_, _, _)
+                | Event::UpdateLine(_, _, _, _)
+                | Event::ReplaceAll
+                | Event::Replace
+                | Event::Overwrite(_, _)
+        )
     }
     pub fn undo(&mut self) {
         self.doc[self.tab].undo_stack.commit();
@@ -983,7 +995,7 @@ impl Editor {
         if self.doc[self.tab].dirty {
             // Handle unsaved changes
             self.doc[self.tab].set_command_line(
-                format!("Unsaved Changes! {:?} to force {}", key, subject),
+                format!("Unsaved Changes! Press {} to force {}", key, subject),
                 Type::Warning,
             );
             self.update();
