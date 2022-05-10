@@ -32,7 +32,7 @@ macro_rules! shell {
     ($command:expr, $confirm:expr, $root:expr) => {
         // Execute a shell command
         let command = if cfg!(windows) {
-            Command::new("cmd.exes")
+            Command::new("cmd.exe")
                 .arg("/c")
                 .arg($command)
                 .stdout(Stdio::piped())
