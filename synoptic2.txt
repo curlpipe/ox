@@ -1,0 +1,9 @@
+What I want from a new rewrite of synoptic:
+1. Force all tokens to be guaranteed to work on half loaded buffers
+2. Allow for background and foreground highlighting to work independently
+3. Allow for incremental changes that only update necessary parts of the highlight document
+4. Have an easy to understand, well documented API that integrates really well with a text editor
+5. Have included highlighters for all major languages
+6. Works flawlessly with double widths and can trim token results
+
+By fulfilling all 6 desires, you have a syntax highlighter that can easily integrate with a text editor that uses file buffering and double width character support while being very efficient at doing its job, only processing what it needs once.

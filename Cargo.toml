@@ -1,0 +1,30 @@
+[package]
+name = "kaolinite"
+version = "0.6.0"
+edition = "2021"
+license = "MIT"
+description = "A crate to assist in the creation of TUI text editors."
+repository = "https://github.com/curlpipe/kaolinite"
+readme = "README.md"
+keywords = ["unicode", "text-processing"]
+categories = ["text-processing"]
+
+[profile.release]
+debug = true
+lto = true
+
+[dependencies]
+quick-error = "2.0.1"
+regex = "1.6.0"
+ropey = "1.5.0"
+unicode-width = "0.1.9"
+
+[dev-dependencies]
+rand = "0.8.5"
+sugars = "3.0.1"
+
+[[example]]
+name = "open"
+
+[[example]]
+name = "trim"
