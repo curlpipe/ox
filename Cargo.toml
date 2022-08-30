@@ -5,6 +5,7 @@ edition = "2021"
 license = "MIT"
 description = "A crate to assist in the creation of TUI text editors."
 repository = "https://github.com/curlpipe/kaolinite"
+exclude = ["/demos/7.txt"]
 readme = "README.md"
 keywords = ["unicode", "text-processing"]
 categories = ["text-processing"]
