@@ -1,6 +1,6 @@
 [package]
 name = "kaolinite"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 edition = "2021"
 license = "MIT"

@@ -9,6 +9,9 @@ This project uses semantic versioning.
 \~
 \-
 -->
+## [0.6.1] - 30/08/2022
+\~ Updated cargo.toml
+
 ## [0.6.0] - 30/08/2022
 \~ Revamped the entirety of kaolinite
 
