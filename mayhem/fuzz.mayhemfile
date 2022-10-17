@@ -1,0 +1,7 @@
+project: wally
+target: fuzz
+
+cmds:
+  - cmd: /fuzz
+    cwd: /input
+    filepath: /input/config

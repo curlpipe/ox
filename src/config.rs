@@ -94,6 +94,7 @@ impl Reader {
             result
         } else {
             // File wasn't able to be found
+            println!("Unable to find configuration file");
             (from_str(&default()).unwrap(), Status::File)
         }
     }

@@ -1,0 +1,24 @@
+[package]
+name = "ox-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.ox]
+path = ".."
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "shim"
+path = "shim.rs"
+test = false
+doc = false
