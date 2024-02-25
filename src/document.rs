@@ -205,7 +205,9 @@ impl Document {
     /// Returns an error if location is out of range.
     pub fn insert_line(&mut self, loc: usize, contents: String) -> Result<()> {
         if !self.lines.is_empty() {
-            self.out_of_range(0, loc.saturating_sub(1))?;
+            if !(self.len_lines() == 0 && loc == 0) {
+                self.out_of_range(0, loc.saturating_sub(1))?;
+            }
         }
         self.modified = true;
         // Update unicode and tab map
