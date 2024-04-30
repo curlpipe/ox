@@ -41,6 +41,7 @@ use std::io::Write;
 use std::{env, panic};
 use terminal::{Size, Terminal};
 use undo::{Event, EventStack};
+use std::fs;
 
 // Create log macro
 #[macro_export]
@@ -63,6 +64,11 @@ macro_rules! log {
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
+let base_dirs = BaseDirs::new().unwrap();
+let _ = fs::create_dir_all(format!(                                                                                                                                                                                            
+                "{}/ox/",                                                                                                                                                                                                                                              
+  base_dirs.config_dir().to_str().unwrap()));
+println!("{}", base_dirs.config_dir().to_str().unwrap());
     log!("Ox started", "Ox has just been started");
     // Set up panic hook in case of unexpected crash
     panic::set_hook(Box::new(|e| {
