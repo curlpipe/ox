@@ -68,7 +68,7 @@ let base_dirs = BaseDirs::new().unwrap();
 let _ = fs::create_dir_all(format!(                                                                                                                                                                                            
                 "{}/ox/",                                                                                                                                                                                                                                              
                   base_dirs.config_dir().to_str().unwrap()));
-println!("{}", base_dirs.config_dir().to_str().unwrap());
+
     log!("Ox started", "Ox has just been started");
     // Set up panic hook in case of unexpected crash
     panic::set_hook(Box::new(|e| {
