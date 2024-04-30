@@ -63,7 +63,7 @@ pub struct EventStack {
 
 // Methods for the EventStack
 impl EventStack {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         // Initialise an Event stack
         Self {
             history: vec![],
@@ -89,8 +89,8 @@ impl EventStack {
     pub fn commit(&mut self) {
         // Commit patch to history
         if !self.current_patch.is_empty() {
-            self.history.push(self.current_patch.clone());
-            self.current_patch.clear();
+            let current_patch = std::mem::replace(&mut self.current_patch, Vec::new());
+            self.history.push(current_patch);
         }
     }
     pub fn len(&self) -> usize {

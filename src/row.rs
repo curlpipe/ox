@@ -71,7 +71,7 @@ impl Row {
         let index = index.saturating_add(1);
         // Padding to align line numbers to the right
         // Assemble the line number data
-        let line_number = Row::render_line_number(config, offset, index);
+        let line_number = Self::render_line_number(config, offset, index);
         // Strip ANSI values from the line
         let line_number_len = self.regex.ansi_len(&line_number);
         let width = width.saturating_sub(line_number_len);
@@ -186,13 +186,7 @@ impl Row {
     ) {
         // Update the syntax highlighting indices for this row
         self.syntax = remove_nested_tokens(
-            &highlight(
-                &self.string,
-                &doc,
-                index,
-                &syntax,
-                &config.highlights[theme],
-            ),
+            &highlight(&self.string, doc, index, syntax, &config.highlights[theme]),
             &self.string,
         );
     }

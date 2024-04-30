@@ -42,7 +42,7 @@ pub fn interpret_line(
             "quit" => events.push(quit_command(&args)),
             "prev" => events.push(Event::PrevTab),
             "next" => events.push(Event::NextTab),
-            "set" => events.push(set_command(&args, &cursor, &rows)),
+            "set" => events.push(set_command(&args, cursor, rows)),
             "split" => events.push(Event::SplitDown(*cursor, *cursor)),
             "splice" => events.push(Event::SpliceUp(*cursor, *cursor)),
             "search" => events.push(Event::Search),
@@ -72,29 +72,25 @@ pub fn interpret_line(
                 }
             }
             "line" => {
-                if let Some(line) = line_command(&args, &cursor) {
+                if let Some(line) = line_command(&args, cursor) {
                     events.push(line);
                 } else {
                     return None;
                 }
             }
             _ => {
-                let i = match instruction {
+                let mut command = match instruction {
                     "save" => save_command(&args),
-                    "goto" => goto_command(&args),
-                    "move" => move_command(&args),
-                    "put" => put_command(&args, &cursor),
-                    "delete" => delete_command(&args, &cursor, graphemes, &rows),
-                    "load" => load_command(&args),
-                    "store" => store_command(&args),
-                    "overwrite" => overwrite_command(&args, &rows),
+                    "goto" => goto_command(&args)?,
+                    "move" => move_command(&args)?,
+                    "put" => put_command(&args, cursor),
+                    "delete" => delete_command(&args, cursor, graphemes, rows)?,
+                    "load" => load_command(&args)?,
+                    "store" => store_command(&args)?,
+                    "overwrite" => overwrite_command(&args, rows),
                     _ => return None,
                 };
-                if let Some(mut command) = i {
-                    events.append(&mut command);
-                } else {
-                    return None;
-                }
+                events.append(&mut command);
             }
         }
     }
@@ -174,8 +170,8 @@ fn set_command(args: &[&str], cursor: &Position, rows: &[Row]) -> Event {
     }
 }
 
-fn overwrite_command(args: &[&str], rows: &[Row]) -> Option<Vec<Event>> {
-    Some(vec![if args.is_empty() {
+fn overwrite_command(args: &[&str], rows: &[Row]) -> Vec<Event> {
+    vec![if args.is_empty() {
         Event::Overwrite(rows.to_vec(), vec![Row::from("")])
     } else {
         Event::Overwrite(
@@ -185,10 +181,10 @@ fn overwrite_command(args: &[&str], rows: &[Row]) -> Option<Vec<Event>> {
                 .map(Row::from)
                 .collect::<Vec<_>>(),
         )
-    }])
+    }]
 }
 
-fn save_command(args: &[&str]) -> Option<Vec<Event>> {
+fn save_command(args: &[&str]) -> Vec<Event> {
     let mut events = vec![];
     if args.is_empty() {
         events.push(Event::Save(None, false))
@@ -201,7 +197,7 @@ fn save_command(args: &[&str]) -> Option<Vec<Event>> {
             Event::Save(Some(args[0].to_string()), false)
         })
     }
-    Some(events)
+    events
 }
 
 fn store_command(args: &[&str]) -> Option<Vec<Event>> {
@@ -273,7 +269,7 @@ fn goto_command(args: &[&str]) -> Option<Vec<Event>> {
     Some(events)
 }
 
-fn put_command(args: &[&str], cursor: &Position) -> Option<Vec<Event>> {
+fn put_command(args: &[&str], cursor: &Position) -> Vec<Event> {
     let mut events = vec![];
     if args[0] == "\\t" {
         events.push(Event::InsertTab(*cursor));
@@ -288,7 +284,7 @@ fn put_command(args: &[&str], cursor: &Position) -> Option<Vec<Event>> {
             ))
         }
     }
-    Some(events)
+    events
 }
 
 fn move_command(args: &[&str]) -> Option<Vec<Event>> {

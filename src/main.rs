@@ -46,10 +46,11 @@ use undo::{Event, EventStack};
 #[macro_export]
 macro_rules! log {
     ($type:literal, $msg:expr) => {
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/ox.log");
+        let base_dirs = BaseDirs::new().unwrap();
+        let file = OpenOptions::new().create(true).append(true).open(format!(
+            "{}/ox/ox.log",
+            base_dirs.config_dir().to_str().unwrap()
+        ));
         if let Ok(mut log) = file {
             writeln!(log, "{}: {}", $type, $msg).unwrap();
         } else {
@@ -114,8 +115,5 @@ file.txt:100 (This will go to line 100 in file.txt)"#,
 fn load_config() -> Option<String> {
     // Load the configuration file
     let base_dirs = BaseDirs::new()?;
-    Some(format!(
-        "{}/ox/ox.ron",
-        base_dirs.config_dir().to_str()?.to_string()
-    ))
+    Some(format!("{}/ox/ox.ron", base_dirs.config_dir().to_str()?))
 }

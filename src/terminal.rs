@@ -25,7 +25,7 @@ impl Terminal {
     pub fn new() -> Result<Self, ErrorKind> {
         // Create a new terminal and switch into raw mode
         let size = terminal::size()?;
-        Terminal::enter();
+        Self::enter();
         Ok(Self {
             size: Size {
                 width: size.0 as usize,
