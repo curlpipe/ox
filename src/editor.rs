@@ -332,13 +332,38 @@ impl Editor {
                         let row = self.doc[self.tab].rows[current.y].clone();
                         let chr = row
                             .ext_chars()
-                            .get(current.x.saturating_add(1))
+                            .get(current.x.saturating_sub(1))
                             .map_or(" ", |chr| *chr);
                         let current = Position {
                             x: current.x.saturating_sub(UnicodeWidthStr::width(chr)),
                             y: current.y,
                         };
                         Event::Deletion(current, chr.parse().unwrap_or(' '))
+                    },
+                    false,
+                );
+            }
+            KeyBinding::Raw(RawKey::Delete) => {
+                self.doc[self.tab].redo_stack.empty();
+                self.execute(
+                    /*if current.x == 0 && current.y != 0 {
+                        // Backspace at the start of a line
+                        Event::SpliceUp(current, current)
+                    } else if current.x == 0 {
+                        return;
+                    } else {
+                    */    // Backspace in the middle of a line
+                    {
+                        let row = self.doc[self.tab].rows[current.y].clone();
+                        let chr = row
+                            .ext_chars()
+                            .get(current.x)//.saturating_add(1))
+                            .map_or(" ", |chr| *chr);
+                        let current = Position {
+                            x: current.x,//.saturating_add(1),//saturating_sub(UnicodeWidthStr::width(chr)),
+                            y: current.y,
+                        };
+                        Event::DeletionFw(current, chr.parse().unwrap_or(' '))
                     },
                     false,
                 );

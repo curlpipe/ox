@@ -563,6 +563,18 @@ impl Document {
                 }
                 self.rows[pos.y].delete(self.graphemes.saturating_sub(1));
             }
+            Event::DeletionFw(pos, _) => {
+                self.dirty = true;
+                self.show_welcome = false;
+                self.recalculate_graphemes();
+                self.goto(pos, term);
+                if reversed {
+                    self.move_cursor(Key::Left, term, config.general.wrap_cursor);
+                } else {
+                    self.undo_stack.push(event);
+                }
+                self.rows[pos.y].delete(self.graphemes);
+            }
             Event::InsertLineAbove(pos) => {
                 self.dirty = true;
                 self.rows.insert(pos.y, Row::from(""));

@@ -19,6 +19,7 @@ pub enum Event {
     InsertLineAbove(Position),                      // Return key in the middle of line
     InsertLineBelow(Position),                      // Return on the end of line
     Deletion(Position, char),                       // Delete from middle
+    DeletionFw(Position, char),                       // Delete from middle
     Insertion(Position, char),                      // Insert character
     InsertTab(Position),                            // Insert a tab character
     DeleteTab(Position),                            // Delete a tab character
@@ -108,6 +109,7 @@ pub fn reverse(before: Event, limit: usize) -> Option<Vec<Event>> {
         Event::InsertLineAbove(pos) => vec![Event::DeleteLine(pos, 0, Box::new(Row::from("")))],
         Event::InsertLineBelow(pos) => vec![Event::DeleteLine(pos, 1, Box::new(Row::from("")))],
         Event::Deletion(pos, ch) => vec![Event::Insertion(pos, ch)],
+        Event::DeletionFw(pos, ch) => vec![Event::Insertion(pos, ch)],
         Event::Insertion(pos, ch) => vec![Event::Deletion(
             Position {
                 x: pos.x.saturating_add(1),

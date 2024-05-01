@@ -238,6 +238,7 @@ impl Row {
         self.updated = true;
         let before: String = self.string.graphemes(true).take(pos as usize).collect();
         let after: String = self.string.graphemes(true).skip(1 + pos as usize).collect();
+        
         let result: Option<char>;
         if let Some(c) = self.chars().get(pos) {
             if let Ok(c) = c.parse() {
