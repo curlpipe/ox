@@ -26,7 +26,7 @@ ron = "0.6.2"
 serde = "1.0.117"
 regex = "1.4.2"
 directories = "3.0.1"
-crossterm = "0.18.2"
+crossterm = "0.27.0"
 term = "0.6.1"
 
 [package.metadata.rpm]

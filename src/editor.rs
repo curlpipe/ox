@@ -9,7 +9,6 @@ use crate::{log, Document, Event, Row, Size, Terminal, VERSION};
 use clap::App;
 use crossterm::event::{Event as InputEvent, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{Attribute, Color, SetBackgroundColor, SetForegroundColor};
-use crossterm::ErrorKind;
 use directories::BaseDirs;
 use regex::Regex;
 use std::collections::HashMap;
@@ -126,7 +125,7 @@ pub struct Editor {
 
 // Implementing methods for our editor struct / class
 impl Editor {
-    pub fn new(args: App) -> Result<Self, ErrorKind> {
+    pub fn new(args: App) -> Result<Self, Error> {
         // Create a new editor instance
         let args = args.get_matches();
         // Set up terminal
@@ -281,6 +280,7 @@ impl Editor {
             KeyCode::Left => RawKey::Left,
             KeyCode::Right => RawKey::Right,
             KeyCode::F(i) => return KeyBinding::F(i),
+            _ => todo!(),
         };
         match modifiers {
             KeyModifiers::CONTROL => KeyBinding::Ctrl(inner),
@@ -417,6 +417,7 @@ impl Editor {
                 self.update();
             }
             InputEvent::Mouse(_) => (),
+            crossterm::event::Event::FocusGained | crossterm::event::Event::FocusLost | crossterm::event::Event::Paste(_) => todo!(),
         }
     }
     fn new_document(&mut self) {
@@ -1019,6 +1020,8 @@ impl Editor {
             if let InputEvent::Key(KeyEvent {
                 code: c,
                 modifiers: m,
+                kind: _k,
+                state: _s,
             }) = self.read_event()
             {
                 let ox_key = Self::key_event_to_ox_key(c, m);
@@ -1053,6 +1056,8 @@ impl Editor {
             if let InputEvent::Key(KeyEvent {
                 code: c,
                 modifiers: m,
+                kind: _k,
+                state: _s,
             }) = self.read_event()
             {
                 match Self::key_event_to_ox_key(c, m) {
