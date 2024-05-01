@@ -346,14 +346,14 @@ impl Editor {
             KeyBinding::Raw(RawKey::Delete) => {
                 self.doc[self.tab].redo_stack.empty();
                 self.execute(
-                    /*if current.x == 0 && current.y != 0 {
-                        // Backspace at the start of a line
-                        Event::SpliceUp(current, current)
-                    } else if current.x == 0 {
-                        return;
+                    if current.x == self.doc[self.tab].rows[current.y].length()  {   
+                        let postosplice = Position {
+                            x: 1,
+                            y: current.y.saturating_add(1),
+                        };                     
+                        Event::SpliceUp(postosplice, current)
                     } else {
-                    */    // Backspace in the middle of a line
-                    {
+                        // Delete in the middle of a line                    
                         let row = self.doc[self.tab].rows[current.y].clone();
                         let chr = row
                             .ext_chars()
