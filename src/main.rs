@@ -41,15 +41,17 @@ use std::io::Write;
 use std::{env, panic};
 use terminal::{Size, Terminal};
 use undo::{Event, EventStack};
+use std::fs;
 
 // Create log macro
 #[macro_export]
 macro_rules! log {
     ($type:literal, $msg:expr) => {
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/ox.log");
+        let base_dirs = BaseDirs::new().unwrap();
+        let file = OpenOptions::new().create(true).append(true).open(format!(
+            "{}/ox/ox.log",
+            base_dirs.config_dir().to_str().unwrap()
+        ));
         if let Ok(mut log) = file {
             writeln!(log, "{}: {}", $type, $msg).unwrap();
         } else {
@@ -62,6 +64,11 @@ macro_rules! log {
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
+let base_dirs = BaseDirs::new().unwrap();
+let _ = fs::create_dir_all(format!(                                                                                                                                                                                            
+                "{}/ox/",                                                                                                                                                                                                                                              
+                  base_dirs.config_dir().to_str().unwrap()));
+
     log!("Ox started", "Ox has just been started");
     // Set up panic hook in case of unexpected crash
     panic::set_hook(Box::new(|e| {
@@ -114,8 +121,5 @@ file.txt:100 (This will go to line 100 in file.txt)"#,
 fn load_config() -> Option<String> {
     // Load the configuration file
     let base_dirs = BaseDirs::new()?;
-    Some(format!(
-        "{}/ox/ox.ron",
-        base_dirs.config_dir().to_str()?.to_string()
-    ))
+    Some(format!("{}/ox/ox.ron", base_dirs.config_dir().to_str()?))
 }

@@ -9,7 +9,7 @@ use crate::{log, Document, Event, Row, Size, Terminal, VERSION};
 use clap::App;
 use crossterm::event::{Event as InputEvent, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{Attribute, Color, SetBackgroundColor, SetForegroundColor};
-use crossterm::ErrorKind;
+use directories::BaseDirs;
 use regex::Regex;
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -125,7 +125,7 @@ pub struct Editor {
 
 // Implementing methods for our editor struct / class
 impl Editor {
-    pub fn new(args: App) -> Result<Self, ErrorKind> {
+    pub fn new(args: App) -> Result<Self, Error> {
         // Create a new editor instance
         let args = args.get_matches();
         // Set up terminal
@@ -218,13 +218,13 @@ impl Editor {
             doc: documents,
             last_keypress: None,
             keypress: KeyBinding::Unsupported,
-            config: config.0.clone(),
+            theme: config.0.theme.default_theme.clone(),
+            config: config.0,
             config_path: config_path.to_string(),
             status: config.1,
             exp: Exp::new(),
             position_bank: HashMap::new(),
             row_bank: HashMap::new(),
-            theme: config.0.theme.default_theme,
         })
     }
     pub fn run(&mut self) {
@@ -259,7 +259,7 @@ impl Editor {
             }
         }
     }
-    fn key_event_to_ox_key(key: KeyCode, modifiers: KeyModifiers) -> KeyBinding {
+    const fn key_event_to_ox_key(key: KeyCode, modifiers: KeyModifiers) -> KeyBinding {
         // Convert crossterm's complicated key structure into Ox's simpler one
         let inner = match key {
             KeyCode::Char(c) => RawKey::Char(c),
@@ -280,6 +280,7 @@ impl Editor {
             KeyCode::Left => RawKey::Left,
             KeyCode::Right => RawKey::Right,
             KeyCode::F(i) => return KeyBinding::F(i),
+            _ => todo!(),
         };
         match modifiers {
             KeyModifiers::CONTROL => KeyBinding::Ctrl(inner),
@@ -297,7 +298,7 @@ impl Editor {
             x: cursor.x + offset.x,
             y: cursor.y + offset.y - OFFSET,
         };
-        let ox_key = Editor::key_event_to_ox_key(key.code, key.modifiers);
+        let ox_key = Self::key_event_to_ox_key(key.code, key.modifiers);
         self.keypress = ox_key;
         match ox_key {
             KeyBinding::Raw(RawKey::Enter) => {
@@ -331,13 +332,38 @@ impl Editor {
                         let row = self.doc[self.tab].rows[current.y].clone();
                         let chr = row
                             .ext_chars()
-                            .get(current.x.saturating_add(1))
+                            .get(current.x.saturating_sub(1))
                             .map_or(" ", |chr| *chr);
                         let current = Position {
                             x: current.x.saturating_sub(UnicodeWidthStr::width(chr)),
                             y: current.y,
                         };
                         Event::Deletion(current, chr.parse().unwrap_or(' '))
+                    },
+                    false,
+                );
+            }
+            KeyBinding::Raw(RawKey::Delete) => {
+                self.doc[self.tab].redo_stack.empty();
+                self.execute(
+                    if current.x == self.doc[self.tab].rows[current.y].length()  {   
+                        let postosplice = Position {
+                            x: 1,
+                            y: current.y.saturating_add(1),
+                        };                     
+                        Event::SpliceUp(postosplice, current)
+                    } else {
+                        // Delete in the middle of a line                    
+                        let row = self.doc[self.tab].rows[current.y].clone();
+                        let chr = row
+                            .ext_chars()
+                            .get(current.x)
+                            .map_or(" ", |chr| *chr);
+                        let current = Position {
+                            x: current.x,
+                            y: current.y,
+                        };
+                        Event::DeletionFw(current, chr.parse().unwrap_or(' '))
                     },
                     false,
                 );
@@ -391,6 +417,7 @@ impl Editor {
                 self.update();
             }
             InputEvent::Mouse(_) => (),
+            crossterm::event::Event::FocusGained | crossterm::event::Event::FocusLost | crossterm::event::Event::Paste(_) => todo!(),
         }
     }
     fn new_document(&mut self) {
@@ -449,7 +476,7 @@ impl Editor {
         let tab_width = self.config.general.tab_width;
         if self.doc[self.tab].save(&save, tab_width).is_ok() {
             // The document saved successfully
-            let ext = save.split('.').last().unwrap_or(&"");
+            let ext = save.split('.').last().unwrap_or("");
             self.doc[self.tab].dirty = false;
             self.doc[self.tab].set_command_line(
                 format!("File saved to \"{}\" successfully", save),
@@ -465,8 +492,8 @@ impl Editor {
                 .to_str()
                 .unwrap_or(&save)
                 .to_string();
-            self.doc[self.tab].path = save.clone();
             self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
+            self.doc[self.tab].path = save;
         } else if save.is_empty() {
             // The document couldn't save due to an empty name
             self.doc[self.tab].set_command_line(
@@ -552,7 +579,7 @@ impl Editor {
     }
     pub fn execute(&mut self, event: Event, reversed: bool) {
         // Event executor
-        if self.doc[self.tab].read_only && Editor::will_edit(&event) {
+        if self.doc[self.tab].read_only && Self::will_edit(&event) {
             return;
         }
         match event {
@@ -584,7 +611,7 @@ impl Editor {
             Event::MoveWord(direction) => match direction {
                 Direction::Left => self.doc[self.tab].word_left(&self.term.size),
                 Direction::Right => self.doc[self.tab].word_right(&self.term.size),
-                _ => {},
+                _ => {}
             },
             Event::GotoCursor(pos) => {
                 let rows = &self.doc[self.tab].rows;
@@ -712,7 +739,7 @@ impl Editor {
                 // Execute the instruction
                 if let Some(instruct) = instruction {
                     for i in instruct {
-                        if Editor::will_edit(&i) {
+                        if Self::will_edit(&i) {
                             self.doc[self.tab].redo_stack.empty();
                         }
                         self.execute(i, false);
@@ -722,20 +749,23 @@ impl Editor {
             }
         }
     }
-    pub fn will_edit(event: &Event) -> bool {
-        matches!(event, Event::SpliceUp(_, _)
-            | Event::SplitDown(_, _)
-            | Event::InsertLineAbove(_)
-            | Event::InsertLineBelow(_)
-            | Event::Deletion(_, _)
-            | Event::Insertion(_, _)
-            | Event::InsertTab(_)
-            | Event::DeleteTab(_)
-            | Event::DeleteLine(_, _, _)
-            | Event::UpdateLine(_, _, _, _)
-            | Event::ReplaceAll
-            | Event::Replace
-            | Event::Overwrite(_, _))
+    pub const fn will_edit(event: &Event) -> bool {
+        matches!(
+            event,
+            Event::SpliceUp(_, _)
+                | Event::SplitDown(_, _)
+                | Event::InsertLineAbove(_)
+                | Event::InsertLineBelow(_)
+                | Event::Deletion(_, _)
+                | Event::Insertion(_, _)
+                | Event::InsertTab(_)
+                | Event::DeleteTab(_)
+                | Event::DeleteLine(_, _, _)
+                | Event::UpdateLine(_, _, _, _)
+                | Event::ReplaceAll
+                | Event::Replace
+                | Event::Overwrite(_, _)
+        )
     }
     pub fn undo(&mut self) {
         self.doc[self.tab].undo_stack.commit();
@@ -827,14 +857,14 @@ impl Editor {
                         if let Some(p) = s.doc[s.tab].find_prev(t, &current) {
                             s.doc[s.tab].goto(p, &s.term.size);
                             s.refresh_view();
-                            s.highlight_bg_tokens(&t, p);
+                            s.highlight_bg_tokens(t, p);
                         }
                     }
                     KeyCode::Down | KeyCode::Right => {
                         if let Some(p) = s.doc[s.tab].find_next(t, &current) {
                             s.doc[s.tab].goto(p, &s.term.size);
                             s.refresh_view();
-                            s.highlight_bg_tokens(&t, p);
+                            s.highlight_bg_tokens(t, p);
                         }
                     }
                     KeyCode::Esc => {
@@ -846,15 +876,15 @@ impl Editor {
                 PromptEvent::CharPress(backspace) => {
                     // Highlight the tokens
                     if backspace {
-                        s.highlight_bg_tokens(&t, initial);
+                        s.highlight_bg_tokens(t, initial);
                     }
                     if let Some(p) = s.doc[s.tab].find_next(t, &initial) {
                         s.doc[s.tab].goto(p, &s.term.size);
                         s.refresh_view();
-                        s.highlight_bg_tokens(&t, p);
+                        s.highlight_bg_tokens(t, p);
                     } else {
                         s.doc[s.tab].goto(initial, &s.term.size);
-                        s.highlight_bg_tokens(&t, initial);
+                        s.highlight_bg_tokens(t, initial);
                     }
                 }
                 PromptEvent::Update => (),
@@ -990,24 +1020,22 @@ impl Editor {
             if let InputEvent::Key(KeyEvent {
                 code: c,
                 modifiers: m,
+                kind: _k,
+                state: _s,
             }) = self.read_event()
             {
-                let ox_key = Editor::key_event_to_ox_key(c, m);
+                let ox_key = Self::key_event_to_ox_key(c, m);
                 match ox_key {
                     KeyBinding::Raw(RawKey::Enter) => return true,
                     KeyBinding::Ctrl(_) | KeyBinding::Alt(_) => {
                         if ox_key == key {
                             return true;
-                        } else {
-                            self.doc[self.tab].set_command_line(
-                                format!("{} cancelled", title(subject)),
-                                Type::Info,
-                            );
                         }
                     }
-                    _ => self.doc[self.tab]
-                        .set_command_line(format!("{} cancelled", title(subject)), Type::Info),
+                    _ => {}
                 }
+                self.doc[self.tab]
+                    .set_command_line(format!("{} cancelled", title(subject)), Type::Info)
             }
         } else {
             return true;
@@ -1028,9 +1056,11 @@ impl Editor {
             if let InputEvent::Key(KeyEvent {
                 code: c,
                 modifiers: m,
+                kind: _k,
+                state: _s,
             }) = self.read_event()
             {
-                match Editor::key_event_to_ox_key(c, m) {
+                match Self::key_event_to_ox_key(c, m) {
                     KeyBinding::Raw(RawKey::Enter) => {
                         // Exit on enter key
                         break 'p;
@@ -1149,7 +1179,7 @@ impl Editor {
                 "{}{}{}{}",
                 Reader::rgb_bg(self.config.theme.editor_bg),
                 text,
-                self.term.align_left(&text),
+                self.term.align_left(text),
                 RESET_BG
             )
         }
@@ -1163,7 +1193,7 @@ impl Editor {
                 "{}{}{}{}{}",
                 Attribute::Bold,
                 Reader::rgb_fg(self.config.theme.error_fg),
-                self.add_background(&trim_end(&line, self.term.size.width)),
+                self.add_background(&trim_end(line, self.term.size.width)),
                 RESET_FG,
                 Attribute::Reset
             )),
@@ -1171,14 +1201,14 @@ impl Editor {
                 "{}{}{}{}{}",
                 Attribute::Bold,
                 Reader::rgb_fg(self.config.theme.warning_fg),
-                self.add_background(&trim_end(&line, self.term.size.width)),
+                self.add_background(&trim_end(line, self.term.size.width)),
                 RESET_FG,
                 Attribute::Reset
             )),
             Type::Info => self.add_background(&format!(
                 "{}{}{}",
                 Reader::rgb_fg(self.config.theme.info_fg),
-                self.add_background(&trim_end(&line, self.term.size.width)),
+                self.add_background(&trim_end(line, self.term.size.width)),
                 RESET_FG,
             )),
         }

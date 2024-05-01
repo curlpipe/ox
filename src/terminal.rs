@@ -2,7 +2,8 @@
 use crate::util::Exp;
 use crate::Position;
 use crossterm::terminal;
-use crossterm::{execute, ErrorKind};
+use crossterm::{execute};
+use std::io::Error;
 use std::env;
 use std::io::{stdout, Write};
 use term::terminfo::TermInfo;
@@ -22,10 +23,10 @@ pub struct Terminal {
 
 // Implement methods into the terminal struct / class
 impl Terminal {
-    pub fn new() -> Result<Self, ErrorKind> {
+    pub fn new() -> Result<Self, Error> {
         // Create a new terminal and switch into raw mode
         let size = terminal::size()?;
-        Terminal::enter();
+        Self::enter();
         Ok(Self {
             size: Size {
                 width: size.0 as usize,

@@ -54,7 +54,7 @@ pub fn trim_end(text: &str, end: usize) -> String {
     result.join("")
 }
 
-pub fn line_offset(point: usize, offset: i128, limit: usize) -> usize {
+pub const fn line_offset(point: usize, offset: i128, limit: usize) -> usize {
     if offset.is_negative() {
         if point as i128 + offset >= 0 {
             (point as i128 + offset) as usize
