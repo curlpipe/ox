@@ -1,3 +1,5 @@
+[![Rust](https://github.com/prfiredragon/ox/actions/workflows/rust.yml/badge.svg)](https://github.com/prfiredragon/ox/actions/workflows/rust.yml)
+[![DevSkim](https://github.com/prfiredragon/ox/actions/workflows/devskim.yml/badge.svg)](https://github.com/prfiredragon/ox/actions/workflows/devskim.yml)
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
