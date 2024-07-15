@@ -27,11 +27,9 @@ quick-error = "2.0.1"
 shellexpand = "3.1.0"
 synoptic = "2.0.0"
 
-[package.metadata.rpm]
-package = "ox"
-
-[package.metadata.rpm.cargo]
-buildflags = ["--release"]
-
-[package.metadata.rpm.targets]
-ox = { path = "/usr/bin/ox" }
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/ox", dest = "/usr/bin/ox", mode = "0755" },
+    { source = "LICENSE", dest = "/usr/share/doc/ox/LICENSE", doc = true, mode = "0644" },
+    { source = "README.md", dest = "/usr/share/doc/ox/README.md", doc = true, mode = "0644" }
+]
