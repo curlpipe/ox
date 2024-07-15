@@ -1,4 +1,4 @@
 /target
-*.log
-bomb.txt
-src/]
+Cargo.lock
+*.swp
+*.swo

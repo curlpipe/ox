@@ -1,8 +1,8 @@
 [package]
 name = "ox"
-version = "0.2.7"
+version = "0.3.0"
+edition = "2021"
 authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
-edition = "2018"
 description = "A Rust powered text editor."
 homepage = "https://github.com/curlpipe/ox"
 repository = "https://github.com/curlpipe/ox"
@@ -18,16 +18,14 @@ panic = "abort"
 codegen-units = 1
 
 [dependencies]
-unicode-segmentation = "1.6.0"
-unicode-width = "0.1.8"
-clap = "2.33.3"
-shellexpand = "2.0.0"
-ron = "0.6.2"
-serde = "1.0.117"
-regex = "1.4.2"
-directories = "3.0.1"
-crossterm = "0.18.2"
-term = "0.6.1"
+alinio = "0.2.1"
+crossterm = "0.27.0"
+jargon-args = "0.2.7"
+kaolinite = "0.8.0"
+mlua = { version = "0.9.9", features = ["lua54", "vendored"] }
+quick-error = "2.0.1"
+shellexpand = "3.1.0"
+synoptic = "2.0.0"
 
 [package.metadata.rpm]
 package = "ox"

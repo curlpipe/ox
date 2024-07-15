@@ -1,210 +1,542 @@
-// Config.rs - In charge of storing configuration information
-use crossterm::style::{Color, SetBackgroundColor, SetForegroundColor};
-use regex::Regex;
-use ron::de::from_str;
-use serde::Deserialize;
+use mlua::prelude::*;
+use std::{cell::RefCell, rc::Rc};
+use crate::editor::Editor;
+use crate::cli::VERSION;
+use crate::error::Result;
+use kaolinite::utils::filetype;
 use std::collections::HashMap;
-use std::fs;
+use crossterm::{
+    style::{Color, SetForegroundColor as Fg},
+};
 
-// Enum for determining what type of token it is
-#[derive(Clone)]
-pub enum TokenType {
-    MultiLine(String, Vec<Regex>),
-    SingleLine(String, Vec<Regex>),
+// Gracefully exit the program
+fn graceful_panic(msg: &str) {
+    eprintln!("{}", msg);
+    std::process::exit(1);
 }
 
-// Error enum for config reading
+const DEFAULT_CONFIG: &str = include_str!("../config/.oxrc");
+
 #[derive(Debug)]
-pub enum Status {
-    Parse(String),
-    File,
-    Success,
-    Empty,
+pub struct Config {
+    pub syntax_highlighting: Rc<RefCell<SyntaxHighlighting>>,
+    pub line_numbers: Rc<RefCell<LineNumbers>>,
+    pub colors: Rc<RefCell<Colors>>,
+    pub status_line: Rc<RefCell<StatusLine>>,
+    pub greeting_message: Rc<RefCell<GreetingMessage>>,
 }
 
-// Key binding type
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Deserialize)]
-pub enum KeyBinding {
-    Ctrl(RawKey),
-    Alt(RawKey),
-    Shift(RawKey),
-    Raw(RawKey),
-    F(u8),
-    Unsupported,
-}
+impl Config {
+    pub fn read() -> Result<Self> {
+        // Load defaults
+        let lua = Lua::new();
 
-// Keys without modifiers
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Deserialize)]
-pub enum RawKey {
-    Char(char),
-    Up,
-    Down,
-    Left,
-    Right,
-    Backspace,
-    Enter,
-    Tab,
-    Home,
-    End,
-    PageUp,
-    PageDown,
-    BackTab,
-    Delete,
-    Insert,
-    Null,
-    Esc,
-}
+        // Set up structs to populate (the default values will be thrown away)
+        let syntax_highlighting = Rc::new(RefCell::new(SyntaxHighlighting::default()));
+        let line_numbers = Rc::new(RefCell::new(LineNumbers::default()));
+        let greeting_message = Rc::new(RefCell::new(GreetingMessage::default()));
+        let colors = Rc::new(RefCell::new(Colors::default()));
+        let status_line = Rc::new(RefCell::new(StatusLine::default()));
 
-// Struct for storing and managing configuration
-#[derive(Debug, Deserialize, Clone)]
-pub struct Reader {
-    pub general: General,
-    pub theme: Theme,
-    pub macros: HashMap<String, Vec<String>>,
-    pub highlights: HashMap<String, HashMap<String, (u8, u8, u8)>>,
-    pub keys: HashMap<KeyBinding, Vec<String>>,
-    pub languages: Vec<Language>,
-}
+        // Push in configuration globals
+        lua.globals().set("syntax", syntax_highlighting.clone())?;
+        lua.globals().set("line_numbers", line_numbers.clone())?;
+        lua.globals().set("greeting_message", greeting_message.clone())?;
+        lua.globals().set("status_line", status_line.clone())?;
+        lua.globals().set("colors", colors.clone())?;
 
-impl Reader {
-    pub fn read(config: &str) -> (Self, Status) {
-        // Read the config file, if it fails, use a hard-coded configuration
-        // Expand the path to get rid of any filepath issues
-        let config = if let Ok(config) = shellexpand::full(config) {
-            (*config).to_string()
-        } else {
-            config.to_string()
-        };
-        // Attempt to read and parse the configuration file
-        if let Ok(file) = fs::read_to_string(config) {
-            let result: (Self, Status) = if let Ok(contents) = from_str(&file) {
-                (contents, Status::Success)
-            } else if file.is_empty() {
-                // When configuration file is empty
-                (from_str(&default()).unwrap(), Status::Empty)
-            } else {
-                // There is a syntax issue with the config file
-                let result: Result<Self, ron::Error> = from_str(&file);
-                // Provide the syntax issue with the config file for debugging
-                (
-                    from_str(&default()).unwrap(),
-                    Status::Parse(format!("{:?}", result)),
-                )
-            };
-            result
-        } else {
-            // File wasn't able to be found
-            (from_str(&default()).unwrap(), Status::File)
-        }
-    }
-    pub fn get_syntax_regex(config: &Self, extension: &str) -> Vec<TokenType> {
-        // Compile the regular expressions from their string format
-        let mut result = vec![];
-        for lang in &config.languages {
-            // Locate the correct language for the extension
-            if lang.extensions.contains(&extension.to_string()) {
-                // Run through all the regex syntax definitions
-                for (name, reg) in &lang.definitions {
-                    let mut single = vec![];
-                    let mut multi = vec![];
-                    for expr in reg {
-                        if expr.starts_with("(?ms)") || expr.starts_with("(?sm)") {
-                            // Multiline regular expression
-                            if let Ok(regx) = Regex::new(&expr) {
-                                multi.push(regx);
-                            }
-                        } else {
-                            // Single line regular expression
-                            if let Ok(regx) = Regex::new(&expr) {
-                                single.push(regx);
-                            }
-                        }
-                    }
-                    if !single.is_empty() {
-                        result.push(TokenType::SingleLine(name.clone(), single));
-                    }
-                    if !multi.is_empty() {
-                        result.push(TokenType::MultiLine(name.clone(), multi));
-                    }
-                }
-                // Process all the keywords
-                result.push(TokenType::SingleLine(
-                    "keywords".to_string(),
-                    lang.keywords
-                        .iter()
-                        .map(|x| Regex::new(&format!(r"\b({})\b", x)).unwrap())
-                        .collect(),
-                ));
+        // Load the default config to start with
+        lua.load(DEFAULT_CONFIG).exec()?;
+
+        // Attempt to read config file from home directory
+        if let Ok(path) = shellexpand::full("~/.oxrc") {
+            if let Ok(config) = std::fs::read_to_string(path.to_string()) {
+                // Update configuration with user-defined values
+                lua.load(config).exec()?;
             }
         }
-        result
-    }
-    pub fn rgb_fg(colour: (u8, u8, u8)) -> SetForegroundColor {
-        // Get the text ANSI code from an RGB value
-        SetForegroundColor(Color::Rgb {
-            r: colour.0,
-            g: colour.1,
-            b: colour.2,
-        })
-    }
-    pub fn rgb_bg(colour: (u8, u8, u8)) -> SetBackgroundColor {
-        // Get the background ANSI code from an RGB value
-        SetBackgroundColor(Color::Rgb {
-            r: colour.0,
-            g: colour.1,
-            b: colour.2,
+
+        Ok(Config {
+            syntax_highlighting,
+            line_numbers,
+            greeting_message,
+            status_line,
+            colors,
         })
     }
 }
 
-// Struct for storing the general configuration
-#[derive(Debug, Deserialize, Clone)]
-pub struct General {
-    pub line_number_padding_right: usize,
-    pub line_number_padding_left: usize,
-    pub tab_width: usize,
-    pub undo_period: u64,
-    pub status_left: String,
-    pub status_right: String,
-    pub tab: String,
-    pub wrap_cursor: bool,
+#[derive(Debug)]
+pub struct SyntaxHighlighting {
+    pub theme: HashMap<String, ConfigColor>,
 }
 
-// Struct for storing theme information
-#[derive(Debug, Deserialize, Clone)]
-pub struct Theme {
-    pub transparent_editor: bool,
-    pub editor_bg: (u8, u8, u8),
-    pub editor_fg: (u8, u8, u8),
-    pub status_bg: (u8, u8, u8),
-    pub status_fg: (u8, u8, u8),
-    pub line_number_fg: (u8, u8, u8),
-    pub line_number_bg: (u8, u8, u8),
-    pub inactive_tab_fg: (u8, u8, u8),
-    pub inactive_tab_bg: (u8, u8, u8),
-    pub active_tab_fg: (u8, u8, u8),
-    pub active_tab_bg: (u8, u8, u8),
-    pub warning_fg: (u8, u8, u8),
-    pub error_fg: (u8, u8, u8),
-    pub info_fg: (u8, u8, u8),
-    pub default_theme: String,
-    pub fallback: bool,
+impl Default for SyntaxHighlighting {
+    fn default() -> Self {
+        Self {
+            theme: HashMap::default(),
+        }
+    }
 }
 
-// Struct for storing language information
-#[derive(Debug, Deserialize, Clone)]
-pub struct Language {
-    pub name: String,
-    pub icon: String,
-    pub extensions: Vec<String>,
-    pub keywords: Vec<String>,
-    pub definitions: HashMap<String, Vec<String>>,
+impl LuaUserData for SyntaxHighlighting {
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method_mut("set", |_, syntax_highlighting, (name, value)| {
+            syntax_highlighting.theme.insert(name, ConfigColor::from_lua(value));
+            Ok(())
+        });
+    }
 }
 
-// Default configuration format
-// Minify using:
-// (| )//[a-zA-Z0-9 ]+ on https://www.regextester.com/
-// https://codebeautify.org/text-minifier
-fn default() -> String {
-"/*\n    My very own (awesome) Ox configuration file!\n    \n    Ox uses RON. RON is an object notation similar to JSON.\n    It makes it easy and quick for Ox to parse.\n\n    Config name: NAME\n    Author:      AUTHOR\n    YEAR:        YEAR\n*/\n\n// General settings for Ox\n(\n    general: General(\n        line_number_padding_right: 2, // Line number padding on the right\n        line_number_padding_left:  1, // Line number padding on the left\n        tab_width:                 4, // The amount of spaces for a tab\n        undo_period:               5, // Seconds of inactivity for undo\n        wrap_cursor:            true, // Determines wheter the cursor wraps around\n        // Values:\n        // %f - File name\n        // %F - File name with full path\n        // %I - Language specific icon with leading space\n        // %i - Language specific icon\n        // %n - Language name\n        // %l - Current line number in the document\n        // %L - Total number of lines in the document\n        // %x - X position of the cursor\n        // %y - Y position of the cursor\n        // %v - Version of the editor (e.g. 0.2.6)\n        // %d - Dirty file indicator text\n        // %D - Dirty file indicator icon\n        // %R - Read only file indicator\n        status_left:  \" %f%d %D \u{2502} %n %i\", // Left part of status line\n        status_right: \"\u{4e26} %l / %L \u{2502} \u{fae6}(%x, %y) \", // Right part of status line\n        tab: \"%I%f%d\", // Tab formatting\n    ),\n    // Custom defined macros\n    macros: {\n        // Macro to move a line up\n        \"move line up\": [\n            \"store line 1\", // Store current line in bank #1\n            \"delete 0\",     // Delete current line\n            \"move 1 up\",    // Move cursor up by 1\n            \"line above\",   // Insert an empty line above\n            \"move 1 up\",    // Move cursor up to the empty line\n            \"load line 1\",  // Load line in bank #1 over the empty line\n        ],\n        // Macro to move a line down\n        \"move line down\": [\n            \"store line 1\", // Store the current line in bank #1\n            \"delete 0\",     // Delete the current line\n            \"line below\",   // Create an empty line below\n            \"move 1 down\",  // Move cursor down to empty line\n            \"load line 1\",  // Overwrite empty line with line in bank #1\n        ],\n        // Macro to save with root permission\n        \"save #\": [\n            // SHCS: Shell with confirmation and substitution\n            // With substitution, `%C` becomes the current documents contents\n            // `%F` becomes the file path of the current document\n            \"shcs sudo cat > %F << EOF\\n%CEOF\", // \'%F\' is the current file name\n            \"is saved\", // Set the status of the file to saved\n        ],\n    },\n    // RGB values for the colours of Ox\n    theme: Theme(\n        transparent_editor: false,         // Makes editor background transparent\n        editor_bg:          (41, 41, 61), // The main background color\n        editor_fg:          (255, 255, 255), // The default text color\n        status_bg:          (59, 59, 84), // The background color of the status line\n        status_fg:          (35, 240, 144), // The text color of the status line\n        line_number_fg:     (73, 73, 110), // The text color of the line numbers\n        line_number_bg:     (49, 49, 73), // The background color of the line numbers\n        active_tab_fg:      (255, 255, 255), // The text color of the active tab\n        active_tab_bg:      (41, 41, 61), //  The background color of the active tab\n        inactive_tab_fg:    (255, 255, 255), // The text color of the inactive tab(s)\n        inactive_tab_bg:    (59, 59, 84), // The text color of the inactive tab(s)\n        warning_fg:         (208, 164, 79), // Text colour of the warning message\n        error_fg:           (224, 113, 113), // Text colour of the warning message\n        info_fg:            (255, 255, 255), // Text colour of the warning message\n        default_theme:    \"default\", // The default syntax highlights to use\n        fallback:         true, // Enables use of fallback themes (if detected)\n    ),\n    // Colours for the syntax highlighting\n    highlights: {\n        \"default\": {\n            \"comments\":   (113, 113, 169),\n            \"keywords\":   (134, 76, 232),\n            \"namespaces\": (134, 76, 232),\n            \"references\": (134, 76, 232),\n            \"strings\":    (39, 222, 145),\n            \"characters\": (40, 198, 232),\n            \"digits\":     (40, 198, 232),\n            \"booleans\":   (86, 217, 178),\n            \"functions\":  (47, 141, 252),\n            \"structs\":    (47, 141, 252),\n            \"macros\":     (223, 52, 249),\n            \"attributes\": (40, 198, 232),\n            \"headers\":    (47, 141, 252),\n            \"symbols\":    (47, 141, 252),\n            \"global\":     (86, 217, 178),\n            \"operators\":  (86, 217, 178),\n            \"regex\":      (40, 198, 232),\n            \"search_active\":   (41, 73, 131),\n            \"search_inactive\": (29, 52, 93),\n        },\n        \"alternative\": {\n            \"comments\":   (113, 113, 169),\n            \"keywords\":   (64, 86, 244),\n            \"namespaces\": (64, 86, 244),\n            \"references\": (64, 86, 244),\n            \"strings\":    (76, 224, 179),\n            \"characters\": (110, 94, 206),\n            \"digits\":     (4, 95, 204),\n            \"booleans\":   (76, 224, 179),\n            \"functions\":  (4, 95, 204),\n            \"structs\":    (4, 95, 204),\n            \"macros\":     (110, 94, 206),\n            \"attributes\": (4, 95, 204),\n            \"headers\":    (141, 129, 217),\n            \"symbols\":    (249, 233, 0),\n            \"global\":     (76, 224, 179),\n            \"operators\":  (76, 224, 179),\n            \"regex\":      (4, 95, 204),\n            \"search_active\":   (41, 73, 131),\n            \"search_inactive\": (29, 52, 93),\n        },\n    },\n    // Key bindings\n    keys: {\n        // Keybinding: [Oxa commands]\n        Ctrl(Char(\'q\')): [\"quit\"], // Quit current document\n        Ctrl(Char(\'s\')): [\"save\"], // Save current document\n        Alt(Char(\'s\')):  [\"save ?\"], // Save current document as\n        Ctrl(Char(\'w\')): [\"save *\"], // Save all open documents\n        Ctrl(Char(\'n\')): [\"new\"], // Create new document\n        Ctrl(Char(\'o\')): [\"open\"], // Open document\n        Ctrl(Left):      [\"prev\"], // Move to previous tab\n        Ctrl(Right):     [\"next\"], // Move to next tab\n        Ctrl(Char(\'z\')): [\"undo\"], // Undo last edit\n        Ctrl(Char(\'y\')): [\"redo\"], // Redo last edit\n        Ctrl(Char(\'f\')): [\"search\"], // Trigger search command\n        Ctrl(Char(\'r\')): [\"replace\"], // Trigger replace command\n        Ctrl(Char(\'a\')): [\"replace *\"], // Trigger replace all command\n        Ctrl(Up):        [\"move line up\"], // Move line up\n        Ctrl(Down):      [\"move line down\"], // Move line down\n        Ctrl(Delete):    [\"delete word left\"], // Delete word\n        Alt(Char(\'a\')):  [\"cmd\"], // Open the command line\n        // Show help message URL\n        F(1):   [\n            \"sh echo You can get help here:\",\n            \"shc echo https://github.com/curlpipe/ox/wiki\",\n        ]\n    },\n    // Language specific settings\n    languages: [\n        Language(\n            name: \"Rust\", // Name of the language\n            icon: \"\u{e7a8} \", // Icon for the language\n            extensions: [\"rs\"], // Extensions of the language\n            // Keywords of the language\n            keywords: [\n                \"as\", \"break\", \"const\", \"continue\", \"crate\", \"else\", \n                \"enum\", \"extern\", \"fn\", \"for\", \"if\", \"impl\", \"in\", \n                \"let\", \"loop\", \"match\", \"mod\", \"move\", \"mut\", \"pub\", \n                \"ref\", \"return\", \"self\", \"static\", \"struct\", \"super\", \n                \"trait\", \"type\", \"unsafe\", \"use\", \"where\", \"while\", \n                \"async\", \"await\", \"dyn\", \"abstract\", \"become\", \"box\", \n                \"do\", \"final\", \"macro\", \"override\", \"priv\", \"typeof\", \n                \"unsized\", \"virtual\", \"yield\", \"try\", \"\'static\",\n                \"u8\", \"u16\", \"u32\", \"u64\", \"u128\", \"usize\",\n                \"i8\", \"i16\", \"i32\", \"i64\", \"i128\", \"isize\",\n                \"f32\", \"f64\", \"String\", \"Vec\", \"str\", \"Some\", \"bool\",\n                \"None\", \"Box\", \"Result\", \"Option\", \"Ok\", \"Err\", \"Self\",\n                \"std\"\n            ],\n            // Syntax definitions\n            definitions: {\n                \"operators\":  [\n                    r\"(=)\",\n                    r\"(\\+)\",\n                    r\"(\\-)\",\n                    r\"(\\*)\",\n                    r\"[^/](/)[^/]\",\n                    r\"(\\+=)\",\n                    r\"(\\-=)\",\n                    r\"(\\*=)\",\n                    r\"(\\\\=)\",\n                    r\"(==)\",\n                    r\"(!=)\",\n                    r\"(\\?)\",\n                    r\"(>=)\",\n                    r\"(<=)\",\n                    r\"(<)\",\n                    r\"(>)\",\n                ],\n                \"namespaces\": [\n                    r\"([a-z_][A-Za-z0-9_]*)::\",\n                ],\n                \"comments\":   [\n                    \"(?m)(//.*)$\", \n                    \"(?ms)(/\\\\*.*?\\\\*/)\",\n                ],\n                \"strings\":    [\n                    \"\\\"(?:[^\\\"\\\\\\\\]*(?:\\\\\\\\.[^\\\"\\\\\\\\]*)*)\\\"\",\n                    \"(r\\\".*?\\\")\",\n                    \"(?ms)(r#\\\".*?\\\"#)\",\n                    \"(?ms)(#\\\".*?\\\"#)\",\n                ],\n                \"characters\": [\n                    \"(\'.\')\", \n                    \"(\'\\\\\\\\.\')\",\n                ],\n                \"digits\":     [\n                    \"\\\\b(\\\\d+.\\\\d+|\\\\d+)\",\n                    \"\\\\b(\\\\d+.\\\\d+(?:f32|f64))\",\n                ],\n                \"booleans\":   [\n                    \"\\\\b(true)\\\\b\", \n                    \"\\\\b(false)\\\\b\",\n                ],\n                \"functions\":  [\n                    \"fn\\\\s+([a-z_][A-Za-z0-9_]*)\\\\s*\\\\(\",\n                    r\"\\.([a-z_][A-Za-z0-9_]*)\\s*\\(\",\n                    r\"([a-z_][A-Za-z0-9_]*)\\s*\\(\",\n                ],\n                \"structs\":    [\n                    \"(?:trait|enum|struct|impl)\\\\s+([A-Z][A-Za-z0-9_]*)\\\\s*\", \n                    \"impl(?:<.*?>|)\\\\s+([A-Z][A-Za-z0-9_]*)\",\n                    \"([A-Z][A-Za-z0-9_]*)::\",\n                    r\"([A-Z][A-Za-z0-9_]*)\\s*\\(\",\n                    \"impl.*for\\\\s+([A-Z][A-Za-z0-9_]*)\",\n                    r\"::\\s*([a-z_][A-Za-z0-9_]*)\\s*\\(\",\n                ],\n                \"macros\":     [\n                    \"\\\\b([a-z_][a-zA-Z0-9_]*!)\",\n                    r\"(\\$[a-z_][A-Za-z0-9_]*)\",\n                ],\n                \"attributes\": [\n                    \"(?ms)^\\\\s*(#(?:!|)\\\\[.*?\\\\])\",\n                ],\n                \"references\": [\n                    \"(&)\",\n                    \"&str\", \"&mut\", \"&self\", \n                    \"&i8\", \"&i16\", \"&i32\", \"&i64\", \"&i128\", \"&isize\",\n                    \"&u8\", \"&u16\", \"&u32\", \"&u64\", \"&u128\", \"&usize\",\n                    \"&f32\", \"&f64\",\n                ]\n            }\n        ),\n        Language(\n            name: \"Ruby\", // Name of the language\n            icon: \"\u{e739} \", // Icon for the language\n            extensions: [\"rb\"], // Extensions of the language\n            // Keywords of the language\n            keywords: [\n                \"__ENCODING__\", \"__LINE__\", \"__FILE__\", \"BEGIN\", \"END\", \n                \"alias\", \"and\", \"begin\", \"break\", \"case\", \"class\", \"def\", \n                \"defined?\", \"do\", \"else\", \"elsif\", \"end\", \"ensure\", \"print\",\n                \"for\", \"if\", \"in\", \"module\", \"next\", \"nil\", \"not\", \"or\", \"puts\",\n                \"redo\", \"rescue\", \"retry\", \"return\", \"self\", \"super\", \"then\", \n                \"undef\", \"unless\", \"until\", \"when\", \"while\", \"yield\", \"raise\",\n                \"include\", \"extend\", \"require\" \n            ],\n            // Syntax definitions\n            definitions: {\n                \"comments\":   [\n                    \"(?m)(#.*)$\", \n                    \"(?ms)(=begin.*=end)\", \n                ],\n                \"strings\":    [\n                    \"(?:f|r|)\\\"(?:[^\\\"\\\\\\\\]*(?:\\\\\\\\.[^\\\"\\\\\\\\]*)*)\\\"\",\n                    \"(?:f|r|)\\\'(?:[^\\\'\\\\\\\\]*(?:\\\\\\\\.[^\\\'\\\\\\\\]*)*)\\\'\",\n                ],\n                \"digits\":     [\n                    r\"\\b(\\d+.\\d+|\\d+)\",\n                ],\n                \"booleans\":   [\n                    r\"\\b(true)\\b\", \n                    r\"\\b(false)\\b\",\n                ],\n                \"structs\":    [\n                    r\"class(\\s+[A-Za-z0-9_]*)\",\n                ],\n                \"functions\":  [\n                    r\"def\\s+([a-z_][A-Za-z0-9_\\\\?!]*)\",\n                    \"\\\\.([a-z_][A-Za-z0-9_\\\\?!]*)\\\\s*\",\n                    \"\\\\b([a-z_][A-Za-z0-9_\\\\?!]*)\\\\s*\\\\(\",\n                ],\n                \"symbols\":    [\n                    r\"(:[^,\\)\\.\\s=]+)\",\n                ],\n                \"global\":     [\n                    r\"(\\$[a-z_][A-Za-z0-9_]*)\\s\",\n                ],\n                \"regex\": [\n                    r\"/.+/\"\n                ],\n                \"operators\":  [\n                    r\"(=)\",\n                    r\"(\\+)\",\n                    r\"(\\-)\",\n                    r\"(\\*)\",\n                    r\"(\\s/\\s)\",\n                    r\"(\\+=)\",\n                    r\"(\\-=)\",\n                    r\"(\\*=)\",\n                    r\"(\\\\=)\",\n                    r\"(==)\",\n                    r\"(!=)\",\n                    r\"(\\&\\&)\",\n                    r\"(\\|\\|)\",\n                    r\"(!)\\S\",\n                    r\"(>=)\",\n                    r\"(<=)\",\n                    r\"(<)\",\n                    r\"(>)\",\n                ],\n            }\n        ),\n        Language(\n            name: \"Crystal\", // Name of the language\n            icon: \"\u{e7a3} \", // Icon for the language\n            extensions: [\"cr\"], // Extensions of the language\n            // Keywords of the language\n            keywords: [\n                \"__ENCODING__\", \"__LINE__\", \"__FILE__\", \"BEGIN\", \"END\", \n                \"alias\", \"and\", \"begin\", \"break\", \"case\", \"class\", \"def\", \n                \"defined?\", \"do\", \"else\", \"elsif\", \"end\", \"ensure\", \"print\",\n                \"for\", \"if\", \"in\", \"module\", \"next\", \"nil\", \"not\", \"or\", \"puts\",\n                \"redo\", \"rescue\", \"retry\", \"return\", \"self\", \"super\", \"then\", \n                \"undef\", \"unless\", \"until\", \"when\", \"while\", \"yield\", \"raise\",\n                \"include\", \"extend\", \"Int32\", \"String\", \"getter\", \"setter\",\n                \"property\", \"Array\", \"Set\", \"Hash\", \"Range\", \"Proc\", \"typeof\",\n            ],\n            // Syntax definitions\n            definitions: {\n                \"comments\":   [\n                    \"(?m)(#.*)$\", \n                    \"(?ms)(=begin.*=end)\", \n                ],\n                \"strings\":    [\n                    \"(?ms)(\\\".*?\\\")\",\n                    \"(?:f|r|)\\\"(?:[^\\\"\\\\\\\\]*(?:\\\\\\\\.[^\\\"\\\\\\\\]*)*)\\\"\",\n                    \"(\\\'.*?\\\')\",\n                ],\n                \"digits\":     [\n                    r\"\\b(\\d+.\\d+|\\d+)\",\n                    r\"(_i(?:8|16|32|64|128))\",\n                    r\"(_u(?:8|16|32|64|128))\",\n                    r\"(_f(?:8|16|32|64|128))\",\n                    \"0x[A-Fa-f0-9]{6}\"\n                ],\n                \"booleans\":   [\n                    r\"\\b(true)\\b\", \n                    r\"\\b(false)\\b\",\n                ],\n                \"structs\":    [\n                    r\"class(\\s+[A-Za-z0-9_]*)\",\n                ],\n                \"functions\":  [\n                    r\"def\\s+([a-z_][A-Za-z0-9_\\\\?!]*)\",\n                    \"\\\\.([a-z_][A-Za-z0-9_\\\\?!]*)\\\\s*\",\n                    \"\\\\b([a-z_][A-Za-z0-9_\\\\?!]*)\\\\s*\\\\(\",\n                ],\n                \"symbols\":    [\n                    r\"(:[^,\\}\\)\\.\\s=]+)\",\n                ],\n                \"global\":     [\n                    r\"(\\$[a-z_][A-Za-z0-9_]*)\\s\",\n                ],\n                \"operators\":  [\n                    r\"(=)\",\n                    r\"(\\+)\",\n                    r\"(\\-)\",\n                    r\"(\\*)\",\n                    r\"(\\s/\\s)\",\n                    r\"(\\+=)\",\n                    r\"(\\-=)\",\n                    r\"(\\*=)\",\n                    r\"(\\\\=)\",\n                    r\"(==)\",\n                    r\"(!=)\",\n                    r\"(\\&\\&)\",\n                    r\"(\\|\\|)\",\n                    r\"(!)\\S\",\n                    r\"(>=)\",\n                    r\"(<=)\",\n                    r\"(<)\",\n                    r\"(>)\",\n                    r\"(\\?)\",\n                ],\n            }\n        ),\n        Language(\n            name: \"Python\", // Name of the language\n            icon: \"\u{e73c} \", // Icon for the language\n            extensions: [\"py\", \"pyw\"], // Extensions of the language\n            // Keywords of the language\n            keywords: [\n                \"and\", \"as\", \"assert\", \"break\", \"class\", \"continue\", \n                \"def\", \"del\", \"elif\", \"else\", \"except\", \"exec\", \n                \"finally\", \"for\", \"from\", \"global\", \"if\", \"import\", \n                \"in\", \"is\", \"lambda\", \"not\", \"or\", \"pass\", \"print\", \n                \"raise\", \"return\", \"try\", \"while\", \"with\", \"yield\",\n                \"str\", \"bool\", \"int\", \"tuple\", \"list\", \"dict\", \"tuple\",\n                \"len\", \"None\", \"input\", \"type\", \"set\", \"range\", \"enumerate\",\n                \"open\", \"iter\", \"min\", \"max\", \"dir\", \"self\", \"isinstance\", \n                \"help\", \"next\", \"super\",\n            ],\n            // Syntax definitions\n            definitions: {\n                \"comments\":   [\n                    \"(?m)(#.*)$\", \n                ],\n                \"strings\":    [\n                    \"(?ms)(\\\"\\\"\\\".*?\\\"\\\"\\\")\",\n                    \"(?ms)(\\\'\\\'\\\'.*?\\\'\\\'\\\')\",\n                    \"(?:f|r|)\\\"(?:[^\\\"\\\\\\\\]*(?:\\\\\\\\.[^\\\"\\\\\\\\]*)*)\\\"\",\n                    \"(?:f|r|)\\\'(?:[^\\\'\\\\\\\\]*(?:\\\\\\\\.[^\\\'\\\\\\\\]*)*)\\\'\",\n                ],\n                \"digits\":     [\n                    \"\\\\b(\\\\d+.\\\\d+|\\\\d+)\",\n                ],\n                \"booleans\":   [\n                    \"\\\\b(True)\\\\b\", \n                    \"\\\\b(False)\\\\b\",\n                ],\n                \"structs\":    [\n                    \"class\\\\s+([A-Za-z0-9_]*)\",\n                ],\n                \"functions\":  [\n                    \"def\\\\s+([a-z_][A-Za-z0-9_]*)\",\n                    \"\\\\.([a-z_][A-Za-z0-9_\\\\?!]*)\\\\s*\",\n                    \"\\\\b([a-z_][A-Za-z0-9_\\\\?!]*)\\\\s*\\\\(\",\n                ],\n                \"attributes\": [\n                    \"@.*$\",\n                ],\n                \"operators\":  [\n                    r\"(=)\",\n                    r\"(\\+)\",\n                    r\"(\\-)\",\n                    r\"(\\*)\",\n                    r\"(\\s/\\s)\",\n                    r\"(\\s//\\s)\",\n                    r\"(%)\",\n                    r\"(\\+=)\",\n                    r\"(\\-=)\",\n                    r\"(\\*=)\",\n                    r\"(\\\\=)\",\n                    r\"(==)\",\n                    r\"(!=)\",\n                    r\"(>=)\",\n                    r\"(<=)\",\n                    r\"(<)\",\n                    r\"(>)\",\n                ],\n            }\n        ),\n        Language(\n            name: \"Javascript\", // Name of the language\n            icon: \"\u{e74e} \", // Icon for the language\n            extensions: [\"js\"], // Extensions of the language\n            // Keywords of the language\n            keywords: [\n                \"abstract\", \"arguments\", \"await\", \"boolean\", \"break\", \"byte\", \n                \"case\", \"catch\", \"char\", \"class\", \"const\", \"continue\", \"debugger\", \n                \"default\", \"delete\", \"do\", \"double\", \"else\", \"enum\", \"eval\", \n                \"export\", \"extends\", \"final\", \"finally\", \"float\", \"for\", \"of\",\n                \"function\", \"goto\", \"if\", \"implements\", \"import\", \"in\", \"instanceof\", \n                \"int\", \"interface\", \"let\", \"long\", \"native\", \"new\", \"null\", \"package\", \n                \"private\", \"protected\", \"public\", \"return\", \"short\", \"static\", \n                \"super\", \"switch\", \"synchronized\", \"this\", \"throw\", \"throws\", \n                \"transient\", \"try\", \"typeof\", \"var\", \"void\", \"volatile\", \"console\",\n                \"while\", \"with\", \"yield\", \"undefined\", \"NaN\", \"-Infinity\", \"Infinity\",\n            ],\n            // Syntax definitions\n            definitions: {\n                \"comments\":   [\n                    \"(?m)(//.*)$\", \n                    \"(?ms)(/\\\\*.*\\\\*/)$\", \n                ],\n                \"strings\":    [\n                    \"(?ms)(\\\"\\\"\\\".*?\\\"\\\"\\\")\",\n                    \"(?ms)(\\\'\\\'\\\'.*?\\\'\\\'\\\')\",\n                    \"(?:f|r|)\\\"(?:[^\\\"\\\\\\\\]*(?:\\\\\\\\.[^\\\"\\\\\\\\]*)*)\\\"\",\n                    \"(?:f|r|)\\\'(?:[^\\\'\\\\\\\\]*(?:\\\\\\\\.[^\\\'\\\\\\\\]*)*)\\\'\",\n                ],\n                \"digits\":     [\n                    \"\\\\b(\\\\d+.\\\\d+|\\\\d+)\",\n                ],\n                \"booleans\":   [\n                    \"\\\\b(true)\\\\b\", \n                    \"\\\\b(false)\\\\b\",\n                ],\n                \"structs\":    [\n                    \"class\\\\s+([A-Za-z0-9_]*)\",\n                ],\n                \"functions\":  [\n                    \"function\\\\s+([a-z_][A-Za-z0-9_]*)\",\n                    \"\\\\b([a-z_][A-Za-z0-9_]*)\\\\s*\\\\(\",\n                    \"\\\\.([a-z_][A-Za-z0-9_\\\\?!]*)\\\\s*\",\n                ],\n                \"operators\":  [\n                    r\"(=)\",\n                    r\"(\\+)\",\n                    r\"(\\-)\",\n                    r\"(\\*)\",\n                    r\"(\\s/\\s)\",\n                    r\"(%)\",\n                    r\"(\\+=)\",\n                    r\"(\\-=)\",\n                    r\"(\\*=)\",\n                    r\"(\\\\=)\",\n                    r\"(==)\",\n                    r\"(!=)\",\n                    r\"(>=)\",\n                    r\"(<=)\",\n                    r\"(<)\",\n                    r\"(>)\",\n                    r\"(<<)\",\n                    r\"(>>)\",\n                    r\"(\\&\\&)\",\n                    r\"(\\|\\|)\",\n                    r\"(!)\\S\",\n                ],\n            }\n        ),\n        Language(\n            name: \"C\", // Name of the language\n            icon: \"\u{e61e} \", // Icon for the language\n            extensions: [\"c\", \"h\"], // Extensions of the language\n            // Keywords of the language\n            keywords: [\n                \"auto\", \"break\", \"case\", \"char\", \"const\", \"continue\", \"default\", \n                \"do\", \"double\", \"else\", \"enum\", \"extern\", \"float\", \"for\", \"goto\", \n                \"if\", \"int\", \"long\", \"register\", \"return\", \"short\", \"signed\", \n                \"sizeof\", \"static\", \"struct\", \"switch\", \"typedef\", \"union\", \n                \"unsigned\", \"void\", \"volatile\", \"while\", \"printf\", \"fscanf\", \n                \"scanf\", \"fputsf\", \"exit\", \"stderr\", \"malloc\", \"calloc\", \"bool\",\n                \"realloc\", \"free\", \"strlen\", \"size_t\",\n            ],\n            // Syntax definitions\n            definitions: {\n                \"comments\":   [\n                    \"(?m)(//.*)$\", \n                    \"(?ms)(/\\\\*.*?\\\\*/)\",\n                ],\n                \"strings\":    [\n                    \"\\\"(?:[^\\\"\\\\\\\\]*(?:\\\\\\\\.[^\\\"\\\\\\\\]*)*)\\\"\",\n                ],\n                \"characters\": [\n                    \"(\'.\')\", \n                    \"(\'\\\\\\\\.\')\",\n                ],\n                \"digits\":     [\n                    \"\\\\b(\\\\d+.\\\\d+|\\\\d+)\",\n                    \"\\\\b(\\\\d+.\\\\d+(?:f|))\",\n                ],\n                \"booleans\":   [\n                    \"\\\\b(true)\\\\b\", \n                    \"\\\\b(false)\\\\b\",\n                ],\n                \"functions\":  [\n                    \"(int|bool|void|char|double|long|short|size_t)\\\\s+([a-z_][A-Za-z0-9_]*)\\\\s*\\\\(\",\n                    \"\\\\b([a-z_][A-Za-z0-9_]*)\\\\s*\\\\(\",\n                ],\n                \"structs\":    [\n                    \"struct\\\\s+([A-Za-z0-9_]*)\\\\s*\", \n                ],\n                \"attributes\": [\n                    \"^\\\\s*(#.*?)\\\\s\",\n                ],\n                \"headers\":    [\n                    \"(<.*?>)\",\n                ],\n                \"operators\":  [\n                    r\"(=)\",\n                    r\"(\\+)\",\n                    r\"(\\-)\",\n                    r\"(\\*)\",\n                    r\"(\\s/\\s)\",\n                    r\"(%)\",\n                    r\"(\\+=)\",\n                    r\"(\\-=)\",\n                    r\"(\\*=)\",\n                    r\"(\\\\=)\",\n                    r\"(==)\",\n                    r\"(!=)\",\n                    r\"(>=)\",\n                    r\"(<=)\",\n                    r\"(<)\",\n                    r\"(>)\",\n                    r\"(<<)\",\n                    r\"(>>)\",\n                    r\"(\\&\\&)\",\n                    r\"(\\|\\|)\",\n                    r\"(!)\\S\",\n                ],\n            }\n        ),\n    ],\n)\n".to_string()
+#[derive(Debug)]
+pub struct LineNumbers {
+    pub enabled: bool,
+}
+
+impl Default for LineNumbers {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+        }
+    }
+}
+
+impl LuaUserData for LineNumbers {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
+        fields.add_field_method_set("enabled", |_, this, value| {
+            this.enabled = value;
+            Ok(())
+        });
+    }
+}
+
+#[derive(Debug)]
+pub struct GreetingMessage {
+    pub enabled: bool,
+    pub format: String,
+}
+
+impl Default for GreetingMessage {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            format: "".to_string(),
+        }
+    }
+}
+
+impl GreetingMessage {
+    pub fn render(&self, colors: &Colors) -> Result<String> {
+        let highlight = Fg(colors.highlight.to_color()?).to_string();
+        let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
+        let mut result = self.format.clone();
+        result = result.replace("{version}", &VERSION).to_string();
+        result = result.replace("{highlight_start}", &highlight).to_string();
+        result = result.replace("{highlight_end}", &editor_fg).to_string();
+        Ok(result)
+    }
+}
+
+impl LuaUserData for GreetingMessage {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
+        fields.add_field_method_set("enabled", |_, this, value| {
+            this.enabled = value;
+            Ok(())
+        });
+        fields.add_field_method_get("format", |_, this| Ok(this.format.clone()));
+        fields.add_field_method_set("format", |_, this, value| {
+            this.format = value;
+            Ok(())
+        });
+    }
+}
+
+#[derive(Debug)]
+pub struct StatusLine {
+    pub parts: Vec<String>,
+    pub alignment: StatusAlign,
+}
+
+impl Default for StatusLine {
+    fn default() -> Self {
+        Self {
+            parts: vec![],
+            alignment: StatusAlign::Between,
+        }
+    }
+}
+
+impl StatusLine {
+    pub fn render(&self, editor: &Editor, w: usize) -> String {
+        let mut result = vec![];
+        let ext = editor.doc()
+            .file_name
+            .as_ref()
+            .and_then(|name| Some(name.split('.').last().unwrap().to_string()))
+            .unwrap_or_else(|| "".to_string());
+        let file_type = filetype(&ext).unwrap_or(ext);
+        let file_name = editor.doc()
+            .file_name
+            .as_ref()
+            .and_then(|name| Some(name.split('/').last().unwrap().to_string()))
+            .unwrap_or_else(|| "[No Name]".to_string());
+        let modified = if editor.doc().modified { "[+]" } else { "" };
+        let cursor_y = (editor.doc().loc().y + 1).to_string();
+        let cursor_x = editor.doc().char_ptr.to_string();
+        let line_count = editor.doc().len_lines().to_string();
+
+        for part in &self.parts {
+            let mut part = part.clone();
+            part = part.replace("{file_name}", &file_name).to_string();
+            part = part.replace("{modified}", &modified).to_string();
+            part = part.replace("{file_type}", &file_type).to_string();
+            part = part.replace("{cursor_y}", &cursor_y).to_string();
+            part = part.replace("{cursor_x}", &cursor_x).to_string();
+            part = part.replace("{line_count}", &line_count).to_string();
+            result.push(part);
+        }
+        let status: Vec<&str> = result.iter().map(|s| s.as_str()).collect();
+        match self.alignment {
+            StatusAlign::Between => alinio::align::between(status.as_slice(), w),
+            StatusAlign::Around => alinio::align::around(status.as_slice(), w),
+        }.unwrap_or_else(|| "".to_string())
+    }
+}
+
+impl LuaUserData for StatusLine {
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method_mut("add_part", |_, status_line, part| {
+            status_line.parts.push(part);
+            Ok(())
+        });
+    }
+
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("alignment", |_, this| {
+            let alignment: String = this.alignment.clone().into();
+            Ok(alignment)
+        });
+        fields.add_field_method_set("alignment", |_, this, value| {
+            this.alignment = StatusAlign::from_string(value);
+            Ok(())
+        });
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum StatusAlign {
+    Around,
+    Between,
+}
+
+impl StatusAlign {
+    pub fn from_string(string: String) -> Self {
+        match string.as_str() {
+            "around" => Self::Around,
+            "between" => Self::Between,
+            _ => {
+                graceful_panic("\
+                    Invalid status line alignment used in configuration file\n\
+                    Make sure value is either 'around' or 'between'");
+                unreachable!();
+            }
+        }
+    }
+}
+
+impl Into<String> for StatusAlign {
+    fn into(self) -> String {
+        match self {
+            Self::Around => "around",
+            Self::Between => "between",
+        }.to_string()
+    }
+}
+
+#[derive(Debug)]
+pub struct Colors {
+    pub editor_bg: ConfigColor,
+    pub editor_fg: ConfigColor,
+
+    pub status_bg: ConfigColor,
+    pub status_fg: ConfigColor,
+
+    pub highlight: ConfigColor,
+
+    pub line_number_fg: ConfigColor,
+    pub line_number_bg: ConfigColor,
+
+    pub tab_active_fg: ConfigColor,
+    pub tab_active_bg: ConfigColor,
+    pub tab_inactive_fg: ConfigColor,
+    pub tab_inactive_bg: ConfigColor,
+
+    pub info_bg: ConfigColor,
+    pub info_fg: ConfigColor,
+    pub warning_bg: ConfigColor,
+    pub warning_fg: ConfigColor,
+    pub error_bg: ConfigColor,
+    pub error_fg: ConfigColor,
+}
+
+impl Default for Colors {
+    fn default() -> Self {
+        Self {
+            editor_bg: ConfigColor::Black,
+            editor_fg: ConfigColor::Black,
+
+            status_bg: ConfigColor::Black,
+            status_fg: ConfigColor::Black,
+
+            highlight: ConfigColor::Black,
+
+            line_number_fg: ConfigColor::Black,
+            line_number_bg: ConfigColor::Black,
+
+            tab_active_fg: ConfigColor::Black,
+            tab_active_bg: ConfigColor::Black,
+            tab_inactive_fg: ConfigColor::Black,
+            tab_inactive_bg: ConfigColor::Black,
+
+            info_bg: ConfigColor::Black,
+            info_fg: ConfigColor::Black,
+            warning_bg: ConfigColor::Black,
+            warning_fg: ConfigColor::Black,
+            error_bg: ConfigColor::Black,
+            error_fg: ConfigColor::Black,
+        }
+    }
+}
+
+impl LuaUserData for Colors {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("editor_bg", |env, this| Ok(this.editor_bg.to_lua(env)));
+        fields.add_field_method_get("editor_fg", |env, this| Ok(this.editor_fg.to_lua(env)));
+        fields.add_field_method_get("status_bg", |env, this| Ok(this.status_bg.to_lua(env)));
+        fields.add_field_method_get("status_fg", |env, this| Ok(this.status_fg.to_lua(env)));
+        fields.add_field_method_get("highlight", |env, this| Ok(this.highlight.to_lua(env)));
+        fields.add_field_method_get("line_number_bg", |env, this| Ok(this.line_number_bg.to_lua(env)));
+        fields.add_field_method_get("line_number_fg", |env, this| Ok(this.line_number_fg.to_lua(env)));
+        fields.add_field_method_get("tab_active_fg", |env, this| Ok(this.tab_active_fg.to_lua(env)));
+        fields.add_field_method_get("tab_active_bg", |env, this| Ok(this.tab_active_bg.to_lua(env)));
+        fields.add_field_method_get("tab_inactive_fg", |env, this| Ok(this.tab_inactive_fg.to_lua(env)));
+        fields.add_field_method_get("tab_inactive_bg", |env, this| Ok(this.tab_inactive_bg.to_lua(env)));
+        fields.add_field_method_get("error_bg", |env, this| Ok(this.error_bg.to_lua(env)));
+        fields.add_field_method_get("error_fg", |env, this| Ok(this.error_fg.to_lua(env)));
+        fields.add_field_method_get("warning_bg", |env, this| Ok(this.warning_bg.to_lua(env)));
+        fields.add_field_method_get("warning_fg", |env, this| Ok(this.warning_fg.to_lua(env)));
+        fields.add_field_method_get("info_bg", |env, this| Ok(this.info_bg.to_lua(env)));
+        fields.add_field_method_get("info_fg", |env, this| Ok(this.info_fg.to_lua(env)));
+        fields.add_field_method_set("editor_bg", |_, this, value| {
+            this.editor_bg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("editor_fg", |_, this, value| {
+            this.editor_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("status_bg", |_, this, value| {
+            this.status_bg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("status_fg", |_, this, value| {
+            this.status_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("highlight", |_, this, value| {
+            this.highlight = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("line_number_bg", |_, this, value| {
+            this.line_number_bg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("line_number_fg", |_, this, value| {
+            this.line_number_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("tab_active_fg", |_, this, value| {
+            this.tab_active_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("tab_active_bg", |_, this, value| {
+            this.tab_active_bg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("tab_inactive_fg", |_, this, value| {
+            this.tab_inactive_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("tab_inactive_bg", |_, this, value| {
+            this.tab_inactive_bg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("error_bg", |_, this, value| {
+            this.error_bg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("error_fg", |_, this, value| {
+            this.error_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("warning_bg", |_, this, value| {
+            this.warning_bg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("warning_fg", |_, this, value| {
+            this.warning_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("info_bg", |_, this, value| {
+            this.info_bg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("info_fg", |_, this, value| {
+            this.info_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+    }
+}
+
+#[derive(Debug)]
+pub enum ConfigColor {
+    Rgb(u8, u8, u8),
+    Hex(String),
+    Black,
+    DarkGrey,
+    Red,
+    DarkRed,
+    Green,
+    DarkGreen,
+    Yellow,
+    DarkYellow,
+    Blue,
+    DarkBlue,
+    Magenta,
+    DarkMagenta,
+    Cyan,
+    DarkCyan,
+    White,
+    Grey,
+    Transparent,
+}
+
+impl ConfigColor {
+    pub fn from_lua<'a>(value: LuaValue<'a>) -> Self {
+        match value {
+            LuaValue::String(string) => match string.to_str().unwrap() {
+                "black" => Self::Black,
+                "darkgrey" => Self::DarkGrey,
+                "red" => Self::Red,
+                "darkred" => Self::DarkRed,
+                "green" => Self::Green,
+                "darkgreen" => Self::DarkGreen,
+                "yellow" => Self::Yellow,
+                "darkyellow" => Self::DarkYellow,
+                "blue" => Self::Blue,
+                "darkblue" => Self::DarkBlue,
+                "magenta" => Self::Magenta,
+                "darkmagenta" => Self::DarkMagenta,
+                "cyan" => Self::Cyan,
+                "darkcyan" => Self::DarkCyan,
+                "white" => Self::White,
+                "grey" => Self::Grey,
+                "transparent" => Self::Transparent,
+                hex => Self::Hex(hex.to_string()),
+            },
+            LuaValue::Table(table) => {
+                if table.len().unwrap() != 3 {
+                    graceful_panic("Invalid RGB sequence used in configuration file (must be a list of 3 numbers)");
+                }
+                let b: u8 = table.pop().expect("Invalid rgb sequence");
+                let g: u8 = table.pop().expect("Invalid rgb sequence");
+                let r: u8 = table.pop().expect("Invalid rgb sequence");
+                Self::Rgb(r, g, b)
+            }
+            _ => {
+                graceful_panic("Invalid data type used for colour in configuration file");
+                unreachable!()
+            }
+        }
+    }
+
+    pub fn to_lua<'a>(&self, env: &'a Lua) -> LuaValue<'a> {
+        match self {
+            ConfigColor::Hex(hex) => {
+                let string = env.create_string(hex).unwrap();
+                LuaValue::String(string)
+            }
+            ConfigColor::Rgb(r, g, b) => {
+                // Create lua table
+                let table = env.create_table().unwrap();
+                table.push(*r as isize).unwrap();
+                table.push(*g as isize).unwrap();
+                table.push(*b as isize).unwrap();
+                LuaValue::Table(table)
+            }
+            ConfigColor::Black => LuaValue::String(env.create_string("black").unwrap()),
+            ConfigColor::DarkGrey => LuaValue::String(env.create_string("darkgrey").unwrap()),
+            ConfigColor::Red => LuaValue::String(env.create_string("red").unwrap()),
+            ConfigColor::DarkRed => LuaValue::String(env.create_string("darkred").unwrap()),
+            ConfigColor::Green => LuaValue::String(env.create_string("green").unwrap()),
+            ConfigColor::DarkGreen => LuaValue::String(env.create_string("darkgreen").unwrap()),
+            ConfigColor::Yellow => LuaValue::String(env.create_string("yellow").unwrap()),
+            ConfigColor::DarkYellow => LuaValue::String(env.create_string("darkyellow").unwrap()),
+            ConfigColor::Blue => LuaValue::String(env.create_string("blue").unwrap()),
+            ConfigColor::DarkBlue => LuaValue::String(env.create_string("darkblue").unwrap()),
+            ConfigColor::Magenta => LuaValue::String(env.create_string("magenta").unwrap()),
+            ConfigColor::DarkMagenta => LuaValue::String(env.create_string("darkmagenta").unwrap()),
+            ConfigColor::Cyan => LuaValue::String(env.create_string("cyan").unwrap()),
+            ConfigColor::DarkCyan => LuaValue::String(env.create_string("darkcyan").unwrap()),
+            ConfigColor::White => LuaValue::String(env.create_string("white").unwrap()),
+            ConfigColor::Grey => LuaValue::String(env.create_string("grey").unwrap()),
+            ConfigColor::Transparent => LuaValue::String(env.create_string("transparent").unwrap()),
+        }
+    }
+
+    pub fn to_color(&self) -> Result<Color> {
+        Ok(match self {
+            ConfigColor::Hex(hex) => {
+                let (r, g, b) = self.hex_to_rgb(hex)?;
+                Color::Rgb { r, g, b }
+            }
+            ConfigColor::Rgb(r, g, b) => Color::Rgb { r: *r, g: *g, b: *b },
+            ConfigColor::Black => Color::Black,
+            ConfigColor::DarkGrey => Color::DarkGrey,
+            ConfigColor::Red => Color::Red,
+            ConfigColor::DarkRed => Color::DarkRed,
+            ConfigColor::Green => Color::Green,
+            ConfigColor::DarkGreen => Color::DarkGreen,
+            ConfigColor::Yellow => Color::Yellow,
+            ConfigColor::DarkYellow => Color::DarkYellow,
+            ConfigColor::Blue => Color::Blue,
+            ConfigColor::DarkBlue => Color::DarkBlue,
+            ConfigColor::Magenta => Color::Magenta,
+            ConfigColor::DarkMagenta => Color::DarkMagenta,
+            ConfigColor::Cyan => Color::Cyan,
+            ConfigColor::DarkCyan => Color::DarkCyan,
+            ConfigColor::White => Color::White,
+            ConfigColor::Grey => Color::Grey,
+            ConfigColor::Transparent => Color::Reset,
+        })
+    }
+
+    fn hex_to_rgb(&self, hex: &str) -> Result<(u8, u8, u8)> {
+        // Remove the leading '#' if present
+        let hex = hex.trim_start_matches('#');
+
+        // Ensure the hex code is exactly 6 characters long
+        if hex.len() != 6 {
+            graceful_panic("Invalid hex code used in configuration file");
+        }
+
+        // Parse the hex string into the RGB components
+        let r = u8::from_str_radix(&hex[0..2], 16).expect("invalid R component in hex code");
+        let g = u8::from_str_radix(&hex[2..4], 16).expect("invalid G component in hex code");
+        let b = u8::from_str_radix(&hex[4..6], 16).expect("invalid B component in hex code");
+
+        Ok((r, g, b))
+    }
 }

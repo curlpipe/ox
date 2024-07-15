@@ -1,1332 +1,720 @@
-// Editor.rs - Controls the editor and brings everything together
-use crate::config::{KeyBinding, RawKey, Reader, Status, Theme};
-use crate::document::{TabType, Type};
-use crate::highlight::Token;
-use crate::oxa::interpret_line;
-use crate::undo::{reverse, BankType};
-use crate::util::{title, trim_end, Exp};
-use crate::{log, Document, Event, Row, Size, Terminal, VERSION};
-use clap::App;
-use crossterm::event::{Event as InputEvent, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::style::{Attribute, Color, SetBackgroundColor, SetForegroundColor};
-use crossterm::ErrorKind;
-use regex::Regex;
-use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader, Error, ErrorKind as Iek, Write};
-use std::path::Path;
-use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
-use unicode_width::UnicodeWidthStr;
+use crate::ui::{size, Terminal, Feedback};
+use crate::config::Config;
+use crate::error::Result;
+use crossterm::{
+    event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
+    style::{SetBackgroundColor as Bg, SetForegroundColor as Fg, SetAttribute, Attribute},
+    terminal::{Clear, ClearType as ClType},
+};
+use kaolinite::event::{Event, Status};
+use kaolinite::utils::{Loc, Size};
+use kaolinite::Document;
+use synoptic::{Highlighter, TokOpt, trim, from_extension};
+use std::io::{Write};
 
-// Set up color resets
-pub const RESET_BG: SetBackgroundColor = SetBackgroundColor(Color::Reset);
-pub const RESET_FG: SetForegroundColor = SetForegroundColor(Color::Reset);
-
-// Set up offset rules
-pub const OFFSET: usize = 1;
-
-// Macro for running shell commands within the editor
-macro_rules! shell {
-    ($command:expr, $confirm:expr, $root:expr) => {
-        // Execute a shell command
-        let command = if $root {
-            Command::new("sudo")
-                .arg("bash")
-                .arg("-c")
-                .arg($command)
-                .stdout(Stdio::piped())
-                .spawn()
-        } else {
-            Command::new("bash")
-                .arg("-c")
-                .arg($command)
-                .stdout(Stdio::piped())
-                .spawn()
-        };
-        if let Ok(s) = command {
-            log!("Shell", "Command requested");
-            if let Ok(s) = s
-                .stdout
-                .ok_or_else(|| Error::new(Iek::Other, "Could not capture standard output."))
-            {
-                // Go back into canonical mode to restore normal operation
-                Terminal::exit();
-                log!("Shell", "Ready to go");
-                // Stream the input and output of the command to the current stdout
-                BufReader::new(s)
-                    .lines()
-                    .filter_map(std::result::Result::ok)
-                    .for_each(|line| println!("{}", line));
-                // Wait for user to press enter, then reenter raw mode
-                log!("Shell", "Exited");
-                if $confirm {
-                    println!("Shell command exited. Press [Return] to continue");
-                    let mut output = String::new();
-                    let _ = std::io::stdin().read_line(&mut output);
-                }
-                Terminal::enter();
-            } else {
-                log!("Failure to open standard output", "");
-            }
-        } else {
-            log!(
-                "Failure to run command",
-                format!(
-                    "{} {:?}",
-                    $command,
-                    Command::new($command).stdout(Stdio::piped()).spawn()
-                )
-            );
-        }
-    };
-}
-
-// Enum for holding prompt events
-enum PromptEvent {
-    Update,
-    CharPress(bool),
-    KeyPress(KeyCode),
-}
-
-// For representing positions
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Position {
-    pub x: usize,
-    pub y: usize,
-}
-
-// Enum for direction
-#[derive(Clone, Copy, Debug)]
-pub enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
-// The main editor struct
+/// For managing all editing and rendering of cactus
 pub struct Editor {
-    pub config: Reader,                      // Storage for configuration
-    pub status: Status,                      // Holding the status of the config
-    config_path: String,                     // Holds the file path of the config file
-    quit: bool,                              // Toggle for cleanly quitting the editor
-    term: Terminal,                          // For the handling of the terminal
-    doc: Vec<Document>,                      // For holding our document
-    tab: usize,                              // Holds the number of the current tab
-    last_keypress: Option<Instant>,          // For holding the time of the last input event
-    keypress: KeyBinding,                    // For holding the last keypress event
-    exp: Exp,                                // For holding expressions
-    position_bank: HashMap<usize, Position>, // Bank for cursor positions
-    row_bank: HashMap<usize, Row>,           // Bank for lines
-    theme: String,                           // Currently used theme
+    /// Interface for writing to the terminal
+    pub terminal: Terminal,
+    /// Configuration information for the editor
+    config: Config,
+    /// Storage of all the documents opened in the editor
+    doc: Vec<Document>,
+    /// Syntax highlighting integration
+    highlighter: Vec<Highlighter>,
+    /// Pointer to the document that is currently being edited
+    ptr: usize,
+    /// true if the editor is still running, false otherwise
+    active: bool,
+    /// true if the editor should show a greeting message on next render
+    greet: bool,
+    /// The feedback message to display below the status line
+    pub feedback: Feedback,
 }
 
-// Implementing methods for our editor struct / class
 impl Editor {
-    pub fn new(args: App) -> Result<Self, ErrorKind> {
-        // Create a new editor instance
-        let args = args.get_matches();
-        // Set up terminal
-        let term = Terminal::new()?;
-        // Set up the arguments
-        let files: Vec<&str> = args.values_of("files").unwrap_or_default().collect();
-        let config_path = args.value_of("config").unwrap_or_default();
-        let mut config = Reader::read(config_path);
-        // Check for fallback colours
-        if config.0.theme.fallback {
-            let max = Terminal::availablility();
-            log!("Available Colours", max);
-            if max != 24 {
-                // Fallback to 16 bit colours
-                config.0.highlights.insert(
-                    "16fallback".to_string(),
-                    [
-                        ("comments".to_string(), (128, 128, 128)),
-                        ("keywords".to_string(), (0, 0, 255)),
-                        ("namespaces".to_string(), (0, 0, 255)),
-                        ("references".to_string(), (0, 0, 128)),
-                        ("strings".to_string(), (0, 128, 0)),
-                        ("characters".to_string(), (0, 128, 128)),
-                        ("digits".to_string(), (0, 128, 128)),
-                        ("booleans".to_string(), (0, 255, 0)),
-                        ("functions".to_string(), (0, 128, 128)),
-                        ("structs".to_string(), (0, 128, 128)),
-                        ("macros".to_string(), (128, 0, 128)),
-                        ("attributes".to_string(), (0, 128, 128)),
-                        ("headers".to_string(), (0, 128, 128)),
-                        ("symbols".to_string(), (128, 128, 0)),
-                        ("global".to_string(), (0, 255, 0)),
-                        ("operators".to_string(), (0, 128, 128)),
-                        ("regex".to_string(), (0, 255, 0)),
-                        ("search_inactive".to_string(), (128, 128, 128)),
-                        ("search_active".to_string(), (0, 128, 128)),
-                    ]
-                    .iter()
-                    .cloned()
-                    .collect(),
-                );
-                config.0.theme = Theme {
-                    transparent_editor: false,
-                    editor_bg: (0, 0, 0),
-                    editor_fg: (255, 255, 255),
-                    status_bg: (128, 128, 128),
-                    status_fg: (255, 255, 255),
-                    line_number_fg: (255, 255, 255),
-                    line_number_bg: (0, 0, 0),
-                    active_tab_fg: (255, 255, 255),
-                    inactive_tab_fg: (255, 255, 255),
-                    active_tab_bg: (128, 128, 128),
-                    inactive_tab_bg: (0, 0, 0),
-                    warning_fg: (255, 255, 0),
-                    error_fg: (255, 0, 0),
-                    info_fg: (255, 255, 255),
-                    default_theme: "16fallback".to_string(),
-                    fallback: true,
-                };
-            }
-        }
-        // Read in documents
-        let mut documents = vec![];
-        if files.is_empty() {
-            documents.push(Document::new(
-                &config.0,
-                &config.1,
-                args.is_present("readonly"),
-            ));
-        } else {
-            for file in &files {
-                documents.push(Document::from(
-                    &config.0,
-                    &config.1,
-                    file,
-                    args.is_present("readonly"),
-                ));
-            }
-        }
-        // Calculate neater paths
-        for d in &mut documents {
-            d.correct_path(&term.size);
-        }
-        // Create the new editor instance
+    /// Create a new instance of the editor
+    pub fn new() -> Result<Self> {
         Ok(Self {
-            quit: false,
-            // Display information about the config file into text for the status line
-            term,
-            tab: 0,
-            doc: documents,
-            last_keypress: None,
-            keypress: KeyBinding::Unsupported,
-            config: config.0.clone(),
-            config_path: config_path.to_string(),
-            status: config.1,
-            exp: Exp::new(),
-            position_bank: HashMap::new(),
-            row_bank: HashMap::new(),
-            theme: config.0.theme.default_theme,
+            doc: vec![],
+            ptr: 0,
+            terminal: Terminal::new(),
+            config: Config::read()?,
+            active: true,
+            greet: false,
+            highlighter: vec![],
+            feedback: Feedback::None,
         })
     }
-    pub fn run(&mut self) {
-        // Run the editor instance
-        log!("Ox opened", "Ox was opened successfully");
-        while !self.quit {
-            self.update();
-            self.process_input();
-        }
-        // Leave alternative screen and disable raw mode
-        Terminal::exit();
+
+    /// Function to create a new document
+    pub fn blank(&mut self) -> Result<()> {
+        let mut size = size()?;
+        size.h -= 2;
+        let mut doc = Document::new(size);
+        // Load all the lines within viewport into the document
+        doc.load_to(size.h);
+        // Update in the syntax highlighter
+        let mut highlighter = Highlighter::new(4);
+        highlighter.run(&doc.lines);
+        self.highlighter.push(highlighter);
+        // Add document to documents
+        self.doc.push(doc);
+        Ok(())
     }
-    fn read_event(&mut self) -> InputEvent {
-        // Wait until a key, mouse or terminal resize event
-        loop {
-            if let Ok(true) = crossterm::event::poll(Duration::from_millis(16)) {
-                if let Ok(key) = crossterm::event::read() {
-                    // When a keypress was detected
-                    self.last_keypress = Some(Instant::now());
-                    return key;
-                }
-            } else {
-                // Check for a period of inactivity
-                if let Some(time) = self.last_keypress {
-                    // Check to see if it's over the config undo period
-                    if time.elapsed().as_secs() >= self.config.general.undo_period {
-                        // Commit the undo changes to the stack
-                        self.doc[self.tab].undo_stack.commit();
-                        self.last_keypress = None;
-                    }
-                }
-            }
-        }
+
+    /// Create a new document and move to it
+    pub fn new_document(&mut self) -> Result<()> {
+        self.blank()?;
+        self.ptr = self.doc.len().saturating_sub(1);
+        Ok(())
     }
-    fn key_event_to_ox_key(key: KeyCode, modifiers: KeyModifiers) -> KeyBinding {
-        // Convert crossterm's complicated key structure into Ox's simpler one
-        let inner = match key {
-            KeyCode::Char(c) => RawKey::Char(c),
-            KeyCode::BackTab => RawKey::BackTab,
-            KeyCode::Insert => RawKey::Insert,
-            KeyCode::Esc => RawKey::Esc,
-            KeyCode::Backspace => RawKey::Backspace,
-            KeyCode::Tab => RawKey::Tab,
-            KeyCode::Enter => RawKey::Enter,
-            KeyCode::Delete => RawKey::Delete,
-            KeyCode::Null => RawKey::Null,
-            KeyCode::PageUp => RawKey::PageUp,
-            KeyCode::PageDown => RawKey::PageDown,
-            KeyCode::Home => RawKey::Home,
-            KeyCode::End => RawKey::End,
-            KeyCode::Up => RawKey::Up,
-            KeyCode::Down => RawKey::Down,
-            KeyCode::Left => RawKey::Left,
-            KeyCode::Right => RawKey::Right,
-            KeyCode::F(i) => return KeyBinding::F(i),
-        };
-        match modifiers {
-            KeyModifiers::CONTROL => KeyBinding::Ctrl(inner),
-            KeyModifiers::ALT => KeyBinding::Alt(inner),
-            KeyModifiers::SHIFT => KeyBinding::Shift(inner),
-            KeyModifiers::NONE => KeyBinding::Raw(inner),
-            _ => KeyBinding::Unsupported,
-        }
+
+    /// Function to open a document into the editor
+    pub fn open(&mut self, file_name: String) -> Result<()> {
+        let mut size = size()?;
+        size.h -= 2;
+        let mut doc = Document::open(size, file_name.clone())?;
+        // Load all the lines within viewport into the document
+        doc.load_to(size.h);
+        // Update in the syntax highlighter
+        let ext = file_name.split('.').last().unwrap();
+        let mut highlighter = from_extension(ext, 4).unwrap_or(Highlighter::new(4));
+        highlighter.run(&doc.lines);
+        self.highlighter.push(highlighter);
+        // Add document to documents
+        self.doc.push(doc);
+        Ok(())
     }
-    fn process_key(&mut self, key: KeyEvent) {
-        self.doc[self.tab].show_welcome = false;
-        let cursor = self.doc[self.tab].cursor;
-        let offset = self.doc[self.tab].offset;
-        let current = Position {
-            x: cursor.x + offset.x,
-            y: cursor.y + offset.y - OFFSET,
-        };
-        let ox_key = Editor::key_event_to_ox_key(key.code, key.modifiers);
-        self.keypress = ox_key;
-        match ox_key {
-            KeyBinding::Raw(RawKey::Enter) => {
-                self.doc[self.tab].redo_stack.empty();
-                if current.x == 0 {
-                    // Return key pressed at the start of the line
-                    self.execute(Event::InsertLineAbove(current), false);
-                } else if current.x == self.doc[self.tab].rows[current.y].length() {
-                    // Return key pressed at the end of the line
-                    self.execute(Event::InsertLineBelow(current), false);
-                    self.execute(Event::MoveCursor(1, Direction::Down), false);
-                } else {
-                    // Return key pressed in the middle of the line
-                    self.execute(Event::SplitDown(current, current), false);
-                }
-            }
-            KeyBinding::Raw(RawKey::Tab) => {
-                self.doc[self.tab].redo_stack.empty();
-                self.execute(Event::InsertTab(current), false);
-            }
-            KeyBinding::Raw(RawKey::Backspace) => {
-                self.doc[self.tab].redo_stack.empty();
-                self.execute(
-                    if current.x == 0 && current.y != 0 {
-                        // Backspace at the start of a line
-                        Event::SpliceUp(current, current)
-                    } else if current.x == 0 {
-                        return;
-                    } else {
-                        // Backspace in the middle of a line
-                        let row = self.doc[self.tab].rows[current.y].clone();
-                        let chr = row
-                            .ext_chars()
-                            .get(current.x.saturating_add(1))
-                            .map_or(" ", |chr| *chr);
-                        let current = Position {
-                            x: current.x.saturating_sub(UnicodeWidthStr::width(chr)),
-                            y: current.y,
-                        };
-                        Event::Deletion(current, chr.parse().unwrap_or(' '))
-                    },
-                    false,
-                );
-            }
-            // Detect control and alt and function key bindings
-            KeyBinding::Ctrl(_) | KeyBinding::Alt(_) | KeyBinding::F(_) => {
-                if let Some(commands) = self.config.keys.get(&ox_key) {
-                    for i in commands.clone() {
-                        self.text_to_event(&i);
-                    }
-                }
-            }
-            KeyBinding::Raw(RawKey::Char(c)) | KeyBinding::Shift(RawKey::Char(c)) => {
-                self.doc[self.tab].redo_stack.empty();
-                self.execute(Event::Insertion(current, c), false);
-            }
-            KeyBinding::Raw(RawKey::Up) => self.execute(Event::MoveCursor(1, Direction::Up), false),
-            KeyBinding::Raw(RawKey::Down) => {
-                self.execute(Event::MoveCursor(1, Direction::Down), false)
-            }
-            KeyBinding::Raw(RawKey::Left) => {
-                self.execute(Event::MoveCursor(1, Direction::Left), false)
-            }
-            KeyBinding::Raw(RawKey::Right) => {
-                self.execute(Event::MoveCursor(1, Direction::Right), false)
-            }
-            KeyBinding::Raw(RawKey::PageDown) => self.execute(Event::PageDown, false),
-            KeyBinding::Raw(RawKey::PageUp) => self.execute(Event::PageUp, false),
-            KeyBinding::Raw(RawKey::Home) => self.execute(Event::Home, false),
-            KeyBinding::Raw(RawKey::End) => self.execute(Event::End, false),
-            _ => (),
-        }
+
+    /// Function to ask the user for a file to open
+    pub fn open_document(&mut self) -> Result<()> {
+        let path = self.prompt("File to open")?;
+        self.open(path)?;
+        self.ptr = self.doc.len().saturating_sub(1);
+        Ok(())
     }
-    fn process_input(&mut self) {
-        // Read a key and act on it
-        match self.read_event() {
-            InputEvent::Key(key) => self.process_key(key),
-            InputEvent::Resize(width, height) => {
-                // Terminal resize event
-                self.term.size = Size {
-                    width: width as usize,
-                    height: height as usize,
-                };
-                // Move cursor if needed
-                let size = self.term.size.height.saturating_sub(3);
-                if self.doc[self.tab].cursor.y > size && size != 0 {
-                    // Prevent cursor going off the screen and breaking everything
-                    self.doc[self.tab].cursor.y = size;
-                }
-                // Re-render everything to the new size
-                self.update();
-            }
-            InputEvent::Mouse(_) => (),
-        }
+
+    /// Gets a reference to the current document
+    pub fn doc(&self) -> &Document {
+        self.doc.get(self.ptr).unwrap()
     }
-    fn new_document(&mut self) {
-        // Create a new document
-        self.doc
-            .push(Document::new(&self.config, &self.status, false));
-        self.tab = self.doc.len().saturating_sub(1);
+
+    /// Gets a mutable reference to the current document
+    pub fn doc_mut(&mut self) -> &mut Document {
+        self.doc.get_mut(self.ptr).unwrap()
     }
-    fn open_document(&mut self, file: Option<String>) {
-        // Open a document
-        let to_open = if let Some(path) = file {
-            // File was specified
-            path
-        } else if let Some(path) = self.prompt("Open", ": ", &|_, _, _| {}) {
-            // Ask for a file and open it
-            path
-        } else {
-            // User cancelled
-            return;
-        };
-        if let Some(doc) = Document::open(&self.config, &self.status, &to_open, false) {
-            // Overwrite the current document
-            self.doc.push(doc);
-            self.tab = self.doc.len().saturating_sub(1);
-        } else {
-            self.doc[self.tab].set_command_line("File couldn't be opened".to_string(), Type::Error);
-        }
+
+    /// Gets a mutable reference to the current document
+    pub fn highlighter(&mut self) -> &mut Highlighter {
+        self.highlighter.get_mut(self.ptr).unwrap()
     }
-    fn save_document(&mut self, file: Option<String>, prompt: bool) {
-        // Save the document
-        let save = if let Some(file) = file {
-            // File was specified
-            file
-        } else {
-            // File not specified
-            if prompt {
-                // Save as
-                if let Some(path) = self.prompt("Save as", ": ", &|_, _, _| {}) {
-                    path
-                } else {
-                    // User cancelled
-                    return;
-                }
-            } else {
-                // Use current document
-                self.doc[self.tab].path.clone()
-            }
-        };
-        if self.doc[self.tab].path != save && Path::new(&save).exists() {
-            // File already exists, possible loss of data
-            self.doc[self.tab]
-                .set_command_line(format!("File {} already exists", save), Type::Error);
-            return;
-        }
-        // Attempt document save
-        let tab_width = self.config.general.tab_width;
-        if self.doc[self.tab].save(&save, tab_width).is_ok() {
-            // The document saved successfully
-            let ext = save.split('.').last().unwrap_or(&"");
-            self.doc[self.tab].dirty = false;
-            self.doc[self.tab].set_command_line(
-                format!("File saved to \"{}\" successfully", save),
-                Type::Info,
-            );
-            // Update the current documents details in case of filetype change
-            self.doc[self.tab].last_save_index = self.doc[self.tab].undo_stack.len();
-            self.doc[self.tab].kind = Document::identify(&save).0.to_string();
-            self.doc[self.tab].icon = Document::identify(&save).1.to_string();
-            self.doc[self.tab].name = Path::new(&save)
-                .file_name()
-                .unwrap_or_else(|| OsStr::new(&save))
-                .to_str()
-                .unwrap_or(&save)
-                .to_string();
-            self.doc[self.tab].path = save.clone();
-            self.doc[self.tab].regex = Reader::get_syntax_regex(&self.config, ext);
-        } else if save.is_empty() {
-            // The document couldn't save due to an empty name
-            self.doc[self.tab].set_command_line(
-                "Filename is blank, please specify file name".to_string(),
-                Type::Error,
-            );
-        } else {
-            // The document couldn't save due to permission errors / invalid name
-            self.doc[self.tab]
-                .set_command_line(format!("Failed to save file to \"{}\"", save), Type::Error);
-        }
-        // Commit to undo stack on document save
-        self.execute(Event::Commit, false);
+
+    /// Execute an edit event
+    pub fn exe(&mut self, ev: Event) -> Result<()> {
+        self.doc_mut().exe(ev)?;
+        Ok(())
     }
-    fn save_every_document(&mut self) {
-        // Save every document in the editor
-        let tab_width = self.config.general.tab_width;
-        let mut successes = 0;
-        let mut failiures = 0;
-        for i in 0..self.doc.len() {
-            let path = self.doc[i].path.clone();
-            if self.doc[i].save(&path, tab_width).is_ok() {
-                // The document saved successfully
-                self.doc[i].dirty = false;
-                successes += 1;
-            } else {
-                // The document couldn't save due to permission errors
-                failiures += 1;
-            }
-            self.doc[i].set_command_line(
-                format!("Saved {} documents, {} failed", successes, failiures),
-                Type::Info,
-            );
-            // Commit to undo stack on document save
-            self.execute(Event::Commit, false);
+
+    /// Initialise, render and handle events as they come in
+    pub fn run(&mut self) -> Result<()> {
+        self.terminal.start()?;
+        // If no documents were provided, create a new empty document
+        if self.doc.is_empty() {
+            self.blank()?;
+            self.greet = true && self.config.greeting_message.borrow().enabled;
         }
-    }
-    fn quit_document(&mut self, force: bool) {
-        // For handling a quit event
-        if let KeyBinding::Ctrl(_) | KeyBinding::Alt(_) = self.keypress {
-            if force || self.dirty_prompt(self.keypress, "quit") {
-                if self.doc.len() <= 1 {
-                    // Quit Ox
-                    self.quit = true;
-                    return;
-                } else if self.tab == self.doc.len().saturating_sub(1) {
-                    // Close current tab and move right
-                    self.doc.remove(self.tab);
-                    self.tab -= 1;
-                } else {
-                    // Close current tab and move left
-                    self.doc.remove(self.tab);
-                }
-                self.doc[self.tab].set_command_line("Closed tab".to_string(), Type::Info);
-            }
-        }
-    }
-    fn quit_all(&mut self, force: bool) {
-        // Quit all the documents in the editor
-        self.tab = 0;
-        while !self.quit {
-            self.execute(Event::Quit(force), false);
-        }
-    }
-    fn next_tab(&mut self) {
-        // Move to the next tab
-        if self.tab.saturating_add(1) < self.doc.len() {
-            self.tab = self.tab.saturating_add(1);
-        }
-    }
-    fn prev_tab(&mut self) {
-        // Move to the previous tab
-        self.tab = self.tab.saturating_sub(1);
-    }
-    pub fn shell(&mut self, mut command: String, substitution: bool, root: bool, confirm: bool) {
-        if substitution {
-            let file =
-                self.doc[self.tab].render(self.doc[self.tab].tabs, self.config.general.tab_width);
-            command = command.replacen("%F", &self.doc[self.tab].path, 1);
-            command = command.replacen("%C", &file, 1);
-        }
-        shell!(&command, confirm, root);
-    }
-    pub fn execute(&mut self, event: Event, reversed: bool) {
-        // Event executor
-        if self.doc[self.tab].read_only && Editor::will_edit(&event) {
-            return;
-        }
-        match event {
-            Event::New => self.new_document(),
-            Event::Open(file) => self.open_document(file),
-            Event::Save(file, prompt) => self.save_document(file, prompt),
-            Event::SaveAll => self.save_every_document(),
-            Event::Quit(force) => self.quit_document(force),
-            Event::QuitAll(force) => self.quit_all(force),
-            Event::NextTab => self.next_tab(),
-            Event::PrevTab => self.prev_tab(),
-            Event::Search => self.search(),
-            Event::Replace => self.replace(),
-            Event::ReplaceAll => self.replace_all(),
-            Event::Cmd => self.cmd(),
-            Event::Shell(command, confirm, substitution, root) => {
-                self.shell(command, confirm, substitution, root)
-            }
-            Event::ReloadConfig => {
-                let config = Reader::read(&self.config_path);
-                self.config = config.0;
-                self.doc[self.tab].cmd_line = Document::config_to_commandline(&config.1);
-            }
-            Event::Theme(name) => {
-                self.theme = name;
-                self.doc[self.tab].mass_redraw();
-                self.update();
-            }
-            Event::MoveWord(direction) => match direction {
-                Direction::Left => self.doc[self.tab].word_left(&self.term.size),
-                Direction::Right => self.doc[self.tab].word_right(&self.term.size),
-                _ => {},
-            },
-            Event::GotoCursor(pos) => {
-                let rows = &self.doc[self.tab].rows;
-                if rows.len() > pos.y && rows[pos.y].length() >= pos.x {
-                    self.doc[self.tab].goto(pos, &self.term.size);
-                }
-            }
-            Event::MoveCursor(magnitude, direction) => {
-                for _ in 0..magnitude {
-                    self.doc[self.tab].move_cursor(
-                        match direction {
-                            Direction::Up => KeyCode::Up,
-                            Direction::Down => KeyCode::Down,
-                            Direction::Left => KeyCode::Left,
-                            Direction::Right => KeyCode::Right,
-                        },
-                        &self.term.size,
-                        self.config.general.wrap_cursor,
-                    );
-                }
-            }
-            Event::Commit => self.doc[self.tab].undo_stack.commit(),
-            Event::Store(kind, bank) => {
-                let cursor = self.doc[self.tab].cursor;
-                let offset = self.doc[self.tab].offset;
-                let current = Position {
-                    x: cursor.x + offset.x,
-                    y: cursor.y + offset.y - OFFSET,
-                };
-                match kind {
-                    BankType::Cursor => {
-                        self.position_bank.insert(bank, current);
-                    }
-                    BankType::Line => {
-                        self.row_bank
-                            .insert(bank, self.doc[self.tab].rows[current.y].clone());
-                    }
-                }
-            }
-            Event::Load(kind, bank) => {
-                let cursor = self.doc[self.tab].cursor;
-                let offset = self.doc[self.tab].offset;
-                let current = Position {
-                    x: cursor.x + offset.x,
-                    y: cursor.y + offset.y - OFFSET,
-                };
-                match kind {
-                    BankType::Cursor => {
-                        let cursor = *self.position_bank.get(&bank).unwrap_or(&current);
-                        self.doc[self.tab].goto(cursor, &self.term.size);
-                    }
-                    BankType::Line => {
-                        if let Some(row) = self.row_bank.get(&bank) {
-                            self.doc[self.tab].rows[current.y] = row.clone();
-                        }
-                    }
-                }
-            }
-            Event::Home => self.doc[self.tab].leap_cursor(KeyCode::Home, &self.term.size),
-            Event::End => self.doc[self.tab].leap_cursor(KeyCode::End, &self.term.size),
-            Event::PageUp => self.doc[self.tab].leap_cursor(KeyCode::PageUp, &self.term.size),
-            Event::PageDown => self.doc[self.tab].leap_cursor(KeyCode::PageDown, &self.term.size),
-            Event::Undo => self.undo(),
-            Event::Redo => self.redo(),
-            // Event is a document event, send to current document
-            _ => self.doc[self.tab].execute(event, reversed, &self.term.size, &self.config),
-        }
-        self.doc[self.tab].recalculate_graphemes();
-    }
-    fn cmd(&mut self) {
-        // Recieve macro command
-        if let Some(command) = self.prompt(":", "", &|s, e, _| {
-            if let PromptEvent::KeyPress(KeyCode::Esc) = e {
-                s.doc[s.tab].set_command_line("".to_string(), Type::Info);
-            }
-        }) {
-            // Parse and Lex instruction
-            for command in command.split('|') {
-                self.text_to_event(command);
-            }
-        }
-    }
-    fn execute_macro(&mut self, command: &str) {
-        // Work out number of times to execute it
-        let mut command = command.to_string();
-        let times = if let Ok(times) = command.split(' ').next().unwrap_or("").parse::<usize>() {
-            command = command.split(' ').skip(1).collect::<Vec<_>>().join(" ");
-            times
-        } else {
-            1
-        };
-        // Build and execute the macro
-        for _ in 0..times {
-            for i in self.config.macros[&command].clone() {
-                self.text_to_event(&i);
-            }
-        }
-    }
-    fn text_to_event(&mut self, command: &str) {
-        let command = command.trim_start_matches(' ');
-        let mut cmd = command.split(' ');
-        let actual_command;
-        let times = if let Ok(repeat) = cmd.next().unwrap_or_default().parse::<usize>() {
-            actual_command = cmd.collect::<Vec<_>>().join(" ");
-            repeat
-        } else {
-            actual_command = command.to_string();
-            1
-        };
-        for _ in 0..times {
-            if self.config.macros.contains_key(&actual_command) {
-                self.execute_macro(&actual_command);
-            } else {
-                let cursor = self.doc[self.tab].cursor;
-                let offset = self.doc[self.tab].offset;
-                let instruction = interpret_line(
-                    &actual_command,
-                    &Position {
-                        x: cursor.x + offset.x,
-                        y: cursor.y + offset.y - OFFSET,
-                    },
-                    self.doc[self.tab].graphemes,
-                    &self.doc[self.tab].rows,
-                );
-                // Execute the instruction
-                if let Some(instruct) = instruction {
-                    for i in instruct {
-                        if Editor::will_edit(&i) {
-                            self.doc[self.tab].redo_stack.empty();
-                        }
-                        self.execute(i, false);
-                    }
-                    self.doc[self.tab].undo_stack.commit();
-                }
-            }
-        }
-    }
-    pub fn will_edit(event: &Event) -> bool {
-        matches!(event, Event::SpliceUp(_, _)
-            | Event::SplitDown(_, _)
-            | Event::InsertLineAbove(_)
-            | Event::InsertLineBelow(_)
-            | Event::Deletion(_, _)
-            | Event::Insertion(_, _)
-            | Event::InsertTab(_)
-            | Event::DeleteTab(_)
-            | Event::DeleteLine(_, _, _)
-            | Event::UpdateLine(_, _, _, _)
-            | Event::ReplaceAll
-            | Event::Replace
-            | Event::Overwrite(_, _))
-    }
-    pub fn undo(&mut self) {
-        self.doc[self.tab].undo_stack.commit();
-        if let Some(events) = self.doc[self.tab].undo_stack.pop() {
-            for event in events.clone() {
-                if let Some(reversed) = reverse(event, self.doc[self.tab].rows.len()) {
-                    for i in reversed {
-                        self.execute(i, true);
-                    }
-                    self.update();
-                }
-            }
-            self.doc[self.tab]
-                .redo_stack
-                .append(events.into_iter().rev().collect());
-        } else {
-            self.doc[self.tab].set_command_line("Empty Undo Stack".to_string(), Type::Error);
-        }
-        if self.doc[self.tab].undo_stack.len() == self.doc[self.tab].last_save_index {
-            self.doc[self.tab].dirty = false;
-        }
-    }
-    pub fn redo(&mut self) {
-        if let Some(events) = self.doc[self.tab].redo_stack.pop() {
-            for event in events {
-                self.execute(event, false);
-                self.update();
-            }
-        } else {
-            self.doc[self.tab].set_command_line("Empty Redo Stack".to_string(), Type::Error);
-        }
-    }
-    fn refresh_view(&mut self) {
-        let offset = self.doc[self.tab].offset.y;
-        for o in self.doc[self.tab]
-            .rows
-            .iter_mut()
-            .skip(offset)
-            .take(self.term.size.width)
-        {
-            o.updated = true;
-        }
-    }
-    fn highlight_bg_tokens(&mut self, t: &str, current: Position) -> Option<()> {
-        let occurances = self.doc[self.tab].find_all(t)?;
-        for i in &mut self.doc[self.tab].rows {
-            i.bg_syntax.clear();
-        }
-        if !t.is_empty() {
-            for o in occurances {
-                self.doc[self.tab].rows[o.y].bg_syntax.insert(
-                    o.x,
-                    Token {
-                        span: (o.x, o.x + UnicodeWidthStr::width(t)),
-                        data: t.to_string(),
-                        kind: Reader::rgb_bg(
-                            self.config.highlights[&self.theme][if o == current {
-                                "search_active"
-                            } else {
-                                "search_inactive"
-                            }],
-                        )
-                        .to_string(),
-                        priority: 10,
-                    },
-                );
-            }
-        }
-        None
-    }
-    fn search(&mut self) {
-        // For searching the file
-        let initial_cursor = self.doc[self.tab].cursor;
-        let initial_offset = self.doc[self.tab].offset;
-        let initial = Position {
-            x: initial_cursor.x + initial_offset.x,
-            y: initial_cursor.y + initial_offset.y - OFFSET,
-        };
-        // Ask for a search term after saving the current cursor position
-        self.prompt("Search", ": ", &|s, e, t| {
-            // Find all occurances in the document
-            let current = Position {
-                x: s.doc[s.tab].cursor.x + s.doc[s.tab].offset.x,
-                y: s.doc[s.tab].cursor.y + s.doc[s.tab].offset.y - OFFSET,
-            };
-            match e {
-                PromptEvent::KeyPress(c) => match c {
-                    KeyCode::Up | KeyCode::Left => {
-                        if let Some(p) = s.doc[s.tab].find_prev(t, &current) {
-                            s.doc[s.tab].goto(p, &s.term.size);
-                            s.refresh_view();
-                            s.highlight_bg_tokens(&t, p);
-                        }
-                    }
-                    KeyCode::Down | KeyCode::Right => {
-                        if let Some(p) = s.doc[s.tab].find_next(t, &current) {
-                            s.doc[s.tab].goto(p, &s.term.size);
-                            s.refresh_view();
-                            s.highlight_bg_tokens(&t, p);
-                        }
-                    }
-                    KeyCode::Esc => {
-                        s.doc[s.tab].cursor = initial_cursor;
-                        s.doc[s.tab].offset = initial_offset;
-                    }
+        // Run the editor
+        while self.active {
+            self.render()?;
+            self.feedback = Feedback::None;
+            // Wait for an event
+            match read()? {
+                CEvent::Key(key) => match (key.modifiers, key.code) {
+                    // Movement
+                    (KMod::NONE, KCode::Up) => self.up(),
+                    (KMod::NONE, KCode::Down) => self.down(),
+                    (KMod::NONE, KCode::Left) => self.left(),
+                    (KMod::NONE, KCode::Right) => self.right(),
+                    (KMod::CONTROL, KCode::Up) => self.doc_mut().move_top(),
+                    (KMod::CONTROL, KCode::Down) => self.doc_mut().move_bottom(),
+                    (KMod::CONTROL, KCode::Left) => self.prev_word(),
+                    (KMod::CONTROL, KCode::Right) => self.next_word(),
+                    (KMod::NONE, KCode::Home) => self.doc_mut().move_home(),
+                    (KMod::NONE, KCode::End) => self.doc_mut().move_end(),
+                    (KMod::NONE, KCode::PageUp) => self.doc_mut().move_page_up(),
+                    (KMod::NONE, KCode::PageDown) => self.doc_mut().move_page_down(),
+                    // Searching & Replacing
+                    (KMod::CONTROL, KCode::Char('f')) => self.search()?,
+                    (KMod::CONTROL, KCode::Char('r')) => self.replace()?,
+                    // Document management
+                    (KMod::CONTROL, KCode::Char('n')) => self.new_document()?,
+                    (KMod::CONTROL, KCode::Char('o')) => self.open_document()?,
+                    (KMod::CONTROL, KCode::Char('s')) => self.save()?,
+                    (KMod::ALT, KCode::Char('s')) => self.save_as()?,
+                    (KMod::CONTROL, KCode::Char('a')) => self.save_all()?,
+                    (KMod::CONTROL, KCode::Char('q')) => self.quit()?,
+                    (KMod::SHIFT, KCode::Left) => self.prev(),
+                    (KMod::SHIFT, KCode::Right) => self.next(),
+                    // Undo & Redo
+                    (KMod::CONTROL, KCode::Char('z')) => self.doc_mut().undo()?,
+                    (KMod::CONTROL, KCode::Char('y')) => self.doc_mut().redo()?,
+                    // Editing
+                    (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
+                    (KMod::NONE, KCode::Tab) => self.character('\t')?,
+                    (KMod::NONE, KCode::Backspace) => self.backspace()?,
+                    (KMod::NONE, KCode::Enter) => self.enter()?,
+                    (KMod::CONTROL, KCode::Char('d')) => self.delete_line()?,
                     _ => (),
                 },
-                PromptEvent::CharPress(backspace) => {
-                    // Highlight the tokens
-                    if backspace {
-                        s.highlight_bg_tokens(&t, initial);
-                    }
-                    if let Some(p) = s.doc[s.tab].find_next(t, &initial) {
-                        s.doc[s.tab].goto(p, &s.term.size);
-                        s.refresh_view();
-                        s.highlight_bg_tokens(&t, p);
-                    } else {
-                        s.doc[s.tab].goto(initial, &s.term.size);
-                        s.highlight_bg_tokens(&t, initial);
-                    }
+                CEvent::Resize(w, h) => {
+                    // Ensure all lines in viewport are loaded
+                    let max = self.dent();
+                    self.doc_mut().size.w = w.saturating_sub(max as u16) as usize;
+                    self.doc_mut().size.h = h.saturating_sub(3) as usize;
+                    let max = self.doc().offset.x + self.doc().size.h;
+                    self.doc_mut().load_to(max);
                 }
-                PromptEvent::Update => (),
+                _ => (),
             }
-        });
-        // User cancelled or found what they were looking for
-        for i in &mut self.doc[self.tab].rows {
-            i.bg_syntax.clear();
-        }
-        self.doc[self.tab].set_command_line("Search exited".to_string(), Type::Info);
-    }
-    fn replace(&mut self) {
-        // Replace text within the document
-        let initial_cursor = self.doc[self.tab].cursor;
-        let initial_offset = self.doc[self.tab].offset;
-        let current = Position {
-            x: self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x,
-            y: self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET,
-        };
-        // After saving the cursor position, ask the user for the information
-        if let Some(target) = self.prompt("Replace", ": ", &|_, _, _| {}) {
-            let re = if let Ok(re) = Regex::new(&target) {
-                re
-            } else {
-                self.doc[self.tab].set_command_line("Invalid Regex".to_string(), Type::Error);
-                return;
-            };
-            self.highlight_bg_tokens(&target, current);
-            if let Some(arrow) = self.prompt("With", ": ", &|_, _, _| {}) {
-                if let Some(p) = self.doc[self.tab].find_next(&target, &current) {
-                    self.doc[self.tab].goto(p, &self.term.size);
-                    self.highlight_bg_tokens(&target, p);
-                    self.update();
-                }
-                loop {
-                    // Read an event
-                    let key = if let InputEvent::Key(key) = self.read_event() {
-                        key
-                    } else {
-                        continue;
-                    };
-                    let current = Position {
-                        x: self.doc[self.tab].cursor.x + self.doc[self.tab].offset.x,
-                        y: self.doc[self.tab].cursor.y + self.doc[self.tab].offset.y - OFFSET,
-                    };
-                    match key.code {
-                        KeyCode::Up | KeyCode::Left => {
-                            if let Some(p) = self.doc[self.tab].find_prev(&target, &current) {
-                                self.doc[self.tab].goto(p, &self.term.size);
-                                self.highlight_bg_tokens(&target, p);
-                            }
-                        }
-                        KeyCode::Down | KeyCode::Right => {
-                            if let Some(p) = self.doc[self.tab].find_next(&target, &current) {
-                                self.doc[self.tab].goto(p, &self.term.size);
-                                self.highlight_bg_tokens(&target, p);
-                            }
-                        }
-                        KeyCode::Char('y') | KeyCode::Enter | KeyCode::Char(' ') => {
-                            self.doc[self.tab].undo_stack.commit();
-                            let before = self.doc[self.tab].rows[current.y].clone();
-                            let after = Row::from(&*re.replace_all(&before.string, &arrow[..]));
-                            self.doc[self.tab].rows[current.y] = after.clone();
-                            self.highlight_bg_tokens(&target, current);
-                            if before.string != after.string {
-                                self.doc[self.tab].undo_stack.push(Event::UpdateLine(
-                                    current,
-                                    0,
-                                    Box::new(before),
-                                    Box::new(after),
-                                ));
-                            }
-                        }
-                        KeyCode::Esc => {
-                            self.doc[self.tab].cursor = initial_cursor;
-                            self.doc[self.tab].offset = initial_offset;
-                            self.doc[self.tab]
-                                .set_command_line("Replace finished".to_string(), Type::Info);
-                            break;
-                        }
-                        _ => (),
-                    }
-                    self.update();
-                }
-            }
-            for i in &mut self.doc[self.tab].rows {
-                i.bg_syntax.clear();
-            }
-        }
-    }
-    fn replace_all(&mut self) {
-        // Replace all occurances of a substring
-        if let Some(target) = self.prompt("Replace all", ": ", &|_, _, _| {}) {
-            let re = if let Ok(re) = Regex::new(&target) {
-                re
-            } else {
-                return;
-            };
-            if let Some(arrow) = self.prompt("With", ": ", &|_, _, _| {}) {
-                // Find all occurances
-                let search_points = if let Some(t) = self.doc[self.tab].find_all(&target) {
-                    t
-                } else {
-                    vec![]
-                };
-                for p in search_points {
-                    let before = self.doc[self.tab].rows[p.y].clone();
-                    let after = Row::from(&*re.replace_all(&before.string, &arrow[..]));
-                    self.doc[self.tab].rows[p.y] = after.clone();
-                    if before.string != after.string {
-                        self.doc[self.tab].undo_stack.push(Event::UpdateLine(
-                            Position { x: 0, y: p.y },
-                            0,
-                            Box::new(before),
-                            Box::new(after),
-                        ));
+            self.greet = false;
+            // Append any missed lines to the syntax highlighter
+            if self.active {
+                let actual = self.doc.get(self.ptr).and_then(|d| Some(d.loaded_to)).unwrap_or(0);
+                let percieved = self.highlighter().line_ref.len();
+                if percieved < actual {
+                    let diff = actual - percieved;
+                    for i in 0..diff {
+                        let line = &self.doc[self.ptr].lines[percieved + i];
+                        self.highlighter[self.ptr].append(line);
                     }
                 }
             }
         }
-        // Exit message
-        self.doc[self.tab].set_command_line("Replace finished".to_string(), Type::Info);
+        self.terminal.end()?;
+        Ok(())
     }
-    fn dirty_prompt(&mut self, key: KeyBinding, subject: &str) -> bool {
-        // For events that require changes to the document
-        if self.doc[self.tab].dirty {
-            // Handle unsaved changes
-            self.doc[self.tab].set_command_line(
-                format!("Unsaved Changes! {:?} to force {}", key, subject),
-                Type::Warning,
-            );
-            self.update();
-            if let InputEvent::Key(KeyEvent {
-                code: c,
-                modifiers: m,
-            }) = self.read_event()
-            {
-                let ox_key = Editor::key_event_to_ox_key(c, m);
-                match ox_key {
-                    KeyBinding::Raw(RawKey::Enter) => return true,
-                    KeyBinding::Ctrl(_) | KeyBinding::Alt(_) => {
-                        if ox_key == key {
-                            return true;
-                        } else {
-                            self.doc[self.tab].set_command_line(
-                                format!("{} cancelled", title(subject)),
-                                Type::Info,
-                            );
-                        }
-                    }
-                    _ => self.doc[self.tab]
-                        .set_command_line(format!("{} cancelled", title(subject)), Type::Info),
-                }
-            }
-        } else {
-            return true;
-        }
-        false
-    }
-    fn prompt(
-        &mut self,
-        prompt: &str,
-        ending: &str,
-        func: &dyn Fn(&mut Self, PromptEvent, &str),
-    ) -> Option<String> {
-        // Create a new prompt
-        self.doc[self.tab].set_command_line(format!("{}{}", prompt, ending), Type::Info);
-        self.update();
-        let mut result = String::new();
-        'p: loop {
-            if let InputEvent::Key(KeyEvent {
-                code: c,
-                modifiers: m,
-            }) = self.read_event()
-            {
-                match Editor::key_event_to_ox_key(c, m) {
-                    KeyBinding::Raw(RawKey::Enter) => {
-                        // Exit on enter key
-                        break 'p;
-                    }
-                    KeyBinding::Raw(RawKey::Char(c)) | KeyBinding::Shift(RawKey::Char(c)) => {
-                        // Update the prompt contents
-                        result.push(c);
-                        func(self, PromptEvent::CharPress(false), &result)
-                    }
-                    KeyBinding::Raw(RawKey::Backspace) => {
-                        // Handle backspace event
-                        result.pop();
-                        func(self, PromptEvent::CharPress(true), &result)
-                    }
-                    KeyBinding::Raw(RawKey::Esc) => {
-                        // Handle escape key
-                        func(self, PromptEvent::KeyPress(c), &result);
-                        return None;
-                    }
-                    _ => func(self, PromptEvent::KeyPress(c), &result),
-                }
-            }
-            self.doc[self.tab]
-                .set_command_line(format!("{}{}{}", prompt, ending, result), Type::Info);
-            func(self, PromptEvent::Update, &result);
-            self.update();
-        }
-        Some(result)
-    }
-    fn update(&mut self) {
-        // Move the cursor and render the screen
-        Terminal::hide_cursor();
-        Terminal::goto(&Position { x: 0, y: 0 });
-        self.doc[self.tab].recalculate_offset(&self.config);
-        self.render();
-        Terminal::goto(&Position {
-            x: self.doc[self.tab]
-                .cursor
-                .x
-                .saturating_add(self.doc[self.tab].line_offset),
-            y: self.doc[self.tab].cursor.y,
-        });
-        Terminal::show_cursor();
-        Terminal::flush();
-    }
-    fn welcome_message(&self, text: &str, colour: SetForegroundColor) -> String {
-        // Render the welcome message
-        let pad = " ".repeat(
-            (self.term.size.width / 2)
-                .saturating_sub(text.len() / 2)
-                .saturating_sub(self.config.general.line_number_padding_right)
-                .saturating_sub(self.config.general.line_number_padding_left)
-                .saturating_sub(1),
-        );
-        let pad_right = " ".repeat(
-            (self.term.size.width.saturating_sub(1))
-                .saturating_sub(text.len() + pad.len())
-                .saturating_sub(self.config.general.line_number_padding_left)
-                .saturating_sub(self.config.general.line_number_padding_right),
-        );
-        format!(
-            "{}{}{}~{}{}{}{}{}{}{}{}",
-            if self.config.theme.transparent_editor {
-                RESET_BG
-            } else {
-                Reader::rgb_bg(self.config.theme.line_number_bg)
-            },
-            Reader::rgb_fg(self.config.theme.line_number_fg),
-            " ".repeat(self.config.general.line_number_padding_left),
-            RESET_FG,
-            colour,
-            " ".repeat(self.config.general.line_number_padding_right),
-            if self.config.theme.transparent_editor {
-                RESET_BG
-            } else {
-                Reader::rgb_bg(self.config.theme.editor_bg)
-            },
-            trim_end(
-                &format!("{}{}", pad, text),
-                self.term.size.width.saturating_sub(4)
-            ),
-            pad_right,
-            RESET_FG,
-            RESET_BG,
-        )
-    }
-    fn status_line(&mut self) -> String {
-        // Produce the status line
-        // Create the left part of the status line
-        let left = self.doc[self.tab].format(&self.config.general.status_left);
-        // Create the right part of the status line
-        let right = self.doc[self.tab].format(&self.config.general.status_right);
-        // Get the padding value
-        let padding = self.term.align_break(&left, &right);
-        // Generate it
-        format!(
-            "{}{}{}{}{}{}{}",
-            Attribute::Bold,
-            Reader::rgb_fg(self.config.theme.status_fg),
-            Reader::rgb_bg(self.config.theme.status_bg),
-            trim_end(
-                &format!("{}{}{}", left, padding, right),
-                self.term.size.width
-            ),
-            RESET_BG,
-            RESET_FG,
-            Attribute::Reset,
-        )
-    }
-    fn add_background(&self, text: &str) -> String {
-        // Add a background colour to a line
-        if self.config.theme.transparent_editor {
-            text.to_string()
-        } else {
-            format!(
-                "{}{}{}{}",
-                Reader::rgb_bg(self.config.theme.editor_bg),
-                text,
-                self.term.align_left(&text),
-                RESET_BG
-            )
-        }
-    }
-    fn command_line(&self) -> String {
-        // Render the command line
-        let line = &self.doc[self.tab].cmd_line.text;
-        // Add the correct styling
-        match self.doc[self.tab].cmd_line.msg {
-            Type::Error => self.add_background(&format!(
-                "{}{}{}{}{}",
-                Attribute::Bold,
-                Reader::rgb_fg(self.config.theme.error_fg),
-                self.add_background(&trim_end(&line, self.term.size.width)),
-                RESET_FG,
-                Attribute::Reset
-            )),
-            Type::Warning => self.add_background(&format!(
-                "{}{}{}{}{}",
-                Attribute::Bold,
-                Reader::rgb_fg(self.config.theme.warning_fg),
-                self.add_background(&trim_end(&line, self.term.size.width)),
-                RESET_FG,
-                Attribute::Reset
-            )),
-            Type::Info => self.add_background(&format!(
-                "{}{}{}",
-                Reader::rgb_fg(self.config.theme.info_fg),
-                self.add_background(&trim_end(&line, self.term.size.width)),
-                RESET_FG,
-            )),
-        }
-    }
-    fn tab_line(&mut self) -> String {
+
+    /// Render a single frame of the editor in it's current state
+    pub fn render(&mut self) -> Result<()> {
+        self.terminal.hide_cursor()?;
+        let Size { w, mut h } = size()?;
+        h -= 2;
+        // Update the width of the document in case of update
+        let max = self.dent();
+        self.doc_mut().size.w = w.saturating_sub(max) as usize;
         // Render the tab line
-        let mut result = vec![];
-        let mut widths = vec![];
-        let active_background = Reader::rgb_bg(self.config.theme.active_tab_bg);
-        let inactive_background = Reader::rgb_bg(self.config.theme.inactive_tab_bg);
-        let active_foreground = Reader::rgb_fg(self.config.theme.active_tab_fg);
-        let inactive_foreground = Reader::rgb_fg(self.config.theme.inactive_tab_fg);
-        // Iterate through documents and create their tab text
-        for num in 0..self.doc.len() {
-            let this = format!(
-                "{} {} {}{}{}\u{2502}",
-                if num == self.tab {
-                    format!(
-                        "{}{}{}",
-                        Attribute::Bold,
-                        active_background,
-                        active_foreground,
-                    )
-                } else {
-                    format!("{}{}", inactive_background, inactive_foreground,)
-                },
-                self.doc[num].format(&self.config.general.tab),
-                Attribute::Reset,
-                inactive_background,
-                inactive_foreground,
-            );
-            widths.push(self.exp.ansi_len(this.as_str()));
-            result.push(this);
+        self.render_tab_line(w, h)?;
+        // Run through each line of the terminal, rendering the correct line
+        self.render_document(w, h)?;
+        // Leave last line for status line
+        self.render_status_line(w, h)?;
+        // Render greeting if applicable
+        if self.greet {
+            self.render_greeting(w, h)?;
         }
-        // Determine if the tab can be rendered on screen
-        let mut more_right = true;
-        while widths.iter().sum::<usize>() > self.term.size.width {
-            if self.tab == 0 || self.tab == 1 {
-                result.pop();
-                widths.pop();
-                more_right = false;
-            } else {
-                result.remove(0);
-                widths.remove(0);
-            }
-        }
-        if widths.iter().sum::<usize>() < self.term.size.width.saturating_sub(3) && !more_right {
-            result.push("...".to_string());
-        }
-        let result = result.join("");
-        format!(
-            "{}{}{}{}{}{}",
-            inactive_background,
-            inactive_foreground,
-            result,
-            self.term.align_left(&result),
-            RESET_FG,
-            RESET_BG,
-        )
+        // Render feedback line
+        self.render_feedback_line(w, h)?;
+        // Move cursor to the correct location and perform render
+        let Loc { x, y } = self.doc().cursor;
+        self.terminal.show_cursor()?;
+        self.terminal.goto(x + max, y + 1)?;
+        self.terminal.flush()?;
+        Ok(())
     }
-    fn render(&mut self) {
-        // Draw the screen to the terminal
-        let offset = self.doc[self.tab].offset;
-        let mut frame = vec![self.tab_line()];
-        let rendered = self.doc[self.tab].render(TabType::Spaces, 0);
-        let reg = self.doc[self.tab].regex.clone();
-        if self.config.theme.transparent_editor {
-            // Prevent garbage characters spamming the screen
-            Terminal::clear();
-        }
-        for row in OFFSET..self.term.size.height {
-            // Clear the current line
-            let row = row.saturating_sub(OFFSET);
-            if let Some(r) = self.doc[self.tab].rows.get_mut(offset.y + row) {
-                if r.updated {
-                    r.update_syntax(&self.config, &reg, &rendered, offset.y + row, &self.theme);
-                    r.updated = false;
+
+    /// Render the lines of the document
+    fn render_document(&mut self, _w: usize, h: usize) -> Result<()> {
+        for y in 0..(h as u16) {
+            self.terminal.goto(0, y + 1)?;
+            // Start background colour
+            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().editor_bg.to_color()?))?;
+            write!(self.terminal.stdout, "{}", Fg(self.config.colors.borrow().editor_fg.to_color()?))?;
+            // Write line number of document
+            if self.config.line_numbers.borrow().enabled {
+                let num = self.doc().line_number(y as usize + self.doc().offset.y);
+                write!(
+                    self.terminal.stdout,
+                    "{}{} {} │{}{}",
+                    Bg(self.config.colors.borrow().line_number_bg.to_color()?),
+                    Fg(self.config.colors.borrow().line_number_fg.to_color()?),
+                    num,
+                    Fg(self.config.colors.borrow().editor_fg.to_color()?),
+                    Bg(self.config.colors.borrow().editor_bg.to_color()?),
+                )?;
+            }
+            write!(self.terminal.stdout, "{}", Clear(ClType::UntilNewLine))?;
+            // Render line if it exists
+            let idx = y as usize + self.doc().offset.y;
+            if let Some(line) = self.doc().line(idx) {
+                let tokens = self.highlighter().line(idx, &line);
+                let tokens = trim(&tokens, self.doc().offset.x);
+                for token in tokens {
+                    match token {
+                        TokOpt::Some(text, kind) => write!(
+                            self.terminal.stdout, 
+                            "{}{text}{}", 
+                            Fg(self.config.syntax_highlighting.borrow().theme[&kind].to_color()?),
+                            Fg(self.config.colors.borrow().editor_fg.to_color()?),
+                        ),
+                        TokOpt::None(text) => write!(self.terminal.stdout, "{text}"),
+                    }?
                 }
             }
-            if row == self.term.size.height - 1 - OFFSET {
-                // Render command line
-                frame.push(self.command_line());
-            } else if row == self.term.size.height - 2 - OFFSET {
-                // Render status line
-                frame.push(self.status_line());
-            } else if row == self.term.size.height / 4 - OFFSET && self.doc[self.tab].show_welcome {
-                frame.push(self.welcome_message(
-                    &format!("Ox editor  v{}", VERSION),
-                    Reader::rgb_fg(self.config.theme.editor_fg),
-                ));
-            } else if row == (self.term.size.height / 4).saturating_add(1) - OFFSET
-                && self.doc[self.tab].show_welcome
-            {
-                frame.push(self.welcome_message(
-                    "A Rust powered editor by Luke",
-                    Reader::rgb_fg(self.config.theme.editor_fg),
-                ));
-            } else if row == (self.term.size.height / 4).saturating_add(3) - OFFSET
-                && self.doc[self.tab].show_welcome
-            {
-                frame.push(self.welcome_message(
-                    "To access the wiki: Press F1",
-                    Reader::rgb_fg(self.config.theme.status_fg),
-                ));
-            } else if row == (self.term.size.height / 4).saturating_add(5) - OFFSET
-                && self.doc[self.tab].show_welcome
-            {
-                frame.push(self.welcome_message(
-                    "Start typing to begin",
-                    Reader::rgb_fg(self.config.theme.status_fg),
-                ));
-            } else if let Some(line) = self.doc[self.tab]
-                .rows
-                .get(self.doc[self.tab].offset.y + row)
-            {
-                // Render lines of code
-                frame.push(self.add_background(&line.render(
-                    self.doc[self.tab].offset.x,
-                    self.term.size.width,
-                    self.doc[self.tab].offset.y + row,
-                    self.doc[self.tab].line_offset,
-                    &self.config,
-                )));
+        }
+        Ok(())
+    }
+
+    /// Render the tab line at the top of the document
+    fn render_tab_line(&mut self, w: usize, h: usize) -> Result<()> {
+        self.terminal.prepare_line(0)?;
+        write!(
+            self.terminal.stdout, 
+            "{}{}", 
+            Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?),
+            Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?)
+        )?;
+        for (c, document) in self.doc.iter().enumerate() {
+            let file_name = document.file_name.clone().unwrap_or_else(|| "[No Name]".to_string());
+            let modified = if document.modified { "[+]" } else { "" };
+            if c == self.ptr {
+                // Representing the document we're currently looking at
+                write!(
+                    self.terminal.stdout, 
+                    "{}{}{}  {file_name}{modified}  {}{}{}│",
+                    Bg(self.config.colors.borrow().tab_active_bg.to_color()?),
+                    Fg(self.config.colors.borrow().tab_active_fg.to_color()?),
+                    SetAttribute(Attribute::Bold),
+                    SetAttribute(Attribute::Reset),
+                    Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?),
+                    Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?),
+                )?;
             } else {
-                // Render empty lines
-                let o = self.doc[self.tab].line_offset.saturating_sub(
-                    1 + self.config.general.line_number_padding_right
-                        + self.config.general.line_number_padding_left,
-                );
-                frame.push(format!(
-                    "{}{}{}",
-                    Reader::rgb_fg(self.config.theme.line_number_fg),
-                    self.add_background(&format!(
-                        "{}{}~{}{}{}",
-                        if self.config.theme.transparent_editor {
-                            RESET_BG
-                        } else {
-                            Reader::rgb_bg(self.config.theme.line_number_bg)
-                        },
-                        " ".repeat(self.config.general.line_number_padding_left),
-                        " ".repeat(self.config.general.line_number_padding_right),
-                        " ".repeat(o),
-                        Reader::rgb_bg(self.config.theme.editor_bg),
-                    )),
-                    RESET_FG
-                ));
+                // Other document that is currently open
+                write!(self.terminal.stdout, "  {file_name}{modified}  │")?;
             }
         }
-        print!("{}", frame.join("\r\n"));
+        write!(self.terminal.stdout, "{}", " ".to_string().repeat(w))?;
+        Ok(())
+    }
+
+    /// Render the status line at the bottom of the document
+    fn render_status_line(&mut self, w: usize, h: usize) -> Result<()> {
+        self.terminal.goto(0, h + 1)?;
+        write!(
+            self.terminal.stdout, 
+            "{}{}{}{}{}{}{}", 
+            Bg(self.config.colors.borrow().status_bg.to_color()?),
+            Fg(self.config.colors.borrow().status_fg.to_color()?),
+            SetAttribute(Attribute::Bold),
+            self.config.status_line.borrow().render(&self, w),
+            SetAttribute(Attribute::Reset),
+            Fg(self.config.colors.borrow().editor_fg.to_color()?),
+            Bg(self.config.colors.borrow().editor_bg.to_color()?),
+        )?;
+        Ok(())
+    }
+
+    /// Render the feedback line
+    fn render_feedback_line(&mut self, w: usize, h: usize) -> Result<()> {
+        self.terminal.goto(0, h + 2)?;
+        write!(
+            self.terminal.stdout, 
+            "{}",
+            self.feedback.render(&self.config.colors.borrow(), w)?,
+        )?;
+        Ok(())
+    }
+
+    /// Render the greeting message
+    fn render_greeting(&mut self, w: usize, h: usize) -> Result<()> {
+        let colors = self.config.colors.borrow();
+        let greeting = self.config.greeting_message.borrow().render(&colors)?;
+        let message: Vec<&str> = greeting.split('\n').collect();
+        for (c, line) in message.iter().enumerate().take(h - h / 4) {
+            self.terminal.goto(4, h / 4 + c + 1)?;
+            write!(
+                self.terminal.stdout, 
+                "{}",
+                alinio::align::center(&line, w - 4)
+                    .unwrap_or_else(|| "".to_string()),
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Display a prompt in the document
+    fn prompt<S: Into<String>>(&mut self, prompt: S) -> Result<String> {
+        let prompt = prompt.into();
+        let mut input = String::new();
+        let mut done = false;
+        // Enter into a menu that asks for a prompt
+        while !done {
+            let h = size()?.h;
+            let w = size()?.w;
+            // Render prompt message
+            self.terminal.prepare_line(h)?;
+            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().editor_bg.to_color()?))?;
+            write!(self.terminal.stdout, "{}: {}{}", prompt, input, " ".to_string().repeat(w))?;
+            self.terminal.goto(prompt.len() + input.len() + 2, h)?;
+            self.terminal.flush()?;
+            // Handle events
+            if let CEvent::Key(key) = read()? {
+                match (key.modifiers, key.code) {
+                    // Exit the menu when the enter key is pressed
+                    (KMod::NONE, KCode::Enter) => done = true,
+                    // Remove from the input string if the user presses backspace
+                    (KMod::NONE, KCode::Backspace) => { input.pop(); },
+                    // Add to the input string if the user presses a character
+                    (KMod::NONE | KMod::SHIFT, KCode::Char(c)) => input.push(c),
+                    _ => (),
+                }
+            }
+        }
+        // Return input string result
+        Ok(input)
+    }
+
+    /// Work out how much to push the document to the right (to make way for line numbers)
+    fn dent(&self) -> usize {
+        if self.config.line_numbers.borrow().enabled {
+            self.doc().len_lines().to_string().len() + 3
+        } else {
+            0
+        }
+    }
+
+    /// Move to the next document opened in the editor
+    fn next(&mut self) {
+        if self.ptr + 1 < self.doc.len() {
+            self.ptr += 1;
+        }
+    }
+
+    /// Move to the previous document opened in the editor
+    fn prev(&mut self) {
+        if self.ptr != 0 {
+            self.ptr -= 1;
+        }
+    }
+
+    /// Move the cursor up
+    fn up(&mut self) {
+        self.doc_mut().move_up();
+    }
+
+    /// Move the cursor down
+    fn down(&mut self) {
+        self.doc_mut().move_down();
+    }
+
+    /// Move the cursor left
+    fn left(&mut self) {
+        let status = self.doc_mut().move_left();
+        // Cursor wrapping if cursor hits the start of the line
+        if status == Status::StartOfLine && self.doc().loc().y != 0 {
+            self.doc_mut().move_up();
+            self.doc_mut().move_end();
+        }
+    }
+
+    /// Move the cursor right
+    fn right(&mut self) {
+        let status = self.doc_mut().move_right();
+        // Cursor wrapping if cursor hits the end of a line
+        if status == Status::EndOfLine {
+            self.doc_mut().move_down();
+            self.doc_mut().move_home();
+        }
+    }
+
+    /// Move the cursor to the previous word in the line
+    fn prev_word(&mut self) {
+        let status = self.doc_mut().move_prev_word();
+        if status == Status::StartOfLine {
+            self.doc_mut().move_up();
+            self.doc_mut().move_end();
+        }
+    }
+
+    /// Move the cursor to the next word in the line
+    fn next_word(&mut self) {
+        let status = self.doc_mut().move_next_word();
+        if status == Status::EndOfLine {
+            self.doc_mut().move_down();
+            self.doc_mut().move_home();
+        }
+    }
+
+    /// Insert a character into the document, creating a new row if editing
+    /// on the last line of the document
+    fn character(&mut self, ch: char) -> Result<()> {
+        self.new_row()?;
+        let loc = self.doc().char_loc();
+        self.exe(Event::Insert(loc, ch.to_string()))?;
+        self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
+        Ok(())
+    }
+
+    /// Handle the return key
+    fn enter(&mut self) -> Result<()> {
+        if self.doc().loc().y != self.doc().len_lines() {
+            // Enter pressed in the start, middle or end of the line
+            let loc = self.doc().char_loc();
+            self.exe(Event::SplitDown(loc))?;
+            let line = &self.doc[self.ptr].lines[loc.y + 1];
+            self.highlighter[self.ptr].insert_line(loc.y + 1, line);
+            let line = &self.doc[self.ptr].lines[loc.y];
+            self.highlighter[self.ptr].edit(loc.y, line);
+        } else {
+            // Enter pressed on the empty line at the bottom of the document
+            self.new_row()?;
+        }
+        Ok(())
+    }
+
+    /// Handle the backspace key
+    fn backspace(&mut self) -> Result<()> {
+        let mut c = self.doc().char_ptr;
+        let on_first_line = self.doc().loc().y == 0;
+        let out_of_range = self.doc().out_of_range(0, self.doc().loc().y).is_err();
+        if c == 0 && !on_first_line && !out_of_range {
+            // Backspace was pressed on the start of the line, move line to the top
+            self.new_row()?;
+            let mut loc = self.doc().char_loc();
+            self.highlighter().remove_line(loc.y);
+            loc.y -= 1;
+            loc.x = self.doc().line(loc.y).unwrap().chars().count();
+            self.exe(Event::SpliceUp(loc))?;
+            let line = &self.doc[self.ptr].lines[loc.y];
+            self.highlighter[self.ptr].edit(loc.y, line);
+        } else {
+            // Backspace was pressed in the middle of the line, delete the character
+            c -= 1;
+            if let Some(line) = self.doc().line(self.doc().loc().y) {
+                if let Some(ch) = line.chars().nth(c) {
+                    let loc = Loc { x: c, y: self.doc().loc().y };
+                    self.exe(Event::Delete(loc, ch.to_string()))?;
+                    self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Insert a new row at the end of the document if the cursor is on it
+    fn new_row(&mut self) -> Result<()> {
+        if self.doc().loc().y == self.doc().len_lines() {
+            self.exe(Event::InsertLine(self.doc().loc().y, "".to_string()))?;
+            self.highlighter().append(&"".to_string());
+        }
+        Ok(())
+    }
+
+    /// Delete the current line
+    fn delete_line(&mut self) -> Result<()> {
+        if self.doc().loc().y < self.doc().len_lines() {
+            let y = self.doc().loc().y;
+            let line = self.doc().line(y).unwrap();
+            self.exe(Event::DeleteLine(y, line))?;
+            self.highlighter().remove_line(y);
+        }
+        Ok(())
+    }
+
+    /// Use search feature
+    pub fn search(&mut self) -> Result<()> {
+        // Prompt for a search term
+        let target = self.prompt("Search")?;
+        let mut done = false;
+        let Size { w, h } = size()?;
+        // Jump to the next match after search term is provided
+        self.next_match(&target);
+        // Enter into search menu
+        while !done {
+            // Render just the document part
+            self.render_document(w, h - 2)?;
+            // Render custom status line with mode information
+            self.terminal.prepare_line(h)?;
+            write!(self.terminal.stdout, "[<-]: Search previous | [->]: Search next")?;
+            self.terminal.flush()?;
+            // Move back to correct cursor position
+            let Loc { x, y } = self.doc().cursor;
+            let max = self.dent();
+            self.terminal.goto(x + max, y + 1)?;
+            // Handle events
+            if let CEvent::Key(key) = read()? {
+                match (key.modifiers, key.code) {
+                    // On return or escape key, exit menu
+                    (KMod::NONE, KCode::Enter | KCode::Esc) => done = true,
+                    // On left key, move to the previous match in the document
+                    (KMod::NONE, KCode::Left) => std::mem::drop(self.prev_match(&target)),
+                    // On right key, move to the next match in the document
+                    (KMod::NONE, KCode::Right) => std::mem::drop(self.next_match(&target)),
+                    _ => (),
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Move to the next match
+    fn next_match(&mut self, target: &str) -> Option<String> {
+        let mtch = self.doc_mut().next_match(target, 1)?;
+        self.doc_mut().goto(&mtch.loc);
+        Some(mtch.text)
+    }
+
+    /// Move to the previous match
+    fn prev_match(&mut self, target: &str) -> Option<String> {
+        let mtch = self.doc_mut().prev_match(target)?;
+        self.doc_mut().goto(&mtch.loc);
+        Some(mtch.text)
+    }
+
+    /// Use replace feature
+    pub fn replace(&mut self) -> Result<()> {
+        // Request replace information
+        let target = self.prompt("Replace")?;
+        let into = self.prompt("With")?;
+        let mut done = false;
+        let Size { w, h } = size()?;
+        // Jump to match
+        let mut mtch;
+        if let Some(m) = self.next_match(&target) {
+            // Automatically move to next match, keeping note of what that match is
+            mtch = m;
+        } else if let Some(m) = self.prev_match(&target) {
+            // Automatically move to previous match, keeping not of what that match is
+            // This happens if there are no matches further down the document, only above
+            mtch = m;
+        } else {
+            // Exit if there are no matches in the document
+            return Ok(());
+        }
+        // Enter into the replace menu
+        while !done {
+            // Render just the document part
+            self.render_document(w, h - 2)?;
+            // Write custom status line for the replace mode
+            self.terminal.prepare_line(h)?;
+            write!(self.terminal.stdout, "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All")?;
+            self.terminal.flush()?;
+            // Move back to correct cursor location
+            let Loc { x, y } = self.doc().cursor;
+            let max = self.dent();
+            self.terminal.goto(x + max, y + 1)?;
+            // Handle events
+            if let CEvent::Key(key) = read()? {
+                match (key.modifiers, key.code) {
+                    // On escape key, exit
+                    (KMod::NONE, KCode::Esc) => done = true,
+                    // On right key, move to the previous match, keeping note of what that match is
+                    (KMod::NONE, KCode::Left) => mtch = self.prev_match(&target).unwrap_or(mtch),
+                    // On left key, move to the next match, keeping note of what that match is
+                    (KMod::NONE, KCode::Right) => mtch = self.next_match(&target).unwrap_or(mtch),
+                    // On return key, perform replacement
+                    (KMod::NONE, KCode::Enter) => self.do_replace(&into, &mtch)?,
+                    // On tab key, replace all instances within the document
+                    (KMod::NONE, KCode::Tab) => self.do_replace_all(&target, &into),
+                    _ => (),
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Replace an instance in a document
+    fn do_replace(&mut self, into: &str, text: &str) -> Result<()> {
+        let loc = self.doc().char_loc();
+        self.doc_mut().replace(loc, text, into)?;
+        self.doc_mut().goto(&loc);
+        Ok(())
+    }
+
+    /// Replace all instances in a document
+    fn do_replace_all(&mut self, target: &str, into: &str) {
+        self.doc_mut().replace_all(target, into);
+    }
+
+    /// save the document to the disk
+    pub fn save(&mut self) -> Result<()> {
+        self.doc_mut().save()?;
+        self.feedback = Feedback::Info("Document saved successfully".to_string());
+        Ok(())
+    }
+
+    /// save the document to the disk at a specified path
+    pub fn save_as(&mut self) -> Result<()> {
+        let file_name = self.prompt("Save as")?;
+        self.doc_mut().save_as(&file_name)?;
+        self.feedback = Feedback::Info(format!("Document saved as {file_name} successfully"));
+        if self.doc().file_name.is_none() {
+            let ext = file_name.split('.').last().unwrap();
+            self.highlighter[self.ptr] = from_extension(ext, 4).unwrap_or(Highlighter::new(4));
+            self.doc_mut().file_name = Some(file_name);
+            self.doc_mut().modified = false;
+        }
+        Ok(())
+    }
+
+    /// Save all the open documents to the disk
+    pub fn save_all(&mut self) -> Result<()> {
+        for doc in self.doc.iter_mut() {
+            doc.save()?;
+        }
+        self.feedback = Feedback::Info(format!("Saved all documents"));
+        Ok(())
+    }
+
+    /// Quit the editor
+    pub fn quit(&mut self) -> Result<()> {
+        self.active = !self.doc.is_empty();
+        // If there are still documents open, only close the requested document
+        if self.active {
+            let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
+            if !self.doc().modified || self.confirm(msg)? {
+                self.doc.remove(self.ptr);
+                self.highlighter.remove(self.ptr);
+                self.prev();
+            }
+        }
+        self.active = !self.doc.is_empty();
+        Ok(())
+    }
+
+    /// Confirmation dialog
+    pub fn confirm(&mut self, msg: &str) -> Result<bool> {
+        let mut done = false;
+        let mut result = false;
+        // Enter into the confirmation menu
+        self.terminal.hide_cursor()?;
+        while !done {
+            let h = size()?.h;
+            let w = size()?.w;
+            // Render message
+            self.feedback = Feedback::Warning(msg.to_string());
+            self.render_feedback_line(w, h)?;
+            self.terminal.flush()?;
+            // Handle events
+            if let CEvent::Key(key) = read()? {
+                match (key.modifiers, key.code) {
+                    // Exit the menu when the enter key is pressed
+                    (KMod::NONE, KCode::Esc) => {
+                        done = true;
+                        self.feedback = Feedback::None;
+                    }
+                    // Add to the input string if the user presses a character
+                    (KMod::CONTROL, KCode::Char('q')) => {
+                        done = true; 
+                        result = true;
+                        self.feedback = Feedback::None;
+                    }
+                    _ => (),
+                }
+            }
+        }
+        self.terminal.show_cursor()?;
+        Ok(result)
     }
 }

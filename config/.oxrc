@@ -1,0 +1,81 @@
+-- Configure Colours --
+colors.editor_bg = {41, 41, 61}
+colors.editor_fg = {255, 255, 255}
+colors.line_number_fg = {65, 65, 98}
+colors.line_number_bg = {41, 41, 61}
+
+colors.status_bg = {59, 59, 84}
+colors.status_fg = {35, 240, 144}
+
+colors.highlight = {35, 240, 144}
+
+colors.tab_inactive_fg = {255, 255, 255}
+colors.tab_inactive_bg = {59, 59, 84}
+colors.tab_active_fg = {255, 255, 255}
+colors.tab_active_bg = {41, 41, 61}
+
+colors.info_fg = {99, 162, 255}
+colors.info_bg = {41, 41, 61}
+colors.warning_fg = {255, 182, 99}
+colors.warning_bg = {41, 41, 61}
+colors.error_fg = {255, 100, 100}
+colors.error_bg = {41, 41, 61}
+
+
+-- Configure Line Numbers --
+line_numbers.enabled = true
+
+
+-- Configure Status Line --
+status_line:add_part("  {file_name}{modified}  │  {file_type}  │") -- The left side of the status line
+status_line:add_part("│  {cursor_y}/{line_count}  {cursor_x}  ")  -- The right side of the status line
+
+status_line.alignment = "between" -- This will put a space between the left and right sides
+
+
+-- Configure Greeting Message --
+greeting_message.enabled = true
+greeting_message.format = [[
+Ox Editor v{version}
+The simple but flexible text editor
+
+Key Binding Cheat Sheet
+{highlight_start}
+Ctrl + N:   New         
+Ctrl + O:   Open        
+Ctrl + Q:   Quit        
+Ctrl + S:   Save        
+Ctrl + W:   Save as     
+Ctrl + A:   Save all    
+Ctrl + Z:   Undo        
+Ctrl + Y:   Redo        
+Ctrl + F:   Find        
+Ctrl + R:   Replace     
+Ctrl + D:   Delete Line 
+Shift + ->: Next Tab    
+Shift + <-: Previous Tab
+{highlight_end}
+]]
+
+
+-- Configure Syntax Highlighting Colours --
+syntax:set("string", {39, 222, 145}) -- Strings in various programming languages
+syntax:set("comment", {113, 113, 169}) -- Comments in various programming languages
+syntax:set("digit", {40, 198, 232}) -- Digits in various programming languages
+syntax:set("keyword", {134, 76, 232}) -- Keywords in various programming languages
+syntax:set("attribute", {40, 198, 232}) -- Attributes in various programming languages
+syntax:set("character", {40, 198, 232}) -- Characters in various programming languages
+syntax:set("type", {47, 141, 252}) -- Types in various programming languages
+syntax:set("function", {47, 141, 252}) -- Function names in various programming languages
+syntax:set("header", {40, 198, 232}) -- Headers in various programming language
+syntax:set("macro", {223, 52, 249}) -- Macro names in various programming languages
+syntax:set("namespace", {47, 141, 252}) -- Namespaces in various programming languages
+syntax:set("struct", {47, 141, 252}) -- The names of structs, classes, enums in various programming languages
+syntax:set("operator", {113, 113, 169}) -- Operators in various programming languages e.g. +, -, * etc
+syntax:set("boolean", {86, 217, 178}) -- Booleans in various programming langauges e.g. true / false
+syntax:set("table", {47, 141, 252}) -- Tables in various programming languages
+syntax:set("reference", {134, 76, 232}) -- References in various programming languages
+syntax:set("tag", {40, 198, 232}) -- Tags in various markup langauges e.g. HTML <p> tags
+syntax:set("heading", {40, 198, 232}) -- Headings in various markup languages e.g. # in markdown
+syntax:set("link", {223, 52, 249}) -- Links in various markup languages e.g. URLs
+syntax:set("key", {223, 52, 249}) -- Keys in various markup languages
