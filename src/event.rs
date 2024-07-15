@@ -56,6 +56,7 @@ quick_error! {
             display("Rope error: {}", err)
             source(err)
         }
+        NoFileName
         OutOfRange
     }
 }

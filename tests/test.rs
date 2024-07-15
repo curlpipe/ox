@@ -675,10 +675,27 @@ fn fuzz() {
     }
 }
 
+#[test]
+#[allow(unused_must_use)]
+fn blank_document() {
+    // Test data
+    let mut document = Document::new(Size { w: 10, h: 10 });
+    document.insert(&Loc { x: 0, y: 0 }, "hello, world!").unwrap();
+    println!("{:?}", document.lines);
+    // Output & Verification
+    assert!(document.save().is_err());
+    assert!(document.save_as("demos/dump.txt").is_ok());
+    assert_eq!(
+        std::fs::read_to_string("demos/dump.txt").unwrap(),
+        "hello, world!\n".to_string()
+    );
+}
+
 /*
 Template:
 
 #[test]
+#[allow(unused_must_use)]
 fn name() {
     // Test data
     // Output

@@ -9,6 +9,13 @@ This project uses semantic versioning.
 \~
 \-
 -->
+## [0.8.0] - 15/07/2024
+\+ Added "new document" feature to allow documents without file names
+
+## [0.7.0] - 25/02/2024
+\+ Nice integration with synoptic
+\~ Fixed bug that stopped empty files from being edited
+
 ## [0.6.1] - 30/08/2022
 \~ Updated cargo.toml
 

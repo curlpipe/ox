@@ -16,7 +16,7 @@ use std::ops::RangeBounds;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Document {
     /// The file name of the document opened
-    pub file_name: String,
+    pub file_name: Option<String>,
     /// The rope of the document to facilitate reading and writing to disk
     pub file: Rope,
     /// Contains the number of lines buffered into the document
@@ -44,6 +44,26 @@ pub struct Document {
 }
 
 impl Document {
+    /// Creates a new, empty document with no file name.
+    #[cfg(not(tarpaulin_include))]
+    pub fn new(size: Size) -> Self {
+        Self {
+            file: Rope::from_str("\n"),
+            lines: vec!["".to_string()],
+            dbl_map: CharMap::default(),
+            tab_map: CharMap::default(),
+            loaded_to: 1,
+            file_name: None,
+            cursor: Loc::default(),
+            offset: Loc::default(),
+            size,
+            char_ptr: 0,
+            event_mgmt: EventMgmt::default(),
+            modified: false,
+            tab_width: 4,
+        }
+    }
+
     /// Open a document from a file name.
     /// # Errors
     /// Returns an error when file doesn't exist, or has incorrect permissions.
@@ -58,7 +78,7 @@ impl Document {
             dbl_map: CharMap::default(),
             tab_map: CharMap::default(),
             loaded_to: 0,
-            file_name,
+            file_name: Some(file_name),
             cursor: Loc::default(),
             offset: Loc::default(),
             size,
@@ -80,8 +100,12 @@ impl Document {
     /// or character set issues.
     pub fn save(&mut self) -> Result<()> {
         self.modified = false;
-        self.file.write_to(BufWriter::new(File::create(&self.file_name)?))?;
-        Ok(())
+        if let Some(file_name) = &self.file_name {
+            self.file.write_to(BufWriter::new(File::create(file_name)?))?;
+            Ok(())
+        } else {
+            Err(Error::NoFileName)
+        }
     }
 
     /// Save to a specified file.
