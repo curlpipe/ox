@@ -30,7 +30,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     // Create editor and open requested files
     let mut editor = Editor::new()?;
     for file in cli.to_open {
-        editor.open(file)?;
+        editor.open_or_new(file)?;
     }
 
     // Run the editor and handle errors if applicable

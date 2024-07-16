@@ -1,6 +1,6 @@
 [package]
 name = "ox"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 description = "A Rust powered text editor."
@@ -11,6 +11,13 @@ include = ["src/*.rs", "Cargo.toml", "config/.oxrc"]
 categories = ["text-editors"]
 keywords = ["text-editor", "editor", "terminal", "tui"]
 license = "GPL-2.0"
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/ox", dest = "/usr/bin/ox", mode = "0755" },
+    { source = "LICENSE", dest = "/usr/share/doc/ox/LICENSE", doc = true, mode = "0644" },
+    { source = "README.md", dest = "/usr/share/doc/ox/README.md", doc = true, mode = "0644" }
+]
 
 [profile.release]
 lto = true
@@ -26,10 +33,3 @@ mlua = { version = "0.9.9", features = ["lua54", "vendored"] }
 quick-error = "2.0.1"
 shellexpand = "3.1.0"
 synoptic = "2.0.0"
-
-[package.metadata.generate-rpm]
-assets = [
-    { source = "target/release/ox", dest = "/usr/bin/ox", mode = "0755" },
-    { source = "LICENSE", dest = "/usr/share/doc/ox/LICENSE", doc = true, mode = "0644" },
-    { source = "README.md", dest = "/usr/share/doc/ox/README.md", doc = true, mode = "0644" }
-]

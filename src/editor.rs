@@ -1,16 +1,16 @@
 use crate::ui::{size, Terminal, Feedback};
 use crate::config::Config;
-use crate::error::Result;
+use crate::error::{OxError, Result};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
     style::{SetBackgroundColor as Bg, SetForegroundColor as Fg, SetAttribute, Attribute},
     terminal::{Clear, ClearType as ClType},
 };
-use kaolinite::event::{Event, Status};
+use kaolinite::event::{Event, Status, Error as KError};
 use kaolinite::utils::{Loc, Size};
 use kaolinite::Document;
 use synoptic::{Highlighter, TokOpt, trim, from_extension};
-use std::io::{Write};
+use std::io::{Write, ErrorKind};
 
 /// For managing all editing and rendering of cactus
 pub struct Editor {
@@ -93,6 +93,23 @@ impl Editor {
         self.open(path)?;
         self.ptr = self.doc.len().saturating_sub(1);
         Ok(())
+    }
+
+    /// Function to try opening a document, and if it doesn't exist, create it
+    pub fn open_or_new(&mut self, file_name: String) -> Result<()> {
+        let file = self.open(file_name.clone());
+        if let Err(OxError::Kaolinite(KError::Io(ref os))) = file {
+            if os.kind() == ErrorKind::NotFound {
+                self.blank()?;
+                self.doc.last_mut().unwrap().file_name = Some(file_name);
+                self.doc.last_mut().unwrap().modified = true;
+                Ok(())
+            } else {
+                file
+            }
+        } else {
+            file
+        }
     }
 
     /// Gets a reference to the current document
@@ -204,7 +221,7 @@ impl Editor {
         let max = self.dent();
         self.doc_mut().size.w = w.saturating_sub(max) as usize;
         // Render the tab line
-        self.render_tab_line(w, h)?;
+        self.render_tab_line(w)?;
         // Run through each line of the terminal, rendering the correct line
         self.render_document(w, h)?;
         // Leave last line for status line
@@ -266,7 +283,7 @@ impl Editor {
     }
 
     /// Render the tab line at the top of the document
-    fn render_tab_line(&mut self, w: usize, h: usize) -> Result<()> {
+    fn render_tab_line(&mut self, w: usize) -> Result<()> {
         self.terminal.prepare_line(0)?;
         write!(
             self.terminal.stdout, 
