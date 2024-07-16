@@ -191,6 +191,12 @@ impl Editor {
                     self.doc_mut().size.h = h.saturating_sub(3) as usize;
                     let max = self.doc().offset.x + self.doc().size.h;
                     self.doc_mut().load_to(max);
+                    // Make sure cursor hasn't broken out of bounds
+                    if self.doc().cursor.y >= self.doc().size.h - 1 {
+                        let y = self.doc().size.h.saturating_sub(1);
+                        self.doc_mut().cursor.y = y;
+                        self.doc_mut().move_home();
+                    }
                 }
                 _ => (),
             }
