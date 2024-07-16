@@ -115,20 +115,9 @@ impl Editor {
         }
     }
 
-    pub fn set_readonly(&mut self, idx: usize) -> Result<()> {
-        if let Some(doc) = self.doc.get_mut(idx) {
-            doc.read_only = true;
-        }
-        Ok(())
-    }
-
-    /// Set the highlighter of a document
-    pub fn set_highlighter(&mut self, mut highlighter: Highlighter, idx: usize) -> Result<()> {
-        if let Some(doc) = self.doc.get_mut(idx) {
-            highlighter.run(&doc.lines);
-            self.highlighter[idx] = highlighter;
-        }
-        Ok(())
+    /// Returns a document at a certain index
+    pub fn get_doc(&mut self, idx: usize) -> &mut Document {
+        self.doc.get_mut(idx).unwrap()
     }
 
     /// Gets a reference to the current document
@@ -139,6 +128,16 @@ impl Editor {
     /// Gets a mutable reference to the current document
     pub fn doc_mut(&mut self) -> &mut Document {
         self.doc.get_mut(self.ptr).unwrap()
+    }
+
+    /// Gets the number of documents currently open
+    pub fn doc_len(&mut self) -> usize {
+        self.doc.len()
+    }
+
+    /// Returns a highlighter at a certain index
+    pub fn get_highlighter(&mut self, idx: usize) -> &mut Highlighter {
+        self.highlighter.get_mut(idx).unwrap()
     }
 
     /// Gets a mutable reference to the current document

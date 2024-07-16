@@ -1,4 +1,6 @@
 use jargon_args::{Key, Jargon};
+use std::io;
+use std::io::{BufRead};
 
 /// Holds the version number of the crate
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -15,6 +17,7 @@ OPTIONS:
   --config [path], -c [path] : Specify the configuration file
   --readonly, -r             : Prevent opened files from writing
   --filetype [ext], -f [ext] : Set the file type of files opened
+  --stdin                    : Reads file from the stdin
 
 EXAMPLES:
   ox
@@ -23,7 +26,16 @@ EXAMPLES:
   ox /home/user/docs/test.txt
   ox -c config.lua test.txt
   ox -r -c ~/.config/.oxrc -f lua my_file.lua\
+  tree | ox -r
 ";
+
+pub fn get_stdin() -> Option<String> {
+    let input = io::stdin().lock().lines().fold("".to_string(), |acc, line| {
+        acc + &line.unwrap() + "\n"
+    });
+
+    return Some(input);
+}
 
 /// Struct to help with starting ox
 pub struct CommandLineInterface {
@@ -53,6 +65,11 @@ impl CommandLineInterface {
     /// Determine if the user wishes to open files in read only
     pub fn read_only(&mut self) -> bool {
         self.jargon.contains(["-r", "--readonly"])
+    }
+
+    /// Determine if the user wishes to pass file information through stdin
+    pub fn stdin(&mut self) -> bool {
+        self.jargon.contains("--stdin")
     }
 
     /// Get all the files the user has requested
