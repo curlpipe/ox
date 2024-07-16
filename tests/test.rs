@@ -680,8 +680,7 @@ fn fuzz() {
 fn blank_document() {
     // Test data
     let mut document = Document::new(Size { w: 10, h: 10 });
-    document.insert(&Loc { x: 0, y: 0 }, "hello, world!").unwrap();
-    println!("{:?}", document.lines);
+    document.exe(Event::Insert(Loc { x: 0, y: 0 }, "hello, world!".to_string())).unwrap();
     // Output & Verification
     assert!(document.save().is_err());
     assert!(document.save_as("demos/dump.txt").is_ok());
@@ -689,6 +688,20 @@ fn blank_document() {
         std::fs::read_to_string("demos/dump.txt").unwrap(),
         "hello, world!\n".to_string()
     );
+}
+
+#[test]
+#[allow(unused_must_use)]
+fn read_only() {
+    // Test data
+    let mut document = Document::new(Size { w: 10, h: 10 });
+    document.read_only = true;
+    document.exe(Event::Insert(Loc { x: 0, y: 0 }, "hello, world!".to_string())).unwrap();
+    // Output & Verification
+    assert_eq!(document.lines, vec!["".to_string()]);
+    assert!(document.save().is_err());
+    assert!(document.save_as("demos/nonexist.txt").is_err());
+    assert!(std::fs::read_to_string("demos/nonexist.txt").is_err());
 }
 
 /*

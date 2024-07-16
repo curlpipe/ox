@@ -9,6 +9,9 @@ This project uses semantic versioning.
 \~
 \-
 -->
+## [0.8.1] - 16/07/2024
+\+ Added read only files
+
 ## [0.8.0] - 15/07/2024
 \+ Added "new document" feature to allow documents without file names
 

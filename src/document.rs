@@ -41,6 +41,8 @@ pub struct Document {
     pub modified: bool,
     /// The number of spaces a tab should be rendered as
     pub tab_width: usize,
+    /// Whether or not the document can be edited
+    pub read_only: bool,
 }
 
 impl Document {
@@ -61,6 +63,7 @@ impl Document {
             event_mgmt: EventMgmt::default(),
             modified: false,
             tab_width: 4,
+            read_only: false,
         }
     }
 
@@ -86,6 +89,7 @@ impl Document {
             event_mgmt: EventMgmt::default(),
             modified: false,
             tab_width: 4,
+            read_only: false,
         })
     }
 
@@ -99,12 +103,16 @@ impl Document {
     /// Returns an error if the file fails to write, due to permissions
     /// or character set issues.
     pub fn save(&mut self) -> Result<()> {
-        self.modified = false;
-        if let Some(file_name) = &self.file_name {
-            self.file.write_to(BufWriter::new(File::create(file_name)?))?;
-            Ok(())
+        if !self.read_only {
+            self.modified = false;
+            if let Some(file_name) = &self.file_name {
+                self.file.write_to(BufWriter::new(File::create(file_name)?))?;
+                Ok(())
+            } else {
+                Err(Error::NoFileName)
+            }
         } else {
-            Err(Error::NoFileName)
+            Err(Error::ReadOnlyFile)
         }
     }
 
@@ -113,8 +121,12 @@ impl Document {
     /// Returns an error if the file fails to write, due to permissions
     /// or character set issues.
     pub fn save_as(&self, file_name: &str) -> Result<()> {
-        self.file.write_to(BufWriter::new(File::create(file_name)?))?;
-        Ok(())
+        if !self.read_only {
+            self.file.write_to(BufWriter::new(File::create(file_name)?))?;
+            Ok(())
+        } else {
+            Err(Error::ReadOnlyFile)
+        }
     }
 
     /// Execute an event, registering it in the undo / redo.
@@ -122,8 +134,11 @@ impl Document {
     /// # Errors
     /// Will return an error if the event was unable to be completed.
     pub fn exe(&mut self, ev: Event) -> Result<()> {
-        self.event_mgmt.register(ev.clone());
-        self.forth(ev)
+        if !self.read_only {
+            self.event_mgmt.register(ev.clone());
+            self.forth(ev)?;
+        }
+        Ok(())
     }
 
     /// Undo the last patch in the document.

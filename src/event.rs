@@ -58,6 +58,7 @@ quick_error! {
         }
         NoFileName
         OutOfRange
+        ReadOnlyFile
     }
 }
 
