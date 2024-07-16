@@ -52,6 +52,7 @@ Ctrl + Y:   Redo
 Ctrl + F:   Find        
 Ctrl + R:   Replace     
 Ctrl + D:   Delete Line 
+Ctrl + K:   Command Line
 Shift + ->: Next Tab    
 Shift + <-: Previous Tab
 {highlight_end}

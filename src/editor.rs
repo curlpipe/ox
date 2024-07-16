@@ -112,6 +112,22 @@ impl Editor {
         }
     }
 
+    pub fn set_readonly(&mut self, idx: usize) -> Result<()> {
+        if let Some(doc) = self.doc.get_mut(idx) {
+            doc.read_only = true;
+        }
+        Ok(())
+    }
+
+    /// Set the highlighter of a document
+    pub fn set_highlighter(&mut self, mut highlighter: Highlighter, idx: usize) -> Result<()> {
+        if let Some(doc) = self.doc.get_mut(idx) {
+            highlighter.run(&doc.lines);
+            self.highlighter[idx] = highlighter;
+        }
+        Ok(())
+    }
+
     /// Gets a reference to the current document
     pub fn doc(&self) -> &Document {
         self.doc.get(self.ptr).unwrap()
@@ -183,6 +199,8 @@ impl Editor {
                     (KMod::NONE, KCode::Delete) => self.delete()?,
                     (KMod::NONE, KCode::Enter) => self.enter()?,
                     (KMod::CONTROL, KCode::Char('d')) => self.delete_line()?,
+                    // Command
+                    (KMod::CONTROL, KCode::Char('k')) => self.command()?,
                     _ => (),
                 },
                 CEvent::Resize(w, h) => {
@@ -765,5 +783,29 @@ impl Editor {
         }
         self.terminal.show_cursor()?;
         Ok(result)
+    }
+
+    /// Open command line
+    pub fn command(&mut self) -> Result<()> {
+        let cmd = self.prompt("Command")?;
+        self.run_command(cmd)?;
+        Ok(())
+    }
+
+    /// Run a command
+    pub fn run_command(&mut self, cmd: String) -> Result<()> {
+        match cmd.split(' ').collect::<Vec<&str>>().as_slice() {
+            ["filetype", ext] => {
+                // Change the highlighter of the current file
+                self.highlighter[self.ptr] = from_extension(ext, 4)
+                    .unwrap_or_else(|| Highlighter::new(4));
+            }
+            ["readonly", "true"] => self.doc_mut().read_only = true,
+            ["readonly", "false"] => self.doc_mut().read_only = false,
+            _ => {
+                self.feedback = Feedback::Error(format!("Command '{}' not found", cmd));
+            }
+        }
+        Ok(())
     }
 }
