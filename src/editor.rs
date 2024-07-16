@@ -34,12 +34,12 @@ pub struct Editor {
 
 impl Editor {
     /// Create a new instance of the editor
-    pub fn new() -> Result<Self> {
+    pub fn new(config: String) -> Result<Self> {
         Ok(Self {
             doc: vec![],
             ptr: 0,
             terminal: Terminal::new(),
-            config: Config::read()?,
+            config: Config::read(config)?,
             active: true,
             greet: false,
             highlighter: vec![],

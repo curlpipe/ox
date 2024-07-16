@@ -21,14 +21,14 @@ fn main() {
         return
     }
 
-    cli.get_files();
-
     let _ = run(cli);
 }
 
-fn run(cli: CommandLineInterface) -> Result<()> {
+fn run(mut cli: CommandLineInterface) -> Result<()> {
+    let config_path = cli.get_config_path();
+    cli.get_files();
     // Create editor and open requested files
-    let mut editor = Editor::new()?;
+    let mut editor = Editor::new(config_path)?;
     for file in cli.to_open {
         editor.open_or_new(file)?;
     }

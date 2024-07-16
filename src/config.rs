@@ -27,7 +27,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn read() -> Result<Self> {
+    pub fn read(path: String) -> Result<Self> {
         // Load defaults
         let lua = Lua::new();
 
@@ -49,7 +49,7 @@ impl Config {
         lua.load(DEFAULT_CONFIG).exec()?;
 
         // Attempt to read config file from home directory
-        if let Ok(path) = shellexpand::full("~/.oxrc") {
+        if let Ok(path) = shellexpand::full(&path) {
             if let Ok(config) = std::fs::read_to_string(path.to_string()) {
                 // Update configuration with user-defined values
                 lua.load(config).exec()?;

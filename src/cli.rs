@@ -1,22 +1,23 @@
-use jargon_args::Jargon;
+use jargon_args::{Key, Jargon};
 
 /// Holds the version number of the crate
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Holds the help dialog
 pub const HELP: &str = "\
-Cactus: A compact and complete kaolinite implementation
+Ox: A lightweight and flexible text editor
 
-USAGE: cactus [options] [files]
+USAGE: ox [options] [files]
 
 OPTIONS:
-    --help, -h    : Show this help message
-    --version, -v : Show the version number
+    --help, -h                 : Show this help message
+    --version, -v              : Show the version number
+    --config [path], -c [path] : Specify the configuration file
 
 EXAMPLES:
-    cactus test.txt
-    cactus test.txt test2.txt
-    cactus /home/user/docs/test.txt
+    ox test.txt
+    ox test.txt test2.txt
+    ox /home/user/docs/test.txt
 ";
 
 /// Struct to help with starting ox
@@ -47,5 +48,14 @@ impl CommandLineInterface {
     /// Get all the files the user has requested
     pub fn get_files(&mut self) {
         self.to_open = self.jargon.clone().finish();
+    }
+
+    /// Configuration file path
+    pub fn get_config_path(&mut self) -> String {
+        let config_key: Key = ["-c", "--config"].into();
+        match self.jargon.option_arg::<String, Key>(config_key.clone()) {
+            Some(config) => config,
+            None => "~/.oxrc".to_string(),
+        }
     }
 }
