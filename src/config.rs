@@ -2,7 +2,7 @@ use mlua::prelude::*;
 use std::{cell::RefCell, rc::Rc};
 use crate::editor::Editor;
 use crate::cli::VERSION;
-use crate::error::Result;
+use crate::error::{OxError, Result};
 use kaolinite::utils::filetype;
 use std::collections::HashMap;
 use crossterm::{
@@ -75,6 +75,16 @@ impl Default for SyntaxHighlighting {
     fn default() -> Self {
         Self {
             theme: HashMap::default(),
+        }
+    }
+}
+
+impl SyntaxHighlighting {
+    pub fn get_theme(&self, name: &str) -> Result<Color> {
+        if let Some(col) = self.theme.get(name) {
+            col.to_color()
+        } else {
+            Err(OxError::Config(format!("{} has not been given a colour in the theme", name)))
         }
     }
 }

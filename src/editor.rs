@@ -275,12 +275,24 @@ impl Editor {
                 let tokens = trim(&tokens, self.doc().offset.x);
                 for token in tokens {
                     match token {
-                        TokOpt::Some(text, kind) => write!(
-                            self.terminal.stdout, 
-                            "{}{text}{}", 
-                            Fg(self.config.syntax_highlighting.borrow().theme[&kind].to_color()?),
-                            Fg(self.config.colors.borrow().editor_fg.to_color()?),
-                        ),
+                        TokOpt::Some(text, kind) => {
+                            // Try to get the corresponding colour for this token
+                            let colour = self.config.syntax_highlighting.borrow().get_theme(&kind);
+                            match colour {
+                                // Success, write token
+                                Ok(col) => write!(
+                                    self.terminal.stdout,
+                                    "{}{text}{}",
+                                    Fg(col),
+                                    Fg(self.config.colors.borrow().editor_fg.to_color()?),
+                                ),
+                                // Failure, show error message and don't highlight this token
+                                Err(err) => {
+                                    self.feedback = Feedback::Error(err.to_string());
+                                    write!(self.terminal.stdout, "{text}")
+                                }
+                            }
+                        }
                         TokOpt::None(text) => write!(self.terminal.stdout, "{text}"),
                     }?
                 }

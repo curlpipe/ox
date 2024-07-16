@@ -76,6 +76,11 @@ syntax:set("boolean", {86, 217, 178}) -- Booleans in various programming langaug
 syntax:set("table", {47, 141, 252}) -- Tables in various programming languages
 syntax:set("reference", {134, 76, 232}) -- References in various programming languages
 syntax:set("tag", {40, 198, 232}) -- Tags in various markup langauges e.g. HTML <p> tags
-syntax:set("heading", {40, 198, 232}) -- Headings in various markup languages e.g. # in markdown
+syntax:set("heading", {47, 141, 252}) -- Headings in various markup languages e.g. # in markdown
 syntax:set("link", {223, 52, 249}) -- Links in various markup languages e.g. URLs
 syntax:set("key", {223, 52, 249}) -- Keys in various markup languages
+syntax:set("quote", {113, 113, 169}) -- Quotes in various markup languages e.g. > in markdown
+syntax:set("bold", {40, 198, 232}) -- Quotes in various markup languages e.g. * in markdown
+syntax:set("italic", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
+syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
+syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown

@@ -19,13 +19,14 @@ quick_error! {
                 }
             })
         }
-        Config(msg: &'static str) {
+        Config(msg: String) {
             display("Error in config file: {}", msg)
         }
         Lua(err: mlua::prelude::LuaError) {
             from()
             display("Error in lua: {}", err)
         }
+        None
     }
 }
 
