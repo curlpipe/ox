@@ -180,6 +180,7 @@ impl Editor {
                     (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
                     (KMod::NONE, KCode::Tab) => self.character('\t')?,
                     (KMod::NONE, KCode::Backspace) => self.backspace()?,
+                    (KMod::NONE, KCode::Delete) => self.delete()?,
                     (KMod::NONE, KCode::Enter) => self.enter()?,
                     (KMod::CONTROL, KCode::Char('d')) => self.delete_line()?,
                     _ => (),
@@ -520,6 +521,19 @@ impl Editor {
                     self.exe(Event::Delete(loc, ch.to_string()))?;
                     self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
                 }
+            }
+        }
+        Ok(())
+    }
+
+    /// Delete the character in place
+    fn delete(&mut self) -> Result<()> {
+        let c = self.doc().char_ptr;
+        if let Some(line) = self.doc().line(self.doc().loc().y) {
+            if let Some(ch) = line.chars().nth(c) {
+                let loc = Loc { x: c, y: self.doc().loc().y };
+                self.exe(Event::Delete(loc, ch.to_string()))?;
+                self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
             }
         }
         Ok(())
