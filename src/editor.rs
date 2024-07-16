@@ -1,4 +1,4 @@
-use crate::ui::{size, Terminal, Feedback};
+use crate::ui::{size, Terminal, Feedback, HELP_TEXT};
 use crate::config::Config;
 use crate::error::{OxError, Result};
 use crossterm::{
@@ -28,6 +28,8 @@ pub struct Editor {
     active: bool,
     /// true if the editor should show a greeting message on next render
     greet: bool,
+    /// Whether or not to show the help message
+    help: bool,
     /// The feedback message to display below the status line
     pub feedback: Feedback,
 }
@@ -42,6 +44,7 @@ impl Editor {
             config: Config::read(config)?,
             active: true,
             greet: false,
+            help: false,
             highlighter: vec![],
             feedback: Feedback::None,
         })
@@ -251,9 +254,11 @@ impl Editor {
         self.render_document(w, h)?;
         // Leave last line for status line
         self.render_status_line(w, h)?;
-        // Render greeting if applicable
+        // Render greeting or help message if applicable
         if self.greet {
             self.render_greeting(w, h)?;
+        } else if self.help {
+            self.render_help_message(w, h)?;
         }
         // Render feedback line
         self.render_feedback_line(w, h)?;
@@ -381,6 +386,18 @@ impl Editor {
     }
 
     /// Render the greeting message
+    fn render_help_message(&mut self, w: usize, h: usize) -> Result<()> {
+        let color = self.config.colors.borrow().highlight.to_color()?;
+        let editor_fg = self.config.colors.borrow().editor_fg.to_color()?;
+        let message: Vec<&str> = HELP_TEXT.split('\n').collect();
+        for (c, line) in message.iter().enumerate().take(h - h / 4) {
+            self.terminal.goto(w - 30, h / 4 + c + 1)?;
+            write!(self.terminal.stdout, "{}{line}{}", Fg(color), Fg(editor_fg))?;
+        }
+        Ok(())
+    }
+
+    /// Render the help message
     fn render_greeting(&mut self, w: usize, h: usize) -> Result<()> {
         let colors = self.config.colors.borrow();
         let greeting = self.config.greeting_message.borrow().render(&colors)?;
@@ -802,6 +819,7 @@ impl Editor {
             }
             ["readonly", "true"] => self.doc_mut().read_only = true,
             ["readonly", "false"] => self.doc_mut().read_only = false,
+            ["help"] => self.help = !self.help,
             _ => {
                 self.feedback = Feedback::Error(format!("Command '{}' not found", cmd));
             }

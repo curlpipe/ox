@@ -9,6 +9,25 @@ use crossterm::{
 use kaolinite::utils::{Size};
 use std::io::{stdout, Stdout, Write};
 
+/// Constant that shows the help message
+pub const HELP_TEXT: &str = "
+   Default Key Bindings:      
+   Ctrl + N:   New            
+   Ctrl + O:   Open           
+   Ctrl + Q:   Quit           
+   Ctrl + S:   Save           
+   Ctrl + W:   Save as        
+   Ctrl + A:   Save all       
+   Ctrl + Z:   Undo           
+   Ctrl + Y:   Redo           
+   Ctrl + F:   Find           
+   Ctrl + R:   Replace        
+   Ctrl + D:   Delete Line    
+   Ctrl + K:   Command Line   
+   Shift + ->: Next Tab       
+   Shift + <-: Previous Tab   
+";
+
 /// Gets the size of the terminal
 pub fn size() -> Result<Size> {
     let (w, h) = terminal::size()?;
@@ -18,6 +37,7 @@ pub fn size() -> Result<Size> {
     })
 }
 
+/// Represents different status messages
 pub enum Feedback {
     Info(String),
     Warning(String),
@@ -26,6 +46,7 @@ pub enum Feedback {
 }
 
 impl Feedback {
+    /// Actually render the status message
     pub fn render(&self, colors: &Colors, w: usize) -> Result<String> {
         let start = match self {
             Self::Info(_) => 
