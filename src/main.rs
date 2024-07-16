@@ -13,7 +13,6 @@ use editor::Editor;
 use ui::Feedback;
 
 fn main() {
-    let stdin = cli::get_stdin();
     // Interact with user to find out what they want to do
     let mut cli = CommandLineInterface::new();
 
@@ -25,10 +24,10 @@ fn main() {
         return
     }
 
-    let _ = run(cli, stdin);
+    let _ = run(cli);
 }
 
-fn run(mut cli: CommandLineInterface, stdin: Option<String>) -> Result<()> {
+fn run(mut cli: CommandLineInterface) -> Result<()> {
     let read_only = cli.read_only();
     let config_path = cli.get_config_path();
     let file_type = cli.get_file_type();
@@ -37,7 +36,7 @@ fn run(mut cli: CommandLineInterface, stdin: Option<String>) -> Result<()> {
 
     // Handle stdin if applicable
     if cli.stdin() {
-        if let Some(stdin) = stdin {
+        if let Some(stdin) = cli::get_stdin() {
             editor.blank()?;
             let this_doc = editor.doc_len().saturating_sub(1);
             let doc = editor.get_doc(this_doc);
