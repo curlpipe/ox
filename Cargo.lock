@@ -284,7 +284,7 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "ox"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "alinio",
  "crossterm",
@@ -517,9 +517,9 @@ dependencies = [
 
 [[package]]
 name = "synoptic"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e55d805771c7d089b5370a289d1faab937b1fa1b84e9589421dd6ee7096d3286"
+checksum = "f79a0469ea90dc420ec8b5f26df5c11c7a3c2be32ad33b31c2901b2bcca2b461"
 dependencies = [
  "if_chain",
  "regex",

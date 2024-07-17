@@ -25,8 +25,8 @@ EXAMPLES:
   ox test.txt test2.txt
   ox /home/user/docs/test.txt
   ox -c config.lua test.txt
-  ox -r -c ~/.config/.oxrc -f lua my_file.lua\
-  tree | ox -r
+  ox -r -c ~/.config/.oxrc -f lua my_file.lua
+  tree | ox -r --stdin\
 ";
 
 pub fn get_stdin() -> Option<String> {

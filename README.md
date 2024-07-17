@@ -190,6 +190,7 @@ Ox is controlled via your keyboard shortcuts. Here are the default shortcuts tha
 | `Ctrl + Z`  | Undoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
 | `Ctrl + Y`  | Redoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
 | `Ctrl + R`  | Allows replacing of occurances in the document. Uses the same keybindings as the search feature: <kbd>←</kbd> to move the cursor to the previous occurance of the query and <kbd>→</kbd> to move to the next occurance of the query. You can also press <kbd>Return</kbd> to carry out the replace action. To exit replace mode once you're finished, you can press <kbd>Esc</kbd>. You can also use <kbd>Space</kbd> to replace every instance in the document at once. Note: you can use regular expressions for search queries. | 
+| `Ctrl + K`  | Opens the command line.  | 
 | `Shift + Left`  | Navigates to the previous tab.  | 
 | `Shift + Right`  | Navigates to the next tab.  | 
 
