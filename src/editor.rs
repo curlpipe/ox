@@ -1,5 +1,5 @@
 use crate::ui::{size, Terminal, Feedback, HELP_TEXT};
-use crate::config::Config;
+use crate::config::{Config, key_to_string};
 use crate::error::{OxError, Result};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
@@ -11,43 +11,53 @@ use kaolinite::utils::{Loc, Size};
 use kaolinite::Document;
 use synoptic::{Highlighter, TokOpt, trim, from_extension};
 use std::io::{Write, ErrorKind};
+use mlua::Lua;
 
 /// For managing all editing and rendering of cactus
 pub struct Editor {
     /// Interface for writing to the terminal
     pub terminal: Terminal,
     /// Configuration information for the editor
-    config: Config,
+    pub config: Config,
     /// Storage of all the documents opened in the editor
     doc: Vec<Document>,
     /// Syntax highlighting integration
-    highlighter: Vec<Highlighter>,
+    pub highlighter: Vec<Highlighter>,
     /// Pointer to the document that is currently being edited
-    ptr: usize,
+    pub ptr: usize,
     /// true if the editor is still running, false otherwise
-    active: bool,
+    pub active: bool,
     /// true if the editor should show a greeting message on next render
-    greet: bool,
+    pub greet: bool,
     /// Whether or not to show the help message
-    help: bool,
+    pub help: bool,
     /// The feedback message to display below the status line
     pub feedback: Feedback,
+    /// Will be some if there is an outstanding command to be run
+    pub command: Option<String>,
 }
 
 impl Editor {
     /// Create a new instance of the editor
-    pub fn new(config: String) -> Result<Self> {
+    pub fn new(lua: &Lua) -> Result<Self> {
         Ok(Self {
             doc: vec![],
             ptr: 0,
             terminal: Terminal::new(),
-            config: Config::read(config)?,
+            config: Config::new(lua)?,
             active: true,
             greet: false,
             help: false,
             highlighter: vec![],
             feedback: Feedback::None,
+            command: None,
         })
+    }
+
+    /// Load the configuration values
+    pub fn load_config(&mut self, path: String, lua: &Lua) -> Result<()> {
+        self.config.read(path, lua)?;
+        Ok(())
     }
 
     /// Function to create a new document
@@ -150,92 +160,71 @@ impl Editor {
         self.doc_mut().exe(ev)?;
         Ok(())
     }
-
-    /// Initialise, render and handle events as they come in
-    pub fn run(&mut self) -> Result<()> {
+    
+    /// Initialise the editor
+    pub fn init(&mut self) -> Result<()> {
         self.terminal.start()?;
         // If no documents were provided, create a new empty document
         if self.doc.is_empty() {
             self.blank()?;
             self.greet = true && self.config.greeting_message.borrow().enabled;
         }
+        Ok(())
+    }
+
+    /// Complete one cycle of the editor
+    /// This function will return a key press code if applicable
+    pub fn cycle(&mut self) -> Result<Option<String>> {
         // Run the editor
-        while self.active {
-            self.render()?;
-            self.feedback = Feedback::None;
-            // Wait for an event
-            match read()? {
-                CEvent::Key(key) => match (key.modifiers, key.code) {
-                    // Movement
-                    (KMod::NONE, KCode::Up) => self.up(),
-                    (KMod::NONE, KCode::Down) => self.down(),
-                    (KMod::NONE, KCode::Left) => self.left(),
-                    (KMod::NONE, KCode::Right) => self.right(),
-                    (KMod::CONTROL, KCode::Up) => self.doc_mut().move_top(),
-                    (KMod::CONTROL, KCode::Down) => self.doc_mut().move_bottom(),
-                    (KMod::CONTROL, KCode::Left) => self.prev_word(),
-                    (KMod::CONTROL, KCode::Right) => self.next_word(),
-                    (KMod::NONE, KCode::Home) => self.doc_mut().move_home(),
-                    (KMod::NONE, KCode::End) => self.doc_mut().move_end(),
-                    (KMod::NONE, KCode::PageUp) => self.doc_mut().move_page_up(),
-                    (KMod::NONE, KCode::PageDown) => self.doc_mut().move_page_down(),
-                    // Searching & Replacing
-                    (KMod::CONTROL, KCode::Char('f')) => self.search()?,
-                    (KMod::CONTROL, KCode::Char('r')) => self.replace()?,
-                    // Document management
-                    (KMod::CONTROL, KCode::Char('n')) => self.new_document()?,
-                    (KMod::CONTROL, KCode::Char('o')) => self.open_document()?,
-                    (KMod::CONTROL, KCode::Char('s')) => self.save()?,
-                    (KMod::ALT, KCode::Char('s')) => self.save_as()?,
-                    (KMod::CONTROL, KCode::Char('a')) => self.save_all()?,
-                    (KMod::CONTROL, KCode::Char('q')) => self.quit()?,
-                    (KMod::SHIFT, KCode::Left) => self.prev(),
-                    (KMod::SHIFT, KCode::Right) => self.next(),
-                    // Undo & Redo
-                    (KMod::CONTROL, KCode::Char('z')) => self.doc_mut().undo()?,
-                    (KMod::CONTROL, KCode::Char('y')) => self.doc_mut().redo()?,
-                    // Editing
+        self.render()?;
+        // Wait for an event
+        match read()? {
+            CEvent::Key(key) => {
+                match (key.modifiers, key.code) {
+                    // Editing - these key bindings can't be modified (only added to)!
                     (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
                     (KMod::NONE, KCode::Tab) => self.character('\t')?,
                     (KMod::NONE, KCode::Backspace) => self.backspace()?,
                     (KMod::NONE, KCode::Delete) => self.delete()?,
                     (KMod::NONE, KCode::Enter) => self.enter()?,
-                    (KMod::CONTROL, KCode::Char('d')) => self.delete_line()?,
-                    // Command
-                    (KMod::CONTROL, KCode::Char('k')) => self.command()?,
                     _ => (),
-                },
-                CEvent::Resize(w, h) => {
-                    // Ensure all lines in viewport are loaded
-                    let max = self.dent();
-                    self.doc_mut().size.w = w.saturating_sub(max as u16) as usize;
-                    self.doc_mut().size.h = h.saturating_sub(3) as usize;
-                    let max = self.doc().offset.x + self.doc().size.h;
-                    self.doc_mut().load_to(max);
-                    // Make sure cursor hasn't broken out of bounds
-                    if self.doc().cursor.y >= self.doc().size.h - 1 {
-                        let y = self.doc().size.h.saturating_sub(1);
-                        self.doc_mut().cursor.y = y;
-                        self.doc_mut().move_home();
-                    }
                 }
-                _ => (),
+                // Check user-defined key combinations (includes defaults if not modified)
+                return Ok(Some(key_to_string(key.modifiers, key.code)));
             }
-            self.greet = false;
-            // Append any missed lines to the syntax highlighter
-            if self.active {
-                let actual = self.doc.get(self.ptr).and_then(|d| Some(d.loaded_to)).unwrap_or(0);
-                let percieved = self.highlighter().line_ref.len();
-                if percieved < actual {
-                    let diff = actual - percieved;
-                    for i in 0..diff {
-                        let line = &self.doc[self.ptr].lines[percieved + i];
-                        self.highlighter[self.ptr].append(line);
-                    }
+            CEvent::Resize(w, h) => {
+                // Ensure all lines in viewport are loaded
+                let max = self.dent();
+                self.doc_mut().size.w = w.saturating_sub(max as u16) as usize;
+                self.doc_mut().size.h = h.saturating_sub(3) as usize;
+                let max = self.doc().offset.x + self.doc().size.h;
+                self.doc_mut().load_to(max);
+                // Make sure cursor hasn't broken out of bounds
+                if self.doc().cursor.y >= self.doc().size.h - 1 {
+                    let y = self.doc().size.h.saturating_sub(1);
+                    self.doc_mut().cursor.y = y;
+                    self.doc_mut().move_home();
+                }
+            }
+            _ => (),
+        }
+        self.feedback = Feedback::None;
+        Ok(None)
+    }
+
+    pub fn update_highlighter(&mut self) -> Result<()> {
+        // Append any missed lines to the syntax highlighter
+        if self.active {
+            let actual = self.doc.get(self.ptr).and_then(|d| Some(d.loaded_to)).unwrap_or(0);
+            let percieved = self.highlighter().line_ref.len();
+            if percieved < actual {
+                let diff = actual - percieved;
+                for i in 0..diff {
+                    let line = &self.doc[self.ptr].lines[percieved + i];
+                    self.highlighter[self.ptr].append(line);
                 }
             }
         }
-        self.terminal.end()?;
         Ok(())
     }
 
@@ -414,7 +403,7 @@ impl Editor {
     }
 
     /// Display a prompt in the document
-    fn prompt<S: Into<String>>(&mut self, prompt: S) -> Result<String> {
+    pub fn prompt<S: Into<String>>(&mut self, prompt: S) -> Result<String> {
         let prompt = prompt.into();
         let mut input = String::new();
         let mut done = false;
@@ -455,31 +444,31 @@ impl Editor {
     }
 
     /// Move to the next document opened in the editor
-    fn next(&mut self) {
+    pub fn next(&mut self) {
         if self.ptr + 1 < self.doc.len() {
             self.ptr += 1;
         }
     }
 
     /// Move to the previous document opened in the editor
-    fn prev(&mut self) {
+    pub fn prev(&mut self) {
         if self.ptr != 0 {
             self.ptr -= 1;
         }
     }
 
     /// Move the cursor up
-    fn up(&mut self) {
+    pub fn up(&mut self) {
         self.doc_mut().move_up();
     }
 
     /// Move the cursor down
-    fn down(&mut self) {
+    pub fn down(&mut self) {
         self.doc_mut().move_down();
     }
 
     /// Move the cursor left
-    fn left(&mut self) {
+    pub fn left(&mut self) {
         let status = self.doc_mut().move_left();
         // Cursor wrapping if cursor hits the start of the line
         if status == Status::StartOfLine && self.doc().loc().y != 0 {
@@ -489,7 +478,7 @@ impl Editor {
     }
 
     /// Move the cursor right
-    fn right(&mut self) {
+    pub fn right(&mut self) {
         let status = self.doc_mut().move_right();
         // Cursor wrapping if cursor hits the end of a line
         if status == Status::EndOfLine {
@@ -499,7 +488,7 @@ impl Editor {
     }
 
     /// Move the cursor to the previous word in the line
-    fn prev_word(&mut self) {
+    pub fn prev_word(&mut self) {
         let status = self.doc_mut().move_prev_word();
         if status == Status::StartOfLine {
             self.doc_mut().move_up();
@@ -508,7 +497,7 @@ impl Editor {
     }
 
     /// Move the cursor to the next word in the line
-    fn next_word(&mut self) {
+    pub fn next_word(&mut self) {
         let status = self.doc_mut().move_next_word();
         if status == Status::EndOfLine {
             self.doc_mut().move_down();
@@ -518,16 +507,20 @@ impl Editor {
 
     /// Insert a character into the document, creating a new row if editing
     /// on the last line of the document
-    fn character(&mut self, ch: char) -> Result<()> {
+    pub fn character(&mut self, ch: char) -> Result<()> {
         self.new_row()?;
-        let loc = self.doc().char_loc();
-        self.exe(Event::Insert(loc, ch.to_string()))?;
-        self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
+        if ch == '\n' {
+            self.enter()?;
+        } else {
+            let loc = self.doc().char_loc();
+            self.exe(Event::Insert(loc, ch.to_string()))?;
+            self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
+        }
         Ok(())
     }
 
     /// Handle the return key
-    fn enter(&mut self) -> Result<()> {
+    pub fn enter(&mut self) -> Result<()> {
         if self.doc().loc().y != self.doc().len_lines() {
             // Enter pressed in the start, middle or end of the line
             let loc = self.doc().char_loc();
@@ -544,7 +537,7 @@ impl Editor {
     }
 
     /// Handle the backspace key
-    fn backspace(&mut self) -> Result<()> {
+    pub fn backspace(&mut self) -> Result<()> {
         let mut c = self.doc().char_ptr;
         let on_first_line = self.doc().loc().y == 0;
         let out_of_range = self.doc().out_of_range(0, self.doc().loc().y).is_err();
@@ -573,7 +566,7 @@ impl Editor {
     }
 
     /// Delete the character in place
-    fn delete(&mut self) -> Result<()> {
+    pub fn delete(&mut self) -> Result<()> {
         let c = self.doc().char_ptr;
         if let Some(line) = self.doc().line(self.doc().loc().y) {
             if let Some(ch) = line.chars().nth(c) {
@@ -595,7 +588,7 @@ impl Editor {
     }
 
     /// Delete the current line
-    fn delete_line(&mut self) -> Result<()> {
+    pub fn delete_line(&mut self) -> Result<()> {
         if self.doc().loc().y < self.doc().len_lines() {
             let y = self.doc().loc().y;
             let line = self.doc().line(y).unwrap();
@@ -799,30 +792,5 @@ impl Editor {
         }
         self.terminal.show_cursor()?;
         Ok(result)
-    }
-
-    /// Open command line
-    pub fn command(&mut self) -> Result<()> {
-        let cmd = self.prompt("Command")?;
-        self.run_command(cmd)?;
-        Ok(())
-    }
-
-    /// Run a command
-    pub fn run_command(&mut self, cmd: String) -> Result<()> {
-        match cmd.split(' ').collect::<Vec<&str>>().as_slice() {
-            ["filetype", ext] => {
-                // Change the highlighter of the current file
-                self.highlighter[self.ptr] = from_extension(ext, 4)
-                    .unwrap_or_else(|| Highlighter::new(4));
-            }
-            ["readonly", "true"] => self.doc_mut().read_only = true,
-            ["readonly", "false"] => self.doc_mut().read_only = false,
-            ["help"] => self.help = !self.help,
-            _ => {
-                self.feedback = Feedback::Error(format!("Command '{}' not found", cmd));
-            }
-        }
-        Ok(())
     }
 }

@@ -29,6 +29,7 @@ EXAMPLES:
   tree | ox -r --stdin\
 ";
 
+/// Read from the standard input
 pub fn get_stdin() -> Option<String> {
     let input = io::stdin().lock().lines().fold("".to_string(), |acc, line| {
         acc + &line.unwrap() + "\n"
@@ -39,55 +40,45 @@ pub fn get_stdin() -> Option<String> {
 
 /// Struct to help with starting ox
 pub struct CommandLineInterface {
-    jargon: Jargon,
+    pub help: bool,
+    pub version: bool,
+    pub read_only: bool,
+    pub stdin: bool,
+    pub file_type: Option<String>,
+    pub config_path: String,
     pub to_open: Vec<String>,
 }
 
 impl CommandLineInterface {
     /// Create a new command line interface helper
     pub fn new() -> Self {
+        // Start parsing
+        let mut j = Jargon::from_env();
+
+        // Define keys
+        let filetype: Key = ["-f", "--filetype"].into();
+        let config: Key = ["-c", "--config"].into();
+
         Self { 
-            jargon: Jargon::from_env(), 
-            to_open: vec![],
+            help: j.contains(["-h", "--help"]),
+            version: j.contains(["-v", "--version"]),
+            read_only: j.contains(["-r", "--readonly"]),
+            stdin: j.contains("--stdin"),
+            file_type: j.option_arg::<String, Key>(filetype.clone()),
+            config_path: j.option_arg::<String, Key>(config.clone())
+                .unwrap_or_else(|| "~/.oxrc".to_string()),
+            to_open: j.finish(),
         }
     }
 
-    /// Determine if the user wishes to see the help message
-    pub fn help(&mut self) -> bool {
-        self.jargon.contains(["-h", "--help"])
-    }
-
-    /// Determine if the user wishes to see the version
-    pub fn version(&mut self) -> bool {
-        self.jargon.contains(["-v", "--version"])
-    }
-
-    /// Determine if the user wishes to open files in read only
-    pub fn read_only(&mut self) -> bool {
-        self.jargon.contains(["-r", "--readonly"])
-    }
-
-    /// Determine if the user wishes to pass file information through stdin
-    pub fn stdin(&mut self) -> bool {
-        self.jargon.contains("--stdin")
-    }
-
-    /// Get all the files the user has requested
-    pub fn get_files(&mut self) {
-        self.to_open = self.jargon.clone().finish();
-    }
-
-    /// Get file types
-    pub fn get_file_type(&mut self) -> Option<String> {
-        let filetype_key: Key = ["-f", "--filetype"].into();
-        self.jargon.option_arg::<String, Key>(filetype_key.clone())
-    }
-    /// Configuration file path
-    pub fn get_config_path(&mut self) -> String {
-        let config_key: Key = ["-c", "--config"].into();
-        match self.jargon.option_arg::<String, Key>(config_key.clone()) {
-            Some(config) => config,
-            None => "~/.oxrc".to_string(),
+    /// Handle options that won't need to start the editor
+    pub fn basic_options(&self) {
+        if self.help {
+            println!("{}", HELP);
+            std::process::exit(0);
+        } else if self.version {
+            println!("{}", VERSION);
+            std::process::exit(0);
         }
     }
 }

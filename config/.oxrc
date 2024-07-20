@@ -1,3 +1,107 @@
+-- Configure Events --
+
+event_mapping = {
+    -- Cursor movement
+    ["up"] = function() 
+        editor:move_up() 
+    end,
+    ["down"] = function() 
+        editor:move_down() 
+    end,
+    ["left"] = function() 
+        editor:move_left() 
+    end,
+    ["right"] = function() 
+        editor:move_right() 
+    end,
+    ["ctrl_up"] = function() 
+        editor:move_top() 
+    end,
+    ["ctrl_down"] = function() 
+        editor:move_bottom() 
+    end,
+    ["ctrl_left"] = function() 
+        editor:move_previous_word() 
+    end,
+    ["ctrl_right"] = function() 
+        editor:move_next_word() 
+    end,
+    ["home"] = function() 
+        editor:move_home() 
+    end,
+    ["end"] = function() 
+        editor:move_end() 
+    end,
+    ["pageup"] = function() 
+        editor:move_page_up() 
+    end,
+    ["pagedown"] = function() 
+        editor:move_page_down() 
+    end,
+    -- Searching & Replacing
+    ["ctrl_f"] = function()
+        editor:search()
+    end,
+    ["ctrl_r"] = function()
+        editor:replace()
+    end,
+    -- Document Management
+    ["ctrl_n"] = function()
+        editor:new()
+    end,
+    ["ctrl_o"] = function()
+        editor:open()
+    end,
+    ["ctrl_s"] = function()
+        editor:save()
+    end,
+    ["alt_s"] = function()
+        editor:save_as()
+    end,
+    ["ctrl_a"] = function()
+        editor:save_all()
+    end,
+    ["ctrl_q"] = function()
+        editor:quit()
+    end,
+    ["shift_left"] = function()
+        editor:previous_tab();
+    end,
+    ["shift_right"] = function()
+        editor:next_tab();
+    end,
+    -- Undo & Redo
+    ["ctrl_z"] = function()
+        editor:undo()
+    end,
+    ["ctrl_y"] = function()
+        editor:redo()
+    end,
+    -- Miscellaneous
+    ["ctrl_d"] = function()
+        editor:remove_line()
+    end,
+    ["ctrl_k"] = function()
+        editor:open_command_line()
+    end,
+}
+
+-- Allow user-defined commands
+
+commands = {
+    -- Define the test command
+    ["test"] = function(arguments)
+        -- Iterate through each argument and string separate them with commas
+        result = ""
+        for arg_no, arg_value in ipairs(arguments) do
+            result = result .. arg_value .. ", "
+        end
+        -- Display the result
+        editor:display_info("test complete, you passed " .. result .. " as arguments")
+    end,
+}
+
+
 -- Configure Colours --
 colors.editor_bg = {41, 41, 61}
 colors.editor_fg = {255, 255, 255}
@@ -85,3 +189,8 @@ syntax:set("bold", {40, 198, 232}) -- Quotes in various markup languages e.g. * 
 syntax:set("italic", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
 syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
 syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown
+
+
+-- Import plugins (must be at the bottom of this file)
+
+-- Coming in 0.4.1!

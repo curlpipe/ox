@@ -3,10 +3,13 @@ use std::{cell::RefCell, rc::Rc};
 use crate::editor::Editor;
 use crate::cli::VERSION;
 use crate::error::{OxError, Result};
+use crate::ui::Feedback;
 use kaolinite::utils::filetype;
 use std::collections::HashMap;
+use kaolinite::Loc;
 use crossterm::{
     style::{Color, SetForegroundColor as Fg},
+    event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode},
 };
 
 // Gracefully exit the program
@@ -15,8 +18,10 @@ fn graceful_panic(msg: &str) {
     std::process::exit(1);
 }
 
+/// This contains the default configuration lua file
 const DEFAULT_CONFIG: &str = include_str!("../config/.oxrc");
 
+/// The struct that holds all the configuration information
 #[derive(Debug)]
 pub struct Config {
     pub syntax_highlighting: Rc<RefCell<SyntaxHighlighting>>,
@@ -27,10 +32,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn read(path: String) -> Result<Self> {
-        // Load defaults
-        let lua = Lua::new();
-
+    /// Take a lua instance, inject all the configuration tables and return a default config struct
+    pub fn new(lua: &Lua) -> Result<Self> {
         // Set up structs to populate (the default values will be thrown away)
         let syntax_highlighting = Rc::new(RefCell::new(SyntaxHighlighting::default()));
         let line_numbers = Rc::new(RefCell::new(LineNumbers::default()));
@@ -45,6 +48,17 @@ impl Config {
         lua.globals().set("status_line", status_line.clone())?;
         lua.globals().set("colors", colors.clone())?;
 
+        Ok(Config {
+            syntax_highlighting,
+            line_numbers,
+            greeting_message,
+            status_line,
+            colors,
+        })
+    }
+
+    /// Actually take the configuration file, open it and interpret it
+    pub fn read(&mut self, path: String, lua: &Lua) -> Result<()> {
         // Load the default config to start with
         lua.load(DEFAULT_CONFIG).exec()?;
 
@@ -55,17 +69,12 @@ impl Config {
                 lua.load(config).exec()?;
             }
         }
-
-        Ok(Config {
-            syntax_highlighting,
-            line_numbers,
-            greeting_message,
-            status_line,
-            colors,
-        })
+        
+        Ok(())
     }
 }
 
+/// For storing configuration information related to syntax highlighting
 #[derive(Debug)]
 pub struct SyntaxHighlighting {
     pub theme: HashMap<String, ConfigColor>,
@@ -80,6 +89,7 @@ impl Default for SyntaxHighlighting {
 }
 
 impl SyntaxHighlighting {
+    /// Get a colour from the theme
     pub fn get_theme(&self, name: &str) -> Result<Color> {
         if let Some(col) = self.theme.get(name) {
             col.to_color()
@@ -98,6 +108,7 @@ impl LuaUserData for SyntaxHighlighting {
     }
 }
 
+/// For storing configuration information related to line numbers
 #[derive(Debug)]
 pub struct LineNumbers {
     pub enabled: bool,
@@ -121,6 +132,7 @@ impl LuaUserData for LineNumbers {
     }
 }
 
+/// For storing configuration information related to the greeting message
 #[derive(Debug)]
 pub struct GreetingMessage {
     pub enabled: bool,
@@ -137,6 +149,7 @@ impl Default for GreetingMessage {
 }
 
 impl GreetingMessage {
+    /// Take the configuration information and render the greeting message
     pub fn render(&self, colors: &Colors) -> Result<String> {
         let highlight = Fg(colors.highlight.to_color()?).to_string();
         let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
@@ -163,6 +176,7 @@ impl LuaUserData for GreetingMessage {
     }
 }
 
+/// For storing configuration information related to the status line
 #[derive(Debug)]
 pub struct StatusLine {
     pub parts: Vec<String>,
@@ -548,5 +562,341 @@ impl ConfigColor {
         let b = u8::from_str_radix(&hex[4..6], 16).expect("invalid B component in hex code");
 
         Ok((r, g, b))
+    }
+}
+
+pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
+    let mut result = "".to_string();
+    // Deal with modifiers
+    if modifiers == KMod::CONTROL {
+        result += "ctrl_";
+    }
+    if modifiers == KMod::ALT {
+        result += "alt_";
+    }
+    if modifiers == KMod::SHIFT {
+        result += "shift_";
+    }
+    result += &match key {
+        KCode::Backspace => "backspace".to_string(),
+        KCode::Enter => "enter".to_string(),
+        KCode::Left => "left".to_string(),
+        KCode::Right => "right".to_string(),
+        KCode::Up => "up".to_string(),
+        KCode::Down => "down".to_string(),
+        KCode::Home => "home".to_string(),
+        KCode::End => "end".to_string(),
+        KCode::PageUp => "pageup".to_string(),
+        KCode::PageDown => "pagedown".to_string(),
+        KCode::Tab => "tab".to_string(),
+        KCode::BackTab => "backtab".to_string(),
+        KCode::Delete => "delete".to_string(),
+        KCode::Insert => "insert".to_string(),
+        KCode::F(num) => format!("f{num}"),
+        KCode::Char(ch) => format!("{ch}"),
+        KCode::Null => "null".to_string(),
+        KCode::Esc => "esc".to_string(),
+        KCode::CapsLock => "capslock".to_string(),
+        KCode::ScrollLock => "scrolllock".to_string(),
+        KCode::NumLock => "numlock".to_string(),
+        KCode::PrintScreen => "printscreen".to_string(),
+        KCode::Pause => "pause".to_string(),
+        KCode::Menu => "menu".to_string(),
+        KCode::KeypadBegin => "keypadbegin".to_string(),
+        KCode::Media(key) => match key {
+            MediaKeyCode::Play => "play",
+            MediaKeyCode::Pause => "pause",
+            MediaKeyCode::PlayPause => "playpause",
+            MediaKeyCode::Reverse => "reverse",
+            MediaKeyCode::Stop => "stop",
+            MediaKeyCode::FastForward => "fastforward",
+            MediaKeyCode::TrackNext => "next",
+            MediaKeyCode::TrackPrevious => "previous",
+            MediaKeyCode::Record => "record",
+            MediaKeyCode::Rewind => "rewind",
+            MediaKeyCode::LowerVolume => "lowervolume",
+            MediaKeyCode::RaiseVolume => "raisevolume",
+            MediaKeyCode::MuteVolume => "mutevolume",
+        }.to_string(),
+        KCode::Modifier(key) => match key {
+            ModifierKeyCode::LeftShift => "lshift",
+            ModifierKeyCode::LeftControl => "lctrl",
+            ModifierKeyCode::LeftAlt => "lalt",
+            ModifierKeyCode::LeftSuper => "lsuper",
+            ModifierKeyCode::LeftHyper => "lhyper",
+            ModifierKeyCode::LeftMeta => "lmeta",
+            ModifierKeyCode::RightControl => "rctrl",
+            ModifierKeyCode::RightAlt => "ralt",
+            ModifierKeyCode::RightSuper => "rsuper",
+            ModifierKeyCode::RightHyper => "rhyper",
+            ModifierKeyCode::RightMeta => "rmeta",
+            ModifierKeyCode::RightShift => "rshift",
+            ModifierKeyCode::IsoLevel3Shift => "iso3shift",
+            ModifierKeyCode::IsoLevel5Shift => "iso5shift",
+        }.to_string(),
+    };
+    return result
+}
+
+impl LuaUserData for Editor {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("cursor", |_, editor| {
+            let loc = editor.doc().char_loc();
+            Ok(LuaLoc { x: loc.x, y: loc.y + 1 })
+        });
+        fields.add_field_method_get("document_name", |_, editor| {
+            let name = editor.doc().file_name.clone();
+            Ok(name)
+        });
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        // Display messages
+        methods.add_method_mut("display_error", |_, editor, message: String| {
+            editor.feedback = Feedback::Error(message);
+            Ok(())
+        });
+        methods.add_method_mut("display_warning", |_, editor, message: String| {
+            editor.feedback = Feedback::Warning(message);
+            Ok(())
+        });
+        methods.add_method_mut("display_info", |_, editor, message: String| {
+            editor.feedback = Feedback::Info(message);
+            Ok(())
+        });
+        // Prompt the user
+        methods.add_method_mut("prompt", |_, editor, question: String| {
+            Ok(editor.prompt(question).unwrap_or_else(|_| "error".to_string()))
+        });
+        // Edit commands (relative)
+        methods.add_method_mut("insert", |_, editor, text: String| {
+            for ch in text.chars() {
+                if let Err(err) = editor.character(ch) {
+                    editor.feedback = Feedback::Error(err.to_string());
+                }
+            }
+            Ok(())
+        });
+        methods.add_method_mut("remove", |_, editor, ()| {
+            if let Err(err) = editor.backspace() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("insert_line", |_, editor, ()| {
+            if let Err(err) = editor.enter() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("remove_line", |_, editor, ()| {
+            if let Err(err) = editor.delete_line() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        // Cursor moving
+        methods.add_method_mut("move_to", |_, editor, (x, y): (usize, usize)| {
+            let y = y.saturating_sub(1);
+            editor.doc_mut().goto(&Loc{ x, y });
+            Ok(())
+        });
+        methods.add_method_mut("move_up", |_, editor, ()| {
+            editor.up();
+            Ok(())
+        });
+        methods.add_method_mut("move_down", |_, editor, ()| {
+            editor.down();
+            Ok(())
+        });
+        methods.add_method_mut("move_left", |_, editor, ()| {
+            editor.left();
+            Ok(())
+        });
+        methods.add_method_mut("move_right", |_, editor, ()| {
+            editor.right();
+            Ok(())
+        });
+        methods.add_method_mut("move_home", |_, editor, ()| {
+            editor.doc_mut().move_home();
+            Ok(())
+        });
+        methods.add_method_mut("move_end", |_, editor, ()| {
+            editor.doc_mut().move_end();
+            Ok(())
+        });
+        methods.add_method_mut("move_page_up", |_, editor, ()| {
+            editor.doc_mut().move_page_up();
+            Ok(())
+        });
+        methods.add_method_mut("move_page_down", |_, editor, ()| {
+            editor.doc_mut().move_page_down();
+            Ok(())
+        });
+        methods.add_method_mut("move_top", |_, editor, ()| {
+            editor.doc_mut().move_top();
+            Ok(())
+        });
+        methods.add_method_mut("move_bottom", |_, editor, ()| {
+            editor.doc_mut().move_bottom();
+            Ok(())
+        });
+        methods.add_method_mut("move_previous_word", |_, editor, ()| {
+            editor.prev_word();
+            Ok(())
+        });
+        methods.add_method_mut("move_next_word", |_, editor, ()| {
+            editor.next_word();
+            Ok(())
+        });
+        methods.add_method_mut("insert_at", |_, editor, (text, x, y): (String, usize, usize)| {
+            let y = y.saturating_sub(1);
+            let location = editor.doc_mut().char_loc();
+            editor.doc_mut().goto(&Loc { x, y });
+            for ch in text.chars() {
+                if let Err(err) = editor.character(ch) {
+                    editor.feedback = Feedback::Error(err.to_string());
+                }
+            }
+            editor.doc_mut().goto(&location);
+            Ok(())
+        });
+        methods.add_method_mut("remove_at", |_, editor, (x, y): (usize, usize)| {
+            let y = y.saturating_sub(1);
+            let location = editor.doc_mut().char_loc();
+            editor.doc_mut().goto(&Loc { x, y });
+            if let Err(err) = editor.delete() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            editor.doc_mut().goto(&location);
+            Ok(())
+        });
+        methods.add_method_mut("insert_line_at", |_, editor, (text, y): (String, usize)| {
+            let y = y.saturating_sub(1);
+            let location = editor.doc_mut().char_loc();
+            if y < editor.doc().len_lines() {
+                editor.doc_mut().goto_y(y);
+                editor.doc_mut().move_home();
+                if let Err(err) = editor.enter() {
+                    editor.feedback = Feedback::Error(err.to_string());
+                }
+                editor.up();
+            } else {
+                editor.doc_mut().move_bottom();
+                if let Err(err) = editor.enter() {
+                    editor.feedback = Feedback::Error(err.to_string());
+                }
+            }
+            for ch in text.chars() {
+                if let Err(err) = editor.character(ch) {
+                    editor.feedback = Feedback::Error(err.to_string());
+                }
+            }
+            editor.doc_mut().goto(&location);
+            Ok(())
+        });
+        methods.add_method_mut("remove_line_at", |_, editor, y: usize| {
+            let y = y.saturating_sub(1);
+            let location = editor.doc_mut().char_loc();
+            editor.doc_mut().goto_y(y);
+            if let Err(err) = editor.delete_line() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            editor.doc_mut().goto(&location);
+            Ok(())
+        });
+        methods.add_method_mut("open_command_line", |_, editor, ()| {
+            match editor.prompt("Command") {
+                Ok(command) => {
+                    editor.command = Some(command);
+                }
+                Err(err) => {
+                    editor.feedback = Feedback::Error(err.to_string());
+                }
+            }
+            Ok(())
+        });
+        methods.add_method_mut("previous_tab", |_, editor, ()| {
+            editor.prev();
+            Ok(())
+        });
+        methods.add_method_mut("next_tab", |_, editor, ()| {
+            editor.next();
+            Ok(())
+        });
+        methods.add_method_mut("new", |_, editor, ()| {
+            if let Err(err) = editor.new_document() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("open", |_, editor, ()| {
+            if let Err(err) = editor.open_document() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("save", |_, editor, ()| {
+            if let Err(err) = editor.save() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("save_as", |_, editor, ()| {
+            if let Err(err) = editor.save_as() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("save_all", |_, editor, ()| {
+            if let Err(err) = editor.save_all() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("quit", |_, editor, ()| {
+            if let Err(err) = editor.quit() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("undo", |_, editor, ()| {
+            if let Err(err) = editor.doc_mut().undo() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("redo", |_, editor, ()| {
+            if let Err(err) = editor.doc_mut().redo() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("search", |_, editor, ()| {
+            if let Err(err) = editor.search() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+        methods.add_method_mut("replace", |_, editor, ()| {
+            if let Err(err) = editor.replace() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
+    }
+}
+
+pub struct LuaLoc {
+    x: usize,
+    y: usize,
+}
+
+impl IntoLua<'_> for LuaLoc {
+    fn into_lua(self, lua: &Lua) -> std::result::Result<LuaValue<'_>, LuaError> {
+        let table = lua.create_table()?;
+        table.set("x", self.x)?;
+        table.set("y", self.y)?;
+        Ok(LuaValue::Table(table))
     }
 }
