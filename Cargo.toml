@@ -32,4 +32,4 @@ kaolinite = "0.8.1"
 mlua = { version = "0.9.9", features = ["lua54", "vendored"] }
 quick-error = "2.0.1"
 shellexpand = "3.1.0"
-synoptic = "2.0.0"
+synoptic = "2.0.3"
