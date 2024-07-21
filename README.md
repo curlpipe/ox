@@ -28,7 +28,7 @@ Ox is an independent text editor that can be used to write everything from text 
 If you're looking for a text editor that...
 1. :feather: Is lightweight and efficient
 2. :wrench: Can be configured to your heart's content
-3.  Has features out of the box,  including 
+3. :package: Has features out of the box,  including 
     - syntax highlighting
     - undo and redo
     - search and replace
