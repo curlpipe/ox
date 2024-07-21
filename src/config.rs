@@ -578,6 +578,7 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
         result += "shift_";
     }
     result += &match key {
+        KCode::Char('\\') => "\\\\".to_string(),
         KCode::Backspace => "backspace".to_string(),
         KCode::Enter => "enter".to_string(),
         KCode::Left => "left".to_string(),
