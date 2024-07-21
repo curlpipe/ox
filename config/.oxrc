@@ -84,6 +84,9 @@ event_mapping = {
     ["ctrl_k"] = function()
         editor:open_command_line()
     end,
+    ["ctrl_h"] = function()
+        editor:set_read_only(false)
+    end,
 }
 
 -- Allow user-defined commands
@@ -98,6 +101,25 @@ commands = {
         end
         -- Display the result
         editor:display_info("test complete, you passed " .. result .. " as arguments")
+    end,
+    ["help"] = function(arguments)
+        if editor.help_visible then
+            editor:hide_help_message()
+        else
+            editor:show_help_message()
+        end
+    end,
+    ["readonly"] = function(arguments)
+        arg = arguments[1]
+        if arg == "true" then
+            editor:set_read_only(true)
+        elseif arg == "false" then
+            editor:set_read_only(false)
+        end
+    end,
+    ["filetype"] = function(arguments)
+        ext = arguments[1]
+        editor:set_file_type(ext)
     end,
 }
 

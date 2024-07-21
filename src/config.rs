@@ -7,6 +7,7 @@ use crate::ui::Feedback;
 use kaolinite::utils::filetype;
 use std::collections::HashMap;
 use kaolinite::Loc;
+use synoptic::{Highlighter, from_extension};
 use crossterm::{
     style::{Color, SetForegroundColor as Fg},
     event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode},
@@ -579,6 +580,7 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
     }
     result += &match key {
         KCode::Char('\\') => "\\\\".to_string(),
+        KCode::Char('"') => "\\\"".to_string(),
         KCode::Backspace => "backspace".to_string(),
         KCode::Enter => "enter".to_string(),
         KCode::Left => "left".to_string(),
@@ -648,6 +650,27 @@ impl LuaUserData for Editor {
         fields.add_field_method_get("document_name", |_, editor| {
             let name = editor.doc().file_name.clone();
             Ok(name)
+        });
+        fields.add_field_method_get("version", |_, _| {
+            Ok(VERSION)
+        });
+        fields.add_field_method_get("current_document_id", |_, editor| {
+            Ok(editor.ptr)
+        });
+        fields.add_field_method_get("document_count", |_, editor| {
+            Ok(editor.doc.len())
+        });
+        fields.add_field_method_get("help_visible", |_, editor| {
+            Ok(editor.help)
+        });
+        fields.add_field_method_get("document_type", |_, editor| {
+            let ext = editor.doc()
+                .file_name
+                .as_ref()
+                .and_then(|name| Some(name.split('.').last().unwrap_or("")))
+                .unwrap_or("");
+            let file_type = kaolinite::utils::filetype(ext);
+            Ok(file_type)
         });
     }
 
@@ -883,6 +906,68 @@ impl LuaUserData for Editor {
             if let Err(err) = editor.replace() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
+            Ok(())
+        });
+        methods.add_method("get_character", |_, editor, ()| {
+            let loc = editor.doc().char_loc();
+            let ch = editor.doc()
+                .line(loc.y)
+                .unwrap_or_else(|| "".to_string())
+                .chars()
+                .nth(loc.x)
+                .and_then(|ch| Some(ch.to_string()))
+                .unwrap_or_else(|| "".to_string());
+            Ok(ch)
+        });
+        methods.add_method("get_character_at", |_, editor, (x, y): (usize, usize)| {
+            let y = y.saturating_sub(1);
+            let ch = editor.doc()
+                .line(y)
+                .unwrap_or_else(|| "".to_string())
+                .chars()
+                .nth(x)
+                .and_then(|ch| Some(ch.to_string()))
+                .unwrap_or_else(|| "".to_string());
+            Ok(ch)
+        });
+        methods.add_method("get_line", |_, editor, ()| {
+            let loc = editor.doc().char_loc();
+            let line = editor.doc()
+                .line(loc.y)
+                .unwrap_or_else(|| "".to_string());
+            Ok(line)
+        });
+        methods.add_method("get_line_at", |_, editor, y: usize| {
+            let y = y.saturating_sub(1);
+            let line = editor.doc()
+                .line(y)
+                .unwrap_or_else(|| "".to_string());
+            Ok(line)
+        });
+        methods.add_method_mut("move_to_document", |_, editor, id: usize| {
+            editor.ptr = id;
+            Ok(())
+        });
+        methods.add_method_mut("move_previous_match", |_, editor, query: String| {
+            editor.prev_match(&query);
+            Ok(())
+        });
+        methods.add_method_mut("hide_help_message", |_, editor, ()| {
+            editor.help = false;
+            Ok(())
+        });
+        methods.add_method_mut("show_help_message", |_, editor, ()| {
+            editor.help = true;
+            Ok(())
+        });
+        methods.add_method_mut("set_read_only", |_, editor, status: bool| {
+            editor.doc_mut().read_only = status;
+            Ok(())
+        });
+        methods.add_method_mut("set_file_type", |_, editor, ext: String| {
+            let mut highlighter = from_extension(&ext, 4).unwrap_or_else(|| Highlighter::new(4));
+            highlighter.run(&editor.doc().lines);
+            editor.highlighter[editor.ptr] = highlighter;
             Ok(())
         });
     }

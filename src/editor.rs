@@ -20,7 +20,7 @@ pub struct Editor {
     /// Configuration information for the editor
     pub config: Config,
     /// Storage of all the documents opened in the editor
-    doc: Vec<Document>,
+    pub doc: Vec<Document>,
     /// Syntax highlighting integration
     pub highlighter: Vec<Highlighter>,
     /// Pointer to the document that is currently being edited
@@ -635,14 +635,14 @@ impl Editor {
     }
 
     /// Move to the next match
-    fn next_match(&mut self, target: &str) -> Option<String> {
+    pub fn next_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().next_match(target, 1)?;
         self.doc_mut().goto(&mtch.loc);
         Some(mtch.text)
     }
 
     /// Move to the previous match
-    fn prev_match(&mut self, target: &str) -> Option<String> {
+    pub fn prev_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().prev_match(target)?;
         self.doc_mut().goto(&mtch.loc);
         Some(mtch.text)

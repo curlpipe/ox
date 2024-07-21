@@ -136,14 +136,6 @@ fn run(cli: CommandLineInterface) -> Result<()> {
 fn run_editor_command(editor: &Rc<RefCell<Editor>>, cmd: String, lua: &Lua) {
     let cmd = cmd.replace("'", "\\'").to_string();
     match cmd.split(' ').collect::<Vec<&str>>().as_slice() {
-        ["filetype", ext] => {
-            // Change the highlighter of the current file
-            editor.borrow_mut().highlighter[editor.borrow().ptr] = from_extension(ext, 4)
-                .unwrap_or_else(|| Highlighter::new(4));
-        }
-        ["readonly", "true"] => editor.borrow_mut().doc_mut().read_only = true,
-        ["readonly", "false"] => editor.borrow_mut().doc_mut().read_only = false,
-        ["help"] => editor.borrow_mut().help = !editor.borrow().help,
         [subcmd, arguments @ ..] => {
             let arguments = arguments.join("', '");
             let code = format!("commands['{subcmd}']({{'{arguments}'}})");
