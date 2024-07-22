@@ -84,6 +84,26 @@ event_mapping = {
     ["ctrl_k"] = function()
         editor:open_command_line()
     end,
+    ["alt_up"] = function()
+        -- current line information
+        line = editor:get_line()
+        y = editor.cursor.y
+        -- insert a new line
+        editor:insert_line_at(line, y - 1)
+        -- delete old copy and reposition cursor
+        editor:remove_line_at(y + 1)
+        editor:move_up()
+    end,
+    ["alt_down"] = function()
+        -- current line information
+        line = editor:get_line()
+        y = editor.cursor.y
+        -- insert a new line
+        editor:insert_line_at(line, y + 2)
+        -- delete old copy and reposition cursor
+        editor:remove_line_at(y)
+        editor:move_down()
+    end,
 }
 
 -- Allow user-defined commands
@@ -210,22 +230,6 @@ syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _
 syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown
 
 
--- Configure Syntax Rules --
-syntax:new(
-    -- New syntax highlighting for files with the extensions psi and psix
-    {"psi", "psix"}, 
-    {
-        -- Add multiple patterns to make a keyword token
-        syntax:keywords("keyword", {
-            "\\b(pub)\\b", "\\b(fn)\\b", "\\b(return)\\b", 
-        }),
-        -- Define digits
-        syntax:keyword("digit", "([0-9]+)"),
-        -- Create a bounded token for strings (that can be escaped)
-        syntax:bounded("string", "\"", "\"", true),
-    }
-)
-
 -- Import plugins (must be at the bottom of this file)
 
--- Coming in 0.4.2!
+
