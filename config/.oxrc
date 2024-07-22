@@ -213,6 +213,16 @@ syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _
 syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown
 
 
+-- Configure Syntax Rules --
+syntax:new(
+    -- New syntax highlighting for files with the extensions psi and psix
+    {"psi", "psix"}, 
+    {
+        syntax:keyword("keyword", "pub"),
+        syntax:bounded("string", "\"", "\"", true),
+    }
+)
+
 -- Import plugins (must be at the bottom of this file)
 
--- Coming in 0.4.1!
+-- Coming in 0.4.2!
