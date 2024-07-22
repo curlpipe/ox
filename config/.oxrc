@@ -84,9 +84,6 @@ event_mapping = {
     ["ctrl_k"] = function()
         editor:open_command_line()
     end,
-    ["ctrl_h"] = function()
-        editor:display_info(editor.document_length)
-    end,
 }
 
 -- Allow user-defined commands

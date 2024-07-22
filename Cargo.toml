@@ -1,6 +1,6 @@
 [package]
 name = "ox"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 description = "A Rust powered text editor."
