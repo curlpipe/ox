@@ -85,7 +85,7 @@ event_mapping = {
         editor:open_command_line()
     end,
     ["ctrl_h"] = function()
-        editor:set_read_only(false)
+        editor:display_info(editor.document_length)
     end,
 }
 
@@ -218,7 +218,13 @@ syntax:new(
     -- New syntax highlighting for files with the extensions psi and psix
     {"psi", "psix"}, 
     {
-        syntax:keyword("keyword", "pub"),
+        -- Add multiple patterns to make a keyword token
+        syntax:keywords("keyword", {
+            "\\b(pub)\\b", "\\b(fn)\\b", "\\b(return)\\b", 
+        }),
+        -- Define digits
+        syntax:keyword("digit", "([0-9]+)"),
+        -- Create a bounded token for strings (that can be escaped)
         syntax:bounded("string", "\"", "\"", true),
     }
 )

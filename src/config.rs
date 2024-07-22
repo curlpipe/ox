@@ -111,6 +111,13 @@ impl SyntaxHighlighting {
 
 impl LuaUserData for SyntaxHighlighting {
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method_mut("keywords", |lua, _, (name, pattern): (String, Vec<String>)| {
+            let table = lua.create_table()?;
+            table.set("kind", "keyword")?;
+            table.set("name", name)?;
+            table.set("pattern", format!("({})", pattern.join("|")))?;
+            Ok(table)
+        });
         methods.add_method_mut("keyword", |lua, _, (name, pattern): (String, String)| {
             let table = lua.create_table()?;
             table.set("kind", "keyword")?;
@@ -724,6 +731,10 @@ impl LuaUserData for Editor {
         fields.add_field_method_get("document_name", |_, editor| {
             let name = editor.doc().file_name.clone();
             Ok(name)
+        });
+        fields.add_field_method_get("document_length", |_, editor| {
+            let len = editor.doc().len_lines();
+            Ok(len)
         });
         fields.add_field_method_get("version", |_, _| {
             Ok(VERSION)
