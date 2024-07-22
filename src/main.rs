@@ -6,7 +6,6 @@ mod ui;
 
 use kaolinite::event::Event;
 use kaolinite::Loc;
-use synoptic::{Highlighter, from_extension};
 use error::Result;
 use cli::CommandLineInterface;
 use editor::Editor;
@@ -31,44 +30,10 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     let lua = Lua::new();
 
     // Create editor
-    let mut editor = match Editor::new(&lua) {
+    let editor = match Editor::new(&lua) {
         Ok(editor) => editor,
         Err(error) => panic!("Editor failed to start: {:?}", error),
     };
-
-    // Handle stdin if applicable
-    if cli.stdin {
-        if let Some(stdin) = cli::get_stdin() {
-            editor.blank()?;
-            let this_doc = editor.doc_len().saturating_sub(1);
-            let doc = editor.get_doc(this_doc);
-            doc.exe(Event::Insert(Loc { x: 0, y: 0 }, stdin))?;
-            doc.load_to(doc.size.h);
-            let lines = doc.lines.clone();
-            let hl = editor.get_highlighter(this_doc);
-            hl.run(&lines);
-            if cli.read_only {
-                editor.get_doc(this_doc).read_only = true;
-            }
-        }
-    }
-
-    // Open files user has asked to open
-    for (c, file) in cli.to_open.iter().enumerate() {
-        // Open the file
-        editor.open_or_new(file.to_string())?;
-        // Set read only if applicable
-        if cli.read_only {
-            editor.get_doc(c).read_only = true;
-        }
-        // Set highlighter if applicable
-        if let Some(ref ext) = cli.file_type {
-            let mut highlighter = from_extension(&ext, 4)
-                .unwrap_or_else(|| Highlighter::new(4));
-            highlighter.run(&editor.get_doc(c).lines);
-            *editor.get_highlighter(c) = highlighter;
-        }
-    }
 
     // Push editor into lua
     let editor = Rc::new(RefCell::new(editor));
@@ -77,6 +42,48 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     // Load config and initialise
     editor.borrow_mut().load_config(cli.config_path, &lua).unwrap();
     editor.borrow_mut().init()?;
+
+    // Open files user has asked to open
+    for (c, file) in cli.to_open.iter().enumerate() {
+        // Open the file
+        editor.borrow_mut().open_or_new(file.to_string())?;
+        // Set read only if applicable
+        if cli.read_only {
+            editor.borrow_mut().get_doc(c).read_only = true;
+        }
+        // Set highlighter if applicable
+        if let Some(ref ext) = cli.file_type {
+            let mut highlighter = editor
+                .borrow()
+                .config
+                .syntax_highlighting
+                .borrow()
+                .get_highlighter(&ext);
+            highlighter.run(&editor.borrow_mut().get_doc(c).lines);
+            *editor.borrow_mut().get_highlighter(c) = highlighter;
+        }
+    }
+
+    // Handle stdin if applicable
+    if cli.stdin {
+        if let Some(stdin) = cli::get_stdin() {
+            editor.borrow_mut().blank()?;
+            let this_doc = editor.borrow_mut().doc_len().saturating_sub(1);
+            let mut holder = editor.borrow_mut();
+            let doc = holder.get_doc(this_doc);
+            doc.exe(Event::Insert(Loc { x: 0, y: 0 }, stdin))?;
+            doc.load_to(doc.size.h);
+            let lines = doc.lines.clone();
+            let hl = holder.get_highlighter(this_doc);
+            hl.run(&lines);
+            if cli.read_only {
+                editor.borrow_mut().get_doc(this_doc).read_only = true;
+            }
+        }
+    }
+
+    // Create a blank document if none are opened
+    editor.borrow_mut().new_if_empty()?;
 
     // Run the editor and handle errors if applicable
     while editor.borrow().active {

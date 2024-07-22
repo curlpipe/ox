@@ -100,6 +100,13 @@ impl SyntaxHighlighting {
             Err(OxError::Config(format!("{} has not been given a colour in the theme", name)))
         }
     }
+    
+    /// Get a highlighter given a file extension
+    pub fn get_highlighter(&self, ext: &str) -> Highlighter {
+        self.user_rules.get(ext)
+            .and_then(|h| Some(h.clone()))
+            .unwrap_or_else(|| from_extension(ext, 4).unwrap_or_else(|| Highlighter::new(4)))
+    }
 }
 
 impl LuaUserData for SyntaxHighlighting {
@@ -1032,7 +1039,10 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("set_file_type", |_, editor, ext: String| {
-            let mut highlighter = from_extension(&ext, 4).unwrap_or_else(|| Highlighter::new(4));
+            let mut highlighter = editor.config
+                .syntax_highlighting
+                .borrow()
+                .get_highlighter(&ext);
             highlighter.run(&editor.doc().lines);
             editor.highlighter[editor.ptr] = highlighter;
             Ok(())

@@ -9,7 +9,7 @@ use crossterm::{
 use kaolinite::event::{Event, Status, Error as KError};
 use kaolinite::utils::{Loc, Size};
 use kaolinite::Document;
-use synoptic::{Highlighter, TokOpt, trim, from_extension};
+use synoptic::{Highlighter, TokOpt, trim};
 use std::io::{Write, ErrorKind};
 use mlua::Lua;
 
@@ -92,7 +92,10 @@ impl Editor {
         doc.load_to(size.h);
         // Update in the syntax highlighter
         let ext = file_name.split('.').last().unwrap();
-        let mut highlighter = from_extension(ext, 4).unwrap_or(Highlighter::new(4));
+        let mut highlighter = self.config
+            .syntax_highlighting
+            .borrow()
+            .get_highlighter(&ext);
         highlighter.run(&doc.lines);
         self.highlighter.push(highlighter);
         // Add document to documents
@@ -114,8 +117,16 @@ impl Editor {
         if let Err(OxError::Kaolinite(KError::Io(ref os))) = file {
             if os.kind() == ErrorKind::NotFound {
                 self.blank()?;
+                let binding = file_name.clone();
+                let ext = binding.split('.').last().unwrap();
                 self.doc.last_mut().unwrap().file_name = Some(file_name);
                 self.doc.last_mut().unwrap().modified = true;
+                let highlighter = self.config
+                    .syntax_highlighting
+                    .borrow()
+                    .get_highlighter(&ext);
+                *self.highlighter.last_mut().unwrap() = highlighter;
+                self.highlighter.last_mut().unwrap().run(&self.doc.last_mut().unwrap().lines);
                 Ok(())
             } else {
                 file
@@ -164,6 +175,11 @@ impl Editor {
     /// Initialise the editor
     pub fn init(&mut self) -> Result<()> {
         self.terminal.start()?;
+        Ok(())
+    }
+
+    /// Create a blank document if none are already opened
+    pub fn new_if_empty(&mut self) -> Result<()> {
         // If no documents were provided, create a new empty document
         if self.doc.is_empty() {
             self.blank()?;
@@ -727,7 +743,10 @@ impl Editor {
         self.feedback = Feedback::Info(format!("Document saved as {file_name} successfully"));
         if self.doc().file_name.is_none() {
             let ext = file_name.split('.').last().unwrap();
-            self.highlighter[self.ptr] = from_extension(ext, 4).unwrap_or(Highlighter::new(4));
+            self.highlighter[self.ptr] = self.config
+                .syntax_highlighting
+                .borrow()
+                .get_highlighter(&ext);
             self.doc_mut().file_name = Some(file_name);
             self.doc_mut().modified = false;
         }
