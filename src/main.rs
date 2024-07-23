@@ -23,7 +23,10 @@ fn main() {
     // Handle help and version options
     cli.basic_options();
 
-    println!("{:?}", run(cli));
+    let result = run(cli);
+    if let Err(err) = result {
+        panic!("{:?}", err);
+    }
 }
 
 fn run(cli: CommandLineInterface) -> Result<()> {
@@ -43,6 +46,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     // Load config and initialise
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
     editor.borrow_mut().load_config(cli.config_path, &lua).unwrap();
+    lua.load(PLUGIN_RUN).exec().unwrap();
     editor.borrow_mut().init()?;
 
     // Open files user has asked to open

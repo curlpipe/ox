@@ -51,16 +51,14 @@ function load_plugin(base)
     else
         error("Plug-in " .. base .. " not found")
     end
-    plugins[#plugins + 1] = function()
-        dofile(path)
-    end
+    plugins[#plugins + 1] = path
 end
 "#;
 
 /// This contains the code for running the plugins
 pub const PLUGIN_RUN: &str = "
-for c, f in ipairs(plugins) do
-    f()
+for c, path in ipairs(plugins) do
+    dofile(path)
 end
 ";
 
