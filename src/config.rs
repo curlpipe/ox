@@ -22,6 +22,48 @@ fn graceful_panic(msg: &str) {
 /// This contains the default configuration lua file
 const DEFAULT_CONFIG: &str = include_str!("../config/.oxrc");
 
+/// This contains the code for setting up plug-in infrastructure
+pub const PLUGIN_BOOTSTRAP: &str = r#"
+home = os.getenv("HOME") or os.getenv("USERPROFILE")
+
+function file_exists(file_path)
+    local file = io.open(file_path, "r")
+    if file then
+        file:close()
+        return true
+    else
+        return false
+    end
+end
+
+plugins = {}
+
+function load_plugin(base)
+    path_cross = base
+    path_unix = home .. "/.config/ox/" .. base
+    path_win = home .. "/ox/" .. base
+    if file_exists(path_cross) then
+        path = path_cross
+    elseif file_exists(path_unix) then
+        path = path_unix
+    elseif file_exists(path_win) then
+        path = file_win
+    else
+        error("Plug-in " .. base .. " not found")
+    end
+    plugins[#plugins + 1] = function()
+        dofile(path)
+    end
+end
+"#;
+
+/// This contains the code for running the plugins
+pub const PLUGIN_RUN: &str = "
+for c, f in ipairs(plugins) do
+    f()
+end
+";
+
 /// The struct that holds all the configuration information
 #[derive(Debug)]
 pub struct Config {
@@ -650,13 +692,13 @@ impl ConfigColor {
 pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
     let mut result = "".to_string();
     // Deal with modifiers
-    if modifiers == KMod::CONTROL {
+    if modifiers.contains(KMod::CONTROL) {
         result += "ctrl_";
     }
-    if modifiers == KMod::ALT {
+    if modifiers.contains(KMod::ALT) {
         result += "alt_";
     }
-    if modifiers == KMod::SHIFT {
+    if modifiers.contains(KMod::SHIFT) {
         result += "shift_";
     }
     result += &match key {
@@ -677,7 +719,7 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
         KCode::Delete => "delete".to_string(),
         KCode::Insert => "insert".to_string(),
         KCode::F(num) => format!("f{num}"),
-        KCode::Char(ch) => format!("{ch}"),
+        KCode::Char(ch) => format!("{}", ch.to_lowercase()),
         KCode::Null => "null".to_string(),
         KCode::Esc => "esc".to_string(),
         KCode::CapsLock => "capslock".to_string(),

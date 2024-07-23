@@ -5,6 +5,7 @@ use crossterm::{
     execute,
     style::{SetBackgroundColor as Bg, SetForegroundColor as Fg, SetAttribute, Attribute},
     terminal::{self, Clear, ClearType as ClType, EnterAlternateScreen, LeaveAlternateScreen, EnableLineWrap, DisableLineWrap},
+    event::{PushKeyboardEnhancementFlags, KeyboardEnhancementFlags},
 };
 use kaolinite::utils::{Size};
 use std::io::{stdout, Stdout, Write};
@@ -98,6 +99,12 @@ impl Terminal {
         }));
         execute!(self.stdout, EnterAlternateScreen, Clear(ClType::All), DisableLineWrap)?;
         terminal::enable_raw_mode()?;
+        execute!(
+            self.stdout,
+            PushKeyboardEnhancementFlags(
+                KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
+            )
+        )?;
         Ok(())
     }
 

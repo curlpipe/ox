@@ -12,6 +12,7 @@ use editor::Editor;
 use ui::Feedback;
 use std::rc::Rc;
 use std::cell::RefCell;
+use config::{PLUGIN_BOOTSTRAP, PLUGIN_RUN};
 use mlua::Lua;
 use mlua::Error::RuntimeError;
 
@@ -22,7 +23,7 @@ fn main() {
     // Handle help and version options
     cli.basic_options();
 
-    let _ = run(cli);
+    println!("{:?}", run(cli));
 }
 
 fn run(cli: CommandLineInterface) -> Result<()> {
@@ -40,6 +41,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     lua.globals().set("editor", editor.clone())?;
 
     // Load config and initialise
+    lua.load(PLUGIN_BOOTSTRAP).exec()?;
     editor.borrow_mut().load_config(cli.config_path, &lua).unwrap();
     editor.borrow_mut().init()?;
 
@@ -84,6 +86,9 @@ fn run(cli: CommandLineInterface) -> Result<()> {
 
     // Create a blank document if none are opened
     editor.borrow_mut().new_if_empty()?;
+
+    // Run plug-ins
+    lua.load(PLUGIN_RUN).exec()?;
 
     // Run the editor and handle errors if applicable
     while editor.borrow().active {
