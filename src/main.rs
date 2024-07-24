@@ -46,7 +46,6 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     // Load config and initialise
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
     editor.borrow_mut().load_config(cli.config_path, &lua).unwrap();
-    lua.load(PLUGIN_RUN).exec().unwrap();
     editor.borrow_mut().init()?;
 
     // Open files user has asked to open
