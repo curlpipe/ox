@@ -190,8 +190,9 @@ line_numbers.enabled = true
 
 
 -- Configure Status Line --
+status_line:clear()
 status_line:add_part("  {file_name}{modified}  │  {file_type}  │") -- The left side of the status line
-status_line:add_part("│  {cursor_y}/{line_count}  {cursor_x}  ")  -- The right side of the status line
+status_line:add_part("│  {cursor_y} / {line_count}  {cursor_x}  ")  -- The right side of the status line
 
 status_line.alignment = "between" -- This will put a space between the left and right sides
 
@@ -204,20 +205,23 @@ The simple but flexible text editor
 
 Key Binding Cheat Sheet
 {highlight_start}
-Ctrl + N:   New         
-Ctrl + O:   Open        
-Ctrl + Q:   Quit        
-Ctrl + S:   Save        
-Ctrl + W:   Save as     
-Ctrl + A:   Save all    
-Ctrl + Z:   Undo        
-Ctrl + Y:   Redo        
-Ctrl + F:   Find        
-Ctrl + R:   Replace     
-Ctrl + D:   Delete Line 
-Ctrl + K:   Command Line
-Shift + ->: Next Tab    
-Shift + <-: Previous Tab
+Ctrl + N:   New           
+Ctrl + O:   Open          
+Ctrl + Q:   Quit          
+Ctrl + S:   Save          
+Ctrl + W:   Save as       
+Ctrl + A:   Save all      
+Ctrl + Z:   Undo          
+Ctrl + Y:   Redo          
+Ctrl + F:   Find          
+Ctrl + R:   Replace       
+Ctrl + W:   Delete Word   
+Ctrl + D:   Delete Line   
+Alt + Up:   Move line up  
+Alt + Down: Move line down
+Ctrl + K:   Command Line  
+Shift + ->: Next Tab      
+Shift + <-: Previous Tab  
 {highlight_end}
 ]]
 
