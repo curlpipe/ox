@@ -19,10 +19,10 @@ assets = [
     { source = "README.md", dest = "/usr/share/doc/ox/README.md", doc = true, mode = "0644" }
 ]
 
-[profile.release]
-lto = true
-panic = "abort"
-codegen-units = 1
+#[profile.release]
+#lto = true
+#panic = "abort"
+#codegen-units = 1
 
 [dependencies]
 alinio = "0.2.1"

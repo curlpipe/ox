@@ -636,6 +636,7 @@ impl Editor {
         // Enter into search menu
         while !done {
             // Render just the document part
+            self.terminal.hide_cursor()?;
             self.render_document(w, h - 2)?;
             // Render custom status line with mode information
             self.terminal.prepare_line(h)?;
@@ -645,6 +646,7 @@ impl Editor {
             let Loc { x, y } = self.doc().cursor;
             let max = self.dent();
             self.terminal.goto(x + max, y + 1)?;
+            self.terminal.show_cursor()?;
             // Handle events
             if let CEvent::Key(key) = read()? {
                 match (key.modifiers, key.code) {
@@ -657,6 +659,7 @@ impl Editor {
                     _ => (),
                 }
             }
+            self.update_highlighter()?;
         }
         Ok(())
     }
@@ -695,9 +698,11 @@ impl Editor {
             // Exit if there are no matches in the document
             return Ok(());
         }
+        self.update_highlighter()?;
         // Enter into the replace menu
         while !done {
             // Render just the document part
+            self.terminal.hide_cursor()?;
             self.render_document(w, h - 2)?;
             // Write custom status line for the replace mode
             self.terminal.prepare_line(h)?;
@@ -707,6 +712,7 @@ impl Editor {
             let Loc { x, y } = self.doc().cursor;
             let max = self.dent();
             self.terminal.goto(x + max, y + 1)?;
+            self.terminal.show_cursor()?;
             // Handle events
             if let CEvent::Key(key) = read()? {
                 match (key.modifiers, key.code) {
@@ -723,6 +729,8 @@ impl Editor {
                     _ => (),
                 }
             }
+            // Update syntax highlighter if necessary
+            self.update_highlighter()?;
         }
         Ok(())
     }
@@ -732,6 +740,7 @@ impl Editor {
         let loc = self.doc().char_loc();
         self.doc_mut().replace(loc, text, into)?;
         self.doc_mut().goto(&loc);
+        self.update_highlighter()?;
         Ok(())
     }
 
