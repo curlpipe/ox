@@ -353,6 +353,10 @@ impl StatusLine {
 
 impl LuaUserData for StatusLine {
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method_mut("clear", |_, status_line, ()| {
+            status_line.parts.clear();
+            Ok(())
+        });
         methods.add_method_mut("add_part", |_, status_line, part| {
             status_line.parts.push(part);
             Ok(())
