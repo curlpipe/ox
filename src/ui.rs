@@ -12,21 +12,24 @@ use std::io::{stdout, Stdout, Write};
 
 /// Constant that shows the help message
 pub const HELP_TEXT: &str = "
-   Default Key Bindings:      
-   Ctrl + N:   New            
-   Ctrl + O:   Open           
-   Ctrl + Q:   Quit           
-   Ctrl + S:   Save           
-   Ctrl + W:   Save as        
-   Ctrl + A:   Save all       
-   Ctrl + Z:   Undo           
-   Ctrl + Y:   Redo           
-   Ctrl + F:   Find           
-   Ctrl + R:   Replace        
-   Ctrl + D:   Delete Line    
-   Ctrl + K:   Command Line   
-   Shift + ->: Next Tab       
-   Shift + <-: Previous Tab   
+   Default Key Bindings:       
+   Ctrl + N:   New             
+   Ctrl + O:   Open            
+   Ctrl + Q:   Quit            
+   Ctrl + S:   Save            
+   Ctrl + W:   Save as         
+   Ctrl + A:   Save all        
+   Ctrl + Z:   Undo            
+   Ctrl + Y:   Redo            
+   Ctrl + F:   Find            
+   Ctrl + R:   Replace         
+   Ctrl + W:   Delete Word     
+   Ctrl + D:   Delete Line     
+   Ctrl + K:   Command Line    
+   Alt + Up:   Move line up    
+   Alt + Down: Move line down  
+   Shift + ->: Next Tab        
+   Shift + <-: Previous Tab    
 ";
 
 /// Gets the size of the terminal
