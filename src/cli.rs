@@ -1,6 +1,6 @@
 use jargon_args::{Key, Jargon};
 use std::io;
-use std::io::{BufRead};
+use std::io::BufRead;
 
 /// Holds the version number of the crate
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

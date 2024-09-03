@@ -63,7 +63,7 @@ impl Editor {
     /// Function to create a new document
     pub fn blank(&mut self) -> Result<()> {
         let mut size = size()?;
-        size.h -= 2;
+        size.h = size.h.saturating_sub(2);
         let mut doc = Document::new(size);
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
@@ -248,7 +248,7 @@ impl Editor {
     pub fn render(&mut self) -> Result<()> {
         self.terminal.hide_cursor()?;
         let Size { w, mut h } = size()?;
-        h -= 2;
+        h = h.saturating_sub(2);
         // Update the width of the document in case of update
         let max = self.dent();
         self.doc_mut().size.w = w.saturating_sub(max) as usize;
@@ -569,7 +569,7 @@ impl Editor {
             self.highlighter[self.ptr].edit(loc.y, line);
         } else {
             // Backspace was pressed in the middle of the line, delete the character
-            c -= 1;
+            c = c.saturating_sub(1);
             if let Some(line) = self.doc().line(self.doc().loc().y) {
                 if let Some(ch) = line.chars().nth(c) {
                     let loc = Loc { x: c, y: self.doc().loc().y };
