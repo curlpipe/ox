@@ -1,13 +1,9 @@
 use crate::config::Colors;
 use crate::error::Result;
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
-    execute,
-    style::{SetBackgroundColor as Bg, SetForegroundColor as Fg, SetAttribute, Attribute},
-    terminal::{self, Clear, ClearType as ClType, EnterAlternateScreen, LeaveAlternateScreen, EnableLineWrap, DisableLineWrap},
-    event::{PushKeyboardEnhancementFlags, KeyboardEnhancementFlags},
+    cursor::{Hide, MoveTo, Show}, event::{EnableMouseCapture, KeyboardEnhancementFlags, PushKeyboardEnhancementFlags}, execute, style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg}, terminal::{self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen}
 };
-use kaolinite::utils::{Size};
+use kaolinite::utils::Size;
 use std::io::{stdout, Stdout, Write};
 
 /// Constant that shows the help message
@@ -97,7 +93,7 @@ impl Terminal {
             execute!(stdout(), LeaveAlternateScreen, Show).unwrap();
             eprintln!("{}", e);
         }));
-        execute!(self.stdout, EnterAlternateScreen, Clear(ClType::All), DisableLineWrap)?;
+        execute!(self.stdout, EnterAlternateScreen, Clear(ClType::All), DisableLineWrap, EnableMouseCapture)?;
         terminal::enable_raw_mode()?;
         execute!(
             self.stdout,

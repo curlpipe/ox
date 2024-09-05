@@ -13,6 +13,8 @@ use synoptic::{Highlighter, TokOpt, trim};
 use std::io::{Write, ErrorKind};
 use mlua::Lua;
 
+mod mouse;
+
 /// For managing all editing and rendering of cactus
 pub struct Editor {
     /// Interface for writing to the terminal
@@ -222,6 +224,10 @@ impl Editor {
                     self.doc_mut().move_home();
                 }
             }
+            CEvent::Mouse(mouse_event) => {
+                self.handle_mouse_event(mouse_event);
+                return Ok(None);
+            }
             _ => (),
         }
         self.feedback = Feedback::None;
@@ -328,6 +334,12 @@ impl Editor {
         Ok(())
     }
 
+    fn render_document_tab_header(&self, document: &Document) -> String {
+        let file_name = document.file_name.clone().unwrap_or_else(|| "[No Name]".to_string());
+        let modified = if document.modified { "[+]" } else { "" };
+        format!("  {file_name}{modified}  ")
+    }
+
     /// Render the tab line at the top of the document
     fn render_tab_line(&mut self, w: usize) -> Result<()> {
         self.terminal.prepare_line(0)?;
@@ -338,13 +350,12 @@ impl Editor {
             Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?)
         )?;
         for (c, document) in self.doc.iter().enumerate() {
-            let file_name = document.file_name.clone().unwrap_or_else(|| "[No Name]".to_string());
-            let modified = if document.modified { "[+]" } else { "" };
+            let document_header = self.render_document_tab_header(document);
             if c == self.ptr {
                 // Representing the document we're currently looking at
                 write!(
                     self.terminal.stdout, 
-                    "{}{}{}  {file_name}{modified}  {}{}{}│",
+                    "{}{}{}{document_header}{}{}{}│",
                     Bg(self.config.colors.borrow().tab_active_bg.to_color()?),
                     Fg(self.config.colors.borrow().tab_active_fg.to_color()?),
                     SetAttribute(Attribute::Bold),
@@ -354,7 +365,7 @@ impl Editor {
                 )?;
             } else {
                 // Other document that is currently open
-                write!(self.terminal.stdout, "  {file_name}{modified}  │")?;
+                write!(self.terminal.stdout, "{document_header}│")?;
             }
         }
         write!(self.terminal.stdout, "{}", " ".to_string().repeat(w))?;
