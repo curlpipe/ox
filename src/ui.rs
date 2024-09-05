@@ -1,7 +1,11 @@
 use crate::config::Colors;
 use crate::error::Result;
 use crossterm::{
-    cursor::{Hide, MoveTo, Show}, event::{EnableMouseCapture, KeyboardEnhancementFlags, PushKeyboardEnhancementFlags}, execute, style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg}, terminal::{self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen}
+    cursor::{Hide, MoveTo, Show}, 
+    event::{EnableMouseCapture, DisableMouseCapture, KeyboardEnhancementFlags, PushKeyboardEnhancementFlags}, 
+    execute, 
+    style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg}, 
+    terminal::{self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen}
 };
 use kaolinite::utils::Size;
 use std::io::{stdout, Stdout, Write};
@@ -110,7 +114,7 @@ impl Terminal {
     /// Restore terminal back to state before the editor was started
     pub fn end(&mut self) -> Result<()> {
         terminal::disable_raw_mode()?;
-        execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap)?;
+        execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap, DisableMouseCapture)?;
         Ok(())
     }
 
