@@ -586,11 +586,13 @@ impl Document {
     /// Function to go to a specific x position
     pub fn goto_x(&mut self, x: usize) {
         let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
-        // Bounds checking
+        // If we're already at this x coordinate, just exit
         if self.char_ptr == x {
             return;
         }
+        // If the move position is out of bounds, move to the end of the line
         if line.chars().count() < x {
+            self.move_end();
             return;
         }
         // Update char position
