@@ -293,11 +293,11 @@ impl Editor {
     /// Render the status line at the bottom of the document
     fn render_status_line(&mut self, w: usize, h: usize) -> Result<()> {
         execute!(self.stdout, MoveTo(0, h as u16))?;
-        let ext = self.doc().file_name.split('.').last().unwrap().to_string();
+        let ext = self.doc().file_name.as_ref().unwrap().split('.').last().unwrap().to_string();
         // Form left hand side of status bar
         let lhs = format!(
             "{}{} │ {} │",
-            self.doc().file_name.split('/').last().unwrap(),
+            self.doc().file_name.as_ref().unwrap().split('/').last().unwrap(),
             if self.doc().modified { "[+]" } else { "" },
             filetype(&ext).unwrap_or(ext)
         );
