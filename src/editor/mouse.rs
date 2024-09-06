@@ -45,11 +45,10 @@ impl Editor {
             MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
                 match self.find_mouse_location(event) {
                     MouseLocation::File(_) => {
-                        let y = &mut self.doc_mut().offset.y;
                         if event.kind == MouseEventKind::ScrollDown {
-                            *y = y.saturating_add(1);
+                            self.doc_mut().move_down();
                         } else {
-                            *y = y.saturating_sub(1);
+                            self.doc_mut().move_up();
                         }
                     },
                     _ => (),
