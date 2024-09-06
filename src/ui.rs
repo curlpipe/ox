@@ -1,4 +1,4 @@
-use crate::config::Colors;
+use crate::config::{Colors, TerminalConfig};
 use crate::error::Result;
 use crossterm::{
     cursor::{Hide, MoveTo, Show}, 
@@ -8,7 +8,9 @@ use crossterm::{
     terminal::{self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen}
 };
 use kaolinite::utils::Size;
+use std::cell::RefCell;
 use std::io::{stdout, Stdout, Write};
+use std::rc::Rc;
 
 /// Constant that shows the help message
 pub const HELP_TEXT: &str = "
@@ -84,12 +86,14 @@ impl Feedback {
 
 pub struct Terminal {
     pub stdout: Stdout,
+    pub config: Rc<RefCell<TerminalConfig>>,
 }
 
 impl Terminal {
-    pub fn new() -> Self {
+    pub fn new(config: Rc<RefCell<TerminalConfig>>) -> Self {
         Terminal {
             stdout: stdout(),
+            config,
         }
     }
 
@@ -100,7 +104,10 @@ impl Terminal {
             execute!(stdout(), LeaveAlternateScreen, Show).unwrap();
             eprintln!("{}", e);
         }));
-        execute!(self.stdout, EnterAlternateScreen, Clear(ClType::All), DisableLineWrap, EnableMouseCapture)?;
+        execute!(self.stdout, EnterAlternateScreen, Clear(ClType::All), DisableLineWrap)?;
+        if self.config.borrow().mouse_enabled {
+            execute!(self.stdout, EnableMouseCapture)?;    
+        }
         terminal::enable_raw_mode()?;
         execute!(
             self.stdout,
@@ -114,7 +121,10 @@ impl Terminal {
     /// Restore terminal back to state before the editor was started
     pub fn end(&mut self) -> Result<()> {
         terminal::disable_raw_mode()?;
-        execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap, DisableMouseCapture)?;
+        execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap)?;
+        if self.config.borrow().mouse_enabled {
+            execute!(self.stdout, DisableMouseCapture)?;    
+        }
         Ok(())
     }
 

@@ -21,10 +21,11 @@ impl Editor {
                 }
             }
             MouseLocation::Out
-        } else if event.column < 3 {
+        } else if (event.column as usize) < self.dent() {
             MouseLocation::Out
         } else {
-            MouseLocation::File(Loc { x: (event.column - 3) as usize, y: (event.row - 1) as usize })
+            let offset = self.doc().offset;
+            MouseLocation::File(Loc { x: event.column as usize - self.dent() + offset.x, y: (event.row as usize) - 1 + offset.y })
         }
     }
 
@@ -41,6 +42,19 @@ impl Editor {
                     MouseLocation::Out => (),
                 }
             },
+            MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
+                match self.find_mouse_location(event) {
+                    MouseLocation::File(_) => {
+                        let y = &mut self.doc_mut().offset.y;
+                        if event.kind == MouseEventKind::ScrollDown {
+                            *y = y.saturating_add(1);
+                        } else {
+                            *y = y.saturating_sub(1);
+                        }
+                    },
+                    _ => (),
+                }
+            }
             _ => (),
         }
     }

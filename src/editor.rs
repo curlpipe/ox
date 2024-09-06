@@ -19,6 +19,8 @@ mod mouse;
 pub struct Editor {
     /// Interface for writing to the terminal
     pub terminal: Terminal,
+    /// Whether to rerender the editor on the next cycle
+    pub needs_rerender: bool,
     /// Configuration information for the editor
     pub config: Config,
     /// Storage of all the documents opened in the editor
@@ -42,14 +44,16 @@ pub struct Editor {
 impl Editor {
     /// Create a new instance of the editor
     pub fn new(lua: &Lua) -> Result<Self> {
+        let config = Config::new(lua)?;
         Ok(Self {
             doc: vec![],
             ptr: 0,
-            terminal: Terminal::new(),
-            config: Config::new(lua)?,
+            terminal: Terminal::new(config.terminal.clone()),
+            config,
             active: true,
             greet: false,
             help: false,
+            needs_rerender: true,
             highlighter: vec![],
             feedback: Feedback::None,
             command: None,
@@ -196,7 +200,15 @@ impl Editor {
         // Run the editor
         self.render()?;
         // Wait for an event
-        match read()? {
+        let event = read()?;
+        self.needs_rerender = match event {
+            CEvent::Mouse(event) => match event.kind {
+                crossterm::event::MouseEventKind::Moved => false,
+                _ => true,
+            },
+            _ => true,
+        };
+        match event {
             CEvent::Key(key) => {
                 match (key.modifiers, key.code) {
                     // Editing - these key bindings can't be modified (only added to)!
@@ -252,6 +264,10 @@ impl Editor {
 
     /// Render a single frame of the editor in it's current state
     pub fn render(&mut self) -> Result<()> {
+        if !self.needs_rerender {
+            return Ok(());
+        }
+        self.needs_rerender = false;
         self.terminal.hide_cursor()?;
         let Size { w, mut h } = size()?;
         h = h.saturating_sub(2);
