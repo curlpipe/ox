@@ -28,7 +28,7 @@ assets = [
 alinio = "0.2.1"
 crossterm = "0.27.0"
 jargon-args = "0.2.7"
-kaolinite = "0.8.1"
+kaolinite = "0.9.1"
 mlua = { version = "0.9.9", features = ["lua54", "vendored"] }
 quick-error = "2.0.1"
 shellexpand = "3.1.0"
