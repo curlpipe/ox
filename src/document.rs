@@ -522,6 +522,7 @@ impl Document {
         }
         // Check subsequent lines for matches
         let mut line_no = self.loc().y + 1;
+        self.load_to(line_no + 1);
         while let Some(line) = self.line(line_no) {
             if let Some(mut mtch) = srch.lfind(&line) {
                 mtch.loc.y = line_no;
