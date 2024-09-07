@@ -1,0 +1,39 @@
+use std::collections::HashMap;
+
+#[derive(Default)]
+pub struct CharMap {
+    map: HashMap<usize, Vec<(usize, usize)>>,
+}
+
+impl CharMap {
+    /// Create a new character map
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Insert new entries into the character map
+    pub fn insertion(&mut self) {}
+
+    /// Delete entries from the character map
+    pub fn deletion(&mut self) {}
+
+    /// Shift indices in the character map up one
+    pub fn shift_up(&mut self) {}
+
+    /// Shift indices in the character map down one
+    pub fn shift_down(&mut self) {}
+
+    /// Count the number of characters before an index
+    pub fn count(&mut self) {
+    pub fn map_count(map: &Vec<(usize, usize)>, display: bool, idx: usize) -> usize {
+        let mut dbl_count = 0;
+        for i in self.map {
+            let i = if display { i.0 } else { i.1 };
+            if i >= idx {
+                break;
+            }
+            dbl_count += 1;
+        }
+        dbl_count
+    }
+}

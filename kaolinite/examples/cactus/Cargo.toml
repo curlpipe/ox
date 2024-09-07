@@ -1,0 +1,19 @@
+[package]
+name = "cactus"
+version = "0.1.0"
+edition = "2021"
+
+#[profile.release]
+#strip = true
+#debug = true
+#lto = "fat"
+#codegen-units = 1
+#panic = "abort"
+
+
+[dependencies]
+alinio = "0.2.1"
+crossterm = "0.25.0"
+jargon-args = "0.2.5"
+kaolinite = { version = "0", path = "../../" }
+synoptic = { version = "2" }
