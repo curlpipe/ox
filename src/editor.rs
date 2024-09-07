@@ -680,6 +680,8 @@ impl Editor {
     pub fn next_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().next_match(target, 1)?;
         self.doc_mut().goto(&mtch.loc);
+        // Update highlighting
+        self.update_highlighter().ok()?;
         Some(mtch.text)
     }
 
@@ -687,6 +689,8 @@ impl Editor {
     pub fn prev_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().prev_match(target)?;
         self.doc_mut().goto(&mtch.loc);
+        // Update highlighting
+        self.update_highlighter().ok()?;
         Some(mtch.text)
     }
 
