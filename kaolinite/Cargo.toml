@@ -11,10 +11,6 @@ readme = "README.md"
 keywords = ["unicode", "text-processing"]
 categories = ["text-processing"]
 
-[profile.release]
-debug = true
-lto = true
-
 [dependencies]
 quick-error = "2.0.1"
 regex = "1.6.0"
