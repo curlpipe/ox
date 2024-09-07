@@ -128,4 +128,14 @@ impl EventMgmt {
     pub fn is_patch_empty(&self) -> bool {
         self.patch.is_empty()
     }
+
+    /// Get the last event that was committed
+    #[must_use]
+    pub fn last(&self) -> Option<&Event> {
+        if self.patch.is_empty() {
+            self.undo.last().and_then(|u| u.last())
+        } else {
+            self.patch.last()
+        }
+    }
 }
