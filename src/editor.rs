@@ -10,6 +10,7 @@ use kaolinite::event::{Event, Status, Error as KError};
 use kaolinite::utils::{Loc, Size};
 use kaolinite::Document;
 use synoptic::{Highlighter, TokOpt, trim};
+use std::time::Instant;
 use std::io::{Write, ErrorKind};
 use mlua::Lua;
 
@@ -35,6 +36,8 @@ pub struct Editor {
     pub feedback: Feedback,
     /// Will be some if there is an outstanding command to be run
     pub command: Option<String>,
+    /// Will store the last time the editor was interacted with (to track inactivity)
+    pub last_active: Instant,
 }
 
 impl Editor {
@@ -51,6 +54,7 @@ impl Editor {
             highlighter: vec![],
             feedback: Feedback::None,
             command: None,
+            last_active: Instant::now(),
         })
     }
 
@@ -169,6 +173,7 @@ impl Editor {
     /// Execute an edit event
     pub fn exe(&mut self, ev: Event) -> Result<()> {
         self.doc_mut().exe(ev)?;
+        // TODO: Check for change in event type and commit to undo/redo stack if present
         Ok(())
     }
     
@@ -196,8 +201,15 @@ impl Editor {
         // Wait for an event
         match read()? {
             CEvent::Key(key) => {
+                // Check period of inactivity and commit events (for undo/redo) if over 10secs
+                let end = Instant::now();
+                let inactivity = end.duration_since(self.last_active).as_secs() as usize;
+                if inactivity > 10 {
+                    self.doc_mut().event_mgmt.commit();
+                }
+                self.last_active = Instant::now();
+                // Editing - these key bindings can't be modified (only added to)!
                 match (key.modifiers, key.code) {
-                    // Editing - these key bindings can't be modified (only added to)!
                     (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
                     (KMod::NONE, KCode::Tab) => self.character('\t')?,
                     (KMod::NONE, KCode::Backspace) => self.backspace()?,
@@ -525,6 +537,7 @@ impl Editor {
     /// on the last line of the document
     pub fn character(&mut self, ch: char) -> Result<()> {
         self.new_row()?;
+        // Handle the character insertion
         if ch == '\n' {
             self.enter()?;
         } else {
@@ -532,11 +545,18 @@ impl Editor {
             self.exe(Event::Insert(loc, ch.to_string()))?;
             self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
         }
+        // Commit to event stack (for undo/redo if the character is a space)
+        if ch == ' ' {
+            self.doc_mut().event_mgmt.commit();
+        }
         Ok(())
     }
 
     /// Handle the return key
     pub fn enter(&mut self) -> Result<()> {
+        // When the return key is pressed, we want to commit to the undo/redo stack
+        self.doc_mut().event_mgmt.commit();
+        // Perform the changes
         if self.doc().loc().y != self.doc().len_lines() {
             // Enter pressed in the start, middle or end of the line
             let loc = self.doc().char_loc();
@@ -605,6 +625,9 @@ impl Editor {
 
     /// Delete the current line
     pub fn delete_line(&mut self) -> Result<()> {
+        // Commit events to event manager (for undo / redo)
+        self.doc_mut().event_mgmt.commit();
+        // Delete the line
         if self.doc().loc().y < self.doc().len_lines() {
             let y = self.doc().loc().y;
             let line = self.doc().line(y).unwrap();
@@ -726,6 +749,9 @@ impl Editor {
 
     /// Replace an instance in a document
     fn do_replace(&mut self, into: &str, text: &str) -> Result<()> {
+        // Commit events to event manager (for undo / redo)
+        self.doc_mut().event_mgmt.commit();
+        // Do the replacement
         let loc = self.doc().char_loc();
         self.doc_mut().replace(loc, text, into)?;
         self.doc_mut().goto(&loc);
@@ -737,6 +763,9 @@ impl Editor {
 
     /// Replace all instances in a document
     fn do_replace_all(&mut self, target: &str, into: &str) {
+        // Commit events to event manager (for undo / redo)
+        self.doc_mut().event_mgmt.commit();
+        // Replace everything top to bottom
         self.doc_mut().goto(&Loc::at(0, 0));
         while let Some(mtch) = self.doc_mut().next_match(target, 1) {
             drop(self.doc_mut().replace(mtch.loc, &mtch.text, into));
@@ -747,6 +776,9 @@ impl Editor {
     /// save the document to the disk
     pub fn save(&mut self) -> Result<()> {
         self.doc_mut().save()?;
+        // Commit events to event manager (for undo / redo)
+        self.doc_mut().event_mgmt.commit();
+        // All done
         self.feedback = Feedback::Info("Document saved successfully".to_string());
         Ok(())
     }
@@ -755,16 +787,19 @@ impl Editor {
     pub fn save_as(&mut self) -> Result<()> {
         let file_name = self.prompt("Save as")?;
         self.doc_mut().save_as(&file_name)?;
-        self.feedback = Feedback::Info(format!("Document saved as {file_name} successfully"));
         if self.doc().file_name.is_none() {
             let ext = file_name.split('.').last().unwrap();
             self.highlighter[self.ptr] = self.config
                 .syntax_highlighting
                 .borrow()
                 .get_highlighter(&ext);
-            self.doc_mut().file_name = Some(file_name);
+            self.doc_mut().file_name = Some(file_name.clone());
             self.doc_mut().modified = false;
         }
+        // Commit events to event manager (for undo / redo)
+        self.doc_mut().event_mgmt.commit();
+        // All done
+        self.feedback = Feedback::Info(format!("Document saved as {file_name} successfully"));
         Ok(())
     }
 
@@ -772,6 +807,8 @@ impl Editor {
     pub fn save_all(&mut self) -> Result<()> {
         for doc in self.doc.iter_mut() {
             doc.save()?;
+            // Commit events to event manager (for undo / redo)
+            doc.event_mgmt.commit();
         }
         self.feedback = Feedback::Info(format!("Saved all documents"));
         Ok(())
