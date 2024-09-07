@@ -729,13 +729,19 @@ impl Editor {
         let loc = self.doc().char_loc();
         self.doc_mut().replace(loc, text, into)?;
         self.doc_mut().goto(&loc);
+        // Update syntax highlighter
         self.update_highlighter()?;
+        self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
         Ok(())
     }
 
     /// Replace all instances in a document
     fn do_replace_all(&mut self, target: &str, into: &str) {
-        self.doc_mut().replace_all(target, into);
+        self.doc_mut().goto(&Loc::at(0, 0));
+        while let Some(mtch) = self.doc_mut().next_match(target, 1) {
+            drop(self.doc_mut().replace(mtch.loc, &mtch.text, into));
+            self.highlighter[self.ptr].edit(mtch.loc.y, &self.doc[self.ptr].lines[mtch.loc.y]);
+        }
     }
 
     /// save the document to the disk
