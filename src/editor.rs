@@ -777,6 +777,40 @@ impl Editor {
         }
     }
 
+    /// Perform redo action
+    pub fn redo(&mut self) -> Result<()> {
+        let result = Ok(self.doc_mut().redo()?);
+        let mut affected_lines = vec![];
+        if let Some(patch) = self.doc().event_mgmt.undo.last() {
+            for event in patch {
+                affected_lines.push(event.clone().loc().y);
+            }
+        }
+        affected_lines.sort();
+        affected_lines.dedup();
+        for line in affected_lines {
+            self.highlighter[self.ptr].edit(line, &self.doc[self.ptr].lines[line]);
+        }
+        result
+    }
+
+    /// Perform undo action
+    pub fn undo(&mut self) -> Result<()> {
+        let result = Ok(self.doc_mut().undo()?);
+        let mut affected_lines = vec![];
+        if let Some(patch) = self.doc().event_mgmt.redo.last() {
+            for event in patch {
+                affected_lines.push(event.clone().loc().y);
+            }
+        }
+        affected_lines.sort();
+        affected_lines.dedup();
+        for line in affected_lines {
+            self.highlighter[self.ptr].edit(line, &self.doc[self.ptr].lines[line]);
+        }
+        result
+    }
+
     /// save the document to the disk
     pub fn save(&mut self) -> Result<()> {
         self.doc_mut().save()?;
