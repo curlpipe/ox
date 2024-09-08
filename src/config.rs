@@ -1069,14 +1069,14 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("undo", |_, editor, ()| {
-            if let Err(err) = editor.doc_mut().undo() {
+            if let Err(err) = editor.undo() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             update_highlighter(editor);
             Ok(())
         });
         methods.add_method_mut("redo", |_, editor, ()| {
-            if let Err(err) = editor.doc_mut().redo() {
+            if let Err(err) = editor.redo() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             update_highlighter(editor);
