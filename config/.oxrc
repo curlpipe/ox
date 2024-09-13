@@ -226,6 +226,9 @@ Shift + <-: Previous Tab
 ]]
 
 
+-- Configure Mouse Behaviour --
+terminal.mouse_enabled = false
+
 -- Configure Syntax Highlighting Colours --
 syntax:set("string", {39, 222, 145}) -- Strings in various programming languages
 syntax:set("comment", {113, 113, 169}) -- Comments in various programming languages
@@ -253,7 +256,6 @@ syntax:set("italic", {40, 198, 232}) -- Quotes in various markup languages e.g. 
 syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
 syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown
 
-terminal.mouse_enabled = true
 
 -- Import plugins (must be at the bottom of this file)
 -- load_plugin("pairs.lua")
