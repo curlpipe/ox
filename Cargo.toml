@@ -6,7 +6,7 @@ members = [
 
 [package]
 name = "ox"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 description = "A Rust powered text editor."

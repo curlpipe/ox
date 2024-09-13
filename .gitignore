@@ -4,3 +4,4 @@ Cargo.lock
 *.swo
 *.swn
 /.vscode
+*.html
