@@ -70,6 +70,7 @@ pub struct Config {
     pub colors: Rc<RefCell<Colors>>,
     pub status_line: Rc<RefCell<StatusLine>>,
     pub greeting_message: Rc<RefCell<GreetingMessage>>,
+    pub terminal: Rc<RefCell<TerminalConfig>>,
 }
 
 impl Config {
@@ -81,6 +82,7 @@ impl Config {
         let greeting_message = Rc::new(RefCell::new(GreetingMessage::default()));
         let colors = Rc::new(RefCell::new(Colors::default()));
         let status_line = Rc::new(RefCell::new(StatusLine::default()));
+        let terminal = Rc::new(RefCell::new(TerminalConfig::default()));
 
         // Push in configuration globals
         lua.globals().set("syntax", syntax_highlighting.clone())?;
@@ -88,6 +90,7 @@ impl Config {
         lua.globals().set("greeting_message", greeting_message.clone())?;
         lua.globals().set("status_line", status_line.clone())?;
         lua.globals().set("colors", colors.clone())?;
+        lua.globals().set("terminal", terminal.clone())?;
 
         Ok(Config {
             syntax_highlighting,
@@ -95,6 +98,7 @@ impl Config {
             greeting_message,
             status_line,
             colors,
+            terminal,
         })
     }
 
@@ -112,6 +116,30 @@ impl Config {
         }
         
         Ok(())
+    }
+}
+
+/// For storing general configuration related to the terminal functionality
+#[derive(Debug)]
+pub struct TerminalConfig {
+    pub mouse_enabled: bool,
+}
+
+impl Default for TerminalConfig {
+    fn default() -> Self {
+        Self {
+            mouse_enabled: true,
+        }
+    }
+}
+
+impl LuaUserData for TerminalConfig {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("mouse_enabled", |_, this| Ok(this.mouse_enabled));
+        fields.add_field_method_set("mouse_enabled", |_, this, value| {
+            this.mouse_enabled = value;
+            Ok(())
+        });
     }
 }
 

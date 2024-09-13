@@ -226,6 +226,9 @@ Shift + <-: Previous Tab
 ]]
 
 
+-- Configure Mouse Behaviour --
+terminal.mouse_enabled = false
+
 -- Configure Syntax Highlighting Colours --
 syntax:set("string", {39, 222, 145}) -- Strings in various programming languages
 syntax:set("comment", {113, 113, 169}) -- Comments in various programming languages
