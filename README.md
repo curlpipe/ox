@@ -98,7 +98,7 @@ The absolute best way to install Ox, it will ensure you always have the latest v
 It should only really take at most 1 minute on most modern hardware.
 
 ```sh
-cargo install --git https://github.com/curlpipe/ox
+cargo install --git https://github.com/curlpipe/ox ox
 ```
 
 #### Arch Linux
