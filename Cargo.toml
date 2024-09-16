@@ -14,6 +14,7 @@ homepage = "https://github.com/curlpipe/ox"
 repository = "https://github.com/curlpipe/ox"
 readme = "README.md"
 include = ["src/*.rs", "Cargo.toml", "config/.oxrc"]
+exclude = ["kaolinite/examples/cactus"]
 categories = ["text-editors"]
 keywords = ["text-editor", "editor", "terminal", "tui"]
 license = "GPL-2.0"
