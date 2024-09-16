@@ -47,6 +47,8 @@ pub struct Document {
     pub old_cursor: usize,
     /// Flag for if the editor is currently in a redo action
     pub in_redo: bool,
+    /// Flag for an EOL
+    pub eol: bool,
 }
 
 impl Document {
@@ -70,6 +72,7 @@ impl Document {
             read_only: false,
             old_cursor: 0,
             in_redo: false,
+            eol: false,
         }
     }
 
@@ -81,8 +84,10 @@ impl Document {
     #[cfg(not(tarpaulin_include))]
     pub fn open<S: Into<String>>(size: Size, file_name: S) -> Result<Self> {
         let file_name = file_name.into();
+        let file = Rope::from_reader(BufReader::new(File::open(&file_name)?))?;
         Ok(Self {
-            file: Rope::from_reader(BufReader::new(File::open(&file_name)?))?,
+            eol: !file.line(file.len_lines().saturating_sub(1)).to_string().is_empty(),
+            file,
             lines: vec![],
             dbl_map: CharMap::default(),
             tab_map: CharMap::default(),
@@ -865,7 +870,7 @@ impl Document {
     /// Returns the number of lines in the document
     #[must_use]
     pub fn len_lines(&self) -> usize {
-        self.file.len_lines().saturating_sub(1)
+        self.file.len_lines().saturating_sub(1) + if self.eol { 1 } else { 0 }
     }
 
     /// Evaluate the line number text for a specific line
