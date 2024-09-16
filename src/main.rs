@@ -107,8 +107,9 @@ fn run(cli: CommandLineInterface) -> Result<()> {
                     Err(RuntimeError(msg)) => {
                         // Work out if the key has been bound
                         if msg.contains(&"key not bound") {
-                            if key.contains(&"_") && !key.starts_with("shift") {
-                                editor.borrow_mut().feedback = Feedback::Error(format!("The key binding {key} is not set"));
+                            if key.contains(&"_") && key != "_" && !key.starts_with("shift") {
+                                editor.borrow_mut().feedback = 
+                                    Feedback::Error(format!("The key binding {key} is not set"));
                             }
                         } else {
                             let mut msg: String = msg.split("\n").next().unwrap().to_string();
