@@ -107,7 +107,7 @@ impl Terminal {
     pub fn start(&mut self) -> Result<()> {
         std::panic::set_hook(Box::new(|e| {
             terminal::disable_raw_mode().unwrap();
-            execute!(stdout(), LeaveAlternateScreen, Show).unwrap();
+            execute!(stdout(), LeaveAlternateScreen, Show, DisableMouseCapture).unwrap();
             eprintln!("{}", e);
         }));
         execute!(self.stdout, EnterAlternateScreen, Clear(ClType::All), DisableLineWrap)?;
