@@ -4,9 +4,10 @@ use crate::map::{CharMap, form_map};
 use crate::searching::{Searcher, Match};
 use crate::utils::{Loc, Size, get_range, trim, width, tab_boundaries_backward, tab_boundaries_forward};
 use ropey::Rope;
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
-use std::ops::RangeBounds;
+use std::ops::{Range, RangeBounds};
 
 /// A document struct manages a file.
 /// It has tools to read, write and traverse a document.
@@ -29,8 +30,8 @@ pub struct Document {
     pub tab_map: CharMap,
     /// Contains the size of this document for purposes of offset
     pub size: Size,
-    /// Contains where the cursor is within the terminal
-    pub cursor: Loc,
+    /// Contains the cursor data structure
+    pub cursor: Cursor,
     /// Contains the offset (scrolling for longer documents)
     pub offset: Loc,
     /// Keeps track of where the character pointer is
@@ -60,7 +61,7 @@ impl Document {
             tab_map: CharMap::default(),
             loaded_to: 1,
             file_name: None,
-            cursor: Loc::default(),
+            cursor: Cursor::default(),
             offset: Loc::default(),
             size,
             char_ptr: 0,
@@ -88,7 +89,7 @@ impl Document {
             tab_map: CharMap::default(),
             loaded_to: 0,
             file_name: Some(file_name),
-            cursor: Loc::default(),
+            cursor: Cursor::default(),
             offset: Loc::default(),
             size,
             char_ptr: 0,
@@ -146,6 +147,7 @@ impl Document {
             self.event_mgmt.register(ev.clone());
             self.forth(ev)?;
         }
+        self.cancel_selection();
         Ok(())
     }
 
@@ -187,6 +189,11 @@ impl Document {
         }
     }
 
+    /// Takes a loc and converts it into a char index for ropey
+    pub fn loc_to_file_pos(&self, loc: &Loc) -> usize {
+        self.file.line_to_char(loc.y) + loc.x
+    }
+
     /// Inserts a string into this document.
     /// # Errors
     /// Returns an error if location is out of range.
@@ -194,9 +201,9 @@ impl Document {
         self.out_of_range(loc.x, loc.y)?;
         self.modified = true;
         // Move cursor to location
-        self.goto(loc);
+        self.move_to(loc);
         // Update rope
-        let idx = self.file.line_to_char(loc.y) + loc.x;
+        let idx = self.loc_to_file_pos(loc);
         self.file.insert(idx, st);
         // Update cache
         let line: String = self.file.line(loc.y).chars().collect();
@@ -217,7 +224,7 @@ impl Document {
         self.dbl_map.splice(loc, dbl_start, dbls);
         self.tab_map.splice(loc, tab_start, tabs);
         // Go to end x position
-        self.goto_x(loc.x + st.chars().count());
+        self.move_to_x(loc.x + st.chars().count());
         self.old_cursor = self.char_ptr;
         Ok(())
     }
@@ -257,7 +264,7 @@ impl Document {
         let (mut start, mut end) = get_range(&x, line_start, line_end);
         self.valid_range(start, end, y)?;
         self.modified = true;
-        self.goto(&Loc::at(start, y));
+        self.move_to(&Loc::at(start, y));
         start += line_start;
         end += line_start;
         let removed = self.file.slice(start..end).to_string();
@@ -297,7 +304,7 @@ impl Document {
         self.file.insert(char_idx, &(contents + "\n"));
         self.loaded_to += 1;
         // Goto line
-        self.goto_y(loc);
+        self.move_to_y(loc);
         self.old_cursor = self.char_ptr;
         Ok(())
     }
@@ -322,7 +329,7 @@ impl Document {
         self.file.remove(idx_start..idx_end);
         self.loaded_to = self.loaded_to.saturating_sub(1);
         // Goto line
-        self.goto_y(loc);
+        self.move_to_y(loc);
         self.old_cursor = self.char_ptr;
         Ok(())
     }
@@ -339,7 +346,7 @@ impl Document {
         let rhs: String = line.chars().skip(loc.x).collect();
         self.delete(loc.x.., loc.y)?;
         self.insert_line(loc.y + 1, rhs)?;
-        self.goto(&Loc::at(0, loc.y + 1));
+        self.move_to(&Loc::at(0, loc.y + 1));
         self.old_cursor = self.char_ptr;
         Ok(())
     }
@@ -356,92 +363,108 @@ impl Document {
         let below = self.line(y + 1).ok_or(Error::OutOfRange)?;
         self.delete_line(y + 1)?;
         self.insert(&Loc::at(length, y), &below)?;
-        self.goto(&Loc::at(length, y));
+        self.move_to(&Loc::at(length, y));
         self.old_cursor = self.char_ptr;
         Ok(())
     }
 
+    /// Cancels the current selection
+    pub fn cancel_selection(&mut self) {
+        self.cursor.selection_end = self.cursor.loc;
+    }
+
+    /// Move the view down
+    pub fn scroll_down(&mut self) {
+        self.offset.y += 1;
+        self.load_to(self.offset.y + self.size.h);
+    }
+
+    /// Move the view up
+    pub fn scroll_up(&mut self) {
+        self.offset.y = self.offset.y.saturating_sub(1);
+        self.load_to(self.offset.y + self.size.h);
+    }
+
     /// Move the cursor up
     pub fn move_up(&mut self) -> Status {
+        let r = self.select_up();
+        self.cancel_selection();
+        r
+    }
+
+    /// Select with the cursor up
+    pub fn select_up(&mut self) -> Status {
         // Return if already at start of document
         if self.loc().y == 0 {
             return Status::StartOfFile;
         }
-        // Move up one line
-        if self.cursor.y == 0 {
-            self.offset.y -= 1;
-        } else {
-            self.cursor.y -= 1;
-        }
+        self.cursor.loc.y -= 1;
         // Snap to end of line
         self.fix_dangling_cursor();
         // Move back if in the middle of a longer character
         self.fix_split();
         // Update the character pointer
         self.update_char_ptr();
-        self.goto_x(self.old_cursor);
+        self.bring_cursor_in_viewport();
         Status::None
     }
 
     /// Move the cursor down
     pub fn move_down(&mut self) -> Status {
+        let r = self.select_down();
+        self.cancel_selection();
+        r
+    }
+
+    /// Select with the cursor down
+    pub fn select_down(&mut self) -> Status {
         // Return if already on end of document
         if self.len_lines() < self.loc().y + 1 {
             return Status::EndOfFile;
         }
-        // Ensure that line is loaded from buffer
-        self.load_to(self.loc().y + 2);
-        // Move down one line
-        if self.cursor.y == self.size.h.saturating_sub(1) {
-            self.offset.y += 1;
-        } else {
-            self.cursor.y += 1;
-        }
+        self.cursor.loc.y += 1;
         // Snap to end of line
         self.fix_dangling_cursor();
         // Move back if in the middle of a longer character
         self.fix_split();
         // Update the character pointer
         self.update_char_ptr();
-        self.goto_x(self.old_cursor);
-        //panic!("{}", self.old_cursor);
+        self.bring_cursor_in_viewport();
         Status::None
     }
 
     /// Move the cursor left
     pub fn move_left(&mut self) -> Status {
+        let r = self.select_left();
+        self.cancel_selection();
+        r
+    }
+
+    /// Select with the cursor left
+    pub fn select_left(&mut self) -> Status {
         // Return if already at start of line
         if self.loc().x == 0 {
             return Status::StartOfLine;
         }
         // Determine the width of the character to traverse
-        let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
-        let boundaries = tab_boundaries_backward(&line, self.tab_width);
-        let width = if boundaries.contains(&self.char_ptr) {
-            // Push the character pointer up
-            self.char_ptr -= self.tab_width.saturating_sub(1);
-            // There are spaces that should be treated as tabs (so should traverse the tab width)
-            self.tab_width
-        } else {
-            // There are no spaces that should be treated as tabs
-            self.width_of(self.loc().y, self.char_ptr.saturating_sub(1))
-        };
+        let width = self.width_of(self.loc().y, self.char_ptr.saturating_sub(1));
         // Move back the correct amount
-        for _ in 0..width {
-            if self.cursor.x == 0 {
-                self.offset.x -= 1;
-            } else {
-                self.cursor.x -= 1;
-            }
-        }
+        self.cursor.loc.x -= width;
         // Update the character pointer
         self.char_ptr -= 1;
-        self.old_cursor = self.char_ptr;
+        self.bring_cursor_in_viewport();
         Status::None
     }
 
     /// Move the cursor right
     pub fn move_right(&mut self) -> Status {
+        let r = self.select_right();
+        self.cancel_selection();
+        r
+    }
+
+    /// Select with the cursor right
+    pub fn select_right(&mut self) -> Status {
         // Return if already on end of line
         let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
         let width = width(&line, self.tab_width);
@@ -460,82 +483,70 @@ impl Document {
             self.width_of(self.loc().y, self.char_ptr)
         };
         // Move forward the correct amount
-        for _ in 0..width {
-            if self.cursor.x == self.size.w.saturating_sub(1) {
-                self.offset.x += 1;
-            } else {
-                self.cursor.x += 1;
-            }
-        }
+        self.cursor.loc.x += width;
         // Update the character pointer
         self.char_ptr += 1;
+        self.bring_cursor_in_viewport();
         self.old_cursor = self.char_ptr;
         Status::None
     }
 
     /// Move to the start of the line
     pub fn move_home(&mut self) {
-        self.cursor.x = 0;
-        self.offset.x = 0;
+        self.select_home();
+        self.cancel_selection();
+    }
+
+    /// Select to the start of the line
+    pub fn select_home(&mut self) {
+        self.cursor.loc.x = 0;
         self.char_ptr = 0;
-        self.old_cursor = 0;
+        self.bring_cursor_in_viewport();
     }
 
     /// Move to the end of the line
     pub fn move_end(&mut self) {
+        self.select_end();
+        self.cancel_selection();
+    }
+
+    /// Select to the end of the line
+    pub fn select_end(&mut self) {
         let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
         let length = line.chars().count();
-        self.goto_x(length);
-        self.old_cursor = self.char_ptr;
+        self.select_to_x(length);
     }
 
     /// Move to the top of the document
     pub fn move_top(&mut self) {
-        self.goto(&Loc::at(0, 0));
-        self.old_cursor = self.char_ptr;
+        self.move_to(&Loc::at(0, 0));
     }
 
     /// Move to the bottom of the document
     pub fn move_bottom(&mut self) {
         let last = self.len_lines();
-        self.goto(&Loc::at(0, last));
-        self.old_cursor = self.char_ptr;
+        self.move_to(&Loc::at(0, last));
+    }
+
+    /// Select to the top of the document
+    pub fn select_top(&mut self) {
+        self.select_to(&Loc::at(0, 0));
+    }
+
+    /// Select to the bottom of the document
+    pub fn select_bottom(&mut self) {
+        let last = self.len_lines();
+        self.select_to(&Loc::at(0, last));
     }
 
     /// Move up by 1 page
     pub fn move_page_up(&mut self) {
-        // Shift viewport to have current line at top of the document
-        self.offset.y += self.cursor.y;
-        let y = self.cursor.y;
-        self.cursor.y = 0;
-        self.char_ptr = 0;
-        self.cursor.x = 0;
-        self.offset.x = 0;
-        self.old_cursor = 0;
-        // Shift the offset up by 1 page
-        self.offset.y = self.offset.y.saturating_sub(self.size.h + y);
+        self.move_to_y(self.cursor.loc.y.saturating_sub(self.size.h));
     }
 
     /// Move down by 1 page
     pub fn move_page_down(&mut self) {
-        // Shift viewport to have current line at top of document
-        self.offset.y += self.cursor.y;
-        let y = self.cursor.y;
-        self.cursor.y = 0;
-        self.char_ptr = 0;
-        self.cursor.x = 0;
-        self.offset.x = 0;
-        self.old_cursor = 0;
-        // Shift the offset down by 1 page
-        let by = self.size.h.saturating_sub(y);
-        let len = self.len_lines();
-        if self.offset.y + by > len {
-            self.offset.y = len;
-        } else {
-            self.offset.y += by;
-            // Buffer new lines in viewport
-            self.load_to(self.offset.y + self.size.h);
-        }
+        self.move_to_y(self.cursor.loc.y + self.size.h);
     }
 
     /// Moves to the previous word in the document
@@ -551,7 +562,7 @@ impl Document {
             if !same {
                 mtch.loc.x += len;
             }
-            self.goto(&mtch.loc);
+            self.move_to(&mtch.loc);
             if same && self.loc().x != 0 {
                 return self.move_prev_word();
             }
@@ -570,7 +581,7 @@ impl Document {
         let re = format!("(\t| {{{}}}|$|^ +| )", self.tab_width);
         if let Some(mut mtch) = self.next_match(&re, 0) {
             mtch.loc.x += mtch.text.chars().count();
-            self.goto(&mtch.loc);
+            self.move_to(&mtch.loc);
         }
         self.old_cursor = self.char_ptr;
         Status::None
@@ -642,20 +653,32 @@ impl Document {
 
     /// Replace all instances of a regex with another string
     pub fn replace_all(&mut self, target: &str, into: &str) {
-        self.goto(&Loc::at(0, 0));
+        self.move_to(&Loc::at(0, 0));
         while let Some(mtch) = self.next_match(target, 1) {
             drop(self.replace(mtch.loc, &mtch.text, into));
         }
     }
 
     /// Function to go to a specific position
-    pub fn goto(&mut self, loc: &Loc) {
-        self.goto_y(loc.y);
-        self.goto_x(loc.x);
+    pub fn move_to(&mut self, loc: &Loc) {
+        self.select_to(loc);
+        self.cancel_selection();
+    }
+
+    /// Function to go to a specific position
+    pub fn select_to(&mut self, loc: &Loc) {
+        self.select_to_y(loc.y);
+        self.select_to_x(loc.x);
     }
 
     /// Function to go to a specific x position
-    pub fn goto_x(&mut self, x: usize) {
+    pub fn move_to_x(&mut self, x: usize) {
+        self.select_to_x(x);
+        self.cancel_selection();
+    }
+
+    /// Function to select to a specific x position
+    pub fn select_to_x(&mut self, x: usize) {
         let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
         // If we're already at this x coordinate, just exit
         if self.char_ptr == x {
@@ -663,49 +686,29 @@ impl Document {
         }
         // If the move position is out of bounds, move to the end of the line
         if line.chars().count() < x {
-            let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
-            let length = line.chars().count();
-            self.goto_x(length);
+            self.select_end();
             return;
         }
         // Update char position
         self.char_ptr = x;
         // Calculate display index
         let x = self.display_idx(&Loc::at(x, self.loc().y));
-        let viewport = self.offset.x..self.offset.x + self.size.w;
         // Move cursor
-        if x < self.size.w {
-            // Cursor will be in the viewport if the offset is 0
-            self.offset.x = 0;
-            self.cursor.x = x;
-        } else if viewport.contains(&x) {
-            // If the idx is already in viewport, don't adjust offset
-            self.cursor.x = x - self.offset.x;
-        } else {
-            // Index is outside of viewport
-            self.cursor.x = 0;
-            self.offset.x = x;
-        }
+        self.cursor.loc.x = x;
+        self.bring_cursor_in_viewport();
     }
 
     /// Function to go to a specific y position
-    pub fn goto_y(&mut self, y: usize) {
+    pub fn move_to_y(&mut self, y: usize) {
+        self.select_to_y(y);
+        self.cancel_selection();
+    }    
+
+    /// Function to select to a specific y position
+    pub fn select_to_y(&mut self, y: usize) {
         // Bounds checking
         if self.loc().y != y && y <= self.len_lines() {
-            // Move cursor
-            let viewport = self.offset.y..self.offset.y + self.size.h;
-            if y < self.size.h {
-                // Cursor will be in viewport if the offset is 0
-                self.offset.y = 0;
-                self.cursor.y = y;
-            } else if viewport.contains(&y) {
-                // If the line is in viewport already, only move the cursor
-                self.cursor.y = y - self.offset.y;
-            } else {
-                // Index is outside of viewport
-                self.cursor.y = self.size.h.saturating_sub(1);
-                self.offset.y = y - (self.size.h.saturating_sub(1));
-            }
+            self.cursor.loc.y = y;
         }
         // Snap to end of line
         self.fix_dangling_cursor();
@@ -713,7 +716,25 @@ impl Document {
         self.fix_split();
         // Correct the character pointer
         self.update_char_ptr();
+        self.bring_cursor_in_viewport();
         // Load any lines necessary
+        self.load_to(self.offset.y + self.size.h);
+    }
+
+    /// Brings the cursor into the viewport so it can be seen
+    pub fn bring_cursor_in_viewport(&mut self) {
+        if self.offset.y > self.cursor.loc.y {
+            self.offset.y = self.cursor.loc.y;
+        }
+        if self.offset.y + self.size.h <= self.cursor.loc.y {
+            self.offset.y = self.cursor.loc.y - self.size.h + 1;
+        }
+        if self.offset.x > self.cursor.loc.x {
+            self.offset.x = self.cursor.loc.x;
+        }
+        if self.offset.x + self.size.w <= self.cursor.loc.x {
+            self.offset.x = self.cursor.loc.x - self.size.w + 1;
+        }
         self.load_to(self.offset.y + self.size.h);
     }
 
@@ -740,6 +761,16 @@ impl Document {
         Ok(())
     }
 
+    /// Calculate the character index from the display index on a certain line
+    pub fn character_idx(&self, loc: &Loc) -> usize {
+        let mut idx = loc.x;
+        // Account for double width characters
+        idx -= self.dbl_map.count(loc, true).unwrap_or(0);
+        // Account for tab characters
+        idx -= self.tab_map.count(loc, true).unwrap_or(0) * self.tab_width.saturating_sub(1);
+        idx
+    }
+
     /// Calculate the display index from the character index on a certain line
     fn display_idx(&self, loc: &Loc) -> usize {
         let mut idx = loc.x;
@@ -764,10 +795,10 @@ impl Document {
     fn fix_dangling_cursor(&mut self) {
         if let Some(line) = self.line(self.loc().y) {
             if self.loc().x > width(&line, self.tab_width) {
-                self.goto_x(line.chars().count());
+                self.select_to_x(line.chars().count());
             }
         } else {
-            self.move_home();
+            self.select_home();
         }
     }
 
@@ -790,17 +821,11 @@ impl Document {
                 magnitude += x - start;
             }
         }
-        for _ in 0..magnitude {
-            if self.cursor.x == 0 {
-                self.offset.x -= 1;
-            } else {
-                self.cursor.x -= 1;
-            }
-        }
+        self.cursor.loc.x -= magnitude;
     }
 
     /// Load lines in this document up to a specified index.
-    /// This must be called before starting to edit the document as 
+    /// This must be called before starting to edit the document as
     /// this is the function that actually load and processes the text.
     pub fn load_to(&mut self, mut to: usize) {
         // Make sure to doesn't go over the number of lines in the buffer
@@ -894,8 +919,8 @@ impl Document {
     #[must_use]
     pub const fn loc(&self) -> Loc {
         Loc {
-            x: self.cursor.x + self.offset.x,
-            y: self.cursor.y + self.offset.y,
+            x: self.cursor.loc.x,
+            y: self.cursor.loc.y,
         }
     }
 
@@ -904,7 +929,75 @@ impl Document {
     pub const fn char_loc(&self) -> Loc {
         Loc {
             x: self.char_ptr,
-            y: self.cursor.y + self.offset.y,
+            y: self.cursor.loc.y,
         }
     }
+
+    /// If the cursor is within the viewport, this will return where it is relatively
+    pub fn cursor_loc_in_screen(&self) -> Option<Loc> {
+        if self.cursor.loc.x < self.offset.x {
+            return None;
+        }
+        if self.cursor.loc.y < self.offset.y {
+            return None;
+        }
+        let result = Loc {
+            x: self.cursor.loc.x - self.offset.x,
+            y: self.cursor.loc.y - self.offset.y,
+        };
+        if result.x > self.size.w || result.y > self.size.h {
+            return None;
+        }
+        return Some(result);
+    }
+
+    /// Returns true if there is no active selection and vice versa
+    pub fn is_selection_empty(&self) -> bool {
+        self.cursor.loc == self.cursor.selection_end
+    }
+
+    /// Will return the bounds of the current active selection
+    pub fn selection_loc_bound(&self) -> (Loc, Loc) {
+        let mut left = self.cursor.loc;
+        let mut right = self.cursor.selection_end;
+        // Convert into character indices
+        left.x = self.character_idx(&left);
+        right.x = self.character_idx(&right);
+        if left > right {
+            std::mem::swap(&mut left, &mut right);
+        }
+        (left, right)
+    }
+
+    /// Returns true if the provided location is within the current active selection
+    pub fn is_loc_selected(&self, loc: Loc) -> bool {
+        let (left, right) = self.selection_loc_bound();
+        left <= loc && loc < right 
+    }
+
+    /// Will return the current active selection as a range over file characters
+    pub fn selection_range(&self) -> Range<usize> {
+        let mut cursor = self.cursor.loc.clone();
+        let mut selection_end = self.cursor.selection_end.clone();
+        cursor.x = self.character_idx(&cursor);
+        selection_end.x = self.character_idx(&selection_end);
+        let mut left = self.loc_to_file_pos(&cursor);
+        let mut right = self.loc_to_file_pos(&selection_end);
+        if left > right {
+            std::mem::swap(&mut left, &mut right);
+        }
+        left..right
+    }
+
+    /// Will return the text contained within the current selection
+    pub fn selection_text(&self) -> String {
+        self.file.slice(self.selection_range()).to_string()
+    }
+}
+
+/// Defines a cursor's position and any selection it may be covering
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+pub struct Cursor {
+    pub loc: Loc,
+    pub selection_end: Loc,
 }

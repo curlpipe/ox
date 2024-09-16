@@ -1,5 +1,5 @@
 use crate::config::{Colors, TerminalConfig};
-use crate::error::Result;
+use crate::error::{OxError, Result};
 use crossterm::{
     cursor::{Hide, MoveTo, Show}, 
     event::{EnableMouseCapture, DisableMouseCapture, KeyboardEnhancementFlags, PushKeyboardEnhancementFlags}, 
@@ -7,6 +7,7 @@ use crossterm::{
     style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg}, 
     terminal::{self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen}
 };
+use copypasta_ext::ClipboardProviderExt;
 use kaolinite::utils::Size;
 use std::cell::RefCell;
 use std::io::{stdout, Stdout, Write};
@@ -19,8 +20,11 @@ pub const HELP_TEXT: &str = "
    Ctrl + O:   Open            
    Ctrl + Q:   Quit            
    Ctrl + S:   Save            
-   Ctrl + W:   Save as         
-   Ctrl + A:   Save all        
+   Alt  + W:   Save as         
+   Alt  + A:   Save all        
+   Ctrl + A:   Select All      
+   Ctrl + C:   Copy            
+   Ctrl + V:   Paste           
    Ctrl + Z:   Undo            
    Ctrl + Y:   Redo            
    Ctrl + F:   Find            
@@ -87,6 +91,7 @@ impl Feedback {
 pub struct Terminal {
     pub stdout: Stdout,
     pub config: Rc<RefCell<TerminalConfig>>,
+    pub clipboard: Option<Box<dyn ClipboardProviderExt>>,
 }
 
 impl Terminal {
@@ -94,6 +99,7 @@ impl Terminal {
         Terminal {
             stdout: stdout(),
             config,
+            clipboard: copypasta_ext::try_context(),
         }
     }
 
@@ -120,6 +126,7 @@ impl Terminal {
 
     /// Restore terminal back to state before the editor was started
     pub fn end(&mut self) -> Result<()> {
+        self.show_cursor();
         terminal::disable_raw_mode()?;
         execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap)?;
         if self.config.borrow().mouse_enabled {
@@ -158,5 +165,19 @@ impl Terminal {
     pub fn flush(&mut self) -> Result<()> {
         self.stdout.flush()?;
         Ok(())
+    }
+    
+    /// Put text into the clipboard
+    pub fn copy(&mut self, text: &str) -> Result<()> {
+        let result = self.clipboard
+            .as_deref_mut()
+            .ok_or(OxError::Clipboard)?
+            .set_contents(text.to_string());
+        if result.is_err() { Err(OxError::Clipboard) } else { Ok(()) }
+    }
+
+    /// Get text from the clipboard
+    pub fn paste(&mut self) -> Option<String> {
+        self.clipboard.as_deref_mut()?.get_contents().ok()
     }
 }

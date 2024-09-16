@@ -10,10 +10,10 @@ macro_rules! regex {
 }
 
 /// Represents a location
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Loc {
-    pub x: usize,
     pub y: usize,
+    pub x: usize,
 }
 
 impl Loc {

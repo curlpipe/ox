@@ -14,6 +14,18 @@ event_mapping = {
     ["right"] = function() 
         editor:move_right() 
     end,
+    ["shift_up"] = function() 
+        editor:select_up() 
+    end,
+    ["shift_down"] = function() 
+        editor:select_down() 
+    end,
+    ["shift_left"] = function() 
+        editor:select_left() 
+    end,
+    ["shift_right"] = function() 
+        editor:select_right() 
+    end,
     ["ctrl_up"] = function() 
         editor:move_top() 
     end,
@@ -58,17 +70,21 @@ event_mapping = {
     ["alt_s"] = function()
         editor:save_as()
     end,
-    ["ctrl_a"] = function()
+    ["alt_a"] = function()
         editor:save_all()
     end,
     ["ctrl_q"] = function()
         editor:quit()
     end,
-    ["shift_left"] = function()
-        editor:previous_tab();
+    -- Clipboard Interaction
+    ["ctrl_a"] = function()
+        editor:select_all()
     end,
-    ["shift_right"] = function()
-        editor:next_tab();
+    ["ctrl_c"] = function()
+        editor:copy()
+    end,
+    ["ctrl_v"] = function()
+        editor:paste()
     end,
     -- Undo & Redo
     ["ctrl_z"] = function()
@@ -184,6 +200,8 @@ colors.warning_bg = {41, 41, 61}
 colors.error_fg = {255, 100, 100}
 colors.error_bg = {41, 41, 61}
 
+colors.selection_fg = {255, 255, 255}
+colors.selection_bg = {59, 59, 130}
 
 -- Configure Line Numbers --
 line_numbers.enabled = true
@@ -209,8 +227,8 @@ Ctrl + N:   New
 Ctrl + O:   Open          
 Ctrl + Q:   Quit          
 Ctrl + S:   Save          
-Ctrl + W:   Save as       
-Ctrl + A:   Save all      
+Alt  + S:   Save as       
+Alt  + A:   Save all      
 Ctrl + Z:   Undo          
 Ctrl + Y:   Redo          
 Ctrl + F:   Find          
@@ -227,7 +245,7 @@ Shift + <-: Previous Tab
 
 
 -- Configure Mouse Behaviour --
-terminal.mouse_enabled = false
+terminal.mouse_enabled = true
 
 -- Configure Syntax Highlighting Colours --
 syntax:set("string", {39, 222, 145}) -- Strings in various programming languages

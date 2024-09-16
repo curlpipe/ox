@@ -179,7 +179,7 @@ fn document_moving() {
     }
     assert_eq!(doc1.loc(), Loc { x: 0, y: 1 });
     assert_eq!(doc1.offset.y, 1);
-    doc1.goto_y(8);
+    doc1.move_to_y(8);
     assert_eq!(doc1.loc(), Loc { x: 0, y: 8 });
     assert_eq!(doc1.offset.y, 0);
     doc1.move_right();
@@ -210,12 +210,12 @@ fn document_moving() {
     doc2.move_down();
     assert_eq!(doc2.loc(), Loc { x: 22, y: 1 });
     assert_eq!(doc2.char_loc(), Loc { x: 18, y: 1 });
-    doc2.goto(&Loc { x: 6, y: 1 });
+    doc2.move_to(&Loc { x: 6, y: 1 });
     assert_eq!(doc2.loc(), Loc { x: 7, y: 1 });
     assert_eq!(doc2.char_loc(), Loc { x: 6, y: 1 });
     assert_eq!(doc2.offset.x, 0);
     assert_eq!(doc2.offset.y, 0);
-    doc2.goto(&Loc { x: 6, y: 0 });
+    doc2.move_to(&Loc { x: 6, y: 0 });
     doc2.old_cursor = 5;
     doc2.move_down();
     assert_eq!(doc2.loc(), Loc { x: 5, y: 1 });
@@ -224,7 +224,7 @@ fn document_moving() {
     assert_eq!(doc2.offset.y, 0);
     doc2.move_up();
     doc2.offset.x = 6;
-    doc2.cursor.x = 0;
+    doc2.cursor.loc.x = 0;
     doc2.char_ptr = 6;
     doc2.old_cursor = 5;
     doc2.move_down();
@@ -245,14 +245,14 @@ fn document_moving() {
     doc2.move_left();
     doc2.move_left();
     doc2.move_right();
-    doc2.goto_x(10);
+    doc2.move_to_x(10);
     assert_eq!(doc2.loc(), Loc { x: 10, y: 2 });
     assert_eq!(doc2.char_loc(), Loc { x: 10, y: 2 });
     assert_eq!(doc2.offset.x, 10);
-    doc1.goto(&Loc { x: 3, y: 5 });
+    doc1.move_to(&Loc { x: 3, y: 5 });
     assert_eq!(doc1.char_loc(), Loc { x: 3, y: 5 });
-    doc1.goto_y(15);
-    doc1.goto_y(14);
+    doc1.move_to_y(15);
+    doc1.move_to_y(14);
     assert_eq!(doc1.loc(), Loc { x: 1, y: 14 });
     assert_eq!(doc1.offset.y, 6);
     doc1.move_top();
@@ -261,20 +261,20 @@ fn document_moving() {
     doc1.move_bottom();
     assert_eq!(doc1.loc(), Loc { x: 0, y: 17 });
     assert_eq!(doc1.offset.y, 8);
-    doc3.goto_y(34);
+    doc3.move_to_y(34);
     doc3.move_page_down();
-    assert_eq!(doc3.cursor, Loc { x: 0, y: 0 });
+    assert_eq!(doc3.cursor.loc, Loc { x: 0, y: 0 });
     assert_eq!(doc3.offset.y, 35);
     doc3.move_page_down();
-    assert_eq!(doc3.cursor, Loc { x: 0, y: 0 });
+    assert_eq!(doc3.cursor.loc, Loc { x: 0, y: 0 });
     assert_eq!(doc3.offset.y, 45);
     doc3.move_page_down();
-    assert_eq!(doc3.cursor, Loc { x: 0, y: 0 });
+    assert_eq!(doc3.cursor.loc, Loc { x: 0, y: 0 });
     assert_eq!(doc3.offset.y, 55);
     doc3.move_page_up();
-    assert_eq!(doc3.cursor, Loc { x: 0, y: 0 });
+    assert_eq!(doc3.cursor.loc, Loc { x: 0, y: 0 });
     assert_eq!(doc3.offset.y, 45);
-    doc1.goto_y(4);
+    doc1.move_to_y(4);
     doc1.move_page_down();
     doc1.move_page_down();
     assert_eq!(doc1.loc(), Loc { x: 0, y: 17 });
@@ -306,7 +306,7 @@ fn document_tab() {
     assert_eq!(doc1.tab_map.get(1).unwrap(), &vec![(24, 20)]);
     assert_eq!(doc1.tab_map.get(2).unwrap(), &vec![(0, 0), (15, 10)]);
     // Check moving and cursor position
-    doc1.goto(&Loc::at(0, 0));
+    doc1.move_to(&Loc::at(0, 0));
     doc1.move_right();
     assert_eq!(doc1.loc(), Loc::at(6, 0));
     assert_eq!(doc1.char_ptr, 1);
@@ -318,7 +318,7 @@ fn document_tab() {
     assert_eq!(doc1.loc(), Loc::at(7, 0));
     assert_eq!(doc1.char_ptr, 2);
     // Check tab cursor split
-    doc1.goto(&Loc::at(1, 0));
+    doc1.move_to(&Loc::at(1, 0));
     doc1.old_cursor = 6;
     doc1.move_down();
     doc1.move_left();
@@ -586,7 +586,7 @@ fn word_jumping() {
     assert_eq!(doc1.move_prev_word(), Status::StartOfLine);
     assert_eq!(doc1.char_ptr, 0);
     doc1.move_up();
-    doc1.goto_x(210);
+    doc1.move_to_x(210);
     assert_eq!(doc1.move_next_word(), Status::EndOfLine);
     assert_eq!(doc1.char_ptr, 210);
 }
@@ -608,7 +608,7 @@ fn searching() {
     doc1.move_right();
     assert_eq!(doc1.next_match("hi", 0), Some(Match { loc: Loc::at(1, 0), text: "hi".to_string() }));
     assert_eq!(doc1.next_match("hi", 1), Some(Match { loc: Loc::at(1, 6), text: "hi".to_string() }));
-    doc1.goto(&Loc::at(4, 5));
+    doc1.move_to(&Loc::at(4, 5));
     assert_eq!(doc1.prev_match("ex"), Some(Match { loc: Loc::at(0, 5), text: "ex".to_string() }));
     assert_eq!(doc1.prev_match("^a"), Some(Match { loc: Loc::at(0, 2), text: "a".to_string() }));
     assert_eq!(doc1.prev_match("f(i+)"), Some(Match { loc: Loc::at(1, 4), text: "i".to_string() }));
