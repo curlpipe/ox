@@ -252,8 +252,8 @@ impl Editor {
         Ok(None)
     }
 
+    /// Append any missed lines to the syntax highlighter
     pub fn update_highlighter(&mut self) -> Result<()> {
-        // Append any missed lines to the syntax highlighter
         if self.active {
             let actual = self.doc.get(self.ptr).and_then(|d| Some(d.loaded_to)).unwrap_or(0);
             let percieved = self.highlighter().line_ref.len();
@@ -370,6 +370,7 @@ impl Editor {
         Ok(())
     }
 
+    /// Put together the contents of a tab
     fn render_document_tab_header(&self, document: &Document) -> String {
         let file_name = document.file_name.clone().unwrap_or_else(|| "[No Name]".to_string());
         let modified = if document.modified { "[+]" } else { "" };

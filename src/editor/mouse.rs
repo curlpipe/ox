@@ -62,6 +62,12 @@ impl Editor {
                     _ => (),
                 }
             }
+            MouseEventKind::ScrollLeft => {
+                self.doc_mut().move_left();
+            }
+            MouseEventKind::ScrollRight => {
+                self.doc_mut().move_right();
+            }
             _ => (),
         }
     }
