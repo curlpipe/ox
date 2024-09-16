@@ -107,7 +107,7 @@ impl Terminal {
     pub fn start(&mut self) -> Result<()> {
         std::panic::set_hook(Box::new(|e| {
             terminal::disable_raw_mode().unwrap();
-            execute!(stdout(), LeaveAlternateScreen, Show).unwrap();
+            execute!(stdout(), LeaveAlternateScreen, Show, DisableMouseCapture).unwrap();
             eprintln!("{}", e);
         }));
         execute!(self.stdout, EnterAlternateScreen, Clear(ClType::All), DisableLineWrap)?;
@@ -126,7 +126,7 @@ impl Terminal {
 
     /// Restore terminal back to state before the editor was started
     pub fn end(&mut self) -> Result<()> {
-        self.show_cursor();
+        self.show_cursor()?;
         terminal::disable_raw_mode()?;
         execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap)?;
         if self.config.borrow().mouse_enabled {

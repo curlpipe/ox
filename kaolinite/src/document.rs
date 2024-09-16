@@ -4,7 +4,6 @@ use crate::map::{CharMap, form_map};
 use crate::searching::{Searcher, Match};
 use crate::utils::{Loc, Size, get_range, trim, width, tab_boundaries_backward, tab_boundaries_forward};
 use ropey::Rope;
-use std::borrow::Cow;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::ops::{Range, RangeBounds};
@@ -48,6 +47,8 @@ pub struct Document {
     pub old_cursor: usize,
     /// Flag for if the editor is currently in a redo action
     pub in_redo: bool,
+    /// Flag for an EOL
+    pub eol: bool,
 }
 
 impl Document {
@@ -71,6 +72,7 @@ impl Document {
             read_only: false,
             old_cursor: 0,
             in_redo: false,
+            eol: false,
         }
     }
 
@@ -82,8 +84,10 @@ impl Document {
     #[cfg(not(tarpaulin_include))]
     pub fn open<S: Into<String>>(size: Size, file_name: S) -> Result<Self> {
         let file_name = file_name.into();
+        let file = Rope::from_reader(BufReader::new(File::open(&file_name)?))?;
         Ok(Self {
-            file: Rope::from_reader(BufReader::new(File::open(&file_name)?))?,
+            eol: !file.line(file.len_lines().saturating_sub(1)).to_string().is_empty(),
+            file,
             lines: vec![],
             dbl_map: CharMap::default(),
             tab_map: CharMap::default(),
@@ -555,7 +559,7 @@ impl Document {
         if x == 0 && y != 0 {
             return Status::StartOfLine;
         }
-        let re = format!("(\t| {{{}}}|^| )", self.tab_width);
+        let re = format!("(\t| {{{}}}|^|\\W| )", self.tab_width);
         if let Some(mut mtch) = self.prev_match(&re) {
             let len = mtch.text.chars().count();
             let same = mtch.loc.x + len == x;
@@ -578,7 +582,7 @@ impl Document {
         if x == line.chars().count() && y != self.len_lines() {
             return Status::EndOfLine;
         }
-        let re = format!("(\t| {{{}}}|$|^ +| )", self.tab_width);
+        let re = format!("(\t| {{{}}}|\\W|$|^ +| )", self.tab_width);
         if let Some(mut mtch) = self.next_match(&re, 0) {
             mtch.loc.x += mtch.text.chars().count();
             self.move_to(&mtch.loc);
@@ -866,7 +870,7 @@ impl Document {
     /// Returns the number of lines in the document
     #[must_use]
     pub fn len_lines(&self) -> usize {
-        self.file.len_lines().saturating_sub(1)
+        self.file.len_lines().saturating_sub(1) + if self.eol { 1 } else { 0 }
     }
 
     /// Evaluate the line number text for a specific line

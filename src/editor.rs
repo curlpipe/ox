@@ -870,6 +870,7 @@ impl Editor {
         self.doc_mut().move_to(&Loc::at(0, 0));
         while let Some(mtch) = self.doc_mut().next_match(target, 1) {
             drop(self.doc_mut().replace(mtch.loc, &mtch.text, into));
+            drop(self.update_highlighter());
             self.highlighter[self.ptr].edit(mtch.loc.y, &self.doc[self.ptr].lines[mtch.loc.y]);
         }
     }
