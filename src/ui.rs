@@ -20,8 +20,11 @@ pub const HELP_TEXT: &str = "
    Ctrl + O:   Open            
    Ctrl + Q:   Quit            
    Ctrl + S:   Save            
-   Ctrl + W:   Save as         
-   Ctrl + A:   Save all        
+   Alt  + W:   Save as         
+   Alt  + A:   Save all        
+   Ctrl + A:   Select All      
+   Ctrl + C:   Copy            
+   Ctrl + V:   Paste           
    Ctrl + Z:   Undo            
    Ctrl + Y:   Redo            
    Ctrl + F:   Find            

@@ -225,8 +225,8 @@ Ctrl + N:   New
 Ctrl + O:   Open          
 Ctrl + Q:   Quit          
 Ctrl + S:   Save          
-Ctrl + W:   Save as       
-Ctrl + A:   Save all      
+Alt  + S:   Save as       
+Alt  + A:   Save all      
 Ctrl + Z:   Undo          
 Ctrl + Y:   Redo          
 Ctrl + F:   Find          
