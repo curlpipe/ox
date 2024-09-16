@@ -126,6 +126,7 @@ impl Terminal {
 
     /// Restore terminal back to state before the editor was started
     pub fn end(&mut self) -> Result<()> {
+        self.show_cursor();
         terminal::disable_raw_mode()?;
         execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap)?;
         if self.config.borrow().mouse_enabled {
