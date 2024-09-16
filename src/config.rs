@@ -457,6 +457,9 @@ pub struct Colors {
     pub warning_fg: ConfigColor,
     pub error_bg: ConfigColor,
     pub error_fg: ConfigColor,
+
+    pub selection_fg: ConfigColor,
+    pub selection_bg: ConfigColor,
 }
 
 impl Default for Colors {
@@ -484,6 +487,9 @@ impl Default for Colors {
             warning_fg: ConfigColor::Black,
             error_bg: ConfigColor::Black,
             error_fg: ConfigColor::Black,
+
+            selection_fg: ConfigColor::White,
+            selection_bg: ConfigColor::Blue,
         }
     }
 }
@@ -507,6 +513,8 @@ impl LuaUserData for Colors {
         fields.add_field_method_get("warning_fg", |env, this| Ok(this.warning_fg.to_lua(env)));
         fields.add_field_method_get("info_bg", |env, this| Ok(this.info_bg.to_lua(env)));
         fields.add_field_method_get("info_fg", |env, this| Ok(this.info_fg.to_lua(env)));
+        fields.add_field_method_get("selection_fg", |env, this| Ok(this.selection_fg.to_lua(env)));
+        fields.add_field_method_get("selection_bg", |env, this| Ok(this.selection_bg.to_lua(env)));
         fields.add_field_method_set("editor_bg", |_, this, value| {
             this.editor_bg = ConfigColor::from_lua(value);
             Ok(())
@@ -573,6 +581,14 @@ impl LuaUserData for Colors {
         });
         fields.add_field_method_set("info_fg", |_, this, value| {
             this.info_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("selection_fg", |_, this, value| {
+            this.selection_fg = ConfigColor::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("selection_bg", |_, this, value| {
+            this.selection_bg = ConfigColor::from_lua(value);
             Ok(())
         });
     }

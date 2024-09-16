@@ -356,7 +356,8 @@ impl Editor {
                     for c in text.chars() {
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: x_pos });
                         if is_selected {
-                            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().editor_fg.to_color()?))?;
+                            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().selection_bg.to_color()?))?;
+                            write!(self.terminal.stdout, "{}", Fg(self.config.colors.borrow().selection_fg.to_color()?))?;
                         } else {
                             write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().editor_bg.to_color()?))?;
                         }

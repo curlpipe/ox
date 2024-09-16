@@ -200,6 +200,8 @@ colors.warning_bg = {41, 41, 61}
 colors.error_fg = {255, 100, 100}
 colors.error_bg = {41, 41, 61}
 
+colors.selection_fg = {255, 255, 255}
+colors.selection_bg = {59, 59, 130}
 
 -- Configure Line Numbers --
 line_numbers.enabled = true
