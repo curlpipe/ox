@@ -554,7 +554,7 @@ impl Document {
         if x == 0 && y != 0 {
             return Status::StartOfLine;
         }
-        let re = format!("(\t| {{{}}}|^| )", self.tab_width);
+        let re = format!("(\t| {{{}}}|^|\\W| )", self.tab_width);
         if let Some(mut mtch) = self.prev_match(&re) {
             let len = mtch.text.chars().count();
             let same = mtch.loc.x + len == x;
@@ -577,7 +577,7 @@ impl Document {
         if x == line.chars().count() && y != self.len_lines() {
             return Status::EndOfLine;
         }
-        let re = format!("(\t| {{{}}}|$|^ +| )", self.tab_width);
+        let re = format!("(\t| {{{}}}|\\W|$|^ +| )", self.tab_width);
         if let Some(mut mtch) = self.next_match(&re, 0) {
             mtch.loc.x += mtch.text.chars().count();
             self.move_to(&mtch.loc);
