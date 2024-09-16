@@ -4,7 +4,6 @@ use crate::map::{CharMap, form_map};
 use crate::searching::{Searcher, Match};
 use crate::utils::{Loc, Size, get_range, trim, width, tab_boundaries_backward, tab_boundaries_forward};
 use ropey::Rope;
-use std::borrow::Cow;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::ops::{Range, RangeBounds};
