@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "kaolinite",
 ]
+exclude = ["cactus"]
 
 [package]
 name = "ox"
