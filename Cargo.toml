@@ -32,7 +32,7 @@ assets = [
 
 [dependencies]
 alinio = "0.2.1"
-base64 = "0.22.1"
+copypasta-ext = "0.4.4"
 crossterm = "0.27.0"
 jargon-args = "0.2.7"
 kaolinite = { path = "./kaolinite" }

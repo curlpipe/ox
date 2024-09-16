@@ -526,6 +526,18 @@ impl Editor {
         self.terminal.copy(&selected_text)
     }
 
+    /// Paste the selected text
+    pub fn paste(&mut self) -> Result<()> {
+        let clip = self.terminal.paste();
+        for ch in clip.unwrap().chars() {
+            if let Err(err) = self.character(ch) {
+                self.feedback = Feedback::Error(err.to_string());
+            }
+        }
+        self.update_highlighter()?;
+        Ok(())
+    }
+
     /// Move the cursor up
     pub fn select_up(&mut self) {
         self.doc_mut().select_up();

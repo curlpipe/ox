@@ -946,6 +946,12 @@ impl LuaUserData for Editor {
             }
             Ok(())
         });
+        methods.add_method_mut("paste", |_, editor, ()| {
+            if let Err(err) = editor.paste() {
+                editor.feedback = Feedback::Error(err.to_string());
+            }
+            Ok(())
+        });
         methods.add_method_mut("move_home", |_, editor, ()| {
             editor.doc_mut().move_home();
             update_highlighter(editor);

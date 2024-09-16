@@ -70,14 +70,21 @@ event_mapping = {
     ["alt_s"] = function()
         editor:save_as()
     end,
-    ["ctrl_a"] = function()
-        editor:select_all()
+    ["alt_a"] = function()
+        editor:save_all()
     end,
     ["ctrl_q"] = function()
         editor:quit()
     end,
+    -- Clipboard Interaction
+    ["ctrl_a"] = function()
+        editor:select_all()
+    end,
     ["ctrl_c"] = function()
         editor:copy()
+    end,
+    ["ctrl_v"] = function()
+        editor:paste()
     end,
     -- Undo & Redo
     ["ctrl_z"] = function()
