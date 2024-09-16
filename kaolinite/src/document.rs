@@ -761,6 +761,16 @@ impl Document {
         Ok(())
     }
 
+    /// Calculate the character index from the display index on a certain line
+    pub fn character_idx(&self, loc: &Loc) -> usize {
+        let mut idx = loc.x;
+        // Account for double width characters
+        idx -= self.dbl_map.count(loc, true).unwrap_or(0);
+        // Account for tab characters
+        idx -= self.tab_map.count(loc, true).unwrap_or(0) * self.tab_width.saturating_sub(1);
+        idx
+    }
+
     /// Calculate the display index from the character index on a certain line
     fn display_idx(&self, loc: &Loc) -> usize {
         let mut idx = loc.x;
@@ -950,6 +960,9 @@ impl Document {
     pub fn selection_loc_bound(&self) -> (Loc, Loc) {
         let mut left = self.cursor.loc;
         let mut right = self.cursor.selection_end;
+        // Convert into character indices
+        left.x = self.character_idx(&left);
+        right.x = self.character_idx(&right);
         if left > right {
             std::mem::swap(&mut left, &mut right);
         }
@@ -964,8 +977,12 @@ impl Document {
 
     /// Will return the current active selection as a range over file characters
     pub fn selection_range(&self) -> Range<usize> {
-        let mut left = self.loc_to_file_pos(&self.cursor.loc);
-        let mut right = self.loc_to_file_pos(&self.cursor.selection_end);
+        let mut cursor = self.cursor.loc.clone();
+        let mut selection_end = self.cursor.selection_end.clone();
+        cursor.x = self.character_idx(&cursor);
+        selection_end.x = self.character_idx(&selection_end);
+        let mut left = self.loc_to_file_pos(&cursor);
+        let mut right = self.loc_to_file_pos(&selection_end);
         if left > right {
             std::mem::swap(&mut left, &mut right);
         }
@@ -973,8 +990,8 @@ impl Document {
     }
 
     /// Will return the text contained within the current selection
-    pub fn selection_text(&self) -> Cow<'_, str> {
-        self.file.get_byte_slice(self.selection_range()).map(|r| r.into()).unwrap_or_default()
+    pub fn selection_text(&self) -> String {
+        self.file.slice(self.selection_range()).to_string()
     }
 }
 

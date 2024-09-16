@@ -33,7 +33,8 @@ impl Editor {
         match event.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 match self.find_mouse_location(event) {
-                    MouseLocation::File(loc) => {
+                    MouseLocation::File(mut loc) => {
+                        loc.x = self.doc_mut().character_idx(&loc);
                         self.doc_mut().move_to(&loc);
                     },
                     MouseLocation::Tabs(i) => {
@@ -44,7 +45,8 @@ impl Editor {
             },
             MouseEventKind::Drag(MouseButton::Left) => {
                 match self.find_mouse_location(event) {
-                    MouseLocation::File(loc) => {
+                    MouseLocation::File(mut loc) => {
+                        loc.x = self.doc_mut().character_idx(&loc);
                         self.doc_mut().select_to(&loc);
                     },
                     MouseLocation::Tabs(_) | MouseLocation::Out => (),

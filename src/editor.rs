@@ -524,7 +524,7 @@ impl Editor {
 
     /// Copy the selected text
     pub fn copy(&mut self) -> Result<()> {
-        let selected_text = self.doc().selection_text().into_owned();
+        let selected_text = self.doc().selection_text();
         self.terminal.copy(&selected_text)
     }
 
