@@ -11,6 +11,7 @@ use kaolinite::utils::Size;
 use std::cell::RefCell;
 use std::io::{stdout, Stdout, Write};
 use std::rc::Rc;
+use base64::prelude::*;
 
 /// Constant that shows the help message
 pub const HELP_TEXT: &str = "
@@ -157,6 +158,15 @@ impl Terminal {
 
     pub fn flush(&mut self) -> Result<()> {
         self.stdout.flush()?;
+        Ok(())
+    }
+    
+    pub fn copy(&mut self, text: &str) -> Result<()> {
+        write!(
+            self.stdout,
+            "\x1b]52;c;{}\x1b\\",
+            BASE64_STANDARD.encode(text)
+        )?;
         Ok(())
     }
 }

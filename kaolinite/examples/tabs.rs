@@ -8,7 +8,7 @@ fn main() {
     ).expect("File couldn't be opened");
     // Load viewport
     doc.load_to(10);
-    doc.goto(&Loc { x: 0, y: 0 });
+    doc.move_to(&Loc { x: 0, y: 0 });
     // Find something out of buffer
     println!("{:?}", doc.line(0));
     println!("{:?}", doc.line(1));

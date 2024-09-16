@@ -182,7 +182,7 @@ impl Editor {
         // TODO: Check for change in event type and commit to undo/redo stack if present
         Ok(())
     }
-    
+
     /// Initialise the editor
     pub fn init(&mut self) -> Result<()> {
         self.terminal.start()?;
@@ -241,12 +241,6 @@ impl Editor {
                 self.doc_mut().size.h = h.saturating_sub(3) as usize;
                 let max = self.doc().offset.x + self.doc().size.h;
                 self.doc_mut().load_to(max);
-                // Make sure cursor hasn't broken out of bounds
-                if self.doc().cursor.y >= self.doc().size.h - 1 {
-                    let y = self.doc().size.h.saturating_sub(1);
-                    self.doc_mut().cursor.y = y;
-                    self.doc_mut().move_home();
-                }
             }
             CEvent::Mouse(mouse_event) => {
                 self.handle_mouse_event(mouse_event);
@@ -301,9 +295,10 @@ impl Editor {
         // Render feedback line
         self.render_feedback_line(w, h)?;
         // Move cursor to the correct location and perform render
-        let Loc { x, y } = self.doc().cursor;
-        self.terminal.show_cursor()?;
-        self.terminal.goto(x + max, y + 1)?;
+        if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
+            self.terminal.show_cursor()?;
+            self.terminal.goto(x + max, y + 1)?;
+        }
         self.terminal.flush()?;
         Ok(())
     }
@@ -334,28 +329,41 @@ impl Editor {
             if let Some(line) = self.doc().line(idx) {
                 let tokens = self.highlighter().line(idx, &line);
                 let tokens = trim(&tokens, self.doc().offset.x);
+                let mut x_pos = self.doc().offset.x;
                 for token in tokens {
-                    match token {
+                    let text = match token {
                         TokOpt::Some(text, kind) => {
                             // Try to get the corresponding colour for this token
                             let colour = self.config.syntax_highlighting.borrow().get_theme(&kind);
                             match colour {
                                 // Success, write token
-                                Ok(col) => write!(
-                                    self.terminal.stdout,
-                                    "{}{text}{}",
-                                    Fg(col),
-                                    Fg(self.config.colors.borrow().editor_fg.to_color()?),
-                                ),
+                                Ok(col) => {
+                                    write!(
+                                        self.terminal.stdout,
+                                        "{}",
+                                        Fg(col),
+                                    )?;
+                                },
                                 // Failure, show error message and don't highlight this token
                                 Err(err) => {
                                     self.feedback = Feedback::Error(err.to_string());
-                                    write!(self.terminal.stdout, "{text}")
                                 }
                             }
+                            text
                         }
-                        TokOpt::None(text) => write!(self.terminal.stdout, "{text}"),
-                    }?
+                        TokOpt::None(text) => text,
+                    };
+                    for c in text.chars() {
+                        let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: x_pos });
+                        if is_selected {
+                            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().editor_fg.to_color()?))?;
+                        } else {
+                            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().editor_bg.to_color()?))?;
+                        }
+                        write!(self.terminal.stdout, "{c}")?;
+                        x_pos += 1;
+                    }
+                    write!(self.terminal.stdout, "{}", Fg(self.config.colors.borrow().editor_fg.to_color()?))?;
                 }
             }
         }
@@ -372,8 +380,8 @@ impl Editor {
     fn render_tab_line(&mut self, w: usize) -> Result<()> {
         self.terminal.prepare_line(0)?;
         write!(
-            self.terminal.stdout, 
-            "{}{}", 
+            self.terminal.stdout,
+            "{}{}",
             Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?),
             Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?)
         )?;
@@ -382,7 +390,7 @@ impl Editor {
             if c == self.ptr {
                 // Representing the document we're currently looking at
                 write!(
-                    self.terminal.stdout, 
+                    self.terminal.stdout,
                     "{}{}{}{document_header}{}{}{}│",
                     Bg(self.config.colors.borrow().tab_active_bg.to_color()?),
                     Fg(self.config.colors.borrow().tab_active_fg.to_color()?),
@@ -404,8 +412,8 @@ impl Editor {
     fn render_status_line(&mut self, w: usize, h: usize) -> Result<()> {
         self.terminal.goto(0, h + 1)?;
         write!(
-            self.terminal.stdout, 
-            "{}{}{}{}{}{}{}", 
+            self.terminal.stdout,
+            "{}{}{}{}{}{}{}",
             Bg(self.config.colors.borrow().status_bg.to_color()?),
             Fg(self.config.colors.borrow().status_fg.to_color()?),
             SetAttribute(Attribute::Bold),
@@ -421,7 +429,7 @@ impl Editor {
     fn render_feedback_line(&mut self, w: usize, h: usize) -> Result<()> {
         self.terminal.goto(0, h + 2)?;
         write!(
-            self.terminal.stdout, 
+            self.terminal.stdout,
             "{}",
             self.feedback.render(&self.config.colors.borrow(), w)?,
         )?;
@@ -448,7 +456,7 @@ impl Editor {
         for (c, line) in message.iter().enumerate().take(h - h / 4) {
             self.terminal.goto(4, h / 4 + c + 1)?;
             write!(
-                self.terminal.stdout, 
+                self.terminal.stdout,
                 "{}",
                 alinio::align::center(&line, w - 4)
                     .unwrap_or_else(|| "".to_string()),
@@ -510,6 +518,48 @@ impl Editor {
         if self.ptr != 0 {
             self.ptr -= 1;
         }
+    }
+
+    /// Copy the selected text
+    pub fn copy(&mut self) -> Result<()> {
+        let selected_text = self.doc().selection_text().into_owned();
+        self.terminal.copy(&selected_text)
+    }
+
+    /// Move the cursor up
+    pub fn select_up(&mut self) {
+        self.doc_mut().select_up();
+    }
+
+    /// Move the cursor down
+    pub fn select_down(&mut self) {
+        self.doc_mut().select_down();
+    }
+
+    /// Move the cursor left
+    pub fn select_left(&mut self) {
+        let status = self.doc_mut().select_left();
+        // Cursor wrapping if cursor hits the start of the line
+        if status == Status::StartOfLine && self.doc().loc().y != 0 {
+            self.doc_mut().select_up();
+            self.doc_mut().select_end();
+        }
+    }
+
+    /// Move the cursor right
+    pub fn select_right(&mut self) {
+        let status = self.doc_mut().select_right();
+        // Cursor wrapping if cursor hits the end of a line
+        if status == Status::EndOfLine {
+            self.doc_mut().select_down();
+            self.doc_mut().select_home();
+        }
+    }
+
+    /// Select the whole document
+    pub fn select_all(&mut self) {
+        self.doc_mut().move_top();
+        self.doc_mut().select_bottom();
     }
 
     /// Move the cursor up
@@ -682,10 +732,13 @@ impl Editor {
             write!(self.terminal.stdout, "[<-]: Search previous | [->]: Search next")?;
             self.terminal.flush()?;
             // Move back to correct cursor position
-            let Loc { x, y } = self.doc().cursor;
-            let max = self.dent();
-            self.terminal.goto(x + max, y + 1)?;
-            self.terminal.show_cursor()?;
+            if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
+                let max = self.dent();
+                self.terminal.goto(x + max, y + 1)?;
+                self.terminal.show_cursor()?;
+            } else {
+                self.terminal.hide_cursor()?;
+            }
             // Handle events
             if let CEvent::Key(key) = read()? {
                 match (key.modifiers, key.code) {
@@ -706,7 +759,7 @@ impl Editor {
     /// Move to the next match
     pub fn next_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().next_match(target, 1)?;
-        self.doc_mut().goto(&mtch.loc);
+        self.doc_mut().move_to(&mtch.loc);
         // Update highlighting
         self.update_highlighter().ok()?;
         Some(mtch.text)
@@ -715,7 +768,7 @@ impl Editor {
     /// Move to the previous match
     pub fn prev_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().prev_match(target)?;
-        self.doc_mut().goto(&mtch.loc);
+        self.doc_mut().move_to(&mtch.loc);
         // Update highlighting
         self.update_highlighter().ok()?;
         Some(mtch.text)
@@ -752,10 +805,13 @@ impl Editor {
             write!(self.terminal.stdout, "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All")?;
             self.terminal.flush()?;
             // Move back to correct cursor location
-            let Loc { x, y } = self.doc().cursor;
-            let max = self.dent();
-            self.terminal.goto(x + max, y + 1)?;
-            self.terminal.show_cursor()?;
+            if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
+                let max = self.dent();
+                self.terminal.goto(x + max, y + 1)?;
+                self.terminal.show_cursor()?;
+            } else {
+                self.terminal.hide_cursor()?;
+            }
             // Handle events
             if let CEvent::Key(key) = read()? {
                 match (key.modifiers, key.code) {
@@ -785,7 +841,7 @@ impl Editor {
         // Do the replacement
         let loc = self.doc().char_loc();
         self.doc_mut().replace(loc, text, into)?;
-        self.doc_mut().goto(&loc);
+        self.doc_mut().move_to(&loc);
         // Update syntax highlighter
         self.update_highlighter()?;
         self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
@@ -797,7 +853,7 @@ impl Editor {
         // Commit events to event manager (for undo / redo)
         self.doc_mut().event_mgmt.commit();
         // Replace everything top to bottom
-        self.doc_mut().goto(&Loc::at(0, 0));
+        self.doc_mut().move_to(&Loc::at(0, 0));
         while let Some(mtch) = self.doc_mut().next_match(target, 1) {
             drop(self.doc_mut().replace(mtch.loc, &mtch.text, into));
             self.highlighter[self.ptr].edit(mtch.loc.y, &self.doc[self.ptr].lines[mtch.loc.y]);
@@ -918,7 +974,7 @@ impl Editor {
                     }
                     // Add to the input string if the user presses a character
                     (KMod::CONTROL, KCode::Char('q')) => {
-                        done = true; 
+                        done = true;
                         result = true;
                         self.feedback = Feedback::None;
                     }

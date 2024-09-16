@@ -889,7 +889,7 @@ impl LuaUserData for Editor {
         // Cursor moving
         methods.add_method_mut("move_to", |_, editor, (x, y): (usize, usize)| {
             let y = y.saturating_sub(1);
-            editor.doc_mut().goto(&Loc{ x, y });
+            editor.doc_mut().move_to(&Loc{ x, y });
             update_highlighter(editor);
             Ok(())
         });
@@ -911,6 +911,39 @@ impl LuaUserData for Editor {
         methods.add_method_mut("move_right", |_, editor, ()| {
             editor.right();
             update_highlighter(editor);
+            Ok(())
+        });
+        methods.add_method_mut("select_up", |_, editor, ()| {
+            editor.select_up();
+            update_highlighter(editor);
+            Ok(())
+        });
+        methods.add_method_mut("select_down", |_, editor, ()| {
+            editor.select_down();
+            update_highlighter(editor);
+            Ok(())
+        });
+        methods.add_method_mut("select_left", |_, editor, ()| {
+            editor.select_left();
+            update_highlighter(editor);
+            Ok(())
+        });
+        methods.add_method_mut("select_right", |_, editor, ()| {
+            editor.select_right();
+            update_highlighter(editor);
+            Ok(())
+        });
+        methods.add_method_mut("select_all", |_, editor, ()| {
+            editor.select_all();
+            update_highlighter(editor);
+            Ok(())
+        });
+        methods.add_method_mut("copy", |_, editor, ()| {
+            if let Err(err) = editor.copy() {
+                editor.feedback = Feedback::Error(err.to_string());
+            } else {
+                editor.feedback = Feedback::Info("Text copied to clipboard".to_owned());
+            }
             Ok(())
         });
         methods.add_method_mut("move_home", |_, editor, ()| {
@@ -956,24 +989,24 @@ impl LuaUserData for Editor {
         methods.add_method_mut("insert_at", |_, editor, (text, x, y): (String, usize, usize)| {
             let y = y.saturating_sub(1);
             let location = editor.doc_mut().char_loc();
-            editor.doc_mut().goto(&Loc { x, y });
+            editor.doc_mut().move_to(&Loc { x, y });
             for ch in text.chars() {
                 if let Err(err) = editor.character(ch) {
                     editor.feedback = Feedback::Error(err.to_string());
                 }
             }
-            editor.doc_mut().goto(&location);
+            editor.doc_mut().move_to(&location);
             update_highlighter(editor);
             Ok(())
         });
         methods.add_method_mut("remove_at", |_, editor, (x, y): (usize, usize)| {
             let y = y.saturating_sub(1);
             let location = editor.doc_mut().char_loc();
-            editor.doc_mut().goto(&Loc { x, y });
+            editor.doc_mut().move_to(&Loc { x, y });
             if let Err(err) = editor.delete() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
-            editor.doc_mut().goto(&location);
+            editor.doc_mut().move_to(&location);
             update_highlighter(editor);
             Ok(())
         });
@@ -981,7 +1014,7 @@ impl LuaUserData for Editor {
             let y = y.saturating_sub(1);
             let location = editor.doc_mut().char_loc();
             if y < editor.doc().len_lines() {
-                editor.doc_mut().goto_y(y);
+                editor.doc_mut().move_to_y(y);
                 editor.doc_mut().move_home();
                 if let Err(err) = editor.enter() {
                     editor.feedback = Feedback::Error(err.to_string());
@@ -998,18 +1031,18 @@ impl LuaUserData for Editor {
                     editor.feedback = Feedback::Error(err.to_string());
                 }
             }
-            editor.doc_mut().goto(&location);
+            editor.doc_mut().move_to(&location);
             update_highlighter(editor);
             Ok(())
         });
         methods.add_method_mut("remove_line_at", |_, editor, y: usize| {
             let y = y.saturating_sub(1);
             let location = editor.doc_mut().char_loc();
-            editor.doc_mut().goto_y(y);
+            editor.doc_mut().move_to_y(y);
             if let Err(err) = editor.delete_line() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
-            editor.doc_mut().goto(&location);
+            editor.doc_mut().move_to(&location);
             update_highlighter(editor);
             Ok(())
         });
