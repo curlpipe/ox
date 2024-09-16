@@ -189,6 +189,7 @@ impl Document {
         }
     }
 
+    /// Takes a loc and converts it into a char index for ropey
     pub fn loc_to_file_pos(&self, loc: &Loc) -> usize {
         self.file.line_to_char(loc.y) + loc.x
     }
@@ -367,6 +368,7 @@ impl Document {
         Ok(())
     }
 
+    /// Cancels the current selection
     pub fn cancel_selection(&mut self) {
         self.cursor.selection_end = self.cursor.loc;
     }
@@ -719,6 +721,7 @@ impl Document {
         self.load_to(self.offset.y + self.size.h);
     }
 
+    /// Brings the cursor into the viewport so it can be seen
     pub fn bring_cursor_in_viewport(&mut self) {
         if self.offset.y > self.cursor.loc.y {
             self.offset.y = self.cursor.loc.y;
@@ -920,6 +923,7 @@ impl Document {
         }
     }
 
+    /// If the cursor is within the viewport, this will return where it is relatively
     pub fn cursor_loc_in_screen(&self) -> Option<Loc> {
         if self.cursor.loc.x < self.offset.x {
             return None;
@@ -937,10 +941,12 @@ impl Document {
         return Some(result);
     }
 
+    /// Returns true if there is no active selection and vice versa
     pub fn is_selection_empty(&self) -> bool {
         self.cursor.loc == self.cursor.selection_end
     }
 
+    /// Will return the bounds of the current active selection
     pub fn selection_loc_bound(&self) -> (Loc, Loc) {
         let mut left = self.cursor.loc;
         let mut right = self.cursor.selection_end;
@@ -950,11 +956,13 @@ impl Document {
         (left, right)
     }
 
+    /// Returns true if the provided location is within the current active selection
     pub fn is_loc_selected(&self, loc: Loc) -> bool {
         let (left, right) = self.selection_loc_bound();
         left <= loc && loc < right 
     }
 
+    /// Will return the current active selection as a range over file characters
     pub fn selection_range(&self) -> Range<usize> {
         let mut left = self.loc_to_file_pos(&self.cursor.loc);
         let mut right = self.loc_to_file_pos(&self.cursor.selection_end);
@@ -964,11 +972,13 @@ impl Document {
         left..right
     }
 
+    /// Will return the text contained within the current selection
     pub fn selection_text(&self) -> Cow<'_, str> {
         self.file.get_byte_slice(self.selection_range()).map(|r| r.into()).unwrap_or_default()
     }
 }
 
+/// Defines a cursor's position and any selection it may be covering
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct Cursor {
     pub loc: Loc,
