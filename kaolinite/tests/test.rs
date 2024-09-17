@@ -1,13 +1,13 @@
 #[cfg(test)]
-use kaolinite::{document::*, event::*, utils::*, map::*, searching::*};
+use kaolinite::{document::*, event::*, map::*, searching::*, utils::*};
 use sugars::hmap;
 
 #[test]
 fn char_mapping() {
     // Test data
-    let mut test1_map = CharMap::new(hmap!{ 0 => vec![]});
-    let mut test2_map = CharMap::new(hmap!{ 794385 => vec![(1, 1), (5, 4)] });
-    let mut test3_map = CharMap::new(hmap!{ 2 => vec![(1, 1), (3, 2), (6, 4), (8, 5)] });
+    let mut test1_map = CharMap::new(hmap! { 0 => vec![]});
+    let mut test2_map = CharMap::new(hmap! { 794385 => vec![(1, 1), (5, 4)] });
+    let mut test3_map = CharMap::new(hmap! { 2 => vec![(1, 1), (3, 2), (6, 4), (8, 5)] });
     // Output & Verification
     // Count
     let results = vec![
@@ -36,20 +36,38 @@ fn char_mapping() {
     // Splice
     test3_map.splice(&Loc::at(0, 2), 2, vec![(4, 4), (6, 5)]);
     test1_map.splice(&Loc::at(0, 5), 12, vec![(5, 5), (7, 6), (8, 7)]);
-    assert_eq!(test3_map.get(2).unwrap(), &vec![(1, 1), (3, 2), (4, 4), (6, 5), (6, 4), (8, 5)]);
+    assert_eq!(
+        test3_map.get(2).unwrap(),
+        &vec![(1, 1), (3, 2), (4, 4), (6, 5), (6, 4), (8, 5)]
+    );
     assert_eq!(test1_map.get(5).unwrap(), &vec![(5, 5), (7, 6), (8, 7)]);
     // Shift_insertion
     assert_eq!(test2_map.shift_insertion(&Loc::at(2, 0), "\to教", 4), 0);
-    assert_eq!(test2_map.get(794385).unwrap(), &vec![(1, 1), (5, 4), (9, 7)]);
+    assert_eq!(
+        test2_map.get(794385).unwrap(),
+        &vec![(1, 1), (5, 4), (9, 7)]
+    );
     assert_eq!(test2_map.get(0), None);
-    assert_eq!(test2_map.shift_insertion(&Loc::at(2, 794385), "\to教", 4), 1);
-    assert_eq!(test2_map.get(794385).unwrap(), &vec![(1, 1), (12, 7), (16, 10)]);
+    assert_eq!(
+        test2_map.shift_insertion(&Loc::at(2, 794385), "\to教", 4),
+        1
+    );
+    assert_eq!(
+        test2_map.get(794385).unwrap(),
+        &vec![(1, 1), (12, 7), (16, 10)]
+    );
     // Shift_deletion
     test2_map.shift_deletion(&Loc::at(0, 0), (2, 5), "\to教", 4);
     assert_eq!(test2_map.get(0), None);
-    assert_eq!(test2_map.get(794385).unwrap(), &vec![(1, 1), (12, 7), (16, 10)]);
+    assert_eq!(
+        test2_map.get(794385).unwrap(),
+        &vec![(1, 1), (12, 7), (16, 10)]
+    );
     test2_map.shift_deletion(&Loc::at(0, 794385), (2, 5), "\to教", 4);
-    assert_eq!(test2_map.get(794385).unwrap(), &vec![(1, 1), (5, 4), (9, 7)]);
+    assert_eq!(
+        test2_map.get(794385).unwrap(),
+        &vec![(1, 1), (5, 4), (9, 7)]
+    );
     // Shift_up
     let temp = test2_map.clone();
     test2_map.shift_up(4);
@@ -62,11 +80,21 @@ fn char_mapping() {
     let test_data_string1 = "".to_string();
     let test_data_string2 = "\t\t蔼教\t案 srtin".to_string();
     assert_eq!(form_map(&test_data_string1, 4), (vec![], vec![]));
-    assert_eq!(form_map(&test_data_string2, 4), 
-               (vec![(8, 2), (10, 3), (16, 5)], vec![(0, 0), (4, 1), (12, 4)]));
+    assert_eq!(
+        form_map(&test_data_string2, 4),
+        (
+            vec![(8, 2), (10, 3), (16, 5)],
+            vec![(0, 0), (4, 1), (12, 4)]
+        )
+    );
     assert_eq!(form_map(&test_data_string1, 3), (vec![], vec![]));
-    assert_eq!(form_map(&test_data_string2, 5),
-               (vec![(10, 2), (12, 3), (19, 5)], vec![(0, 0), (5, 1), (14, 4)]));
+    assert_eq!(
+        form_map(&test_data_string2, 5),
+        (
+            vec![(10, 2), (12, 3), (19, 5)],
+            vec![(0, 0), (5, 1), (14, 4)]
+        )
+    );
 }
 
 #[test]
@@ -91,18 +119,21 @@ fn line_trimming() {
         trim(&test5, 5, 9, 2),
     ];
     // Verification
-    assert_eq!(results, vec![
-        "".to_string(),
-        "".to_string(),
-        "world".to_string(),
-        "world".to_string(),
-        "hello wor蔼t ".to_string(),
-        " 案l".to_string(),
-        "  ".to_string(),
-        " 教 ".to_string(),
-        "      ".to_string(),
-        " 教  案 s".to_string(),
-    ]);
+    assert_eq!(
+        results,
+        vec![
+            "".to_string(),
+            "".to_string(),
+            "world".to_string(),
+            "world".to_string(),
+            "hello wor蔼t ".to_string(),
+            " 案l".to_string(),
+            "  ".to_string(),
+            " 教 ".to_string(),
+            "      ".to_string(),
+            " 教  案 s".to_string(),
+        ]
+    );
 }
 
 #[test]
@@ -121,10 +152,10 @@ fn filetype_detection() {
     ];
     // Verification
     assert_eq!(
-        results, 
+        results,
         vec![
             "Rust".to_string(),
-            "Plain Text".to_string(), 
+            "Plain Text".to_string(),
             "Unknown".to_string(),
             "GLSL".to_string(),
         ]
@@ -349,7 +380,10 @@ fn insertion() {
     doc1.insert(&Loc { x: 1, y: 66 }, " // st蔼ld");
     doc1.insert(&Loc { x: 4, y: 66 }, "蔼");
     // Verification
-    assert_eq!(doc1.line(16).unwrap(), "use std::fs::read_to_string;".to_string());
+    assert_eq!(
+        doc1.line(16).unwrap(),
+        "use std::fs::read_to_string;".to_string()
+    );
     assert_eq!(doc2.line(10).unwrap(), "offst的e123tting".to_string());
     assert_eq!(doc1.line(66).unwrap(), "} //蔼 st蔼ld".to_string());
     assert_eq!(doc1.dbl_map.get(66), Some(&vec![(4, 4), (9, 8)]));
@@ -377,10 +411,19 @@ fn deletion() {
     doc2.delete(8..=9, 0);
     // Verification
     assert!(doc1.delete(5..2, 0).is_err());
-    assert_eq!(doc1.line(20).unwrap(), "#[derive(Debug, PartialEq)]".to_string());
+    assert_eq!(
+        doc1.line(20).unwrap(),
+        "#[derive(Debug, PartialEq)]".to_string()
+    );
     assert_eq!(doc1.line(152).unwrap(), "    ///".to_string());
-    assert_eq!(doc1.line(102).unwrap(), "    // Read in information".to_string());
-    assert_eq!(doc1.line(22).unwrap(), "/// The file name of the document".to_string());
+    assert_eq!(
+        doc1.line(102).unwrap(),
+        "    // Read in information".to_string()
+    );
+    assert_eq!(
+        doc1.line(22).unwrap(),
+        "/// The file name of the document".to_string()
+    );
     assert_eq!(doc1.line(2).unwrap(), "".to_string());
     assert_eq!(doc2.line(0).unwrap(), "    stststs".to_string());
 }
@@ -400,7 +443,7 @@ fn line_tweaking() {
     assert_eq!(
         vec![doc1.line(0).unwrap(), doc1.line(1).unwrap()],
         vec![
-            "ewuln在hd".to_string(), 
+            "ewuln在hd".to_string(),
             "  art的st了st在st为sts".to_string()
         ],
     );
@@ -417,8 +460,14 @@ fn line_splicing() {
     doc1.splice_up(1);
     // Verification
     assert!(doc1.splice_up(3).is_err());
-    assert_eq!(doc1.line(0).unwrap(), "    arst的st了st在st为sts".to_string());
-    assert_eq!(doc1.line(1).unwrap(), "  art的st了st在st为stshello world!".to_string());
+    assert_eq!(
+        doc1.line(0).unwrap(),
+        "    arst的st了st在st为sts".to_string()
+    );
+    assert_eq!(
+        doc1.line(1).unwrap(),
+        "  art的st了st在st为stshello world!".to_string()
+    );
 }
 
 #[test]
@@ -432,7 +481,10 @@ fn line_splitting() {
     doc1.split_down(&Loc { x: 6, y: 2 });
     // Verification
     assert!(doc1.splice_up(3).is_err());
-    assert_eq!(doc1.line(0).unwrap(), "    arst的st了st在st为sts".to_string());
+    assert_eq!(
+        doc1.line(0).unwrap(),
+        "    arst的st了st在st为sts".to_string()
+    );
     assert_eq!(doc1.line(1).unwrap(), "  art的st了st在st为sts".to_string());
     assert_eq!(doc1.line(2).unwrap(), "hello ".to_string());
     assert_eq!(doc1.line(3).unwrap(), "world!".to_string());
@@ -461,23 +513,23 @@ fn disk_writing() {
     doc1.delete_line(1);
     doc1.save();
     assert_eq!(
-        std::fs::read_to_string("demos/6.txt").unwrap(), 
+        std::fs::read_to_string("demos/6.txt").unwrap(),
         "    arst的st了st在st为sts\n123\nhello world!\n".to_string()
     );
     doc1.save_as("demos/6test.txt");
     assert_eq!(
-        std::fs::read_to_string("demos/6test.txt").unwrap(), 
+        std::fs::read_to_string("demos/6test.txt").unwrap(),
         "    arst的st了st在st为sts\n123\nhello world!\n".to_string()
     );
     doc1.delete_line(1);
     doc1.insert_line(1, "  art的st了st在st为sts".to_string());
     doc1.save();
     assert_eq!(
-        std::fs::read_to_string("demos/6.txt").unwrap(), 
+        std::fs::read_to_string("demos/6.txt").unwrap(),
         "    arst的st了st在st为sts\n  art的st了st在st为sts\nhello world!\n".to_string()
     );
     assert_eq!(
-        std::fs::read_to_string("demos/6test.txt").unwrap(), 
+        std::fs::read_to_string("demos/6test.txt").unwrap(),
         "    arst的st了st在st为sts\n123\nhello world!\n".to_string()
     );
 }
@@ -495,10 +547,10 @@ fn event_management() {
     mgmt.commit();
     // Output & Verification
     assert_eq!(
-        mgmt.undo(), 
+        mgmt.undo(),
         Some(vec![
-             Event::Insert(Loc { x: 3, y: 0 }, 't'.to_string()),
-             Event::Insert(Loc { x: 2, y: 0 }, 's'.to_string()),
+            Event::Insert(Loc { x: 3, y: 0 }, 't'.to_string()),
+            Event::Insert(Loc { x: 2, y: 0 }, 's'.to_string()),
         ])
     );
     mgmt.register(Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()));
@@ -508,29 +560,25 @@ fn event_management() {
     mgmt.commit();
     assert_eq!(
         mgmt.undo(),
-        Some(vec![
-             Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),
-        ])
+        Some(vec![Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),])
     );
     assert_eq!(
         mgmt.undo(),
         Some(vec![
-             Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
-             Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
-        ])
-    );
-    assert_eq!(
-        mgmt.redo(), 
-        Some(vec![
-             Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
-             Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
+            Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
+            Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
         ])
     );
     assert_eq!(
         mgmt.redo(),
         Some(vec![
-             Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),
+            Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
+            Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
         ])
+    );
+    assert_eq!(
+        mgmt.redo(),
+        Some(vec![Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),])
     );
 }
 
@@ -598,20 +646,65 @@ fn searching() {
     let mut doc1 = Document::open(size, "demos/3.txt").unwrap();
     doc1.load_to(5);
     // Output & Verification
-    assert_eq!(doc1.next_match("hi", 1), Some(Match { loc: Loc::at(1, 0), text: "hi".to_string() }));
-    assert_eq!(doc1.next_match("k?ng", 1), Some(Match { loc: Loc::at(2, 3), text: "ng".to_string() }));
-    assert_eq!(doc1.next_match("offst的(ett)", 1), Some(Match { 
-        loc: Loc::at(6, 10), 
-        text: "ett".to_string()
-    }));
+    assert_eq!(
+        doc1.next_match("hi", 1),
+        Some(Match {
+            loc: Loc::at(1, 0),
+            text: "hi".to_string()
+        })
+    );
+    assert_eq!(
+        doc1.next_match("k?ng", 1),
+        Some(Match {
+            loc: Loc::at(2, 3),
+            text: "ng".to_string()
+        })
+    );
+    assert_eq!(
+        doc1.next_match("offst的(ett)", 1),
+        Some(Match {
+            loc: Loc::at(6, 10),
+            text: "ett".to_string()
+        })
+    );
     assert_eq!(doc1.next_match("oesf", 1), None);
     doc1.move_right();
-    assert_eq!(doc1.next_match("hi", 0), Some(Match { loc: Loc::at(1, 0), text: "hi".to_string() }));
-    assert_eq!(doc1.next_match("hi", 1), Some(Match { loc: Loc::at(1, 6), text: "hi".to_string() }));
+    assert_eq!(
+        doc1.next_match("hi", 0),
+        Some(Match {
+            loc: Loc::at(1, 0),
+            text: "hi".to_string()
+        })
+    );
+    assert_eq!(
+        doc1.next_match("hi", 1),
+        Some(Match {
+            loc: Loc::at(1, 6),
+            text: "hi".to_string()
+        })
+    );
     doc1.move_to(&Loc::at(4, 5));
-    assert_eq!(doc1.prev_match("ex"), Some(Match { loc: Loc::at(0, 5), text: "ex".to_string() }));
-    assert_eq!(doc1.prev_match("^a"), Some(Match { loc: Loc::at(0, 2), text: "a".to_string() }));
-    assert_eq!(doc1.prev_match("f(i+)"), Some(Match { loc: Loc::at(1, 4), text: "i".to_string() }));
+    assert_eq!(
+        doc1.prev_match("ex"),
+        Some(Match {
+            loc: Loc::at(0, 5),
+            text: "ex".to_string()
+        })
+    );
+    assert_eq!(
+        doc1.prev_match("^a"),
+        Some(Match {
+            loc: Loc::at(0, 2),
+            text: "a".to_string()
+        })
+    );
+    assert_eq!(
+        doc1.prev_match("f(i+)"),
+        Some(Match {
+            loc: Loc::at(1, 4),
+            text: "i".to_string()
+        })
+    );
     assert_eq!(doc1.prev_match("eggbar"), None);
 }
 
@@ -650,29 +743,81 @@ fn fuzz() {
                 1 => doc.forth(Event::Insert(doc.char_loc(), 'b'.to_string())),
                 2 => doc.forth(Event::Insert(doc.char_loc(), '在'.to_string())),
                 3 => doc.forth(Event::Delete(
-                    Loc { x: doc.char_ptr.saturating_sub(1), y: doc.char_loc().y }, ' '.to_string())
-                ),
+                    Loc {
+                        x: doc.char_ptr.saturating_sub(1),
+                        y: doc.char_loc().y,
+                    },
+                    ' '.to_string(),
+                )),
                 4 => doc.forth(Event::InsertLine(doc.loc().y, "surpri在se".to_string())),
                 5 => doc.forth(Event::DeleteLine(doc.loc().y, "".to_string())),
                 6 => doc.forth(Event::SplitDown(doc.char_loc())),
-                7 => doc.forth(Event::SpliceUp(Loc { x: 0, y: doc.loc().y })),
-                8 => { doc.move_left(); Ok(()) },
-                9 => { doc.move_right(); Ok(()) },
-                10 => { doc.move_up(); Ok(()) },
-                11 => { doc.move_down(); Ok(()) },
-                12 => { doc.move_end(); Ok(()) },
-                13 => { doc.move_home(); Ok(()) },
-                14 => { doc.move_top(); Ok(()) },
-                15 => { doc.move_bottom(); Ok(()) },
-                16 => { doc.move_page_up(); Ok(()) },
-                17 => { doc.move_page_down(); Ok(()) },
-                18 => { doc.move_prev_word(); Ok(()) },
-                19 => { doc.move_next_word(); Ok(()) },
-                20 => { doc.replace_all("a", "c"); Ok(()) },
-                21 => { doc.event_mgmt.commit(); Ok(()) },
-                22 => { doc.event_mgmt.commit(); Ok(()) },
-                23 => { doc.undo() },
-                24 => { doc.redo() },
+                7 => doc.forth(Event::SpliceUp(Loc {
+                    x: 0,
+                    y: doc.loc().y,
+                })),
+                8 => {
+                    doc.move_left();
+                    Ok(())
+                }
+                9 => {
+                    doc.move_right();
+                    Ok(())
+                }
+                10 => {
+                    doc.move_up();
+                    Ok(())
+                }
+                11 => {
+                    doc.move_down();
+                    Ok(())
+                }
+                12 => {
+                    doc.move_end();
+                    Ok(())
+                }
+                13 => {
+                    doc.move_home();
+                    Ok(())
+                }
+                14 => {
+                    doc.move_top();
+                    Ok(())
+                }
+                15 => {
+                    doc.move_bottom();
+                    Ok(())
+                }
+                16 => {
+                    doc.move_page_up();
+                    Ok(())
+                }
+                17 => {
+                    doc.move_page_down();
+                    Ok(())
+                }
+                18 => {
+                    doc.move_prev_word();
+                    Ok(())
+                }
+                19 => {
+                    doc.move_next_word();
+                    Ok(())
+                }
+                20 => {
+                    doc.replace_all("a", "c");
+                    Ok(())
+                }
+                21 => {
+                    doc.event_mgmt.commit();
+                    Ok(())
+                }
+                22 => {
+                    doc.event_mgmt.commit();
+                    Ok(())
+                }
+                23 => doc.undo(),
+                24 => doc.redo(),
                 _ => Ok(()),
             };
             println!("{} | {}", doc.loc().x, doc.char_ptr);
@@ -685,7 +830,12 @@ fn fuzz() {
 fn blank_document() {
     // Test data
     let mut document = Document::new(Size { w: 10, h: 10 });
-    document.exe(Event::Insert(Loc { x: 0, y: 0 }, "hello, world!".to_string())).unwrap();
+    document
+        .exe(Event::Insert(
+            Loc { x: 0, y: 0 },
+            "hello, world!".to_string(),
+        ))
+        .unwrap();
     // Output & Verification
     assert!(document.save().is_err());
     assert!(document.save_as("demos/dump.txt").is_ok());
@@ -701,7 +851,12 @@ fn read_only() {
     // Test data
     let mut document = Document::new(Size { w: 10, h: 10 });
     document.read_only = true;
-    document.exe(Event::Insert(Loc { x: 0, y: 0 }, "hello, world!".to_string())).unwrap();
+    document
+        .exe(Event::Insert(
+            Loc { x: 0, y: 0 },
+            "hello, world!".to_string(),
+        ))
+        .unwrap();
     // Output & Verification
     assert_eq!(document.lines, vec!["".to_string()]);
     assert!(document.save().is_err());

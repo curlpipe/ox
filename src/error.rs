@@ -1,5 +1,5 @@
-use quick_error::quick_error;
 use kaolinite::event::Error as KError;
+use quick_error::quick_error;
 
 quick_error! {
     #[derive(Debug)]

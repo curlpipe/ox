@@ -1,18 +1,18 @@
-use crate::ui::{size, Terminal, Feedback, HELP_TEXT};
-use crate::config::{Config, key_to_string};
+use crate::config::{key_to_string, Config};
 use crate::error::{OxError, Result};
+use crate::ui::{size, Feedback, Terminal, HELP_TEXT};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
-    style::{SetBackgroundColor as Bg, SetForegroundColor as Fg, SetAttribute, Attribute},
+    style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
     terminal::{Clear, ClearType as ClType},
 };
-use kaolinite::event::{Event, Status, Error as KError};
+use kaolinite::event::{Error as KError, Event, Status};
 use kaolinite::utils::{Loc, Size};
 use kaolinite::Document;
-use synoptic::{Highlighter, TokOpt, trim};
-use std::time::Instant;
-use std::io::{Write, ErrorKind};
 use mlua::Lua;
+use std::io::{ErrorKind, Write};
+use std::time::Instant;
+use synoptic::{trim, Highlighter, TokOpt};
 
 mod mouse;
 
@@ -102,7 +102,8 @@ impl Editor {
         doc.load_to(size.h);
         // Update in the syntax highlighter
         let ext = file_name.split('.').last().unwrap();
-        let mut highlighter = self.config
+        let mut highlighter = self
+            .config
             .syntax_highlighting
             .borrow()
             .get_highlighter(&ext);
@@ -131,12 +132,16 @@ impl Editor {
                 let ext = binding.split('.').last().unwrap();
                 self.doc.last_mut().unwrap().file_name = Some(file_name);
                 self.doc.last_mut().unwrap().modified = true;
-                let highlighter = self.config
+                let highlighter = self
+                    .config
                     .syntax_highlighting
                     .borrow()
                     .get_highlighter(&ext);
                 *self.highlighter.last_mut().unwrap() = highlighter;
-                self.highlighter.last_mut().unwrap().run(&self.doc.last_mut().unwrap().lines);
+                self.highlighter
+                    .last_mut()
+                    .unwrap()
+                    .run(&self.doc.last_mut().unwrap().lines);
                 Ok(())
             } else {
                 file
@@ -255,7 +260,11 @@ impl Editor {
     /// Append any missed lines to the syntax highlighter
     pub fn update_highlighter(&mut self) -> Result<()> {
         if self.active {
-            let actual = self.doc.get(self.ptr).and_then(|d| Some(d.loaded_to)).unwrap_or(0);
+            let actual = self
+                .doc
+                .get(self.ptr)
+                .and_then(|d| Some(d.loaded_to))
+                .unwrap_or(0);
             let percieved = self.highlighter().line_ref.len();
             if percieved < actual {
                 let diff = actual - percieved;
@@ -308,8 +317,16 @@ impl Editor {
         for y in 0..(h as u16) {
             self.terminal.goto(0, y + 1)?;
             // Start background colour
-            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().editor_bg.to_color()?))?;
-            write!(self.terminal.stdout, "{}", Fg(self.config.colors.borrow().editor_fg.to_color()?))?;
+            write!(
+                self.terminal.stdout,
+                "{}",
+                Bg(self.config.colors.borrow().editor_bg.to_color()?)
+            )?;
+            write!(
+                self.terminal.stdout,
+                "{}",
+                Fg(self.config.colors.borrow().editor_fg.to_color()?)
+            )?;
             // Write line number of document
             if self.config.line_numbers.borrow().enabled {
                 let num = self.doc().line_number(y as usize + self.doc().offset.y);
@@ -338,12 +355,8 @@ impl Editor {
                             match colour {
                                 // Success, write token
                                 Ok(col) => {
-                                    write!(
-                                        self.terminal.stdout,
-                                        "{}",
-                                        Fg(col),
-                                    )?;
-                                },
+                                    write!(self.terminal.stdout, "{}", Fg(col),)?;
+                                }
                                 // Failure, show error message and don't highlight this token
                                 Err(err) => {
                                     self.feedback = Feedback::Error(err.to_string());
@@ -356,15 +369,31 @@ impl Editor {
                     for c in text.chars() {
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: x_pos });
                         if is_selected {
-                            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().selection_bg.to_color()?))?;
-                            write!(self.terminal.stdout, "{}", Fg(self.config.colors.borrow().selection_fg.to_color()?))?;
+                            write!(
+                                self.terminal.stdout,
+                                "{}",
+                                Bg(self.config.colors.borrow().selection_bg.to_color()?)
+                            )?;
+                            write!(
+                                self.terminal.stdout,
+                                "{}",
+                                Fg(self.config.colors.borrow().selection_fg.to_color()?)
+                            )?;
                         } else {
-                            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().editor_bg.to_color()?))?;
+                            write!(
+                                self.terminal.stdout,
+                                "{}",
+                                Bg(self.config.colors.borrow().editor_bg.to_color()?)
+                            )?;
                         }
                         write!(self.terminal.stdout, "{c}")?;
                         x_pos += 1;
                     }
-                    write!(self.terminal.stdout, "{}", Fg(self.config.colors.borrow().editor_fg.to_color()?))?;
+                    write!(
+                        self.terminal.stdout,
+                        "{}",
+                        Fg(self.config.colors.borrow().editor_fg.to_color()?)
+                    )?;
                 }
             }
         }
@@ -373,7 +402,10 @@ impl Editor {
 
     /// Put together the contents of a tab
     fn render_document_tab_header(&self, document: &Document) -> String {
-        let file_name = document.file_name.clone().unwrap_or_else(|| "[No Name]".to_string());
+        let file_name = document
+            .file_name
+            .clone()
+            .unwrap_or_else(|| "[No Name]".to_string());
         let modified = if document.modified { "[+]" } else { "" };
         format!("  {file_name}{modified}  ")
     }
@@ -460,8 +492,7 @@ impl Editor {
             write!(
                 self.terminal.stdout,
                 "{}",
-                alinio::align::center(&line, w - 4)
-                    .unwrap_or_else(|| "".to_string()),
+                alinio::align::center(&line, w - 4).unwrap_or_else(|| "".to_string()),
             )?;
         }
         Ok(())
@@ -478,8 +509,18 @@ impl Editor {
             let w = size()?.w;
             // Render prompt message
             self.terminal.prepare_line(h)?;
-            write!(self.terminal.stdout, "{}", Bg(self.config.colors.borrow().editor_bg.to_color()?))?;
-            write!(self.terminal.stdout, "{}: {}{}", prompt, input, " ".to_string().repeat(w))?;
+            write!(
+                self.terminal.stdout,
+                "{}",
+                Bg(self.config.colors.borrow().editor_bg.to_color()?)
+            )?;
+            write!(
+                self.terminal.stdout,
+                "{}: {}{}",
+                prompt,
+                input,
+                " ".to_string().repeat(w)
+            )?;
             self.terminal.goto(prompt.len() + input.len() + 2, h)?;
             self.terminal.flush()?;
             // Handle events
@@ -488,7 +529,9 @@ impl Editor {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
                     // Remove from the input string if the user presses backspace
-                    (KMod::NONE, KCode::Backspace) => { input.pop(); },
+                    (KMod::NONE, KCode::Backspace) => {
+                        input.pop();
+                    }
                     // Add to the input string if the user presses a character
                     (KMod::NONE | KMod::SHIFT, KCode::Char(c)) => input.push(c),
                     _ => (),
@@ -683,7 +726,10 @@ impl Editor {
             c = c.saturating_sub(1);
             if let Some(line) = self.doc().line(self.doc().loc().y) {
                 if let Some(ch) = line.chars().nth(c) {
-                    let loc = Loc { x: c, y: self.doc().loc().y };
+                    let loc = Loc {
+                        x: c,
+                        y: self.doc().loc().y,
+                    };
                     self.exe(Event::Delete(loc, ch.to_string()))?;
                     self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
                 }
@@ -697,7 +743,10 @@ impl Editor {
         let c = self.doc().char_ptr;
         if let Some(line) = self.doc().line(self.doc().loc().y) {
             if let Some(ch) = line.chars().nth(c) {
-                let loc = Loc { x: c, y: self.doc().loc().y };
+                let loc = Loc {
+                    x: c,
+                    y: self.doc().loc().y,
+                };
                 self.exe(Event::Delete(loc, ch.to_string()))?;
                 self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
             }
@@ -743,7 +792,10 @@ impl Editor {
             self.render_document(w, h - 2)?;
             // Render custom status line with mode information
             self.terminal.prepare_line(h)?;
-            write!(self.terminal.stdout, "[<-]: Search previous | [->]: Search next")?;
+            write!(
+                self.terminal.stdout,
+                "[<-]: Search previous | [->]: Search next"
+            )?;
             self.terminal.flush()?;
             // Move back to correct cursor position
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
@@ -816,7 +868,10 @@ impl Editor {
             self.render_document(w, h - 2)?;
             // Write custom status line for the replace mode
             self.terminal.prepare_line(h)?;
-            write!(self.terminal.stdout, "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All")?;
+            write!(
+                self.terminal.stdout,
+                "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All"
+            )?;
             self.terminal.flush()?;
             // Move back to correct cursor location
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
@@ -925,7 +980,8 @@ impl Editor {
         self.doc_mut().save_as(&file_name)?;
         if self.doc().file_name.is_none() {
             let ext = file_name.split('.').last().unwrap();
-            self.highlighter[self.ptr] = self.config
+            self.highlighter[self.ptr] = self
+                .config
                 .syntax_highlighting
                 .borrow()
                 .get_highlighter(&ext);

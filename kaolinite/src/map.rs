@@ -1,6 +1,6 @@
+use crate::utils::{width, Loc};
 /// map.rs - provides an easy interface to manage characters with large widths
 use std::collections::HashMap;
-use crate::utils::{Loc, width};
 use unicode_width::UnicodeWidthChar;
 
 /// This is a type for making a note of the location of different characters
@@ -65,7 +65,9 @@ impl CharMap {
     /// Shift entries up in the character map
     #[allow(clippy::missing_panics_doc)]
     pub fn shift_insertion(&mut self, loc: &Loc, st: &str, tab_width: usize) -> usize {
-        if !self.map.contains_key(&loc.y) { return 0; }
+        if !self.map.contains_key(&loc.y) {
+            return 0;
+        }
         // Gather context
         let char_shift = st.chars().count();
         let disp_shift = width(st, tab_width);
@@ -83,15 +85,33 @@ impl CharMap {
     /// Shift entries down in the character map
     #[allow(clippy::missing_panics_doc)]
     pub fn shift_deletion(&mut self, loc: &Loc, x: (usize, usize), st: &str, tab_width: usize) {
-        if !self.map.contains_key(&loc.y) { return; }
+        if !self.map.contains_key(&loc.y) {
+            return;
+        }
         // Gather context
         let char_shift = st.chars().count();
         let disp_shift = width(st, tab_width);
         let (start, end) = x;
         let Loc { x: line_start, y } = loc;
         // Work out indices of deletion
-        let start_map = self.count(&Loc { x: start - line_start, y: *y}, false).unwrap();
-        let map_count = self.count(&Loc { x: end - line_start, y: *y}, false).unwrap();
+        let start_map = self
+            .count(
+                &Loc {
+                    x: start - line_start,
+                    y: *y,
+                },
+                false,
+            )
+            .unwrap();
+        let map_count = self
+            .count(
+                &Loc {
+                    x: end - line_start,
+                    y: *y,
+                },
+                false,
+            )
+            .unwrap();
         let line_map = self.map.get_mut(y).unwrap();
         // Update subsequent map characters
         for (display, ch) in line_map.iter_mut().skip(map_count) {

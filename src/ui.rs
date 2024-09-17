@@ -1,13 +1,19 @@
 use crate::config::{Colors, TerminalConfig};
 use crate::error::{OxError, Result};
-use crossterm::{
-    cursor::{Hide, MoveTo, Show}, 
-    event::{EnableMouseCapture, DisableMouseCapture, KeyboardEnhancementFlags, PushKeyboardEnhancementFlags}, 
-    execute, 
-    style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg}, 
-    terminal::{self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen}
-};
 use copypasta_ext::ClipboardProviderExt;
+use crossterm::{
+    cursor::{Hide, MoveTo, Show},
+    event::{
+        DisableMouseCapture, EnableMouseCapture, KeyboardEnhancementFlags,
+        PushKeyboardEnhancementFlags,
+    },
+    execute,
+    style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
+    terminal::{
+        self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
+};
 use kaolinite::utils::Size;
 use std::cell::RefCell;
 use std::io::{stdout, Stdout, Write};
@@ -59,12 +65,21 @@ impl Feedback {
     /// Actually render the status message
     pub fn render(&self, colors: &Colors, w: usize) -> Result<String> {
         let start = match self {
-            Self::Info(_) => 
-                format!("{}{}", Fg(colors.info_fg.to_color()?), Bg(colors.info_bg.to_color()?)),
-            Self::Warning(_) => 
-                format!("{}{}", Fg(colors.warning_fg.to_color()?), Bg(colors.warning_bg.to_color()?)),
-            Self::Error(_) => 
-                format!("{}{}", Fg(colors.error_fg.to_color()?), Bg(colors.error_bg.to_color()?)),
+            Self::Info(_) => format!(
+                "{}{}",
+                Fg(colors.info_fg.to_color()?),
+                Bg(colors.info_bg.to_color()?)
+            ),
+            Self::Warning(_) => format!(
+                "{}{}",
+                Fg(colors.warning_fg.to_color()?),
+                Bg(colors.warning_bg.to_color()?)
+            ),
+            Self::Error(_) => format!(
+                "{}{}",
+                Fg(colors.error_fg.to_color()?),
+                Bg(colors.error_bg.to_color()?)
+            ),
             Self::None => "".to_string(),
         };
         let empty = "".to_string();
@@ -77,12 +92,12 @@ impl Feedback {
         let end_fg = Fg(colors.editor_fg.to_color()?).to_string();
         let end_bg = Bg(colors.editor_bg.to_color()?).to_string();
         Ok(format!(
-            "{}{}{}{}{}{}", 
-            SetAttribute(Attribute::Bold), 
-            start, 
-            alinio::align::center(&msg, w)
-                .unwrap_or_else(|| "".to_string()),
-            end_bg, end_fg, 
+            "{}{}{}{}{}{}",
+            SetAttribute(Attribute::Bold),
+            start,
+            alinio::align::center(&msg, w).unwrap_or_else(|| "".to_string()),
+            end_bg,
+            end_fg,
             SetAttribute(Attribute::Reset)
         ))
     }
@@ -110,16 +125,19 @@ impl Terminal {
             execute!(stdout(), LeaveAlternateScreen, Show, DisableMouseCapture).unwrap();
             eprintln!("{}", e);
         }));
-        execute!(self.stdout, EnterAlternateScreen, Clear(ClType::All), DisableLineWrap)?;
+        execute!(
+            self.stdout,
+            EnterAlternateScreen,
+            Clear(ClType::All),
+            DisableLineWrap
+        )?;
         if self.config.borrow().mouse_enabled {
-            execute!(self.stdout, EnableMouseCapture)?;    
+            execute!(self.stdout, EnableMouseCapture)?;
         }
         terminal::enable_raw_mode()?;
         execute!(
             self.stdout,
-            PushKeyboardEnhancementFlags(
-                KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
-            )
+            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
         )?;
         Ok(())
     }
@@ -130,7 +148,7 @@ impl Terminal {
         terminal::disable_raw_mode()?;
         execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap)?;
         if self.config.borrow().mouse_enabled {
-            execute!(self.stdout, DisableMouseCapture)?;    
+            execute!(self.stdout, DisableMouseCapture)?;
         }
         Ok(())
     }
@@ -166,14 +184,19 @@ impl Terminal {
         self.stdout.flush()?;
         Ok(())
     }
-    
+
     /// Put text into the clipboard
     pub fn copy(&mut self, text: &str) -> Result<()> {
-        let result = self.clipboard
+        let result = self
+            .clipboard
             .as_deref_mut()
             .ok_or(OxError::Clipboard)?
             .set_contents(text.to_string());
-        if result.is_err() { Err(OxError::Clipboard) } else { Ok(()) }
+        if result.is_err() {
+            Err(OxError::Clipboard)
+        } else {
+            Ok(())
+        }
     }
 
     /// Get text from the clipboard

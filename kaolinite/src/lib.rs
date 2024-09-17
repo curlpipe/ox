@@ -28,9 +28,9 @@
 #![allow(clippy::module_name_repetitions)]
 pub mod document;
 pub mod event;
-pub mod utils;
 pub mod map;
 pub mod searching;
+pub mod utils;
 
 pub use document::Document;
 pub use utils::{Loc, Size};

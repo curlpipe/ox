@@ -27,7 +27,10 @@ impl Searcher {
         for cap in self.re.captures_iter(st) {
             if let Some(c) = cap.get(cap.len().saturating_sub(1)) {
                 let x = Self::raw_to_char(c.start(), st);
-                return Some(Match { loc: Loc::at(x, 0), text: c.as_str().to_string() });
+                return Some(Match {
+                    loc: Loc::at(x, 0),
+                    text: c.as_str().to_string(),
+                });
             }
         }
         None
@@ -40,7 +43,10 @@ impl Searcher {
         for cap in caps {
             if let Some(c) = cap.get(cap.len().saturating_sub(1)) {
                 let x = Self::raw_to_char(c.start(), st);
-                return Some(Match { loc: Loc::at(x, 0), text: c.as_str().to_string() });
+                return Some(Match {
+                    loc: Loc::at(x, 0),
+                    text: c.as_str().to_string(),
+                });
             }
         }
         None

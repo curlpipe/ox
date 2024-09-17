@@ -1,17 +1,17 @@
-use mlua::prelude::*;
-use std::{cell::RefCell, rc::Rc};
-use crate::editor::Editor;
 use crate::cli::VERSION;
+use crate::editor::Editor;
 use crate::error::{OxError, Result};
 use crate::ui::Feedback;
-use kaolinite::utils::filetype;
-use std::collections::HashMap;
-use kaolinite::Loc;
-use synoptic::{Highlighter, from_extension};
 use crossterm::{
-    style::{Color, SetForegroundColor as Fg},
     event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode},
+    style::{Color, SetForegroundColor as Fg},
 };
+use kaolinite::utils::filetype;
+use kaolinite::Loc;
+use mlua::prelude::*;
+use std::collections::HashMap;
+use std::{cell::RefCell, rc::Rc};
+use synoptic::{from_extension, Highlighter};
 
 // Gracefully exit the program
 fn graceful_panic(msg: &str) {
@@ -87,7 +87,8 @@ impl Config {
         // Push in configuration globals
         lua.globals().set("syntax", syntax_highlighting.clone())?;
         lua.globals().set("line_numbers", line_numbers.clone())?;
-        lua.globals().set("greeting_message", greeting_message.clone())?;
+        lua.globals()
+            .set("greeting_message", greeting_message.clone())?;
         lua.globals().set("status_line", status_line.clone())?;
         lua.globals().set("colors", colors.clone())?;
         lua.globals().set("terminal", terminal.clone())?;
@@ -114,7 +115,7 @@ impl Config {
                 lua.load(config).exec()?;
             }
         }
-        
+
         Ok(())
     }
 }
@@ -165,13 +166,17 @@ impl SyntaxHighlighting {
         if let Some(col) = self.theme.get(name) {
             col.to_color()
         } else {
-            Err(OxError::Config(format!("{} has not been given a colour in the theme", name)))
+            Err(OxError::Config(format!(
+                "{} has not been given a colour in the theme",
+                name
+            )))
         }
     }
-    
+
     /// Get a highlighter given a file extension
     pub fn get_highlighter(&self, ext: &str) -> Highlighter {
-        self.user_rules.get(ext)
+        self.user_rules
+            .get(ext)
             .and_then(|h| Some(h.clone()))
             .unwrap_or_else(|| from_extension(ext, 4).unwrap_or_else(|| Highlighter::new(4)))
     }
@@ -179,13 +184,16 @@ impl SyntaxHighlighting {
 
 impl LuaUserData for SyntaxHighlighting {
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method_mut("keywords", |lua, _, (name, pattern): (String, Vec<String>)| {
-            let table = lua.create_table()?;
-            table.set("kind", "keyword")?;
-            table.set("name", name)?;
-            table.set("pattern", format!("({})", pattern.join("|")))?;
-            Ok(table)
-        });
+        methods.add_method_mut(
+            "keywords",
+            |lua, _, (name, pattern): (String, Vec<String>)| {
+                let table = lua.create_table()?;
+                table.set("kind", "keyword")?;
+                table.set("name", name)?;
+                table.set("pattern", format!("({})", pattern.join("|")))?;
+                Ok(table)
+            },
+        );
         methods.add_method_mut("keyword", |lua, _, (name, pattern): (String, String)| {
             let table = lua.create_table()?;
             table.set("kind", "keyword")?;
@@ -193,66 +201,76 @@ impl LuaUserData for SyntaxHighlighting {
             table.set("pattern", pattern)?;
             Ok(table)
         });
-        methods.add_method_mut("bounded", |lua, _, (name, start, end, escape): (String, String, String, bool)| {
-            let table = lua.create_table()?;
-            table.set("kind", "bounded")?;
-            table.set("name", name)?;
-            table.set("start", start)?;
-            table.set("end", end)?;
-            table.set("escape", escape.to_string())?;
-            Ok(table)
-        });
+        methods.add_method_mut(
+            "bounded",
+            |lua, _, (name, start, end, escape): (String, String, String, bool)| {
+                let table = lua.create_table()?;
+                table.set("kind", "bounded")?;
+                table.set("name", name)?;
+                table.set("start", start)?;
+                table.set("end", end)?;
+                table.set("escape", escape.to_string())?;
+                Ok(table)
+            },
+        );
         type BoundedInterpArgs = (String, String, String, String, String, bool);
-        methods.add_method_mut("bounded_interpolation", |lua, _, (name, start, end, i_start, i_end, escape): BoundedInterpArgs| {
-            let table = lua.create_table()?;
-            table.set("kind", "bounded_interpolation")?;
-            table.set("name", name)?;
-            table.set("start", start)?;
-            table.set("end", end)?;
-            table.set("i_start", i_start)?;
-            table.set("i_end", i_end)?;
-            table.set("escape", escape.to_string())?;
-            Ok(table)
-        });
-        methods.add_method_mut("new", |_, syntax_highlighting, (extensions, rules): (LuaTable, LuaTable)| {
-            // Make note of the highlighter
-            for ext_idx in 1..(extensions.len()? + 1) {
-                // Create highlighter
-                let mut highlighter = Highlighter::new(4);
-                // Add rules one by one
-                for rule_idx in 1..(rules.len()? + 1) {
-                    // Get rule
-                    let rule = rules.get::<i64, HashMap<String, String>>(rule_idx)?;
-                    // Find type of rule and attatch it to the highlighter
-                    match rule["kind"].as_str() {
-                        "keyword" => highlighter.keyword(
-                            rule["name"].clone(), 
-                            &rule["pattern"],
-                        ),
-                        "bounded" => highlighter.bounded(
-                            rule["name"].clone(), 
-                            rule["start"].clone(), 
-                            rule["end"].clone(), 
-                            rule["escape"] == "true"
-                        ),
-                        "bounded_interpolation" => highlighter.bounded_interp(
-                            rule["name"].clone(), 
-                            rule["start"].clone(), 
-                            rule["end"].clone(), 
-                            rule["i_start"].clone(), 
-                            rule["i_end"].clone(), 
-                            rule["escape"] == "true"
-                        ),
-                        _ => unreachable!(),
+        methods.add_method_mut(
+            "bounded_interpolation",
+            |lua, _, (name, start, end, i_start, i_end, escape): BoundedInterpArgs| {
+                let table = lua.create_table()?;
+                table.set("kind", "bounded_interpolation")?;
+                table.set("name", name)?;
+                table.set("start", start)?;
+                table.set("end", end)?;
+                table.set("i_start", i_start)?;
+                table.set("i_end", i_end)?;
+                table.set("escape", escape.to_string())?;
+                Ok(table)
+            },
+        );
+        methods.add_method_mut(
+            "new",
+            |_, syntax_highlighting, (extensions, rules): (LuaTable, LuaTable)| {
+                // Make note of the highlighter
+                for ext_idx in 1..(extensions.len()? + 1) {
+                    // Create highlighter
+                    let mut highlighter = Highlighter::new(4);
+                    // Add rules one by one
+                    for rule_idx in 1..(rules.len()? + 1) {
+                        // Get rule
+                        let rule = rules.get::<i64, HashMap<String, String>>(rule_idx)?;
+                        // Find type of rule and attatch it to the highlighter
+                        match rule["kind"].as_str() {
+                            "keyword" => {
+                                highlighter.keyword(rule["name"].clone(), &rule["pattern"])
+                            }
+                            "bounded" => highlighter.bounded(
+                                rule["name"].clone(),
+                                rule["start"].clone(),
+                                rule["end"].clone(),
+                                rule["escape"] == "true",
+                            ),
+                            "bounded_interpolation" => highlighter.bounded_interp(
+                                rule["name"].clone(),
+                                rule["start"].clone(),
+                                rule["end"].clone(),
+                                rule["i_start"].clone(),
+                                rule["i_end"].clone(),
+                                rule["escape"] == "true",
+                            ),
+                            _ => unreachable!(),
+                        }
                     }
+                    let ext = extensions.get::<i64, String>(ext_idx)?;
+                    syntax_highlighting.user_rules.insert(ext, highlighter);
                 }
-                let ext = extensions.get::<i64, String>(ext_idx)?;
-                syntax_highlighting.user_rules.insert(ext, highlighter);
-            }
-            Ok(())
-        });
+                Ok(())
+            },
+        );
         methods.add_method_mut("set", |_, syntax_highlighting, (name, value)| {
-            syntax_highlighting.theme.insert(name, ConfigColor::from_lua(value));
+            syntax_highlighting
+                .theme
+                .insert(name, ConfigColor::from_lua(value));
             Ok(())
         });
     }
@@ -266,9 +284,7 @@ pub struct LineNumbers {
 
 impl Default for LineNumbers {
     fn default() -> Self {
-        Self {
-            enabled: true,
-        }
+        Self { enabled: true }
     }
 }
 
@@ -345,13 +361,15 @@ impl Default for StatusLine {
 impl StatusLine {
     pub fn render(&self, editor: &Editor, w: usize) -> String {
         let mut result = vec![];
-        let ext = editor.doc()
+        let ext = editor
+            .doc()
             .file_name
             .as_ref()
             .and_then(|name| Some(name.split('.').last().unwrap().to_string()))
             .unwrap_or_else(|| "".to_string());
         let file_type = filetype(&ext).unwrap_or(ext);
-        let file_name = editor.doc()
+        let file_name = editor
+            .doc()
             .file_name
             .as_ref()
             .and_then(|name| Some(name.split('/').last().unwrap().to_string()))
@@ -375,7 +393,8 @@ impl StatusLine {
         match self.alignment {
             StatusAlign::Between => alinio::align::between(status.as_slice(), w),
             StatusAlign::Around => alinio::align::around(status.as_slice(), w),
-        }.unwrap_or_else(|| "".to_string())
+        }
+        .unwrap_or_else(|| "".to_string())
     }
 }
 
@@ -415,9 +434,11 @@ impl StatusAlign {
             "around" => Self::Around,
             "between" => Self::Between,
             _ => {
-                graceful_panic("\
+                graceful_panic(
+                    "\
                     Invalid status line alignment used in configuration file\n\
-                    Make sure value is either 'around' or 'between'");
+                    Make sure value is either 'around' or 'between'",
+                );
                 unreachable!();
             }
         }
@@ -429,7 +450,8 @@ impl Into<String> for StatusAlign {
         match self {
             Self::Around => "around",
             Self::Between => "between",
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
@@ -501,20 +523,36 @@ impl LuaUserData for Colors {
         fields.add_field_method_get("status_bg", |env, this| Ok(this.status_bg.to_lua(env)));
         fields.add_field_method_get("status_fg", |env, this| Ok(this.status_fg.to_lua(env)));
         fields.add_field_method_get("highlight", |env, this| Ok(this.highlight.to_lua(env)));
-        fields.add_field_method_get("line_number_bg", |env, this| Ok(this.line_number_bg.to_lua(env)));
-        fields.add_field_method_get("line_number_fg", |env, this| Ok(this.line_number_fg.to_lua(env)));
-        fields.add_field_method_get("tab_active_fg", |env, this| Ok(this.tab_active_fg.to_lua(env)));
-        fields.add_field_method_get("tab_active_bg", |env, this| Ok(this.tab_active_bg.to_lua(env)));
-        fields.add_field_method_get("tab_inactive_fg", |env, this| Ok(this.tab_inactive_fg.to_lua(env)));
-        fields.add_field_method_get("tab_inactive_bg", |env, this| Ok(this.tab_inactive_bg.to_lua(env)));
+        fields.add_field_method_get("line_number_bg", |env, this| {
+            Ok(this.line_number_bg.to_lua(env))
+        });
+        fields.add_field_method_get("line_number_fg", |env, this| {
+            Ok(this.line_number_fg.to_lua(env))
+        });
+        fields.add_field_method_get("tab_active_fg", |env, this| {
+            Ok(this.tab_active_fg.to_lua(env))
+        });
+        fields.add_field_method_get("tab_active_bg", |env, this| {
+            Ok(this.tab_active_bg.to_lua(env))
+        });
+        fields.add_field_method_get("tab_inactive_fg", |env, this| {
+            Ok(this.tab_inactive_fg.to_lua(env))
+        });
+        fields.add_field_method_get("tab_inactive_bg", |env, this| {
+            Ok(this.tab_inactive_bg.to_lua(env))
+        });
         fields.add_field_method_get("error_bg", |env, this| Ok(this.error_bg.to_lua(env)));
         fields.add_field_method_get("error_fg", |env, this| Ok(this.error_fg.to_lua(env)));
         fields.add_field_method_get("warning_bg", |env, this| Ok(this.warning_bg.to_lua(env)));
         fields.add_field_method_get("warning_fg", |env, this| Ok(this.warning_fg.to_lua(env)));
         fields.add_field_method_get("info_bg", |env, this| Ok(this.info_bg.to_lua(env)));
         fields.add_field_method_get("info_fg", |env, this| Ok(this.info_fg.to_lua(env)));
-        fields.add_field_method_get("selection_fg", |env, this| Ok(this.selection_fg.to_lua(env)));
-        fields.add_field_method_get("selection_bg", |env, this| Ok(this.selection_bg.to_lua(env)));
+        fields.add_field_method_get("selection_fg", |env, this| {
+            Ok(this.selection_fg.to_lua(env))
+        });
+        fields.add_field_method_get("selection_bg", |env, this| {
+            Ok(this.selection_bg.to_lua(env))
+        });
         fields.add_field_method_set("editor_bg", |_, this, value| {
             this.editor_bg = ConfigColor::from_lua(value);
             Ok(())
@@ -696,7 +734,11 @@ impl ConfigColor {
                 let (r, g, b) = self.hex_to_rgb(hex)?;
                 Color::Rgb { r, g, b }
             }
-            ConfigColor::Rgb(r, g, b) => Color::Rgb { r: *r, g: *g, b: *b },
+            ConfigColor::Rgb(r, g, b) => Color::Rgb {
+                r: *r,
+                g: *g,
+                b: *b,
+            },
             ConfigColor::Black => Color::Black,
             ConfigColor::DarkGrey => Color::DarkGrey,
             ConfigColor::Red => Color::Red,
@@ -789,7 +831,8 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
             MediaKeyCode::LowerVolume => "lowervolume",
             MediaKeyCode::RaiseVolume => "raisevolume",
             MediaKeyCode::MuteVolume => "mutevolume",
-        }.to_string(),
+        }
+        .to_string(),
         KCode::Modifier(key) => match key {
             ModifierKeyCode::LeftShift => "lshift",
             ModifierKeyCode::LeftControl => "lctrl",
@@ -805,9 +848,10 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
             ModifierKeyCode::RightShift => "rshift",
             ModifierKeyCode::IsoLevel3Shift => "iso3shift",
             ModifierKeyCode::IsoLevel5Shift => "iso5shift",
-        }.to_string(),
+        }
+        .to_string(),
     };
-    return result
+    return result;
 }
 
 fn update_highlighter(editor: &mut Editor) {
@@ -820,7 +864,10 @@ impl LuaUserData for Editor {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("cursor", |_, editor| {
             let loc = editor.doc().char_loc();
-            Ok(LuaLoc { x: loc.x, y: loc.y + 1 })
+            Ok(LuaLoc {
+                x: loc.x,
+                y: loc.y + 1,
+            })
         });
         fields.add_field_method_get("document_name", |_, editor| {
             let name = editor.doc().file_name.clone();
@@ -830,20 +877,13 @@ impl LuaUserData for Editor {
             let len = editor.doc().len_lines();
             Ok(len)
         });
-        fields.add_field_method_get("version", |_, _| {
-            Ok(VERSION)
-        });
-        fields.add_field_method_get("current_document_id", |_, editor| {
-            Ok(editor.ptr)
-        });
-        fields.add_field_method_get("document_count", |_, editor| {
-            Ok(editor.doc.len())
-        });
-        fields.add_field_method_get("help_visible", |_, editor| {
-            Ok(editor.help)
-        });
+        fields.add_field_method_get("version", |_, _| Ok(VERSION));
+        fields.add_field_method_get("current_document_id", |_, editor| Ok(editor.ptr));
+        fields.add_field_method_get("document_count", |_, editor| Ok(editor.doc.len()));
+        fields.add_field_method_get("help_visible", |_, editor| Ok(editor.help));
         fields.add_field_method_get("document_type", |_, editor| {
-            let ext = editor.doc()
+            let ext = editor
+                .doc()
                 .file_name
                 .as_ref()
                 .and_then(|name| Some(name.split('.').last().unwrap_or("")))
@@ -869,7 +909,9 @@ impl LuaUserData for Editor {
         });
         // Prompt the user
         methods.add_method_mut("prompt", |_, editor, question: String| {
-            Ok(editor.prompt(question).unwrap_or_else(|_| "error".to_string()))
+            Ok(editor
+                .prompt(question)
+                .unwrap_or_else(|_| "error".to_string()))
         });
         // Edit commands (relative)
         methods.add_method_mut("insert", |_, editor, text: String| {
@@ -905,7 +947,7 @@ impl LuaUserData for Editor {
         // Cursor moving
         methods.add_method_mut("move_to", |_, editor, (x, y): (usize, usize)| {
             let y = y.saturating_sub(1);
-            editor.doc_mut().move_to(&Loc{ x, y });
+            editor.doc_mut().move_to(&Loc { x, y });
             update_highlighter(editor);
             Ok(())
         });
@@ -1008,19 +1050,22 @@ impl LuaUserData for Editor {
             update_highlighter(editor);
             Ok(())
         });
-        methods.add_method_mut("insert_at", |_, editor, (text, x, y): (String, usize, usize)| {
-            let y = y.saturating_sub(1);
-            let location = editor.doc_mut().char_loc();
-            editor.doc_mut().move_to(&Loc { x, y });
-            for ch in text.chars() {
-                if let Err(err) = editor.character(ch) {
-                    editor.feedback = Feedback::Error(err.to_string());
+        methods.add_method_mut(
+            "insert_at",
+            |_, editor, (text, x, y): (String, usize, usize)| {
+                let y = y.saturating_sub(1);
+                let location = editor.doc_mut().char_loc();
+                editor.doc_mut().move_to(&Loc { x, y });
+                for ch in text.chars() {
+                    if let Err(err) = editor.character(ch) {
+                        editor.feedback = Feedback::Error(err.to_string());
+                    }
                 }
-            }
-            editor.doc_mut().move_to(&location);
-            update_highlighter(editor);
-            Ok(())
-        });
+                editor.doc_mut().move_to(&location);
+                update_highlighter(editor);
+                Ok(())
+            },
+        );
         methods.add_method_mut("remove_at", |_, editor, (x, y): (usize, usize)| {
             let y = y.saturating_sub(1);
             let location = editor.doc_mut().char_loc();
@@ -1153,7 +1198,8 @@ impl LuaUserData for Editor {
         });
         methods.add_method("get_character", |_, editor, ()| {
             let loc = editor.doc().char_loc();
-            let ch = editor.doc()
+            let ch = editor
+                .doc()
                 .line(loc.y)
                 .unwrap_or_else(|| "".to_string())
                 .chars()
@@ -1165,7 +1211,8 @@ impl LuaUserData for Editor {
         methods.add_method_mut("get_character_at", |_, editor, (x, y): (usize, usize)| {
             editor.doc_mut().load_to(y);
             let y = y.saturating_sub(1);
-            let ch = editor.doc()
+            let ch = editor
+                .doc()
                 .line(y)
                 .unwrap_or_else(|| "".to_string())
                 .chars()
@@ -1177,17 +1224,13 @@ impl LuaUserData for Editor {
         });
         methods.add_method("get_line", |_, editor, ()| {
             let loc = editor.doc().char_loc();
-            let line = editor.doc()
-                .line(loc.y)
-                .unwrap_or_else(|| "".to_string());
+            let line = editor.doc().line(loc.y).unwrap_or_else(|| "".to_string());
             Ok(line)
         });
         methods.add_method_mut("get_line_at", |_, editor, y: usize| {
             editor.doc_mut().load_to(y);
             let y = y.saturating_sub(1);
-            let line = editor.doc()
-                .line(y)
-                .unwrap_or_else(|| "".to_string());
+            let line = editor.doc().line(y).unwrap_or_else(|| "".to_string());
             update_highlighter(editor);
             Ok(line)
         });
@@ -1213,7 +1256,8 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("set_file_type", |_, editor, ext: String| {
-            let mut highlighter = editor.config
+            let mut highlighter = editor
+                .config
                 .syntax_highlighting
                 .borrow()
                 .get_highlighter(&ext);
