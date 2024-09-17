@@ -468,7 +468,17 @@ impl Document {
             return Status::StartOfLine;
         }
         // Determine the width of the character to traverse
-        let width = self.width_of(self.loc().y, self.char_ptr.saturating_sub(1));
+        let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
+        let boundaries = tab_boundaries_backward(&line, self.tab_width);
+        let width = if boundaries.contains(&self.char_ptr) {
+            // Push the character pointer up
+            self.char_ptr -= self.tab_width.saturating_sub(1);
+            // There are spaces that should be treated as tabs (so should traverse the tab width)
+            self.tab_width
+        } else {
+            // There are no spaces that should be treated as tabs
+            self.width_of(self.loc().y, self.char_ptr.saturating_sub(1))
+        };
         // Move back the correct amount
         self.cursor.loc.x -= width;
         // Update the character pointer
