@@ -7,6 +7,7 @@ fn main() {
     // Load viewport
     doc.load_to(100);
     println!("{:?}", doc);
-    doc.exe(Event::InsertLine(doc.loc().y, "".to_string()));
+    doc.exe(Event::InsertLine(doc.loc().y, "".to_string()))
+        .unwrap();
     println!("{:?}", doc);
 }
