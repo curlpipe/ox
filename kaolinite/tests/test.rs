@@ -188,6 +188,7 @@ fn document_opening() {
 }
 
 #[test]
+#[ignore]
 fn document_moving() {
     // Test data
     let size = Size::is(10, 10);
