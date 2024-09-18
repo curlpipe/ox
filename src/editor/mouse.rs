@@ -25,33 +25,32 @@ impl Editor {
             MouseLocation::Out
         } else {
             let offset = self.doc().offset;
-            MouseLocation::File(Loc { x: event.column as usize - self.dent() + offset.x, y: (event.row as usize) - 1 + offset.y })
+            MouseLocation::File(Loc {
+                x: event.column as usize - self.dent() + offset.x,
+                y: (event.row as usize) - 1 + offset.y,
+            })
         }
     }
 
     pub fn handle_mouse_event(&mut self, event: MouseEvent) {
         match event.kind {
-            MouseEventKind::Down(MouseButton::Left) => {
-                match self.find_mouse_location(event) {
-                    MouseLocation::File(mut loc) => {
-                        loc.x = self.doc_mut().character_idx(&loc);
-                        self.doc_mut().move_to(&loc);
-                    },
-                    MouseLocation::Tabs(i) => {
-                        self.ptr = i;
-                    },
-                    MouseLocation::Out => (),
+            MouseEventKind::Down(MouseButton::Left) => match self.find_mouse_location(event) {
+                MouseLocation::File(mut loc) => {
+                    loc.x = self.doc_mut().character_idx(&loc);
+                    self.doc_mut().move_to(&loc);
                 }
+                MouseLocation::Tabs(i) => {
+                    self.ptr = i;
+                }
+                MouseLocation::Out => (),
             },
-            MouseEventKind::Drag(MouseButton::Left) => {
-                match self.find_mouse_location(event) {
-                    MouseLocation::File(mut loc) => {
-                        loc.x = self.doc_mut().character_idx(&loc);
-                        self.doc_mut().select_to(&loc);
-                    },
-                    MouseLocation::Tabs(_) | MouseLocation::Out => (),
+            MouseEventKind::Drag(MouseButton::Left) => match self.find_mouse_location(event) {
+                MouseLocation::File(mut loc) => {
+                    loc.x = self.doc_mut().character_idx(&loc);
+                    self.doc_mut().select_to(&loc);
                 }
-            }
+                MouseLocation::Tabs(_) | MouseLocation::Out => (),
+            },
             MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
                 match self.find_mouse_location(event) {
                     MouseLocation::File(_) => {
@@ -60,7 +59,7 @@ impl Editor {
                         } else {
                             self.doc_mut().scroll_up();
                         }
-                    },
+                    }
                     _ => (),
                 }
             }

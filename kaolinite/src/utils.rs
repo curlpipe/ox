@@ -1,12 +1,16 @@
+use std::ops::{Bound, RangeBounds};
 /// utils.rs - utilities to assist in editing and keep code in document.rs readable
 use unicode_width::UnicodeWidthStr;
-use std::ops::{Bound, RangeBounds};
 
 /// Utility for easily forming a regular expression from a string
 #[macro_export]
 macro_rules! regex {
-    () => { regex::Regex::new("").unwrap() };
-    ($ex:expr) => { regex::Regex::new($ex).unwrap() };
+    () => {
+        regex::Regex::new("").unwrap()
+    };
+    ($ex:expr) => {
+        regex::Regex::new($ex).unwrap()
+    };
 }
 
 /// Represents a location
@@ -66,7 +70,10 @@ pub fn trim(string: &str, start: usize, length: usize, tab_width: usize) -> Stri
 }
 
 /// Extract range information
-pub fn get_range<R>(range: &R, min: usize, max: usize) -> (usize, usize) where R: RangeBounds<usize> {
+pub fn get_range<R>(range: &R, min: usize, max: usize) -> (usize, usize)
+where
+    R: RangeBounds<usize>,
+{
     let start = match range.start_bound() {
         Bound::Unbounded => 0,
         Bound::Excluded(_) => unreachable!(),

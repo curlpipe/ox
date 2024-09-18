@@ -1,20 +1,20 @@
+mod cli;
 mod config;
 mod editor;
 mod error;
-mod cli;
 mod ui;
 
+use cli::CommandLineInterface;
+use config::{PLUGIN_BOOTSTRAP, PLUGIN_RUN};
+use editor::Editor;
+use error::Result;
 use kaolinite::event::Event;
 use kaolinite::Loc;
-use error::Result;
-use cli::CommandLineInterface;
-use editor::Editor;
-use ui::Feedback;
-use std::rc::Rc;
-use std::cell::RefCell;
-use config::{PLUGIN_BOOTSTRAP, PLUGIN_RUN};
-use mlua::Lua;
 use mlua::Error::RuntimeError;
+use mlua::Lua;
+use std::cell::RefCell;
+use std::rc::Rc;
+use ui::Feedback;
 
 fn main() {
     // Interact with user to find out what they want to do
@@ -45,7 +45,10 @@ fn run(cli: CommandLineInterface) -> Result<()> {
 
     // Load config and initialise
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
-    editor.borrow_mut().load_config(cli.config_path, &lua).unwrap();
+    editor
+        .borrow_mut()
+        .load_config(cli.config_path, &lua)
+        .unwrap();
     editor.borrow_mut().init()?;
 
     // Open files user has asked to open
@@ -108,7 +111,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
                         // Work out if the key has been bound
                         if msg.contains(&"key not bound") {
                             if key.contains(&"_") && key != "_" && !key.starts_with("shift") {
-                                editor.borrow_mut().feedback = 
+                                editor.borrow_mut().feedback =
                                     Feedback::Error(format!("The key binding {key} is not set"));
                             }
                         } else {
@@ -121,11 +124,13 @@ fn run(cli: CommandLineInterface) -> Result<()> {
                                 msg = format!(": {msg}");
                             }
                             // Send out the error
-                            editor.borrow_mut().feedback = Feedback::Error(format!("Lua error occured{msg}"));
+                            editor.borrow_mut().feedback =
+                                Feedback::Error(format!("Lua error occured{msg}"));
                         }
                     }
                     Err(err) => {
-                        editor.borrow_mut().feedback = Feedback::Error(format!("Error occured: {err}"));
+                        editor.borrow_mut().feedback =
+                            Feedback::Error(format!("Error occured: {err}"));
                     }
                     _ => (),
                 }

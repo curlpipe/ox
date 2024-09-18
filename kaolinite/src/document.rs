@@ -1,8 +1,10 @@
 /// document.rs - has Document, for opening, editing and saving documents
-use crate::event::{Error, Event, Result, Status, EventMgmt};
-use crate::map::{CharMap, form_map};
-use crate::searching::{Searcher, Match};
-use crate::utils::{Loc, Size, get_range, trim, width, tab_boundaries_backward, tab_boundaries_forward};
+use crate::event::{Error, Event, EventMgmt, Result, Status};
+use crate::map::{form_map, CharMap};
+use crate::searching::{Match, Searcher};
+use crate::utils::{
+    get_range, tab_boundaries_backward, tab_boundaries_forward, trim, width, Loc, Size,
+};
 use ropey::Rope;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
@@ -86,7 +88,10 @@ impl Document {
         let file_name = file_name.into();
         let file = Rope::from_reader(BufReader::new(File::open(&file_name)?))?;
         Ok(Self {
-            eol: !file.line(file.len_lines().saturating_sub(1)).to_string().is_empty(),
+            eol: !file
+                .line(file.len_lines().saturating_sub(1))
+                .to_string()
+                .is_empty(),
             file,
             lines: vec![],
             dbl_map: CharMap::default(),
@@ -119,7 +124,8 @@ impl Document {
         if !self.read_only {
             self.modified = false;
             if let Some(file_name) = &self.file_name {
-                self.file.write_to(BufWriter::new(File::create(file_name)?))?;
+                self.file
+                    .write_to(BufWriter::new(File::create(file_name)?))?;
                 Ok(())
             } else {
                 Err(Error::NoFileName)
@@ -135,7 +141,8 @@ impl Document {
     /// or character set issues.
     pub fn save_as(&self, file_name: &str) -> Result<()> {
         if !self.read_only {
-            self.file.write_to(BufWriter::new(File::create(file_name)?))?;
+            self.file
+                .write_to(BufWriter::new(File::create(file_name)?))?;
             Ok(())
         } else {
             Err(Error::ReadOnlyFile)
@@ -237,8 +244,8 @@ impl Document {
     pub fn delete_with_tab(&mut self, loc: &Loc, st: &str) -> Result<()> {
         // Check for tab spaces
         let boundaries = tab_boundaries_backward(
-            &self.line(loc.y).unwrap_or_else(|| "".to_string()), 
-            self.tab_width
+            &self.line(loc.y).unwrap_or_else(|| "".to_string()),
+            self.tab_width,
         );
         if boundaries.contains(&loc.x.saturating_add(1)) && !self.in_redo {
             // Register other delete actions to delete the whole tab
@@ -273,8 +280,18 @@ impl Document {
         end += line_start;
         let removed = self.file.slice(start..end).to_string();
         // Update unicode and tab map
-        self.dbl_map.shift_deletion(&Loc::at(line_start, y), (start, end), &removed, self.tab_width);
-        self.tab_map.shift_deletion(&Loc::at(line_start, y), (start, end), &removed, self.tab_width);
+        self.dbl_map.shift_deletion(
+            &Loc::at(line_start, y),
+            (start, end),
+            &removed,
+            self.tab_width,
+        );
+        self.tab_map.shift_deletion(
+            &Loc::at(line_start, y),
+            (start, end),
+            &removed,
+            self.tab_width,
+        );
         // Update rope
         self.file.remove(start..end);
         // Update cache
@@ -410,6 +427,7 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
+        self.move_to_x(self.old_cursor);
         Status::None
     }
 
@@ -434,6 +452,7 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
+        self.move_to_x(self.old_cursor);
         Status::None
     }
 
@@ -451,12 +470,23 @@ impl Document {
             return Status::StartOfLine;
         }
         // Determine the width of the character to traverse
-        let width = self.width_of(self.loc().y, self.char_ptr.saturating_sub(1));
+        let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
+        let boundaries = tab_boundaries_backward(&line, self.tab_width);
+        let width = if boundaries.contains(&self.char_ptr) {
+            // Push the character pointer up
+            self.char_ptr -= self.tab_width.saturating_sub(1);
+            // There are spaces that should be treated as tabs (so should traverse the tab width)
+            self.tab_width
+        } else {
+            // There are no spaces that should be treated as tabs
+            self.width_of(self.loc().y, self.char_ptr.saturating_sub(1))
+        };
         // Move back the correct amount
         self.cursor.loc.x -= width;
         // Update the character pointer
         self.char_ptr -= 1;
         self.bring_cursor_in_viewport();
+        self.old_cursor = self.char_ptr;
         Status::None
     }
 
@@ -505,6 +535,7 @@ impl Document {
     pub fn select_home(&mut self) {
         self.cursor.loc.x = 0;
         self.char_ptr = 0;
+        self.old_cursor = 0;
         self.bring_cursor_in_viewport();
     }
 
@@ -519,6 +550,7 @@ impl Document {
         let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
         let length = line.chars().count();
         self.select_to_x(length);
+        self.old_cursor = self.char_ptr;
     }
 
     /// Move to the top of the document
@@ -535,22 +567,26 @@ impl Document {
     /// Select to the top of the document
     pub fn select_top(&mut self) {
         self.select_to(&Loc::at(0, 0));
+        self.old_cursor = self.char_ptr;
     }
 
     /// Select to the bottom of the document
     pub fn select_bottom(&mut self) {
         let last = self.len_lines();
         self.select_to(&Loc::at(0, last));
+        self.old_cursor = self.char_ptr;
     }
 
     /// Move up by 1 page
     pub fn move_page_up(&mut self) {
         self.move_to_y(self.cursor.loc.y.saturating_sub(self.size.h));
+        self.old_cursor = 0;
     }
 
     /// Move down by 1 page
     pub fn move_page_down(&mut self) {
         self.move_to_y(self.cursor.loc.y + self.size.h);
+        self.old_cursor = 0;
     }
 
     /// Moves to the previous word in the document
@@ -596,14 +632,15 @@ impl Document {
         // Prepare
         let mut srch = Searcher::new(regex);
         // Check current line for matches
-        let current: String = self.line(self.loc().y)?
+        let current: String = self
+            .line(self.loc().y)?
             .chars()
             .skip(self.char_ptr + inc)
             .collect();
         if let Some(mut mtch) = srch.lfind(&current) {
             mtch.loc.y = self.loc().y;
             mtch.loc.x += self.char_ptr + inc;
-            return Some(mtch)
+            return Some(mtch);
         }
         // Check subsequent lines for matches
         let mut line_no = self.loc().y + 1;
@@ -624,7 +661,8 @@ impl Document {
         // Prepare
         let mut srch = Searcher::new(regex);
         // Check current line for matches
-        let current: String = self.line(self.loc().y)?
+        let current: String = self
+            .line(self.loc().y)?
             .chars()
             .take(self.char_ptr)
             .collect();
@@ -640,7 +678,9 @@ impl Document {
                 mtch.loc.y = line_no;
                 return Some(mtch);
             }
-            if line_no == 0 { break; }
+            if line_no == 0 {
+                break;
+            }
             line_no = line_no.saturating_sub(1);
         }
         None
@@ -690,7 +730,9 @@ impl Document {
         }
         // If the move position is out of bounds, move to the end of the line
         if line.chars().count() < x {
-            self.select_end();
+            let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
+            let length = line.chars().count();
+            self.select_to_x(length);
             return;
         }
         // Update char position
@@ -706,7 +748,7 @@ impl Document {
     pub fn move_to_y(&mut self, y: usize) {
         self.select_to_y(y);
         self.cancel_selection();
-    }    
+    }
 
     /// Function to select to a specific y position
     pub fn select_to_y(&mut self, y: usize) {
@@ -811,14 +853,22 @@ impl Document {
         let mut magnitude = 0;
         let Loc { x, y } = self.loc();
         if let Some(map) = self.dbl_map.get(y) {
-            let last_dbl = self.dbl_map.count(&self.loc(), true).unwrap().saturating_sub(1);
+            let last_dbl = self
+                .dbl_map
+                .count(&self.loc(), true)
+                .unwrap()
+                .saturating_sub(1);
             let start = map[last_dbl].0;
             if x == start + 1 {
                 magnitude += 1;
             }
         }
         if let Some(map) = self.tab_map.get(y) {
-            let last_tab = self.tab_map.count(&self.loc(), true).unwrap().saturating_sub(1);
+            let last_tab = self
+                .tab_map
+                .count(&self.loc(), true)
+                .unwrap()
+                .saturating_sub(1);
             let start = map[last_tab].0;
             let range = start..start + self.tab_width;
             if range.contains(&x) {
@@ -847,7 +897,8 @@ impl Document {
                 self.dbl_map.insert(i, dbl_map);
                 self.tab_map.insert(i, tab_map);
                 // Cache this line
-                self.lines.push(line.trim_end_matches(&['\n', '\r']).to_string());
+                self.lines
+                    .push(line.trim_end_matches(&['\n', '\r']).to_string());
             }
             // Store new loaded point
             self.loaded_to = to;
@@ -976,7 +1027,7 @@ impl Document {
     /// Returns true if the provided location is within the current active selection
     pub fn is_loc_selected(&self, loc: Loc) -> bool {
         let (left, right) = self.selection_loc_bound();
-        left <= loc && loc < right 
+        left <= loc && loc < right
     }
 
     /// Will return the current active selection as a range over file characters

@@ -1,4 +1,4 @@
-use jargon_args::{Key, Jargon};
+use jargon_args::{Jargon, Key};
 use std::io;
 use std::io::BufRead;
 
@@ -31,9 +31,10 @@ EXAMPLES:
 
 /// Read from the standard input
 pub fn get_stdin() -> Option<String> {
-    let input = io::stdin().lock().lines().fold("".to_string(), |acc, line| {
-        acc + &line.unwrap() + "\n"
-    });
+    let input = io::stdin()
+        .lock()
+        .lines()
+        .fold("".to_string(), |acc, line| acc + &line.unwrap() + "\n");
 
     return Some(input);
 }
@@ -59,13 +60,14 @@ impl CommandLineInterface {
         let filetype: Key = ["-f", "--filetype"].into();
         let config: Key = ["-c", "--config"].into();
 
-        Self { 
+        Self {
             help: j.contains(["-h", "--help"]),
             version: j.contains(["-v", "--version"]),
             read_only: j.contains(["-r", "--readonly"]),
             stdin: j.contains("--stdin"),
             file_type: j.option_arg::<String, Key>(filetype.clone()),
-            config_path: j.option_arg::<String, Key>(config.clone())
+            config_path: j
+                .option_arg::<String, Key>(config.clone())
                 .unwrap_or_else(|| "~/.oxrc".to_string()),
             to_open: j.finish(),
         }
