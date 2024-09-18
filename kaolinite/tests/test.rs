@@ -1,10 +1,9 @@
-#[cfg(test)]
-
-use kaolinite::{document::*, event::*, map::*, searching::*, utils::*};
 use kaolinite::regex;
-use sugars::hmap;
-use std::ops::{Range, RangeBounds};
+#[cfg(test)]
+use kaolinite::{document::*, event::*, map::*, searching::*, utils::*};
 use std::io::Write;
+use std::ops::{Range, RangeBounds};
+use sugars::hmap;
 
 macro_rules! st {
     ($e:expr) => {
@@ -61,10 +60,7 @@ fn ranges() {
         get_range(&(1..), 0, 100),
         get_range(&(..8), 0, 100),
     ];
-    assert_eq!(
-        ranges,
-        vec![(1, 7), (1, 8), (1, 100), (0, 7)],
-    );
+    assert_eq!(ranges, vec![(1, 7), (1, 8), (1, 100), (0, 7)],);
 }
 
 #[test]
@@ -79,7 +75,6 @@ fn widths() {
     assert_eq!(width("\trs你t你arsd", 4), 15);
 }
 
-
 #[test]
 fn tab_boundaries() {
     // Forward
@@ -87,14 +82,20 @@ fn tab_boundaries() {
     assert_eq!(tab_boundaries_forward("   hello", 3), vec![0]);
     assert_eq!(tab_boundaries_forward("    hello", 2), vec![0, 2]);
     assert_eq!(tab_boundaries_forward("     hello     hello2", 5), vec![0]);
-    assert_eq!(tab_boundaries_forward("            hello      hello", 6), vec![0, 6]);
+    assert_eq!(
+        tab_boundaries_forward("            hello      hello", 6),
+        vec![0, 6]
+    );
     assert_eq!(tab_boundaries_forward(" 你 ", 1), vec![0]);
     // Backward
     assert_eq!(tab_boundaries_backward("hello", 4), vec![]);
     assert_eq!(tab_boundaries_backward("   hello", 3), vec![3]);
     assert_eq!(tab_boundaries_backward("    hello", 2), vec![2, 4]);
     assert_eq!(tab_boundaries_backward("     hello     hello2", 5), vec![5]);
-    assert_eq!(tab_boundaries_backward("            hello      hello", 6), vec![6, 12]);
+    assert_eq!(
+        tab_boundaries_backward("            hello      hello", 6),
+        vec![6, 12]
+    );
     assert_eq!(tab_boundaries_backward(" 你 ", 1), vec![1]);
 }
 
@@ -103,8 +104,20 @@ fn searching() {
     // Basic URL grabber test
     let mut url_grabber = Searcher::new(r"\b(?:https?://|www\.)\S+\b");
     let text = st!("click here: https://github.com/curlpipe/ox to see more information or visit https://curlpipe.github.io");
-    assert_eq!(url_grabber.lfind(&text), Some(Match { loc: Loc { x: 12, y: 0 }, text: st!("https://github.com/curlpipe/ox") }));
-    assert_eq!(url_grabber.rfind(&text), Some(Match { loc: Loc { x: 76, y: 0 }, text: st!("https://curlpipe.github.io") }));
+    assert_eq!(
+        url_grabber.lfind(&text),
+        Some(Match {
+            loc: Loc { x: 12, y: 0 },
+            text: st!("https://github.com/curlpipe/ox")
+        })
+    );
+    assert_eq!(
+        url_grabber.rfind(&text),
+        Some(Match {
+            loc: Loc { x: 76, y: 0 },
+            text: st!("https://curlpipe.github.io")
+        })
+    );
     let text = st!("there are no links here!");
     assert_eq!(url_grabber.lfind(&text), None);
     assert_eq!(url_grabber.rfind(&text), None);
@@ -114,16 +127,28 @@ fn searching() {
     assert_eq!(Searcher::raw_to_char(0, &text), 0);
     assert_eq!(Searcher::raw_to_char(15, &text), 11);
     assert_eq!(Searcher::raw_to_char(16, &text), 12);
-    assert_eq!(greeting_finder.lfind(&text), Some(Match { loc: Loc { x: 9, y: 0 }, text: st!("你好") }));
-    assert_eq!(greeting_finder.rfind(&text), Some(Match { loc: Loc { x: 25, y: 0 }, text: st!("你好") }));
+    assert_eq!(
+        greeting_finder.lfind(&text),
+        Some(Match {
+            loc: Loc { x: 9, y: 0 },
+            text: st!("你好")
+        })
+    );
+    assert_eq!(
+        greeting_finder.rfind(&text),
+        Some(Match {
+            loc: Loc { x: 25, y: 0 },
+            text: st!("你好")
+        })
+    );
 }
 
 #[test]
 fn char_mapping() {
-    let mut test1_map = CharMap::new(hmap!{ 0 => vec![]});
-    let mut test2_map = CharMap::new(hmap!{ 794385 => vec![(1, 1), (5, 4)] });
-    let mut test3_map = CharMap::new(hmap!{ 2 => vec![(1, 1), (3, 2), (6, 4), (8, 5)] });
-    let mut test4_map = CharMap::new(hmap!{ 5 => vec![(0, 0)] });
+    let mut test1_map = CharMap::new(hmap! { 0 => vec![]});
+    let mut test2_map = CharMap::new(hmap! { 794385 => vec![(1, 1), (5, 4)] });
+    let mut test3_map = CharMap::new(hmap! { 2 => vec![(1, 1), (3, 2), (6, 4), (8, 5)] });
+    let mut test4_map = CharMap::new(hmap! { 5 => vec![(0, 0)] });
     let results = vec![
         test1_map.count(&Loc::at(0, 0), true).unwrap(),
         test1_map.count(&Loc::at(3, 0), false).unwrap(),
@@ -150,20 +175,38 @@ fn char_mapping() {
     // Splice
     test3_map.splice(&Loc::at(0, 2), 2, vec![(4, 4), (6, 5)]);
     test1_map.splice(&Loc::at(0, 5), 12, vec![(5, 5), (7, 6), (8, 7)]);
-    assert_eq!(test3_map.get(2).unwrap(), &vec![(1, 1), (3, 2), (4, 4), (6, 5), (6, 4), (8, 5)]);
+    assert_eq!(
+        test3_map.get(2).unwrap(),
+        &vec![(1, 1), (3, 2), (4, 4), (6, 5), (6, 4), (8, 5)]
+    );
     assert_eq!(test1_map.get(5).unwrap(), &vec![(5, 5), (7, 6), (8, 7)]);
     // Shift_insertion
     assert_eq!(test2_map.shift_insertion(&Loc::at(2, 0), "\to教", 4), 0);
-    assert_eq!(test2_map.get(794385).unwrap(), &vec![(1, 1), (5, 4), (9, 7)]);
+    assert_eq!(
+        test2_map.get(794385).unwrap(),
+        &vec![(1, 1), (5, 4), (9, 7)]
+    );
     assert_eq!(test2_map.get(0), None);
-    assert_eq!(test2_map.shift_insertion(&Loc::at(2, 794385), "\to教", 4), 1);
-    assert_eq!(test2_map.get(794385).unwrap(), &vec![(1, 1), (12, 7), (16, 10)]);
+    assert_eq!(
+        test2_map.shift_insertion(&Loc::at(2, 794385), "\to教", 4),
+        1
+    );
+    assert_eq!(
+        test2_map.get(794385).unwrap(),
+        &vec![(1, 1), (12, 7), (16, 10)]
+    );
     // Shift_deletion
     test2_map.shift_deletion(&Loc::at(0, 0), (2, 5), "\to教", 4);
     assert_eq!(test2_map.get(0), None);
-    assert_eq!(test2_map.get(794385).unwrap(), &vec![(1, 1), (12, 7), (16, 10)]);
+    assert_eq!(
+        test2_map.get(794385).unwrap(),
+        &vec![(1, 1), (12, 7), (16, 10)]
+    );
     test2_map.shift_deletion(&Loc::at(0, 794385), (2, 5), "\to教", 4);
-    assert_eq!(test2_map.get(794385).unwrap(), &vec![(1, 1), (5, 4), (9, 7)]);
+    assert_eq!(
+        test2_map.get(794385).unwrap(),
+        &vec![(1, 1), (5, 4), (9, 7)]
+    );
     test4_map.shift_deletion(&Loc::at(0, 5), (0, 1), "a", 4);
     assert_eq!(test4_map.get(5), None);
     // Shift_up
@@ -178,11 +221,21 @@ fn char_mapping() {
     let test_data_string1 = "".to_string();
     let test_data_string2 = "\t\t蔼教\t案 srtin".to_string();
     assert_eq!(form_map(&test_data_string1, 4), (vec![], vec![]));
-    assert_eq!(form_map(&test_data_string2, 4), 
-               (vec![(8, 2), (10, 3), (16, 5)], vec![(0, 0), (4, 1), (12, 4)]));
+    assert_eq!(
+        form_map(&test_data_string2, 4),
+        (
+            vec![(8, 2), (10, 3), (16, 5)],
+            vec![(0, 0), (4, 1), (12, 4)]
+        )
+    );
     assert_eq!(form_map(&test_data_string1, 3), (vec![], vec![]));
-    assert_eq!(form_map(&test_data_string2, 5),
-               (vec![(10, 2), (12, 3), (19, 5)], vec![(0, 0), (5, 1), (14, 4)]));
+    assert_eq!(
+        form_map(&test_data_string2, 5),
+        (
+            vec![(10, 2), (12, 3), (19, 5)],
+            vec![(0, 0), (5, 1), (14, 4)]
+        )
+    );
 }
 
 #[test]
@@ -198,10 +251,10 @@ fn event_management() {
     mgmt.commit();
     // Output & Verification
     assert_eq!(
-        mgmt.undo(), 
+        mgmt.undo(),
         Some(vec![
-             Event::Insert(Loc { x: 3, y: 0 }, 't'.to_string()),
-             Event::Insert(Loc { x: 2, y: 0 }, 's'.to_string()),
+            Event::Insert(Loc { x: 3, y: 0 }, 't'.to_string()),
+            Event::Insert(Loc { x: 2, y: 0 }, 's'.to_string()),
         ])
     );
     mgmt.register(Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()));
@@ -215,29 +268,25 @@ fn event_management() {
     mgmt.commit();
     assert_eq!(
         mgmt.undo(),
-        Some(vec![
-             Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),
-        ])
+        Some(vec![Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),])
     );
     assert_eq!(
         mgmt.undo(),
         Some(vec![
-             Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
-             Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
-        ])
-    );
-    assert_eq!(
-        mgmt.redo(), 
-        Some(vec![
-             Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
-             Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
+            Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
+            Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
         ])
     );
     assert_eq!(
         mgmt.redo(),
         Some(vec![
-             Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),
+            Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
+            Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
         ])
+    );
+    assert_eq!(
+        mgmt.redo(),
+        Some(vec![Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),])
     );
     assert_eq!(
         mgmt.last(),
@@ -329,8 +378,14 @@ fn document_insertion() {
     assert_eq!(doc.dbl_map.get(3), Some(&vec![(4, 1), (6, 2)]));
     doc.exe(Event::Insert(Loc { x: 3, y: 3 }, st!("\t你你")));
     assert_eq!(doc.line(3), Some(st!("\t你好\t你你")));
-    assert_eq!(doc.dbl_map.get(3), Some(&vec![(4, 1), (6, 2), (12, 4), (14, 5)]));
-    doc.exe(Event::Insert(Loc { x: 0, y: 6 }, st!("\thello, world: 你好")));
+    assert_eq!(
+        doc.dbl_map.get(3),
+        Some(&vec![(4, 1), (6, 2), (12, 4), (14, 5)])
+    );
+    doc.exe(Event::Insert(
+        Loc { x: 0, y: 6 },
+        st!("\thello, world: 你好"),
+    ));
     assert_eq!(doc.line(6), None);
     doc.exe(Event::Insert(Loc { x: 10000, y: 0 }, st!(" ")));
     assert_eq!(doc.line(0), Some(st!("    你hello好")));
@@ -346,7 +401,10 @@ fn document_deletion() {
     doc.exe(Event::Delete(Loc { x: 1, y: 3 }, st!("你")));
     assert_eq!(doc.line(3), Some(st!("\t好")));
     assert_eq!(doc.dbl_map.get(3), Some(&vec![(4, 1)]));
-    doc.exe(Event::Delete(Loc { x: 0, y: 6 }, st!("\thello, world: 你好")));
+    doc.exe(Event::Delete(
+        Loc { x: 0, y: 6 },
+        st!("\thello, world: 你好"),
+    ));
     assert_eq!(doc.line(6), None);
     doc.exe(Event::Delete(Loc { x: 3, y: 0 }, st!(" ")));
     assert_eq!(doc.line(0), Some(st!("好")));
@@ -378,7 +436,14 @@ fn document_moving() {
     for loaded in 0..100 {
         assert_eq!(doc.move_down(), Status::None);
         assert_eq!(doc.cursor.loc.y, 1 + loaded);
-        assert_eq!(doc.offset.y, if loaded < 9 { 0 } else { (1 + loaded).saturating_sub(9) });
+        assert_eq!(
+            doc.offset.y,
+            if loaded < 9 {
+                0
+            } else {
+                (1 + loaded).saturating_sub(9)
+            }
+        );
         assert!(doc.loaded_to >= loaded);
     }
     assert_eq!(doc.move_down(), Status::EndOfFile);
@@ -477,14 +542,26 @@ fn document_moving() {
     assert_eq!(doc.char_loc(), Loc { x: 1, y: 0 });
     assert_eq!(doc.old_cursor, 1);
     doc.move_bottom();
-    assert_eq!(doc.char_loc(), Loc { x: 0, y: doc.len_lines() });
+    assert_eq!(
+        doc.char_loc(),
+        Loc {
+            x: 0,
+            y: doc.len_lines()
+        }
+    );
     assert_eq!(doc.old_cursor, 0);
     assert_eq!(doc.loaded_to, doc.len_lines() + 1);
     doc.move_top();
     assert_eq!(doc.char_loc(), Loc { x: 0, y: 0 });
     assert_eq!(doc.old_cursor, 0);
     doc.select_bottom();
-    assert_eq!(doc.char_loc(), Loc { x: 0, y: doc.len_lines() });
+    assert_eq!(
+        doc.char_loc(),
+        Loc {
+            x: 0,
+            y: doc.len_lines()
+        }
+    );
     assert_eq!(doc.old_cursor, 0);
     assert_eq!(doc.loaded_to, doc.len_lines() + 1);
     doc.select_top();
@@ -538,7 +615,10 @@ fn document_selection() {
     assert!(doc.is_selection_empty());
     doc.select_to(&Loc { x: 1, y: 1 });
     assert!(!doc.is_selection_empty());
-    assert_eq!(doc.selection_loc_bound(), (Loc { x: 0, y: 0 }, Loc { x: 1, y: 1 }));
+    assert_eq!(
+        doc.selection_loc_bound(),
+        (Loc { x: 0, y: 0 }, Loc { x: 1, y: 1 })
+    );
     assert!(doc.is_loc_selected(Loc { x: 0, y: 1 }));
     assert!(doc.is_loc_selected(Loc { x: 0, y: 0 }));
     assert!(doc.is_loc_selected(Loc { x: 2, y: 0 }));
@@ -549,7 +629,10 @@ fn document_selection() {
     assert!(!doc.is_loc_selected(Loc { x: 2, y: 1 }));
     assert!(!doc.is_loc_selected(Loc { x: 3, y: 3 }));
     assert_eq!(doc.selection_range(), 0..33);
-    assert_eq!(doc.selection_text(), st!("5748248337351130204990967092462\n8"));
+    assert_eq!(
+        doc.selection_text(),
+        st!("5748248337351130204990967092462\n8")
+    );
 }
 
 #[test]
@@ -566,7 +649,6 @@ fn document_scrolling() {
     doc.scroll_up();
     assert_eq!(doc.offset.y, 0);
     assert_eq!(doc.loaded_to, 11);
-
 }
 
 #[test]
@@ -666,16 +748,46 @@ fn document_splitting_splicing() {
 fn document_searching() {
     let mut doc = Document::open(Size::is(100, 1), "tests/data/unicode.txt").unwrap();
     doc.load_to(1);
-    assert_eq!(doc.next_match("hello", 0), Some(Match { loc: Loc { x: 1, y: 1 }, text: st!("hello") }));
-    assert_eq!(doc.next_match("world", 0), Some(Match { loc: Loc { x: 6, y: 4 }, text: st!("world") }));
+    assert_eq!(
+        doc.next_match("hello", 0),
+        Some(Match {
+            loc: Loc { x: 1, y: 1 },
+            text: st!("hello")
+        })
+    );
+    assert_eq!(
+        doc.next_match("world", 0),
+        Some(Match {
+            loc: Loc { x: 6, y: 4 },
+            text: st!("world")
+        })
+    );
     assert_eq!(doc.loaded_to, 5);
     doc.move_to(&Loc { x: 2, y: 2 });
-    assert_eq!(doc.next_match("hello", 0), Some(Match { loc: Loc { x: 4, y: 2 }, text: st!("hello") }));
+    assert_eq!(
+        doc.next_match("hello", 0),
+        Some(Match {
+            loc: Loc { x: 4, y: 2 },
+            text: st!("hello")
+        })
+    );
     assert_eq!(doc.next_match("random", 0), None);
     doc.move_to(&Loc { x: 9, y: 4 });
-    assert_eq!(doc.prev_match("你"), Some(Match { loc: Loc { x: 5, y: 4 }, text: st!("你") }));
+    assert_eq!(
+        doc.prev_match("你"),
+        Some(Match {
+            loc: Loc { x: 5, y: 4 },
+            text: st!("你")
+        })
+    );
     assert_eq!(doc.prev_match("random"), None);
-    assert_eq!(doc.prev_match("\\s+hello"), Some(Match { loc: Loc { x: 0, y: 2 }, text: st!("    hello") }));
+    assert_eq!(
+        doc.prev_match("\\s+hello"),
+        Some(Match {
+            loc: Loc { x: 0, y: 2 },
+            text: st!("    hello")
+        })
+    );
 }
 
 #[test]
