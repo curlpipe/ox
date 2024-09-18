@@ -322,27 +322,115 @@ fn document_disks() {
 
 #[test]
 fn document_insertion() {
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(100);
+    doc.exe(Event::Insert(Loc { x: 5, y: 0 }, st!("hello")));
+    assert_eq!(doc.line(0), Some(st!("    你hello好")));
+    assert_eq!(doc.dbl_map.get(3), Some(&vec![(4, 1), (6, 2)]));
+    doc.exe(Event::Insert(Loc { x: 3, y: 3 }, st!("\t你你")));
+    assert_eq!(doc.line(3), Some(st!("\t你好\t你你")));
+    assert_eq!(doc.dbl_map.get(3), Some(&vec![(4, 1), (6, 2), (12, 4), (14, 5)]));
+    doc.exe(Event::Insert(Loc { x: 0, y: 6 }, st!("\thello, world: 你好")));
+    assert_eq!(doc.line(6), None);
 }
 
 #[test]
 fn document_deletion() {
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(100);
+    doc.exe(Event::Delete(Loc { x: 4, y: 0 }, st!("你")));
+    assert_eq!(doc.line(0), Some(st!("    好")));
+    assert_eq!(doc.dbl_map.get(3), Some(&vec![(4, 1), (6, 2)]));
+    doc.exe(Event::Delete(Loc { x: 1, y: 3 }, st!("你")));
+    assert_eq!(doc.line(3), Some(st!("\t好")));
+    assert_eq!(doc.dbl_map.get(3), Some(&vec![(4, 1)]));
+    doc.exe(Event::Delete(Loc { x: 0, y: 6 }, st!("\thello, world: 你好")));
+    assert_eq!(doc.line(6), None);
+    doc.exe(Event::Delete(Loc { x: 3, y: 0 }, st!(" ")));
+    assert_eq!(doc.line(0), Some(st!("好")));
 }
 
 #[test]
 fn document_undo_redo() {
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(100);
+    doc.exe(Event::InsertLine(0, st!("hello你bye好hello")));
+    doc.exe(Event::Delete(Loc { x: 0, y: 2 }, st!("\t")));
+    doc.exe(Event::Insert(Loc { x: 3, y: 2 }, st!("a")));
+    assert!(doc.undo().is_ok());
+    assert_eq!(doc.line(0), Some(st!("    你好")));
+    assert_eq!(doc.line(1), Some(st!("\thello")));
+    assert_eq!(doc.line(2), Some(st!("    hello")));
+    assert!(doc.redo().is_ok());
+    assert_eq!(doc.line(0), Some(st!("hello你bye好hello")));
+    assert_eq!(doc.line(2), Some(st!("helalo")));
 }
 
 #[test]
 fn document_moving() {
+    let mut doc = Document::open(Size::is(10, 10), "tests/data/big.txt").unwrap();
+    doc.load_to(10);
+    // Check moving down
+    for loaded in 0..100 {
+        assert_eq!(doc.move_down(), Status::None);
+        assert_eq!(doc.cursor.loc.y, 1 + loaded);
+        assert_eq!(doc.offset.y, if loaded < 9 { 0 } else { (1 + loaded).saturating_sub(9) });
+        assert!(doc.loaded_to >= loaded);
+    }
+    assert_eq!(doc.move_down(), Status::EndOfFile);
+    // Check moving up
+    for loaded in 0..100 {
+        assert_eq!(doc.move_up(), Status::None);
+        assert_eq!(doc.cursor.loc.y, 99 - loaded);
+        assert_eq!(doc.offset.y, if loaded < 9 { 91 } else { 99 - loaded });
+    }
+    assert_eq!(doc.move_up(), Status::StartOfFile);
+    // Check cursor "stickiness" & goto & double width straddling attempts
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(10);
+    doc.exe(Event::InsertLine(5, st!("hello你bye")));
+    doc.move_to(&Loc { x: 4, y: 1 });
+    assert_eq!(doc.char_loc(), Loc { x: 4, y: 1 });
+    assert_eq!(doc.loc(), Loc { x: 7, y: 1 });
+    doc.move_down();
+    doc.move_down();
+    assert_eq!(doc.char_loc(), Loc { x: 2, y: 3 });
+    assert_eq!(doc.loc(), Loc { x: 6, y: 3 });
+    doc.move_to(&Loc { x: 1000, y: 4 });
+    assert_eq!(doc.char_loc(), Loc { x: 17, y: 4 });
+    assert_eq!(doc.loc(), Loc { x: 19, y: 4 });
+    doc.move_down();
+    assert_eq!(doc.char_loc(), Loc { x: 9, y: 5 });
+    assert_eq!(doc.loc(), Loc { x: 10, y: 5 });
+    doc.move_up();
+    assert_eq!(doc.char_loc(), Loc { x: 17, y: 4 });
+    assert_eq!(doc.loc(), Loc { x: 19, y: 4 });
+}
+
+#[test]
+fn document_selection() {
 }
 
 #[test]
 fn document_scrolling() {
+    let mut doc = Document::open(Size::is(10, 10), "tests/data/big.txt").unwrap();
+    doc.load_to(10);
+    // Scrolling down
+    assert_eq!(doc.offset.y, 0);
+    doc.scroll_down();
+    assert_eq!(doc.offset.y, 1);
+    assert_eq!(doc.loaded_to, 11);
+    // Scrolling up
+    assert_eq!(doc.offset.y, 1);
+    doc.scroll_up();
+    assert_eq!(doc.offset.y, 0);
+    assert_eq!(doc.loaded_to, 11);
+
 }
 
 #[test]
 fn document_utilities() {
-    let mut doc = Document::open(Size::is(100, 10), "tests/data/big.txt").unwrap();
+    let mut doc = Document::open(Size::is(100, 2), "tests/data/big.txt").unwrap();
     doc.load_to(1000);
     // Cursor location
     doc.move_to(&Loc { x: 5, y: 5 });
@@ -351,18 +439,57 @@ fn document_utilities() {
     // Tab width
     doc.set_tab_width(2);
     assert_eq!(doc.tab_width, 2);
+    // Line retrieval
+    assert_eq!(doc.line(3), Some(st!("4081246106821888240886212802811")));
+    assert_eq!(doc.line(1000), None);
+    // Loc to file position
+    assert_eq!(doc.loc_to_file_pos(&Loc { x: 2, y: 1 }), 34);
+    assert_eq!(doc.loc_to_file_pos(&Loc { x: 5, y: 2 }), 69);
 }
 
 #[test]
 fn document_line_editing() {
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(1000);
+    // Basics
+    doc.exe(Event::InsertLine(2, st!("hello你bye好hello")));
+    assert_eq!(doc.line(2), Some(st!("hello你bye好hello")));
+    assert_eq!(doc.len_lines(), 6);
+    assert_eq!(doc.dbl_map.get(2), Some(&vec![(5, 5), (10, 9)]));
+    doc.exe(Event::DeleteLine(4, st!("hello你world好hello")));
+    assert_ne!(doc.line(4), Some(st!("hello你bye好hello")));
+    assert_eq!(doc.len_lines(), 5);
+    // Bounds checking
+    doc.exe(Event::InsertLine(0, st!("hello你bye好hello")));
+    assert_eq!(doc.line(0), Some(st!("hello你bye好hello")));
+    doc.exe(Event::DeleteLine(0, st!("hello你bye好hello")));
+    assert_ne!(doc.line(0), Some(st!("hello你bye好hello")));
+    assert_eq!(doc.line(5), Some(st!("")));
+    doc.exe(Event::InsertLine(5, st!("forever")));
+    assert_eq!(doc.line(5), Some(st!("forever")));
+    doc.exe(Event::DeleteLine(5, st!("forever")));
+    assert_eq!(doc.line(5), Some(st!("")));
 }
 
 #[test]
 fn document_splitting_splicing() {
-}
-
-#[test]
-fn document_selection() {
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(1000);
+    // Splitting
+    assert_eq!(doc.dbl_map.get(4), Some(&vec![(5, 5), (12, 11)]));
+    assert_eq!(doc.dbl_map.get(5), None);
+    doc.exe(Event::SplitDown(Loc { x: 9, y: 4 }));
+    assert_eq!(doc.dbl_map.get(4), Some(&vec![(5, 5)]));
+    assert_eq!(doc.dbl_map.get(5), Some(&vec![(2, 2)]));
+    assert_eq!(doc.line(4), Some(st!("hello你wor")));
+    assert_eq!(doc.line(5), Some(st!("ld好hello")));
+    assert_eq!(doc.len_lines(), 6);
+    // Splicing
+    doc.exe(Event::SpliceUp(Loc { x: 9, y: 4 }));
+    assert_eq!(doc.line(4), Some(st!("hello你world好hello")));
+    assert_eq!(doc.len_lines(), 5);
+    assert_eq!(doc.dbl_map.get(4), Some(&vec![(5, 5), (12, 11)]));
+    assert_eq!(doc.dbl_map.get(5), None);
 }
 
 #[test]
@@ -379,10 +506,6 @@ fn document_validation() {
 
 #[test]
 fn document_indices() {
-}
-
-#[test]
-fn document_buffering() {
 }
 
 /*

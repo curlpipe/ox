@@ -427,6 +427,7 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
+        self.move_to_x(self.old_cursor);
         Status::None
     }
 
@@ -451,6 +452,7 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
+        self.move_to_x(self.old_cursor);
         Status::None
     }
 
@@ -484,6 +486,7 @@ impl Document {
         // Update the character pointer
         self.char_ptr -= 1;
         self.bring_cursor_in_viewport();
+        self.old_cursor = self.char_ptr;
         Status::None
     }
 
@@ -532,6 +535,7 @@ impl Document {
     pub fn select_home(&mut self) {
         self.cursor.loc.x = 0;
         self.char_ptr = 0;
+        self.old_cursor = 0;
         self.bring_cursor_in_viewport();
     }
 
@@ -546,6 +550,7 @@ impl Document {
         let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
         let length = line.chars().count();
         self.select_to_x(length);
+        self.old_cursor = self.char_ptr;
     }
 
     /// Move to the top of the document
@@ -562,22 +567,26 @@ impl Document {
     /// Select to the top of the document
     pub fn select_top(&mut self) {
         self.select_to(&Loc::at(0, 0));
+        self.old_cursor = self.char_ptr;
     }
 
     /// Select to the bottom of the document
     pub fn select_bottom(&mut self) {
         let last = self.len_lines();
         self.select_to(&Loc::at(0, last));
+        self.old_cursor = self.char_ptr;
     }
 
     /// Move up by 1 page
     pub fn move_page_up(&mut self) {
         self.move_to_y(self.cursor.loc.y.saturating_sub(self.size.h));
+        self.old_cursor = 0;
     }
 
     /// Move down by 1 page
     pub fn move_page_down(&mut self) {
         self.move_to_y(self.cursor.loc.y + self.size.h);
+        self.old_cursor = 0;
     }
 
     /// Moves to the previous word in the document
@@ -721,7 +730,9 @@ impl Document {
         }
         // If the move position is out of bounds, move to the end of the line
         if line.chars().count() < x {
-            self.select_end();
+            let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
+            let length = line.chars().count();
+            self.select_to_x(length);
             return;
         }
         // Update char position
