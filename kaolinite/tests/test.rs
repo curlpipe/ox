@@ -332,6 +332,8 @@ fn document_insertion() {
     assert_eq!(doc.dbl_map.get(3), Some(&vec![(4, 1), (6, 2), (12, 4), (14, 5)]));
     doc.exe(Event::Insert(Loc { x: 0, y: 6 }, st!("\thello, world: 你好")));
     assert_eq!(doc.line(6), None);
+    doc.exe(Event::Insert(Loc { x: 10000, y: 0 }, st!(" ")));
+    assert_eq!(doc.line(0), Some(st!("    你hello好")));
 }
 
 #[test]
@@ -347,6 +349,8 @@ fn document_deletion() {
     doc.exe(Event::Delete(Loc { x: 0, y: 6 }, st!("\thello, world: 你好")));
     assert_eq!(doc.line(6), None);
     doc.exe(Event::Delete(Loc { x: 3, y: 0 }, st!(" ")));
+    assert_eq!(doc.line(0), Some(st!("好")));
+    doc.exe(Event::Delete(Loc { x: 10000, y: 0 }, st!(" ")));
     assert_eq!(doc.line(0), Some(st!("好")));
 }
 
@@ -390,13 +394,15 @@ fn document_moving() {
     doc.load_to(10);
     doc.exe(Event::InsertLine(5, st!("hello你bye")));
     doc.move_to(&Loc { x: 4, y: 1 });
+    doc.old_cursor = 4;
     assert_eq!(doc.char_loc(), Loc { x: 4, y: 1 });
     assert_eq!(doc.loc(), Loc { x: 7, y: 1 });
     doc.move_down();
     doc.move_down();
-    assert_eq!(doc.char_loc(), Loc { x: 2, y: 3 });
-    assert_eq!(doc.loc(), Loc { x: 6, y: 3 });
+    assert_eq!(doc.char_loc(), Loc { x: 3, y: 3 });
+    assert_eq!(doc.loc(), Loc { x: 8, y: 3 });
     doc.move_to(&Loc { x: 1000, y: 4 });
+    doc.old_cursor = 17;
     assert_eq!(doc.char_loc(), Loc { x: 17, y: 4 });
     assert_eq!(doc.loc(), Loc { x: 19, y: 4 });
     doc.move_down();
@@ -405,10 +411,145 @@ fn document_moving() {
     doc.move_up();
     assert_eq!(doc.char_loc(), Loc { x: 17, y: 4 });
     assert_eq!(doc.loc(), Loc { x: 19, y: 4 });
+    // Moving left and right & cursor "stickiness"
+    let mut doc = Document::open(Size::is(10, 10), "tests/data/big.txt").unwrap();
+    doc.load_to(10);
+    for _ in 0..9 {
+        doc.move_right();
+    }
+    assert_eq!(doc.offset.x, 0);
+    doc.move_right();
+    assert_eq!(doc.offset.x, 1);
+    assert_eq!(doc.cursor.loc.x, 10);
+    for _ in 0..21 {
+        doc.move_right();
+    }
+    assert_eq!(doc.move_right(), Status::EndOfLine);
+    for _ in 0..21 {
+        doc.move_left();
+    }
+    doc.move_left();
+    assert_eq!(doc.offset.x, 9);
+    assert_eq!(doc.cursor.loc.x, 9);
+    for _ in 0..9 {
+        doc.move_left();
+    }
+    assert_eq!(doc.move_left(), Status::StartOfLine);
+    doc.exe(Event::InsertLine(2, st!("        tab line")));
+    doc.move_to(&Loc { x: 0, y: 2 });
+    doc.move_right();
+    assert_eq!(doc.loc(), Loc { x: 4, y: 2 });
+    assert_eq!(doc.char_loc(), Loc { x: 4, y: 2 });
+    doc.move_right();
+    assert_eq!(doc.loc(), Loc { x: 8, y: 2 });
+    assert_eq!(doc.char_loc(), Loc { x: 8, y: 2 });
+    doc.move_left();
+    assert_eq!(doc.loc(), Loc { x: 4, y: 2 });
+    assert_eq!(doc.char_loc(), Loc { x: 4, y: 2 });
+    doc.move_left();
+    assert_eq!(doc.loc(), Loc { x: 0, y: 2 });
+    assert_eq!(doc.char_loc(), Loc { x: 0, y: 2 });
+    // Test unicode
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(10);
+    doc.move_right();
+    assert_eq!(doc.loc(), Loc { x: 4, y: 0 });
+    assert_eq!(doc.char_loc(), Loc { x: 4, y: 0 });
+    doc.move_right();
+    assert_eq!(doc.loc(), Loc { x: 6, y: 0 });
+    assert_eq!(doc.char_loc(), Loc { x: 5, y: 0 });
+    doc.move_left();
+    assert_eq!(doc.loc(), Loc { x: 4, y: 0 });
+    assert_eq!(doc.char_loc(), Loc { x: 4, y: 0 });
+    // Specialist moving methods
+    doc.move_to(&Loc { x: 0, y: 0 });
+    doc.move_end();
+    assert_eq!(doc.loc(), Loc { x: 8, y: 0 });
+    assert_eq!(doc.char_loc(), Loc { x: 6, y: 0 });
+    assert_eq!(doc.old_cursor, 6);
+    doc.move_home();
+    assert_eq!(doc.loc(), Loc { x: 0, y: 0 });
+    assert_eq!(doc.char_loc(), Loc { x: 0, y: 0 });
+    assert_eq!(doc.old_cursor, 0);
+    let mut doc = Document::open(Size::is(10, 10), "tests/data/big.txt").unwrap();
+    doc.load_to(10);
+    doc.move_right();
+    assert_eq!(doc.char_loc(), Loc { x: 1, y: 0 });
+    assert_eq!(doc.old_cursor, 1);
+    doc.move_bottom();
+    assert_eq!(doc.char_loc(), Loc { x: 0, y: doc.len_lines() });
+    assert_eq!(doc.old_cursor, 0);
+    assert_eq!(doc.loaded_to, doc.len_lines() + 1);
+    doc.move_top();
+    assert_eq!(doc.char_loc(), Loc { x: 0, y: 0 });
+    assert_eq!(doc.old_cursor, 0);
+    doc.select_bottom();
+    assert_eq!(doc.char_loc(), Loc { x: 0, y: doc.len_lines() });
+    assert_eq!(doc.old_cursor, 0);
+    assert_eq!(doc.loaded_to, doc.len_lines() + 1);
+    doc.select_top();
+    assert_eq!(doc.char_loc(), Loc { x: 0, y: 0 });
+    assert_eq!(doc.old_cursor, 0);
+    doc.move_page_down();
+    assert_eq!(doc.loc(), Loc { x: 0, y: 10 });
+    doc.move_page_down();
+    assert_eq!(doc.loc(), Loc { x: 0, y: 20 });
+    doc.move_page_up();
+    assert_eq!(doc.loc(), Loc { x: 0, y: 10 });
+    doc.move_page_up();
+    assert_eq!(doc.loc(), Loc { x: 0, y: 0 });
+    // Test word moving
+    doc.exe(Event::InsertLine(10, st!("these are words this.is.code()")));
+    doc.move_to(&Loc { x: 0, y: 10 });
+    doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 6, y: 10 });
+    doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 10, y: 10 });
+    doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 16, y: 10 });
+    doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 21, y: 10 });
+    doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 24, y: 10 });
+    doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 29, y: 10 });
+    doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 30, y: 10 });
+    assert_eq!(doc.move_next_word(), Status::EndOfLine);
+    doc.move_prev_word();
+    assert_eq!(doc.loc(), Loc { x: 24, y: 10 });
+    doc.move_prev_word();
+    assert_eq!(doc.loc(), Loc { x: 21, y: 10 });
+    doc.move_prev_word();
+    assert_eq!(doc.loc(), Loc { x: 16, y: 10 });
+    doc.move_prev_word();
+    assert_eq!(doc.loc(), Loc { x: 10, y: 10 });
+    doc.move_prev_word();
+    assert_eq!(doc.loc(), Loc { x: 6, y: 10 });
+    doc.move_prev_word();
+    assert_eq!(doc.loc(), Loc { x: 0, y: 10 });
+    assert_eq!(doc.move_prev_word(), Status::StartOfLine);
 }
 
 #[test]
 fn document_selection() {
+    let mut doc = Document::open(Size::is(10, 10), "tests/data/big.txt").unwrap();
+    doc.load_to(10);
+    assert!(doc.is_selection_empty());
+    doc.select_to(&Loc { x: 1, y: 1 });
+    assert!(!doc.is_selection_empty());
+    assert_eq!(doc.selection_loc_bound(), (Loc { x: 0, y: 0 }, Loc { x: 1, y: 1 }));
+    assert!(doc.is_loc_selected(Loc { x: 0, y: 1 }));
+    assert!(doc.is_loc_selected(Loc { x: 0, y: 0 }));
+    assert!(doc.is_loc_selected(Loc { x: 2, y: 0 }));
+    assert!(doc.is_loc_selected(Loc { x: 3, y: 0 }));
+    assert!(!doc.is_loc_selected(Loc { x: 0, y: 2 }));
+    assert!(!doc.is_loc_selected(Loc { x: 1, y: 1 }));
+    assert!(!doc.is_loc_selected(Loc { x: 0, y: 3 }));
+    assert!(!doc.is_loc_selected(Loc { x: 2, y: 1 }));
+    assert!(!doc.is_loc_selected(Loc { x: 3, y: 3 }));
+    assert_eq!(doc.selection_range(), 0..33);
+    assert_eq!(doc.selection_text(), st!("5748248337351130204990967092462\n8"));
 }
 
 #[test]
@@ -441,10 +582,39 @@ fn document_utilities() {
     assert_eq!(doc.tab_width, 2);
     // Line retrieval
     assert_eq!(doc.line(3), Some(st!("4081246106821888240886212802811")));
+    assert_eq!(doc.line_trim(3, 3, 5), Some(st!("12461")));
     assert_eq!(doc.line(1000), None);
     // Loc to file position
     assert_eq!(doc.loc_to_file_pos(&Loc { x: 2, y: 1 }), 34);
     assert_eq!(doc.loc_to_file_pos(&Loc { x: 5, y: 2 }), 69);
+    // Valid range
+    assert!(doc.valid_range(6, 3, 0).is_err());
+    // Line numbering
+    assert_eq!(doc.line_number(3), st!("  4"));
+    assert_eq!(doc.line_number(1000), st!("  ~"));
+    assert_eq!(doc.line_number(21), st!(" 22"));
+    assert_eq!(doc.line_number(100), st!("  ~"));
+    assert_eq!(doc.line_number(99), st!("100"));
+    // Tab detection
+    doc.exe(Event::InsertLine(0, st!("\thello")));
+    assert!(doc.is_tab(0, 0));
+    assert!(!doc.is_tab(0, 1));
+    // Width of
+    assert_eq!(doc.width_of(0, 0), 2);
+    // Cursor within viewport
+    doc.move_to(&Loc { x: 5, y: 5 });
+    assert_eq!(doc.cursor_loc_in_screen(), Some(Loc { x: 5, y: 1 }));
+    doc.scroll_up();
+    doc.scroll_up();
+    assert_eq!(doc.cursor_loc_in_screen(), None);
+    doc.scroll_down();
+    doc.scroll_down();
+    doc.scroll_down();
+    doc.scroll_down();
+    assert_eq!(doc.cursor_loc_in_screen(), None);
+    doc.move_to(&Loc { x: 0, y: 5 });
+    doc.offset.x = 5;
+    assert_eq!(doc.cursor_loc_in_screen(), None);
 }
 
 #[test]
@@ -494,18 +664,51 @@ fn document_splitting_splicing() {
 
 #[test]
 fn document_searching() {
+    let mut doc = Document::open(Size::is(100, 1), "tests/data/unicode.txt").unwrap();
+    doc.load_to(1);
+    assert_eq!(doc.next_match("hello", 0), Some(Match { loc: Loc { x: 1, y: 1 }, text: st!("hello") }));
+    assert_eq!(doc.next_match("world", 0), Some(Match { loc: Loc { x: 6, y: 4 }, text: st!("world") }));
+    assert_eq!(doc.loaded_to, 5);
+    doc.move_to(&Loc { x: 2, y: 2 });
+    assert_eq!(doc.next_match("hello", 0), Some(Match { loc: Loc { x: 4, y: 2 }, text: st!("hello") }));
+    assert_eq!(doc.next_match("random", 0), None);
+    doc.move_to(&Loc { x: 9, y: 4 });
+    assert_eq!(doc.prev_match("你"), Some(Match { loc: Loc { x: 5, y: 4 }, text: st!("你") }));
+    assert_eq!(doc.prev_match("random"), None);
+    assert_eq!(doc.prev_match("\\s+hello"), Some(Match { loc: Loc { x: 0, y: 2 }, text: st!("    hello") }));
 }
 
 #[test]
 fn document_replacing() {
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(1000);
+    doc.replace_all("hello", "你好");
+    assert_eq!(doc.line(0), Some(st!("    你好")));
+    assert_eq!(doc.line(1), Some(st!("\t你好")));
+    assert_eq!(doc.line(2), Some(st!("    你好")));
+    assert_eq!(doc.line(3), Some(st!("\t你好")));
+    assert_eq!(doc.line(4), Some(st!("你好你world好你好")));
 }
 
 #[test]
 fn document_validation() {
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(1000);
+    /*
+    // WARNING, uncomment once old_cursor uses display index (as it is currently broken)
+    doc.move_to(&Loc { x: 2, y: 1 });
+    doc.old_cursor = 2;
+    doc.move_up();
+    assert_eq!(doc.loc(), Loc { x: 4, y: 0 });
+    */
 }
 
 #[test]
 fn document_indices() {
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(1000);
+    assert_eq!(doc.character_idx(&Loc { x: 6, y: 0 }), 5);
+    assert_eq!(doc.character_idx(&Loc { x: 5, y: 1 }), 2);
 }
 
 /*
