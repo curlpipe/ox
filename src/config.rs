@@ -151,7 +151,11 @@ impl Config {
             if let Ok(config) = std::fs::read_to_string(path.to_string()) {
                 // Update configuration with user-defined values
                 lua.load(config).exec()?;
+            } else {
+                return Err(OxError::Config("Not Found".to_string()));
             }
+        } else {
+            return Err(OxError::Config("Not Found".to_string()));
         }
 
         // Remove any default values if necessary

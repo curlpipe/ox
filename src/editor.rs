@@ -69,7 +69,15 @@ impl Editor {
 
     /// Load the configuration values
     pub fn load_config(&mut self, path: String, lua: &Lua) -> Result<()> {
-        self.config.read(path, lua)?;
+        let result = self.config.read(path, lua);
+        if let Err(OxError::Config(msg)) = result {
+            if msg == "Not Found" {
+                let warn = "No configuration file found, using default configuration".to_string();
+                self.feedback = Feedback::Warning(warn);
+            }
+        } else {
+            result?
+        };
         self.push_down = if self.config.tab_line.borrow().enabled { 1 } else { 0 };
         Ok(())
     }
