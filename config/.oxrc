@@ -76,6 +76,12 @@ event_mapping = {
     ["ctrl_q"] = function()
         editor:quit()
     end,
+    ["alt_left"] = function()
+        editor:previous_tab()
+    end,
+    ["alt_right"] = function()
+        editor:next_tab()
+    end,
     -- Clipboard Interaction
     ["ctrl_a"] = function()
         editor:select_all()
