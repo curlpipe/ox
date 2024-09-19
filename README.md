@@ -250,6 +250,7 @@ You can contact me on Discord at my handle `curlpipe`. I'll be happy to answer a
 ## Acknowledgements
 
 - [Luke (curlpipe)](https://github.com/curlpipe), principal developer
+- [HKalbasi](https://github.com/HKalbasi), key contributor
 - [Spike (spikecodes)](https://github.com/spikecodes), for the logo
 - The community, for the stars, ideas, suggestions and bug reports
 
