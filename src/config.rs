@@ -108,12 +108,20 @@ impl Config {
         // Load the default config to start with
         lua.load(DEFAULT_CONFIG).exec()?;
 
+        // Judge pre-user config state
+        let status_parts = self.status_line.borrow().parts.len();
+
         // Attempt to read config file from home directory
         if let Ok(path) = shellexpand::full(&path) {
             if let Ok(config) = std::fs::read_to_string(path.to_string()) {
                 // Update configuration with user-defined values
                 lua.load(config).exec()?;
             }
+        }
+
+        // Remove any default values if necessary
+        if self.status_line.borrow().parts.len() > status_parts {
+            self.status_line.borrow_mut().parts.drain(0..status_parts);
         }
 
         Ok(())

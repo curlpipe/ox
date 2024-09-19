@@ -214,7 +214,6 @@ line_numbers.enabled = true
 
 
 -- Configure Status Line --
-status_line:clear()
 status_line:add_part("  {file_name}{modified}  │  {file_type}  │") -- The left side of the status line
 status_line:add_part("│  {cursor_y} / {line_count}  {cursor_x}  ")  -- The right side of the status line
 
