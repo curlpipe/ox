@@ -98,6 +98,7 @@ pub struct Config {
     pub status_line: Rc<RefCell<StatusLine>>,
     pub greeting_message: Rc<RefCell<GreetingMessage>>,
     pub terminal: Rc<RefCell<TerminalConfig>>,
+    pub document: Rc<RefCell<DocumentConfig>>,
 }
 
 impl Config {
@@ -110,6 +111,7 @@ impl Config {
         let colors = Rc::new(RefCell::new(Colors::default()));
         let status_line = Rc::new(RefCell::new(StatusLine::default()));
         let terminal = Rc::new(RefCell::new(TerminalConfig::default()));
+        let document = Rc::new(RefCell::new(DocumentConfig::default()));
 
         // Push in configuration globals
         lua.globals().set("syntax", syntax_highlighting.clone())?;
@@ -119,6 +121,7 @@ impl Config {
         lua.globals().set("status_line", status_line.clone())?;
         lua.globals().set("colors", colors.clone())?;
         lua.globals().set("terminal", terminal.clone())?;
+        lua.globals().set("document", document.clone())?;
 
         Ok(Config {
             syntax_highlighting,
@@ -127,6 +130,7 @@ impl Config {
             status_line,
             colors,
             terminal,
+            document,
         })
     }
 
@@ -892,6 +896,43 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
 fn update_highlighter(editor: &mut Editor) {
     if let Err(err) = editor.update_highlighter() {
         editor.feedback = Feedback::Error(err.to_string());
+    }
+}
+
+#[derive(Debug)]
+pub struct DocumentConfig {
+    pub tab_width: usize,
+    pub undo_period: usize,
+    pub wrap_cursor: bool,
+}
+
+impl Default for DocumentConfig {
+    fn default() -> Self {
+        Self {
+            tab_width: 4,
+            undo_period: 10,
+            wrap_cursor: true,
+        }
+    }
+}
+
+impl LuaUserData for DocumentConfig {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("tab_width", |_, document| Ok(document.tab_width));
+        fields.add_field_method_set("tab_width", |_, this, value| {
+            this.tab_width = value;
+            Ok(())
+        });
+        fields.add_field_method_get("undo_period", |_, document| Ok(document.undo_period));
+        fields.add_field_method_set("undo_period", |_, this, value| {
+            this.undo_period = value;
+            Ok(())
+        });
+        fields.add_field_method_get("wrap_cursor", |_, document| Ok(document.wrap_cursor));
+        fields.add_field_method_set("wrap_cursor", |_, this, value| {
+            this.wrap_cursor = value;
+            Ok(())
+        });
     }
 }
 

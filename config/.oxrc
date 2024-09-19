@@ -1,5 +1,4 @@
 -- Configure Events --
-
 event_mapping = {
     -- Cursor movement
     ["up"] = function() 
@@ -148,8 +147,7 @@ event_mapping = {
     end,
 }
 
--- Allow user-defined commands
-
+-- Define user-defined commands
 commands = {
     -- Define the test command
     ["test"] = function(arguments)
@@ -182,6 +180,10 @@ commands = {
     end,
 }
 
+-- Configure Documents --
+document.tab_width = 4
+document.undo_period = 10
+document.wrap_cursor = true
 
 -- Configure Colours --
 colors.editor_bg = {41, 41, 61}
@@ -212,13 +214,14 @@ colors.selection_bg = {59, 59, 130}
 -- Configure Line Numbers --
 line_numbers.enabled = true
 
+-- Configure Mouse Behaviour --
+terminal.mouse_enabled = true
 
 -- Configure Status Line --
 status_line:add_part("  {file_name}{modified}  │  {file_type}  │") -- The left side of the status line
 status_line:add_part("│  {cursor_y} / {line_count}  {cursor_x}  ")  -- The right side of the status line
 
 status_line.alignment = "between" -- This will put a space between the left and right sides
-
 
 -- Configure Greeting Message --
 greeting_message.enabled = true
@@ -248,10 +251,6 @@ Shift + <-: Previous Tab
 {highlight_end}
 ]]
 
-
--- Configure Mouse Behaviour --
-terminal.mouse_enabled = true
-
 -- Configure Syntax Highlighting Colours --
 syntax:set("string", {39, 222, 145}) -- Strings in various programming languages
 syntax:set("comment", {113, 113, 169}) -- Comments in various programming languages
@@ -278,7 +277,6 @@ syntax:set("bold", {40, 198, 232}) -- Quotes in various markup languages e.g. * 
 syntax:set("italic", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
 syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
 syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown
-
 
 -- Import plugins (must be at the bottom of this file)
 -- load_plugin("pairs.lua")

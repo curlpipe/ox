@@ -75,6 +75,7 @@ impl Editor {
         let mut size = size()?;
         size.h = size.h.saturating_sub(2);
         let mut doc = Document::new(size);
+        doc.set_tab_width(self.config.document.borrow().tab_width);
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
         // Update in the syntax highlighter
@@ -98,6 +99,7 @@ impl Editor {
         let mut size = size()?;
         size.h -= 2;
         let mut doc = Document::open(size, file_name.clone())?;
+        doc.set_tab_width(self.config.document.borrow().tab_width);
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
         // Update in the syntax highlighter
@@ -223,7 +225,7 @@ impl Editor {
                 // Check period of inactivity and commit events (for undo/redo) if over 10secs
                 let end = Instant::now();
                 let inactivity = end.duration_since(self.last_active).as_secs() as usize;
-                if inactivity > 10 {
+                if inactivity > self.config.document.borrow().undo_period {
                     self.doc_mut().event_mgmt.commit();
                 }
                 self.last_active = Instant::now();
@@ -597,7 +599,8 @@ impl Editor {
     pub fn select_left(&mut self) {
         let status = self.doc_mut().select_left();
         // Cursor wrapping if cursor hits the start of the line
-        if status == Status::StartOfLine && self.doc().loc().y != 0 {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::StartOfLine && self.doc().loc().y != 0 && wrapping {
             self.doc_mut().select_up();
             self.doc_mut().select_end();
         }
@@ -607,7 +610,8 @@ impl Editor {
     pub fn select_right(&mut self) {
         let status = self.doc_mut().select_right();
         // Cursor wrapping if cursor hits the end of a line
-        if status == Status::EndOfLine {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::EndOfLine && wrapping {
             self.doc_mut().select_down();
             self.doc_mut().select_home();
         }
@@ -633,7 +637,8 @@ impl Editor {
     pub fn left(&mut self) {
         let status = self.doc_mut().move_left();
         // Cursor wrapping if cursor hits the start of the line
-        if status == Status::StartOfLine && self.doc().loc().y != 0 {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::StartOfLine && self.doc().loc().y != 0 && wrapping {
             self.doc_mut().move_up();
             self.doc_mut().move_end();
         }
@@ -643,7 +648,8 @@ impl Editor {
     pub fn right(&mut self) {
         let status = self.doc_mut().move_right();
         // Cursor wrapping if cursor hits the end of a line
-        if status == Status::EndOfLine {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::EndOfLine && wrapping {
             self.doc_mut().move_down();
             self.doc_mut().move_home();
         }
@@ -652,7 +658,8 @@ impl Editor {
     /// Move the cursor to the previous word in the line
     pub fn prev_word(&mut self) {
         let status = self.doc_mut().move_prev_word();
-        if status == Status::StartOfLine {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::StartOfLine && wrapping {
             self.doc_mut().move_up();
             self.doc_mut().move_end();
         }
@@ -661,7 +668,8 @@ impl Editor {
     /// Move the cursor to the next word in the line
     pub fn next_word(&mut self) {
         let status = self.doc_mut().move_next_word();
-        if status == Status::EndOfLine {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::EndOfLine && wrapping {
             self.doc_mut().move_down();
             self.doc_mut().move_home();
         }
