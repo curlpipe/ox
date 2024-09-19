@@ -49,7 +49,6 @@ fn run(cli: CommandLineInterface) -> Result<()> {
         .borrow_mut()
         .load_config(cli.config_path, &lua)
         .unwrap();
-    editor.borrow_mut().init()?;
 
     // Open files user has asked to open
     for (c, file) in cli.to_open.iter().enumerate() {
@@ -97,6 +96,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     lua.load(PLUGIN_RUN).exec()?;
 
     // Run the editor and handle errors if applicable
+    editor.borrow_mut().init()?;
     while editor.borrow().active {
         let cycle = editor.borrow_mut().cycle();
         match cycle {

@@ -70,6 +70,7 @@ impl Editor {
     /// Load the configuration values
     pub fn load_config(&mut self, path: String, lua: &Lua) -> Result<()> {
         let result = self.config.read(path, lua);
+        // Display any warnings if the user configuration couldn't be found
         if let Err(OxError::Config(msg)) = result {
             if msg == "Not Found" {
                 let warn = "No configuration file found, using default configuration".to_string();
@@ -78,7 +79,12 @@ impl Editor {
         } else {
             result?
         };
-        self.push_down = if self.config.tab_line.borrow().enabled { 1 } else { 0 };
+        // Calculate the correct push down based on config
+        self.push_down = if self.config.tab_line.borrow().enabled {
+            1
+        } else {
+            0
+        };
         Ok(())
     }
 
@@ -333,7 +339,8 @@ impl Editor {
     fn render_document(&mut self, _w: usize, h: usize) -> Result<()> {
         for y in 0..(h as u16) {
             //self.terminal.prepare_line(y as usize + tab as usize)?;
-            self.terminal.goto(0, y as usize + self.push_down as usize)?;
+            self.terminal
+                .goto(0, y as usize + self.push_down as usize)?;
             // Start background colour
             write!(
                 self.terminal.stdout,

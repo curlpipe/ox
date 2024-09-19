@@ -37,6 +37,7 @@ function file_exists(file_path)
 end
 
 plugins = {}
+plugin_issues = false
 
 function load_plugin(base)
     path_cross = base
@@ -49,7 +50,8 @@ function load_plugin(base)
     elseif file_exists(path_win) then
         path = file_win
     else
-        error("Plug-in " .. base .. " not found")
+        print("[WARNING] Failed to load plugin " .. base)
+        plugin_issues = true
     end
     plugins[#plugins + 1] = path
 end
@@ -75,6 +77,14 @@ for c, path in ipairs(plugins) do
     dofile(path)
 end
 merge_event_mapping()
+
+if plugin_issues then
+    print(\"Various plug-ins failed to load\")
+    print(\"You may download these plug-ins from the ox git repository (in the plugins folder)\")
+    print(\"https://github.com/curlpipe/ox\")
+    print(\"\")
+    print(\"Alternatively, you may silence these warnings\\nby removing the load_plugin() lines in your configuration file\\nfor the missing plug-ins that are listed above\")
+end
 ";
 
 /// This contains the code for handling a key binding
