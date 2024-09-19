@@ -215,11 +215,13 @@ colors.selection_bg = {59, 59, 130}
 line_numbers.enabled = true
 line_numbers.padding_left = 1
 line_numbers.padding_right = 1
-print(line_numbers.padding_left)
-print(line_numbers.padding_right)
 
 -- Configure Mouse Behaviour --
 terminal.mouse_enabled = true
+
+-- Configure Tab Line --
+tab_line.enabled = true
+tab_line.format = "  {file_name}{modified}  "
 
 -- Configure Status Line --
 status_line:add_part("  {file_name}{modified}  │  {file_type}  │") -- The left side of the status line

@@ -7,7 +7,7 @@ use crossterm::{
     style::{Color, SetForegroundColor as Fg},
 };
 use kaolinite::utils::filetype;
-use kaolinite::Loc;
+use kaolinite::{Document, Loc};
 use mlua::prelude::*;
 use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
@@ -96,6 +96,7 @@ pub struct Config {
     pub line_numbers: Rc<RefCell<LineNumbers>>,
     pub colors: Rc<RefCell<Colors>>,
     pub status_line: Rc<RefCell<StatusLine>>,
+    pub tab_line: Rc<RefCell<TabLine>>,
     pub greeting_message: Rc<RefCell<GreetingMessage>>,
     pub terminal: Rc<RefCell<TerminalConfig>>,
     pub document: Rc<RefCell<DocumentConfig>>,
@@ -110,6 +111,7 @@ impl Config {
         let greeting_message = Rc::new(RefCell::new(GreetingMessage::default()));
         let colors = Rc::new(RefCell::new(Colors::default()));
         let status_line = Rc::new(RefCell::new(StatusLine::default()));
+        let tab_line = Rc::new(RefCell::new(TabLine::default()));
         let terminal = Rc::new(RefCell::new(TerminalConfig::default()));
         let document = Rc::new(RefCell::new(DocumentConfig::default()));
 
@@ -119,6 +121,7 @@ impl Config {
         lua.globals()
             .set("greeting_message", greeting_message.clone())?;
         lua.globals().set("status_line", status_line.clone())?;
+        lua.globals().set("tab_line", tab_line.clone())?;
         lua.globals().set("colors", colors.clone())?;
         lua.globals().set("terminal", terminal.clone())?;
         lua.globals().set("document", document.clone())?;
@@ -127,6 +130,7 @@ impl Config {
             syntax_highlighting,
             line_numbers,
             greeting_message,
+            tab_line,
             status_line,
             colors,
             terminal,
@@ -325,7 +329,7 @@ pub struct LineNumbers {
 
 impl Default for LineNumbers {
     fn default() -> Self {
-        Self { 
+        Self {
             enabled: true,
             padding_left: 1,
             padding_right: 1,
@@ -383,6 +387,51 @@ impl GreetingMessage {
 }
 
 impl LuaUserData for GreetingMessage {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
+        fields.add_field_method_set("enabled", |_, this, value| {
+            this.enabled = value;
+            Ok(())
+        });
+        fields.add_field_method_get("format", |_, this| Ok(this.format.clone()));
+        fields.add_field_method_set("format", |_, this, value| {
+            this.format = value;
+            Ok(())
+        });
+    }
+}
+
+/// For storing configuration information related to the status line
+#[derive(Debug)]
+pub struct TabLine {
+    pub enabled: bool,
+    pub format: String,
+}
+
+impl Default for TabLine {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            format: "  {file_name}{modified}  ".to_string(),
+        }
+    }
+}
+
+impl TabLine {
+    pub fn render(&self, document: &Document) -> String {
+        let file_name = document
+            .file_name
+            .clone()
+            .unwrap_or_else(|| "[No Name]".to_string());
+        let modified = if document.modified { "[+]" } else { "" };
+        let mut result = self.format.clone();
+        result = result.replace("{file_name}", &file_name).to_string();
+        result = result.replace("{modified}", &modified).to_string();
+        result
+    }
+}
+
+impl LuaUserData for TabLine {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
         fields.add_field_method_set("enabled", |_, this, value| {
