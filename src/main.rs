@@ -5,7 +5,7 @@ mod error;
 mod ui;
 
 use cli::CommandLineInterface;
-use config::{PLUGIN_BOOTSTRAP, PLUGIN_RUN, run_key};
+use config::{run_key, PLUGIN_BOOTSTRAP, PLUGIN_RUN};
 use editor::Editor;
 use error::Result;
 use kaolinite::event::Event;

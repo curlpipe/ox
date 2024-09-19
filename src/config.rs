@@ -79,12 +79,14 @@ merge_event_mapping()
 
 /// This contains the code for handling a key binding
 pub fn run_key(key: &str) -> String {
-    format!("
+    format!(
+        "
         key = (global_event_mapping[\"{key}\"] or error(\"key not bound\"))
         for _, f in ipairs(key) do
             f()
         end
-    ")
+    "
+    )
 }
 
 /// The struct that holds all the configuration information
