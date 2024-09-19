@@ -7,7 +7,7 @@ exclude = ["cactus"]
 
 [package]
 name = "ox"
-version = "0.5.3"
+version = "0.6.0"
 edition = "2021"
 authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 description = "A Rust powered text editor."
