@@ -332,12 +332,16 @@ impl Editor {
             // Write line number of document
             if self.config.line_numbers.borrow().enabled {
                 let num = self.doc().line_number(y as usize + self.doc().offset.y);
+                let padding_left = " ".repeat(self.config.line_numbers.borrow().padding_left);
+                let padding_right = " ".repeat(self.config.line_numbers.borrow().padding_right);
                 write!(
                     self.terminal.stdout,
-                    "{}{} {} │{}{}",
+                    "{}{}{}{}{}│{}{}",
                     Bg(self.config.colors.borrow().line_number_bg.to_color()?),
                     Fg(self.config.colors.borrow().line_number_fg.to_color()?),
+                    padding_left,
                     num,
+                    padding_right,
                     Fg(self.config.colors.borrow().editor_fg.to_color()?),
                     Bg(self.config.colors.borrow().editor_bg.to_color()?),
                 )?;
@@ -547,7 +551,9 @@ impl Editor {
     /// Work out how much to push the document to the right (to make way for line numbers)
     fn dent(&self) -> usize {
         if self.config.line_numbers.borrow().enabled {
-            self.doc().len_lines().to_string().len() + 3
+            let padding_left = self.config.line_numbers.borrow().padding_left;
+            let padding_right = self.config.line_numbers.borrow().padding_right;
+            self.doc().len_lines().to_string().len() + 1 + padding_left + padding_right
         } else {
             0
         }

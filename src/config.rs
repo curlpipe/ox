@@ -319,11 +319,17 @@ impl LuaUserData for SyntaxHighlighting {
 #[derive(Debug)]
 pub struct LineNumbers {
     pub enabled: bool,
+    pub padding_left: usize,
+    pub padding_right: usize,
 }
 
 impl Default for LineNumbers {
     fn default() -> Self {
-        Self { enabled: true }
+        Self { 
+            enabled: true,
+            padding_left: 1,
+            padding_right: 1,
+        }
     }
 }
 
@@ -332,6 +338,16 @@ impl LuaUserData for LineNumbers {
         fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
         fields.add_field_method_set("enabled", |_, this, value| {
             this.enabled = value;
+            Ok(())
+        });
+        fields.add_field_method_get("padding_left", |_, this| Ok(this.padding_left));
+        fields.add_field_method_set("padding_left", |_, this, value| {
+            this.padding_left = value;
+            Ok(())
+        });
+        fields.add_field_method_get("padding_right", |_, this| Ok(this.padding_right));
+        fields.add_field_method_set("padding_right", |_, this, value| {
+            this.padding_right = value;
             Ok(())
         });
     }
