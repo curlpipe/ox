@@ -40,8 +40,8 @@ pub const HELP_TEXT: &str = "
    Ctrl + K:   Command Line    
    Alt + Up:   Move line up    
    Alt + Down: Move line down  
-   Shift + ->: Next Tab        
-   Shift + <-: Previous Tab    
+   Alt + ->:   Next Tab        
+   Alt + <-:   Previous Tab    
 ";
 
 /// Gets the size of the terminal

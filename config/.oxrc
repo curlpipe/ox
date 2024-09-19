@@ -252,8 +252,8 @@ Ctrl + D:   Delete Line
 Alt + Up:   Move line up  
 Alt + Down: Move line down
 Ctrl + K:   Command Line  
-Shift + ->: Next Tab      
-Shift + <-: Previous Tab  
+Alt + ->:   Next Tab      
+Alt + <-:   Previous Tab  
 {highlight_end}
 ]]
 
