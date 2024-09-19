@@ -5,7 +5,7 @@ mod error;
 mod ui;
 
 use cli::CommandLineInterface;
-use config::{PLUGIN_BOOTSTRAP, PLUGIN_RUN};
+use config::{PLUGIN_BOOTSTRAP, PLUGIN_RUN, run_key};
 use editor::Editor;
 use error::Result;
 use kaolinite::event::Event;
@@ -102,7 +102,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
         match cycle {
             Ok(Some(key)) => {
                 // Form the corresponding lua code to run and run it
-                let code = format!("(event_mapping[\"{key}\"] or error(\"key not bound\"))()");
+                let code = run_key(&key);
                 let result = lua.load(&code).exec();
                 // Check the result
                 match result {

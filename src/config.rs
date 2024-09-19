@@ -57,10 +57,35 @@ end
 
 /// This contains the code for running the plugins
 pub const PLUGIN_RUN: &str = "
+global_event_mapping = {}
+
+function merge_event_mapping()
+    for key, f in pairs(event_mapping) do
+        if global_event_mapping[key] ~= nil then
+            table.insert(global_event_mapping[key], f)
+        else
+            global_event_mapping[key] = {f,}
+        end
+    end
+    event_mapping = {}
+end
+
 for c, path in ipairs(plugins) do
+    merge_event_mapping()
     dofile(path)
 end
+merge_event_mapping()
 ";
+
+/// This contains the code for handling a key binding
+pub fn run_key(key: &str) -> String {
+    format!("
+        key = (global_event_mapping[\"{key}\"] or error(\"key not bound\"))
+        for _, f in ipairs(key) do
+            f()
+        end
+    ")
+}
 
 /// The struct that holds all the configuration information
 #[derive(Debug)]
