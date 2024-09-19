@@ -42,6 +42,8 @@ pub struct Editor {
     pub command: Option<String>,
     /// Will store the last time the editor was interacted with (to track inactivity)
     pub last_active: Instant,
+    /// Used for storing amount to push document down
+    push_down: usize,
 }
 
 impl Editor {
@@ -61,20 +63,37 @@ impl Editor {
             feedback: Feedback::None,
             command: None,
             last_active: Instant::now(),
+            push_down: 1,
         })
     }
 
     /// Load the configuration values
     pub fn load_config(&mut self, path: String, lua: &Lua) -> Result<()> {
-        self.config.read(path, lua)?;
+        let result = self.config.read(path, lua);
+        // Display any warnings if the user configuration couldn't be found
+        if let Err(OxError::Config(msg)) = result {
+            if msg == "Not Found" {
+                let warn = "No configuration file found, using default configuration".to_string();
+                self.feedback = Feedback::Warning(warn);
+            }
+        } else {
+            result?
+        };
+        // Calculate the correct push down based on config
+        self.push_down = if self.config.tab_line.borrow().enabled {
+            1
+        } else {
+            0
+        };
         Ok(())
     }
 
     /// Function to create a new document
     pub fn blank(&mut self) -> Result<()> {
         let mut size = size()?;
-        size.h = size.h.saturating_sub(2);
+        size.h = size.h.saturating_sub(1 + self.push_down);
         let mut doc = Document::new(size);
+        doc.set_tab_width(self.config.document.borrow().tab_width);
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
         // Update in the syntax highlighter
@@ -96,8 +115,9 @@ impl Editor {
     /// Function to open a document into the editor
     pub fn open(&mut self, file_name: String) -> Result<()> {
         let mut size = size()?;
-        size.h -= 2;
+        size.h = size.h.saturating_sub(1 + self.push_down);
         let mut doc = Document::open(size, file_name.clone())?;
+        doc.set_tab_width(self.config.document.borrow().tab_width);
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
         // Update in the syntax highlighter
@@ -223,7 +243,7 @@ impl Editor {
                 // Check period of inactivity and commit events (for undo/redo) if over 10secs
                 let end = Instant::now();
                 let inactivity = end.duration_since(self.last_active).as_secs() as usize;
-                if inactivity > 10 {
+                if inactivity > self.config.document.borrow().undo_period {
                     self.doc_mut().event_mgmt.commit();
                 }
                 self.last_active = Instant::now();
@@ -245,7 +265,7 @@ impl Editor {
                 self.doc_mut().size.w = w.saturating_sub(max as u16) as usize;
                 self.doc_mut().size.h = h.saturating_sub(3) as usize;
                 let max = self.doc().offset.x + self.doc().size.h;
-                self.doc_mut().load_to(max);
+                self.doc_mut().load_to(max + 1);
             }
             CEvent::Mouse(mouse_event) => {
                 self.handle_mouse_event(mouse_event);
@@ -285,12 +305,15 @@ impl Editor {
         self.needs_rerender = false;
         self.terminal.hide_cursor()?;
         let Size { w, mut h } = size()?;
-        h = h.saturating_sub(2);
+        h = h.saturating_sub(1 + self.push_down);
         // Update the width of the document in case of update
         let max = self.dent();
         self.doc_mut().size.w = w.saturating_sub(max) as usize;
         // Render the tab line
-        self.render_tab_line(w)?;
+        let tab_enabled = self.config.tab_line.borrow().enabled;
+        if tab_enabled {
+            self.render_tab_line(w)?;
+        }
         // Run through each line of the terminal, rendering the correct line
         self.render_document(w, h)?;
         // Leave last line for status line
@@ -306,7 +329,7 @@ impl Editor {
         // Move cursor to the correct location and perform render
         if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
             self.terminal.show_cursor()?;
-            self.terminal.goto(x + max, y + 1)?;
+            self.terminal.goto(x + max, y + self.push_down)?;
         }
         self.terminal.flush()?;
         Ok(())
@@ -315,7 +338,9 @@ impl Editor {
     /// Render the lines of the document
     fn render_document(&mut self, _w: usize, h: usize) -> Result<()> {
         for y in 0..(h as u16) {
-            self.terminal.goto(0, y + 1)?;
+            //self.terminal.prepare_line(y as usize + tab as usize)?;
+            self.terminal
+                .goto(0, y as usize + self.push_down as usize)?;
             // Start background colour
             write!(
                 self.terminal.stdout,
@@ -330,12 +355,16 @@ impl Editor {
             // Write line number of document
             if self.config.line_numbers.borrow().enabled {
                 let num = self.doc().line_number(y as usize + self.doc().offset.y);
+                let padding_left = " ".repeat(self.config.line_numbers.borrow().padding_left);
+                let padding_right = " ".repeat(self.config.line_numbers.borrow().padding_right);
                 write!(
                     self.terminal.stdout,
-                    "{}{} {} │{}{}",
+                    "{}{}{}{}{}│{}{}",
                     Bg(self.config.colors.borrow().line_number_bg.to_color()?),
                     Fg(self.config.colors.borrow().line_number_fg.to_color()?),
+                    padding_left,
                     num,
+                    padding_right,
                     Fg(self.config.colors.borrow().editor_fg.to_color()?),
                     Bg(self.config.colors.borrow().editor_bg.to_color()?),
                 )?;
@@ -400,16 +429,6 @@ impl Editor {
         Ok(())
     }
 
-    /// Put together the contents of a tab
-    fn render_document_tab_header(&self, document: &Document) -> String {
-        let file_name = document
-            .file_name
-            .clone()
-            .unwrap_or_else(|| "[No Name]".to_string());
-        let modified = if document.modified { "[+]" } else { "" };
-        format!("  {file_name}{modified}  ")
-    }
-
     /// Render the tab line at the top of the document
     fn render_tab_line(&mut self, w: usize) -> Result<()> {
         self.terminal.prepare_line(0)?;
@@ -420,7 +439,7 @@ impl Editor {
             Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?)
         )?;
         for (c, document) in self.doc.iter().enumerate() {
-            let document_header = self.render_document_tab_header(document);
+            let document_header = self.config.tab_line.borrow().render(document);
             if c == self.ptr {
                 // Representing the document we're currently looking at
                 write!(
@@ -444,7 +463,7 @@ impl Editor {
 
     /// Render the status line at the bottom of the document
     fn render_status_line(&mut self, w: usize, h: usize) -> Result<()> {
-        self.terminal.goto(0, h + 1)?;
+        self.terminal.goto(0, h + self.push_down)?;
         write!(
             self.terminal.stdout,
             "{}{}{}{}{}{}{}",
@@ -545,7 +564,9 @@ impl Editor {
     /// Work out how much to push the document to the right (to make way for line numbers)
     fn dent(&self) -> usize {
         if self.config.line_numbers.borrow().enabled {
-            self.doc().len_lines().to_string().len() + 3
+            let padding_left = self.config.line_numbers.borrow().padding_left;
+            let padding_right = self.config.line_numbers.borrow().padding_right;
+            self.doc().len_lines().to_string().len() + 1 + padding_left + padding_right
         } else {
             0
         }
@@ -597,7 +618,8 @@ impl Editor {
     pub fn select_left(&mut self) {
         let status = self.doc_mut().select_left();
         // Cursor wrapping if cursor hits the start of the line
-        if status == Status::StartOfLine && self.doc().loc().y != 0 {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::StartOfLine && self.doc().loc().y != 0 && wrapping {
             self.doc_mut().select_up();
             self.doc_mut().select_end();
         }
@@ -607,7 +629,8 @@ impl Editor {
     pub fn select_right(&mut self) {
         let status = self.doc_mut().select_right();
         // Cursor wrapping if cursor hits the end of a line
-        if status == Status::EndOfLine {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::EndOfLine && wrapping {
             self.doc_mut().select_down();
             self.doc_mut().select_home();
         }
@@ -633,7 +656,8 @@ impl Editor {
     pub fn left(&mut self) {
         let status = self.doc_mut().move_left();
         // Cursor wrapping if cursor hits the start of the line
-        if status == Status::StartOfLine && self.doc().loc().y != 0 {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::StartOfLine && self.doc().loc().y != 0 && wrapping {
             self.doc_mut().move_up();
             self.doc_mut().move_end();
         }
@@ -643,7 +667,8 @@ impl Editor {
     pub fn right(&mut self) {
         let status = self.doc_mut().move_right();
         // Cursor wrapping if cursor hits the end of a line
-        if status == Status::EndOfLine {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::EndOfLine && wrapping {
             self.doc_mut().move_down();
             self.doc_mut().move_home();
         }
@@ -652,7 +677,8 @@ impl Editor {
     /// Move the cursor to the previous word in the line
     pub fn prev_word(&mut self) {
         let status = self.doc_mut().move_prev_word();
-        if status == Status::StartOfLine {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::StartOfLine && wrapping {
             self.doc_mut().move_up();
             self.doc_mut().move_end();
         }
@@ -661,7 +687,8 @@ impl Editor {
     /// Move the cursor to the next word in the line
     pub fn next_word(&mut self) {
         let status = self.doc_mut().move_next_word();
-        if status == Status::EndOfLine {
+        let wrapping = self.config.document.borrow().wrap_cursor;
+        if status == Status::EndOfLine && wrapping {
             self.doc_mut().move_down();
             self.doc_mut().move_home();
         }

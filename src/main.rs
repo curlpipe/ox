@@ -5,7 +5,7 @@ mod error;
 mod ui;
 
 use cli::CommandLineInterface;
-use config::{PLUGIN_BOOTSTRAP, PLUGIN_RUN};
+use config::{run_key, PLUGIN_BOOTSTRAP, PLUGIN_RUN};
 use editor::Editor;
 use error::Result;
 use kaolinite::event::Event;
@@ -49,7 +49,6 @@ fn run(cli: CommandLineInterface) -> Result<()> {
         .borrow_mut()
         .load_config(cli.config_path, &lua)
         .unwrap();
-    editor.borrow_mut().init()?;
 
     // Open files user has asked to open
     for (c, file) in cli.to_open.iter().enumerate() {
@@ -97,12 +96,13 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     lua.load(PLUGIN_RUN).exec()?;
 
     // Run the editor and handle errors if applicable
+    editor.borrow_mut().init()?;
     while editor.borrow().active {
         let cycle = editor.borrow_mut().cycle();
         match cycle {
             Ok(Some(key)) => {
                 // Form the corresponding lua code to run and run it
-                let code = format!("(event_mapping[\"{key}\"] or error(\"key not bound\"))()");
+                let code = run_key(&key);
                 let result = lua.load(&code).exec();
                 // Check the result
                 match result {

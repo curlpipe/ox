@@ -7,7 +7,7 @@ use crossterm::{
     style::{Color, SetForegroundColor as Fg},
 };
 use kaolinite::utils::filetype;
-use kaolinite::Loc;
+use kaolinite::{Document, Loc};
 use mlua::prelude::*;
 use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
@@ -37,6 +37,7 @@ function file_exists(file_path)
 end
 
 plugins = {}
+plugin_issues = false
 
 function load_plugin(base)
     path_cross = base
@@ -49,7 +50,8 @@ function load_plugin(base)
     elseif file_exists(path_win) then
         path = file_win
     else
-        error("Plug-in " .. base .. " not found")
+        print("[WARNING] Failed to load plugin " .. base)
+        plugin_issues = true
     end
     plugins[#plugins + 1] = path
 end
@@ -57,10 +59,45 @@ end
 
 /// This contains the code for running the plugins
 pub const PLUGIN_RUN: &str = "
+global_event_mapping = {}
+
+function merge_event_mapping()
+    for key, f in pairs(event_mapping) do
+        if global_event_mapping[key] ~= nil then
+            table.insert(global_event_mapping[key], f)
+        else
+            global_event_mapping[key] = {f,}
+        end
+    end
+    event_mapping = {}
+end
+
 for c, path in ipairs(plugins) do
+    merge_event_mapping()
     dofile(path)
 end
+merge_event_mapping()
+
+if plugin_issues then
+    print(\"Various plug-ins failed to load\")
+    print(\"You may download these plug-ins from the ox git repository (in the plugins folder)\")
+    print(\"https://github.com/curlpipe/ox\")
+    print(\"\")
+    print(\"Alternatively, you may silence these warnings\\nby removing the load_plugin() lines in your configuration file\\nfor the missing plug-ins that are listed above\")
+end
 ";
+
+/// This contains the code for handling a key binding
+pub fn run_key(key: &str) -> String {
+    format!(
+        "
+        key = (global_event_mapping[\"{key}\"] or error(\"key not bound\"))
+        for _, f in ipairs(key) do
+            f()
+        end
+    "
+    )
+}
 
 /// The struct that holds all the configuration information
 #[derive(Debug)]
@@ -69,8 +106,10 @@ pub struct Config {
     pub line_numbers: Rc<RefCell<LineNumbers>>,
     pub colors: Rc<RefCell<Colors>>,
     pub status_line: Rc<RefCell<StatusLine>>,
+    pub tab_line: Rc<RefCell<TabLine>>,
     pub greeting_message: Rc<RefCell<GreetingMessage>>,
     pub terminal: Rc<RefCell<TerminalConfig>>,
+    pub document: Rc<RefCell<DocumentConfig>>,
 }
 
 impl Config {
@@ -82,7 +121,9 @@ impl Config {
         let greeting_message = Rc::new(RefCell::new(GreetingMessage::default()));
         let colors = Rc::new(RefCell::new(Colors::default()));
         let status_line = Rc::new(RefCell::new(StatusLine::default()));
+        let tab_line = Rc::new(RefCell::new(TabLine::default()));
         let terminal = Rc::new(RefCell::new(TerminalConfig::default()));
+        let document = Rc::new(RefCell::new(DocumentConfig::default()));
 
         // Push in configuration globals
         lua.globals().set("syntax", syntax_highlighting.clone())?;
@@ -90,16 +131,20 @@ impl Config {
         lua.globals()
             .set("greeting_message", greeting_message.clone())?;
         lua.globals().set("status_line", status_line.clone())?;
+        lua.globals().set("tab_line", tab_line.clone())?;
         lua.globals().set("colors", colors.clone())?;
         lua.globals().set("terminal", terminal.clone())?;
+        lua.globals().set("document", document.clone())?;
 
         Ok(Config {
             syntax_highlighting,
             line_numbers,
             greeting_message,
+            tab_line,
             status_line,
             colors,
             terminal,
+            document,
         })
     }
 
@@ -108,12 +153,24 @@ impl Config {
         // Load the default config to start with
         lua.load(DEFAULT_CONFIG).exec()?;
 
+        // Judge pre-user config state
+        let status_parts = self.status_line.borrow().parts.len();
+
         // Attempt to read config file from home directory
         if let Ok(path) = shellexpand::full(&path) {
             if let Ok(config) = std::fs::read_to_string(path.to_string()) {
                 // Update configuration with user-defined values
                 lua.load(config).exec()?;
+            } else {
+                return Err(OxError::Config("Not Found".to_string()));
             }
+        } else {
+            return Err(OxError::Config("Not Found".to_string()));
+        }
+
+        // Remove any default values if necessary
+        if self.status_line.borrow().parts.len() > status_parts {
+            self.status_line.borrow_mut().parts.drain(0..status_parts);
         }
 
         Ok(())
@@ -280,11 +337,17 @@ impl LuaUserData for SyntaxHighlighting {
 #[derive(Debug)]
 pub struct LineNumbers {
     pub enabled: bool,
+    pub padding_left: usize,
+    pub padding_right: usize,
 }
 
 impl Default for LineNumbers {
     fn default() -> Self {
-        Self { enabled: true }
+        Self {
+            enabled: true,
+            padding_left: 1,
+            padding_right: 1,
+        }
     }
 }
 
@@ -293,6 +356,16 @@ impl LuaUserData for LineNumbers {
         fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
         fields.add_field_method_set("enabled", |_, this, value| {
             this.enabled = value;
+            Ok(())
+        });
+        fields.add_field_method_get("padding_left", |_, this| Ok(this.padding_left));
+        fields.add_field_method_set("padding_left", |_, this, value| {
+            this.padding_left = value;
+            Ok(())
+        });
+        fields.add_field_method_get("padding_right", |_, this| Ok(this.padding_right));
+        fields.add_field_method_set("padding_right", |_, this, value| {
+            this.padding_right = value;
             Ok(())
         });
     }
@@ -328,6 +401,51 @@ impl GreetingMessage {
 }
 
 impl LuaUserData for GreetingMessage {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
+        fields.add_field_method_set("enabled", |_, this, value| {
+            this.enabled = value;
+            Ok(())
+        });
+        fields.add_field_method_get("format", |_, this| Ok(this.format.clone()));
+        fields.add_field_method_set("format", |_, this, value| {
+            this.format = value;
+            Ok(())
+        });
+    }
+}
+
+/// For storing configuration information related to the status line
+#[derive(Debug)]
+pub struct TabLine {
+    pub enabled: bool,
+    pub format: String,
+}
+
+impl Default for TabLine {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            format: "  {file_name}{modified}  ".to_string(),
+        }
+    }
+}
+
+impl TabLine {
+    pub fn render(&self, document: &Document) -> String {
+        let file_name = document
+            .file_name
+            .clone()
+            .unwrap_or_else(|| "[No Name]".to_string());
+        let modified = if document.modified { "[+]" } else { "" };
+        let mut result = self.format.clone();
+        result = result.replace("{file_name}", &file_name).to_string();
+        result = result.replace("{modified}", &modified).to_string();
+        result
+    }
+}
+
+impl LuaUserData for TabLine {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
         fields.add_field_method_set("enabled", |_, this, value| {
@@ -857,6 +975,43 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
 fn update_highlighter(editor: &mut Editor) {
     if let Err(err) = editor.update_highlighter() {
         editor.feedback = Feedback::Error(err.to_string());
+    }
+}
+
+#[derive(Debug)]
+pub struct DocumentConfig {
+    pub tab_width: usize,
+    pub undo_period: usize,
+    pub wrap_cursor: bool,
+}
+
+impl Default for DocumentConfig {
+    fn default() -> Self {
+        Self {
+            tab_width: 4,
+            undo_period: 10,
+            wrap_cursor: true,
+        }
+    }
+}
+
+impl LuaUserData for DocumentConfig {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("tab_width", |_, document| Ok(document.tab_width));
+        fields.add_field_method_set("tab_width", |_, this, value| {
+            this.tab_width = value;
+            Ok(())
+        });
+        fields.add_field_method_get("undo_period", |_, document| Ok(document.undo_period));
+        fields.add_field_method_set("undo_period", |_, this, value| {
+            this.undo_period = value;
+            Ok(())
+        });
+        fields.add_field_method_get("wrap_cursor", |_, document| Ok(document.wrap_cursor));
+        fields.add_field_method_set("wrap_cursor", |_, this, value| {
+            this.wrap_cursor = value;
+            Ok(())
+        });
     }
 }
 
