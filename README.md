@@ -211,7 +211,14 @@ We've covered most keyboard shortcuts, but there are some other features you mig
 | `Ctrl + Z`  | Undoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
 | `Ctrl + Y`  | Redoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
 | `Ctrl + R`  | Allows replacing of occurances in the document. Uses the same keybindings as the search feature: <kbd>←</kbd> to move the cursor to the previous occurance of the query and <kbd>→</kbd> to move to the next occurance of the query. You can also press <kbd>Return</kbd> to carry out the replace action. To exit replace mode once you're finished, you can press <kbd>Esc</kbd>. You can also use <kbd>Tab</kbd> to replace every instance in the document at once. Note: you can use regular expressions for search queries. | 
-| `Ctrl + K`  | Opens the command line.  | 
+| `Ctrl + K`  | Opens the command line.  |
+| `Ctrl + W`  | Shortcut to delete a whole word.  |
+| `Alt + Up`  | Move the current line up.  |
+| `Alt + Down`| Move the current line down.  |
+| `Ctrl + D`  | Delete the current line.  |
+| `Ctrl + C`  | Copy selected text.  |
+| `Alt + Left`| Move to the previous tab.  |
+| `Alt + Right`| Move to the next tab.  |
 
 ### Configuration
 
