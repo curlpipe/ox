@@ -345,7 +345,6 @@ impl Editor {
     /// Render the lines of the document
     fn render_document(&mut self, _w: usize, h: usize) -> Result<()> {
         for y in 0..(h as u16) {
-            //self.terminal.prepare_line(y as usize + tab as usize)?;
             self.terminal
                 .goto(0, y as usize + self.push_down as usize)?;
             // Start background colour
@@ -438,7 +437,7 @@ impl Editor {
 
     /// Render the tab line at the top of the document
     fn render_tab_line(&mut self, w: usize) -> Result<()> {
-        self.terminal.prepare_line(0)?;
+        self.terminal.goto(0 as usize, 0 as usize)?;
         write!(
             self.terminal.stdout,
             "{}{}",
@@ -825,7 +824,7 @@ impl Editor {
             self.terminal.hide_cursor()?;
             self.render_document(w, h - 2)?;
             // Render custom status line with mode information
-            self.terminal.prepare_line(h)?;
+            self.terminal.goto(0, h)?;
             write!(
                 self.terminal.stdout,
                 "[<-]: Search previous | [->]: Search next"
@@ -901,7 +900,7 @@ impl Editor {
             self.terminal.hide_cursor()?;
             self.render_document(w, h - 2)?;
             // Write custom status line for the replace mode
-            self.terminal.prepare_line(h)?;
+            self.terminal.goto(0, h)?;
             write!(
                 self.terminal.stdout,
                 "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All"

@@ -15,7 +15,7 @@ categories = ["text-processing"]
 quick-error = "2.0.1"
 regex = "1.10.6"
 ropey = "1.6.1"
-unicode-width = "0.1.13"
+unicode-width = "0.2"
 
 [dev-dependencies]
 rand = "0.8.5"

@@ -35,7 +35,7 @@ assets = [
 [dependencies]
 alinio = "0.2.1"
 copypasta-ext = "0.4.4"
-crossterm = "0.27.0"
+crossterm = "0.28.1"
 jargon-args = "0.2.7"
 kaolinite = { path = "./kaolinite" }
 mlua = { version = "0.9.9", features = ["lua54", "vendored"] }
