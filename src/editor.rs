@@ -125,7 +125,10 @@ impl Editor {
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
         // Update in the syntax highlighter
-        let ext = file_name.split('.').last().unwrap();
+        let mut ext = file_name.split('.').last().unwrap();
+        if ext == "oxrc" {
+            ext = "lua"
+        }
         let mut highlighter = self
             .config
             .syntax_highlighting
