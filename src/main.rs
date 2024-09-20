@@ -47,8 +47,10 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
     if editor
         .borrow_mut()
-            .load_config(cli.config_path, &lua).is_err() {
-        editor.borrow_mut().feedback = 
+        .load_config(cli.config_path, &lua)
+        .is_err()
+    {
+        editor.borrow_mut().feedback =
             Feedback::Error("Failed to load configuration file".to_string());
     }
 

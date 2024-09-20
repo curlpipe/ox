@@ -523,7 +523,9 @@ impl StatusLine {
             // Find functions to call and substitute in
             let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
             while let Some(m) = searcher.lfind(&part) {
-                let name = m.text.chars()
+                let name = m
+                    .text
+                    .chars()
                     .skip(1)
                     .take(m.text.chars().count().saturating_sub(2))
                     .collect::<String>();
@@ -873,16 +875,22 @@ impl ConfigColor {
             ConfigColor::Green => LuaValue::String(env.create_string("green").expect(msg)),
             ConfigColor::DarkGreen => LuaValue::String(env.create_string("darkgreen").expect(msg)),
             ConfigColor::Yellow => LuaValue::String(env.create_string("yellow").expect(msg)),
-            ConfigColor::DarkYellow => LuaValue::String(env.create_string("darkyellow").expect(msg)),
+            ConfigColor::DarkYellow => {
+                LuaValue::String(env.create_string("darkyellow").expect(msg))
+            }
             ConfigColor::Blue => LuaValue::String(env.create_string("blue").expect(msg)),
             ConfigColor::DarkBlue => LuaValue::String(env.create_string("darkblue").expect(msg)),
             ConfigColor::Magenta => LuaValue::String(env.create_string("magenta").expect(msg)),
-            ConfigColor::DarkMagenta => LuaValue::String(env.create_string("darkmagenta").expect(msg)),
+            ConfigColor::DarkMagenta => {
+                LuaValue::String(env.create_string("darkmagenta").expect(msg))
+            }
             ConfigColor::Cyan => LuaValue::String(env.create_string("cyan").expect(msg)),
             ConfigColor::DarkCyan => LuaValue::String(env.create_string("darkcyan").expect(msg)),
             ConfigColor::White => LuaValue::String(env.create_string("white").expect(msg)),
             ConfigColor::Grey => LuaValue::String(env.create_string("grey").expect(msg)),
-            ConfigColor::Transparent => LuaValue::String(env.create_string("transparent").expect(msg)),
+            ConfigColor::Transparent => {
+                LuaValue::String(env.create_string("transparent").expect(msg))
+            }
         }
     }
 
@@ -1096,7 +1104,10 @@ impl LuaUserData for Editor {
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         // Reload the configuration file
         methods.add_method_mut("reload_config", |lua, editor, ()| {
-            if editor.load_config(editor.config_path.clone(), &lua).is_err() {
+            if editor
+                .load_config(editor.config_path.clone(), &lua)
+                .is_err()
+            {
                 editor.feedback = Feedback::Error("Failed to reload config".to_string());
             }
             Ok(())

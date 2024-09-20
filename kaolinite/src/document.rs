@@ -474,7 +474,9 @@ impl Document {
         let boundaries = tab_boundaries_backward(&line, self.tab_width);
         let width = if boundaries.contains(&self.char_ptr) {
             // Push the character pointer up
-            self.char_ptr = self.char_ptr.saturating_sub(self.tab_width.saturating_sub(1));
+            self.char_ptr = self
+                .char_ptr
+                .saturating_sub(self.tab_width.saturating_sub(1));
             // There are spaces that should be treated as tabs (so should traverse the tab width)
             self.tab_width
         } else {
@@ -813,7 +815,9 @@ impl Document {
         // Account for double width characters
         idx = idx.saturating_sub(self.dbl_map.count(loc, true).unwrap_or(0));
         // Account for tab characters
-        idx = idx.saturating_sub(self.tab_map.count(loc, true).unwrap_or(0) * self.tab_width.saturating_sub(1));
+        idx = idx.saturating_sub(
+            self.tab_map.count(loc, true).unwrap_or(0) * self.tab_width.saturating_sub(1),
+        );
         idx
     }
 
