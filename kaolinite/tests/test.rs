@@ -239,62 +239,6 @@ fn char_mapping() {
 }
 
 #[test]
-#[allow(unused_must_use)]
-fn event_management() {
-    // Test data
-    let mut mgmt = EventMgmt::default();
-    mgmt.register(Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()));
-    mgmt.register(Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()));
-    mgmt.commit();
-    mgmt.register(Event::Insert(Loc { x: 2, y: 0 }, 's'.to_string()));
-    mgmt.register(Event::Insert(Loc { x: 3, y: 0 }, 't'.to_string()));
-    mgmt.commit();
-    // Output & Verification
-    assert_eq!(
-        mgmt.undo(),
-        Some(vec![
-            Event::Insert(Loc { x: 3, y: 0 }, 't'.to_string()),
-            Event::Insert(Loc { x: 2, y: 0 }, 's'.to_string()),
-        ])
-    );
-    mgmt.register(Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()));
-    assert!(!mgmt.is_patch_empty());
-    assert!(mgmt.is_redo_empty());
-    assert!(!mgmt.is_undo_empty());
-    assert_eq!(
-        mgmt.last(),
-        Some(&Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()))
-    );
-    mgmt.commit();
-    assert_eq!(
-        mgmt.undo(),
-        Some(vec![Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),])
-    );
-    assert_eq!(
-        mgmt.undo(),
-        Some(vec![
-            Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
-            Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
-        ])
-    );
-    assert_eq!(
-        mgmt.redo(),
-        Some(vec![
-            Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
-            Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
-        ])
-    );
-    assert_eq!(
-        mgmt.redo(),
-        Some(vec![Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),])
-    );
-    assert_eq!(
-        mgmt.last(),
-        Some(&Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()))
-    );
-}
-
-#[test]
 fn events() {
     let ev = vec![
         Event::Insert(Loc { x: 0, y: 0 }, st!("a")),

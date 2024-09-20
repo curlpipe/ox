@@ -85,6 +85,9 @@ event_mapping = {
     ["ctrl_a"] = function()
         editor:select_all()
     end,
+    ["ctrl_x"] = function()
+        editor:cut()
+    end,
     ["ctrl_c"] = function()
         editor:copy()
     end,

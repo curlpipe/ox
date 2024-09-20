@@ -1151,6 +1151,14 @@ impl LuaUserData for Editor {
             update_highlighter(editor);
             Ok(())
         });
+        methods.add_method_mut("cut", |_, editor, ()| {
+            if let Err(err) = editor.cut() {
+                editor.feedback = Feedback::Error(err.to_string());
+            } else {
+                editor.feedback = Feedback::Info("Text cut to clipboard".to_owned());
+            }
+            Ok(())
+        });
         methods.add_method_mut("copy", |_, editor, ()| {
             if let Err(err) = editor.copy() {
                 editor.feedback = Feedback::Error(err.to_string());

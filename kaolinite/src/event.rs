@@ -1,6 +1,13 @@
 /// event.rs - manages editing events and provides tools for error handling
-use crate::utils::Loc;
+use crate::{document::Cursor, utils::Loc, Document};
 use quick_error::quick_error;
+use ropey::Rope;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Snapshot {
+    content: Rope,
+    cursor: Cursor,
+}
 
 /// Represents an editing event.
 /// All possible editing events can be made up of a combination these events.
@@ -77,47 +84,65 @@ quick_error! {
 
 /// For managing events for purposes of undo and redo
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct EventMgmt {
-    /// The patch is the current sequence of editing actions
-    pub patch: Vec<Event>,
+pub struct UndoMgmt {
+    /// Whether the file touched since the latest commit
+    pub is_dirty: bool,
     /// Undo contains all the patches that have been applied
-    pub undo: Vec<Vec<Event>>,
+    pub undo: Vec<Snapshot>,
     /// Redo contains all the patches that have been undone
-    pub redo: Vec<Vec<Event>>,
+    pub redo: Vec<Snapshot>,
 }
 
-impl EventMgmt {
-    /// Register that an event has occurred with the event manager
-    pub fn register(&mut self, ev: Event) {
-        self.redo.clear();
-        self.patch.push(ev);
-    }
-
-    /// This will commit the current patch to the undo stack, ready to be undone.
-    /// You can call this after every space character, for example, which would
-    /// make it so that every undo action would remove the previous word the user typed.
-    pub fn commit(&mut self) {
-        if !self.patch.is_empty() {
-            let mut patch = vec![];
-            std::mem::swap(&mut self.patch, &mut patch);
-            self.undo.push(patch);
+impl Document {
+    pub fn take_snapshot(&self) -> Snapshot {
+        Snapshot {
+            content: self.file.clone(),
+            cursor: self.cursor,
         }
     }
 
-    /// Provide a list of actions to perform in order of when they should be applied for purposes
-    /// of undoing (you'll need to reverse the events themselves manually)
-    pub fn undo(&mut self) -> Option<Vec<Event>> {
-        self.commit();
-        let mut ev = self.undo.pop()?;
-        self.redo.push(ev.clone());
-        ev.reverse();
-        Some(ev)
+    pub fn apply_snapshot(&mut self, snapshot: Snapshot) {
+        self.file = snapshot.content;
+        self.cursor = snapshot.cursor;
+        self.reload_lines();
+        self.bring_cursor_in_viewport();
+    }
+}
+
+impl UndoMgmt {
+    /// Register that an event has occurred and the last snapshot is not update
+    pub fn set_dirty(&mut self) {
+        self.redo.clear();
+        self.is_dirty = true;
     }
 
-    /// Provide a list of events to execute in order of when they should be applied for purposes of
+    /// This will commit take a snapshot and add it to the undo stack, ready to be undone.
+    /// You can call this after every space character, for example, which would
+    /// make it so that every undo action would remove the previous word the user typed.
+    pub fn commit(&mut self, current_snapshot: Snapshot) {
+        if self.is_dirty {
+            self.is_dirty = false;
+            self.undo.push(current_snapshot);
+        }
+    }
+
+    /// Provide a snapshot of the desired state of the document for purposes
+    /// of undoing
+    pub fn undo(&mut self, current_snapshot: Snapshot) -> Option<Snapshot> {
+        self.commit(current_snapshot);
+        if self.undo.len() < 2 {
+            return None;
+        }
+        let snapshot_to_remove = self.undo.pop()?;
+        let snapshot_to_apply = self.undo.last()?.clone();
+        self.redo.push(snapshot_to_remove);
+
+        Some(snapshot_to_apply)
+    }
+
+    /// Provide a snapshot of the desired state of the document for purposes of
     /// redoing
-    pub fn redo(&mut self) -> Option<Vec<Event>> {
-        self.commit();
+    pub fn redo(&mut self) -> Option<Snapshot> {
         let ev = self.redo.pop()?;
         self.undo.push(ev.clone());
         Some(ev)
@@ -133,22 +158,5 @@ impl EventMgmt {
     #[must_use]
     pub fn is_redo_empty(&self) -> bool {
         self.redo.is_empty()
-    }
-
-    /// Returns true if the current patch is empty, meaning no edits have been done since the last
-    /// commit
-    #[must_use]
-    pub fn is_patch_empty(&self) -> bool {
-        self.patch.is_empty()
-    }
-
-    /// Get the last event that was committed
-    #[must_use]
-    pub fn last(&self) -> Option<&Event> {
-        if self.patch.is_empty() {
-            self.undo.last().and_then(|u| u.last())
-        } else {
-            self.patch.last()
-        }
     }
 }

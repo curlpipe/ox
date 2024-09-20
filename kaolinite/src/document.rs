@@ -1,5 +1,5 @@
 /// document.rs - has Document, for opening, editing and saving documents
-use crate::event::{Error, Event, EventMgmt, Result, Status};
+use crate::event::{Error, Event, Result, Status, UndoMgmt};
 use crate::map::{form_map, CharMap};
 use crate::searching::{Match, Searcher};
 use crate::utils::{
@@ -38,7 +38,7 @@ pub struct Document {
     /// Keeps track of where the character pointer is
     pub char_ptr: usize,
     /// Manages events, for the purpose of undo and redo
-    pub event_mgmt: EventMgmt,
+    pub undo_mgmt: UndoMgmt,
     /// true if the file has been modified since saving, false otherwise
     pub modified: bool,
     /// The number of spaces a tab should be rendered as
@@ -57,7 +57,7 @@ impl Document {
     /// Creates a new, empty document with no file name.
     #[cfg(not(tarpaulin_include))]
     pub fn new(size: Size) -> Self {
-        Self {
+        let mut this = Self {
             file: Rope::from_str("\n"),
             lines: vec!["".to_string()],
             dbl_map: CharMap::default(),
@@ -68,14 +68,16 @@ impl Document {
             offset: Loc::default(),
             size,
             char_ptr: 0,
-            event_mgmt: EventMgmt::default(),
+            undo_mgmt: UndoMgmt::default(),
             modified: false,
             tab_width: 4,
             read_only: false,
             old_cursor: 0,
             in_redo: false,
             eol: false,
-        }
+        };
+        this.undo_mgmt.undo.push(this.take_snapshot());
+        this
     }
 
     /// Open a document from a file name.
@@ -87,7 +89,7 @@ impl Document {
     pub fn open<S: Into<String>>(size: Size, file_name: S) -> Result<Self> {
         let file_name = file_name.into();
         let file = Rope::from_reader(BufReader::new(File::open(&file_name)?))?;
-        Ok(Self {
+        let mut this = Self {
             eol: !file
                 .line(file.len_lines().saturating_sub(1))
                 .to_string()
@@ -102,13 +104,15 @@ impl Document {
             offset: Loc::default(),
             size,
             char_ptr: 0,
-            event_mgmt: EventMgmt::default(),
+            undo_mgmt: UndoMgmt::default(),
             modified: false,
             tab_width: 4,
             read_only: false,
             old_cursor: 0,
             in_redo: false,
-        })
+        };
+        this.undo_mgmt.undo.push(this.take_snapshot());
+        Ok(this)
     }
 
     /// Sets the tab display width measured in spaces, default being 4
@@ -155,7 +159,7 @@ impl Document {
     /// Will return an error if the event was unable to be completed.
     pub fn exe(&mut self, ev: Event) -> Result<()> {
         if !self.read_only {
-            self.event_mgmt.register(ev.clone());
+            self.undo_mgmt.set_dirty();
             self.forth(ev)?;
         }
         self.cancel_selection();
@@ -166,10 +170,10 @@ impl Document {
     /// # Errors
     /// Will return an error if any of the events failed to be reversed.
     pub fn undo(&mut self) -> Result<()> {
-        for ev in self.event_mgmt.undo().unwrap_or_default() {
-            self.forth(ev.reverse())?;
+        if let Some(s) = self.undo_mgmt.undo(self.take_snapshot()) {
+            self.apply_snapshot(s);
+            self.modified = true;
         }
-        self.modified = !self.event_mgmt.is_undo_empty();
         Ok(())
     }
 
@@ -177,12 +181,10 @@ impl Document {
     /// # Errors
     /// Will return an error if any of the events failed to be re-executed.
     pub fn redo(&mut self) -> Result<()> {
-        self.in_redo = true;
-        for ev in self.event_mgmt.redo().unwrap_or_default() {
-            self.forth(ev)?;
+        if let Some(s) = self.undo_mgmt.redo() {
+            self.apply_snapshot(s);
+            self.modified = true;
         }
-        self.modified = true;
-        self.in_redo = false;
         Ok(())
     }
 
@@ -427,7 +429,7 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
-        self.move_to_x(self.old_cursor);
+        self.select_to_x(self.old_cursor);
         Status::None
     }
 
@@ -452,7 +454,7 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
-        self.move_to_x(self.old_cursor);
+        self.select_to_x(self.old_cursor);
         Status::None
     }
 
@@ -1048,10 +1050,34 @@ impl Document {
     pub fn selection_text(&self) -> String {
         self.file.slice(self.selection_range()).to_string()
     }
+
+    pub fn commit(&mut self) {
+        let s = self.take_snapshot();
+        self.undo_mgmt.commit(s);
+    }
+
+    pub fn reload_lines(&mut self) {
+        let to = std::mem::take(&mut self.loaded_to);
+        self.lines.clear();
+        self.load_to(to);
+    }
+
+    pub fn remove_selection(&mut self) {
+        // Removing a selection is significant and worth an undo commit
+        self.undo_mgmt.set_dirty();
+        self.commit();
+        self.undo_mgmt.set_dirty();
+
+        self.file.remove(self.selection_range());
+        self.reload_lines();
+        self.cursor.loc = self.selection_loc_bound().0;
+        self.cancel_selection();
+        self.bring_cursor_in_viewport();
+    }
 }
 
 /// Defines a cursor's position and any selection it may be covering
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Cursor {
     pub loc: Loc,
     pub selection_end: Loc,
