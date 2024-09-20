@@ -420,6 +420,7 @@ impl Document {
             return Status::StartOfFile;
         }
         self.cursor.loc.y -= 1;
+        self.cursor.loc.x = self.old_cursor;
         // Snap to end of line
         self.fix_dangling_cursor();
         // Move back if in the middle of a longer character
@@ -427,7 +428,6 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
-        self.move_to_x(self.character_idx(&Loc { x: self.old_cursor, y: self.loc().y }));
         Status::None
     }
 
@@ -445,6 +445,7 @@ impl Document {
             return Status::EndOfFile;
         }
         self.cursor.loc.y += 1;
+        self.cursor.loc.x = self.old_cursor;
         // Snap to end of line
         self.fix_dangling_cursor();
         // Move back if in the middle of a longer character
@@ -452,7 +453,6 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
-        self.move_to_x(self.character_idx(&Loc { x: self.old_cursor, y: self.loc().y }));
         Status::None
     }
 
