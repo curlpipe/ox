@@ -252,7 +252,7 @@ impl Document {
             let mut loc_copy = loc.clone();
             self.delete(loc.x..=loc.x + st.chars().count(), loc.y)?;
             for _ in 1..self.tab_width {
-                loc_copy.x -= 1;
+                loc_copy.x = loc_copy.x.saturating_sub(1);
                 self.exe(Event::Delete(loc_copy, " ".to_string()))?;
             }
             Ok(())
@@ -419,7 +419,7 @@ impl Document {
         if self.loc().y == 0 {
             return Status::StartOfFile;
         }
-        self.cursor.loc.y -= 1;
+        self.cursor.loc.y = self.cursor.loc.y.saturating_sub(1);
         self.cursor.loc.x = self.old_cursor;
         // Snap to end of line
         self.fix_dangling_cursor();
@@ -474,7 +474,7 @@ impl Document {
         let boundaries = tab_boundaries_backward(&line, self.tab_width);
         let width = if boundaries.contains(&self.char_ptr) {
             // Push the character pointer up
-            self.char_ptr -= self.tab_width.saturating_sub(1);
+            self.char_ptr = self.char_ptr.saturating_sub(self.tab_width.saturating_sub(1));
             // There are spaces that should be treated as tabs (so should traverse the tab width)
             self.tab_width
         } else {
@@ -482,9 +482,9 @@ impl Document {
             self.width_of(self.loc().y, self.char_ptr.saturating_sub(1))
         };
         // Move back the correct amount
-        self.cursor.loc.x -= width;
+        self.cursor.loc.x = self.cursor.loc.x.saturating_sub(width);
         // Update the character pointer
-        self.char_ptr -= 1;
+        self.char_ptr = self.char_ptr.saturating_sub(1);
         self.bring_cursor_in_viewport();
         self.old_cursor = self.loc().x;
         Status::None
@@ -773,13 +773,13 @@ impl Document {
             self.offset.y = self.cursor.loc.y;
         }
         if self.offset.y + self.size.h <= self.cursor.loc.y {
-            self.offset.y = self.cursor.loc.y - self.size.h + 1;
+            self.offset.y = self.cursor.loc.y.saturating_sub(self.size.h) + 1;
         }
         if self.offset.x > self.cursor.loc.x {
             self.offset.x = self.cursor.loc.x;
         }
         if self.offset.x + self.size.w <= self.cursor.loc.x {
-            self.offset.x = self.cursor.loc.x - self.size.w + 1;
+            self.offset.x = self.cursor.loc.x.saturating_sub(self.size.w) + 1;
         }
         self.load_to(self.offset.y + self.size.h);
     }
@@ -811,9 +811,9 @@ impl Document {
     pub fn character_idx(&self, loc: &Loc) -> usize {
         let mut idx = loc.x;
         // Account for double width characters
-        idx -= self.dbl_map.count(loc, true).unwrap_or(0);
+        idx = idx.saturating_sub(self.dbl_map.count(loc, true).unwrap_or(0));
         // Account for tab characters
-        idx -= self.tab_map.count(loc, true).unwrap_or(0) * self.tab_width.saturating_sub(1);
+        idx = idx.saturating_sub(self.tab_map.count(loc, true).unwrap_or(0) * self.tab_width.saturating_sub(1));
         idx
     }
 
@@ -831,9 +831,9 @@ impl Document {
     fn update_char_ptr(&mut self) {
         let mut idx = self.loc().x;
         let dbl_count = self.dbl_map.count(&self.loc(), true).unwrap_or(0);
-        idx -= dbl_count;
+        idx = idx.saturating_sub(dbl_count);
         let tab_count = self.tab_map.count(&self.loc(), true).unwrap_or(0);
-        idx -= tab_count * self.tab_width.saturating_sub(1);
+        idx = idx.saturating_sub(tab_count * self.tab_width.saturating_sub(1));
         self.char_ptr = idx;
     }
 
@@ -872,10 +872,10 @@ impl Document {
             let start = map[last_tab].0;
             let range = start..start + self.tab_width;
             if range.contains(&x) {
-                magnitude += x - start;
+                magnitude += x.saturating_sub(start);
             }
         }
-        self.cursor.loc.x -= magnitude;
+        self.cursor.loc.x = self.cursor.loc.x.saturating_sub(magnitude);
     }
 
     /// Load lines in this document up to a specified index.
@@ -933,7 +933,7 @@ impl Document {
         } else {
             (request + 1).to_string()
         };
-        format!("{}{}", " ".repeat(total - num.len()), num)
+        format!("{}{}", " ".repeat(total.saturating_sub(num.len())), num)
     }
 
     /// Determine if a character at a certain location is a double width character.
@@ -997,8 +997,8 @@ impl Document {
             return None;
         }
         let result = Loc {
-            x: self.cursor.loc.x - self.offset.x,
-            y: self.cursor.loc.y - self.offset.y,
+            x: self.cursor.loc.x.saturating_sub(self.offset.x),
+            y: self.cursor.loc.y.saturating_sub(self.offset.y),
         };
         if result.x > self.size.w || result.y > self.size.h {
             return None;

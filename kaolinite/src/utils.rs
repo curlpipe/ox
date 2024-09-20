@@ -1,5 +1,5 @@
-use std::ops::{Bound, RangeBounds};
 /// utils.rs - utilities to assist in editing and keep code in document.rs readable
+use std::ops::{Bound, RangeBounds};
 use std::path::Path;
 use unicode_width::UnicodeWidthStr;
 
@@ -10,7 +10,12 @@ macro_rules! regex {
         regex::Regex::new("").unwrap()
     };
     ($ex:expr) => {
-        regex::Regex::new($ex).unwrap()
+        if let Ok(reg) = regex::Regex::new($ex) {
+            reg
+        } else {
+            // Pattern that will not match anything
+            regex::Regex::new("a^").unwrap()
+        }
     };
 }
 
@@ -53,7 +58,7 @@ pub fn trim(string: &str, start: usize, length: usize, tab_width: usize) -> Stri
     if start >= string.width() {
         return "".to_string();
     }
-    let desired_length = string.width() - start;
+    let desired_length = string.width().saturating_sub(start);
     let mut chars: String = string;
     while chars.width() > desired_length {
         chars = chars.chars().skip(1).collect();
@@ -81,7 +86,7 @@ where
         Bound::Included(x) => *x,
     };
     let end = match range.end_bound() {
-        Bound::Unbounded => max - min,
+        Bound::Unbounded => max.saturating_sub(min),
         Bound::Excluded(x) => x.saturating_sub(1),
         Bound::Included(x) => *x,
     };
