@@ -44,6 +44,8 @@ pub struct Editor {
     pub last_active: Instant,
     /// Used for storing amount to push document down
     push_down: usize,
+    /// Used to cache the location of the configuration file
+    pub config_path: String,
 }
 
 impl Editor {
@@ -64,11 +66,13 @@ impl Editor {
             command: None,
             last_active: Instant::now(),
             push_down: 1,
+            config_path: "~/.oxrc".to_string(),
         })
     }
 
     /// Load the configuration values
     pub fn load_config(&mut self, path: String, lua: &Lua) -> Result<()> {
+        self.config_path = path.clone();
         let result = self.config.read(path, lua);
         // Display any warnings if the user configuration couldn't be found
         if let Err(OxError::Config(msg)) = result {
@@ -121,7 +125,10 @@ impl Editor {
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
         // Update in the syntax highlighter
-        let ext = file_name.split('.').last().unwrap();
+        let mut ext = file_name.split('.').last().unwrap_or("");
+        if ext == "oxrc" {
+            ext = "lua"
+        }
         let mut highlighter = self
             .config
             .syntax_highlighting
@@ -149,7 +156,7 @@ impl Editor {
             if os.kind() == ErrorKind::NotFound {
                 self.blank()?;
                 let binding = file_name.clone();
-                let ext = binding.split('.').last().unwrap();
+                let ext = binding.split('.').last().unwrap_or("");
                 self.doc.last_mut().unwrap().file_name = Some(file_name);
                 self.doc.last_mut().unwrap().modified = true;
                 let highlighter = self
@@ -226,9 +233,9 @@ impl Editor {
 
     /// Complete one cycle of the editor
     /// This function will return a key press code if applicable
-    pub fn cycle(&mut self) -> Result<Option<String>> {
+    pub fn cycle(&mut self, lua: &Lua) -> Result<Option<String>> {
         // Run the editor
-        self.render()?;
+        self.render(&lua)?;
         // Wait for an event
         let event = read()?;
         self.needs_rerender = match event {
@@ -287,7 +294,7 @@ impl Editor {
                 .unwrap_or(0);
             let percieved = self.highlighter().line_ref.len();
             if percieved < actual {
-                let diff = actual - percieved;
+                let diff = actual.saturating_sub(percieved);
                 for i in 0..diff {
                     let line = &self.doc[self.ptr].lines[percieved + i];
                     self.highlighter[self.ptr].append(line);
@@ -298,7 +305,7 @@ impl Editor {
     }
 
     /// Render a single frame of the editor in it's current state
-    pub fn render(&mut self) -> Result<()> {
+    pub fn render(&mut self, lua: &Lua) -> Result<()> {
         if !self.needs_rerender {
             return Ok(());
         }
@@ -317,7 +324,7 @@ impl Editor {
         // Run through each line of the terminal, rendering the correct line
         self.render_document(w, h)?;
         // Leave last line for status line
-        self.render_status_line(w, h)?;
+        self.render_status_line(&lua, w, h)?;
         // Render greeting or help message if applicable
         if self.greet {
             self.render_greeting(w, h)?;
@@ -338,7 +345,6 @@ impl Editor {
     /// Render the lines of the document
     fn render_document(&mut self, _w: usize, h: usize) -> Result<()> {
         for y in 0..(h as u16) {
-            //self.terminal.prepare_line(y as usize + tab as usize)?;
             self.terminal
                 .goto(0, y as usize + self.push_down as usize)?;
             // Start background colour
@@ -431,7 +437,7 @@ impl Editor {
 
     /// Render the tab line at the top of the document
     fn render_tab_line(&mut self, w: usize) -> Result<()> {
-        self.terminal.prepare_line(0)?;
+        self.terminal.goto(0 as usize, 0 as usize)?;
         write!(
             self.terminal.stdout,
             "{}{}",
@@ -462,7 +468,7 @@ impl Editor {
     }
 
     /// Render the status line at the bottom of the document
-    fn render_status_line(&mut self, w: usize, h: usize) -> Result<()> {
+    fn render_status_line(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
         self.terminal.goto(0, h + self.push_down)?;
         write!(
             self.terminal.stdout,
@@ -470,7 +476,7 @@ impl Editor {
             Bg(self.config.colors.borrow().status_bg.to_color()?),
             Fg(self.config.colors.borrow().status_fg.to_color()?),
             SetAttribute(Attribute::Bold),
-            self.config.status_line.borrow().render(&self, w),
+            self.config.status_line.borrow().render(&self, &lua, w),
             SetAttribute(Attribute::Reset),
             Fg(self.config.colors.borrow().editor_fg.to_color()?),
             Bg(self.config.colors.borrow().editor_bg.to_color()?),
@@ -494,8 +500,8 @@ impl Editor {
         let color = self.config.colors.borrow().highlight.to_color()?;
         let editor_fg = self.config.colors.borrow().editor_fg.to_color()?;
         let message: Vec<&str> = HELP_TEXT.split('\n').collect();
-        for (c, line) in message.iter().enumerate().take(h - h / 4) {
-            self.terminal.goto(w - 30, h / 4 + c + 1)?;
+        for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
+            self.terminal.goto(w.saturating_sub(30), h / 4 + c + 1)?;
             write!(self.terminal.stdout, "{}{line}{}", Fg(color), Fg(editor_fg))?;
         }
         Ok(())
@@ -506,12 +512,12 @@ impl Editor {
         let colors = self.config.colors.borrow();
         let greeting = self.config.greeting_message.borrow().render(&colors)?;
         let message: Vec<&str> = greeting.split('\n').collect();
-        for (c, line) in message.iter().enumerate().take(h - h / 4) {
+        for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
             self.terminal.goto(4, h / 4 + c + 1)?;
             write!(
                 self.terminal.stdout,
                 "{}",
-                alinio::align::center(&line, w - 4).unwrap_or_else(|| "".to_string()),
+                alinio::align::center(&line, w.saturating_sub(4)).unwrap_or_else(|| "".to_string()),
             )?;
         }
         Ok(())
@@ -582,7 +588,7 @@ impl Editor {
     /// Move to the previous document opened in the editor
     pub fn prev(&mut self) {
         if self.ptr != 0 {
-            self.ptr -= 1;
+            self.ptr = self.ptr.saturating_sub(1);
         }
     }
 
@@ -603,7 +609,7 @@ impl Editor {
     /// Paste the selected text
     pub fn paste(&mut self) -> Result<()> {
         let clip = self.terminal.paste();
-        for ch in clip.unwrap().chars() {
+        for ch in clip.unwrap_or_else(|| "".to_string()).chars() {
             if let Err(err) = self.character(ch) {
                 self.feedback = Feedback::Error(err.to_string());
             }
@@ -760,7 +766,7 @@ impl Editor {
             self.new_row()?;
             let mut loc = self.doc().char_loc();
             self.highlighter().remove_line(loc.y);
-            loc.y -= 1;
+            loc.y = loc.y.saturating_sub(1);
             loc.x = self.doc().line(loc.y).unwrap().chars().count();
             self.exe(Event::SpliceUp(loc))?;
             let line = &self.doc[self.ptr].lines[loc.y];
@@ -833,9 +839,9 @@ impl Editor {
         while !done {
             // Render just the document part
             self.terminal.hide_cursor()?;
-            self.render_document(w, h - 2)?;
+            self.render_document(w, h.saturating_sub(2))?;
             // Render custom status line with mode information
-            self.terminal.prepare_line(h)?;
+            self.terminal.goto(0, h)?;
             write!(
                 self.terminal.stdout,
                 "[<-]: Search previous | [->]: Search next"
@@ -909,9 +915,9 @@ impl Editor {
         while !done {
             // Render just the document part
             self.terminal.hide_cursor()?;
-            self.render_document(w, h - 2)?;
+            self.render_document(w, h.saturating_sub(2))?;
             // Write custom status line for the replace mode
-            self.terminal.prepare_line(h)?;
+            self.terminal.goto(0, h)?;
             write!(
                 self.terminal.stdout,
                 "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All"
@@ -1009,7 +1015,7 @@ impl Editor {
         let file_name = self.prompt("Save as")?;
         self.doc_mut().save_as(&file_name)?;
         if self.doc().file_name.is_none() {
-            let ext = file_name.split('.').last().unwrap();
+            let ext = file_name.split('.').last().unwrap_or("");
             self.highlighter[self.ptr] = self
                 .config
                 .syntax_highlighting

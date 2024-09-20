@@ -6,17 +6,17 @@ use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode},
     style::{Color, SetForegroundColor as Fg},
 };
-use kaolinite::utils::filetype;
+use kaolinite::searching::Searcher;
+use kaolinite::utils::{filetype, get_absolute_path, get_file_ext, get_file_name, icon};
 use kaolinite::{Document, Loc};
 use mlua::prelude::*;
 use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
 use synoptic::{from_extension, Highlighter};
 
-// Gracefully exit the program
-fn graceful_panic(msg: &str) {
-    eprintln!("{}", msg);
-    std::process::exit(1);
+// Issue a warning to the user
+fn issue_warning(msg: &str) {
+    eprintln!("[WARNING] {}", msg);
 }
 
 /// This contains the default configuration lua file
@@ -433,14 +433,26 @@ impl Default for TabLine {
 
 impl TabLine {
     pub fn render(&self, document: &Document) -> String {
-        let file_name = document
+        let path = document
             .file_name
             .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
+        let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
+        let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
+        let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
+        let icon = icon(&filetype(&file_extension).unwrap_or_else(|| "".to_string()));
         let modified = if document.modified { "[+]" } else { "" };
         let mut result = self.format.clone();
+        result = result
+            .replace("{file_extension}", &file_extension)
+            .to_string();
         result = result.replace("{file_name}", &file_name).to_string();
+        result = result
+            .replace("{absolute_path}", &absolute_path)
+            .to_string();
+        result = result.replace("{path}", &path).to_string();
         result = result.replace("{modified}", &modified).to_string();
+        result = result.replace("{icon}", &icon).to_string();
         result
     }
 }
@@ -477,21 +489,18 @@ impl Default for StatusLine {
 }
 
 impl StatusLine {
-    pub fn render(&self, editor: &Editor, w: usize) -> String {
+    pub fn render(&self, editor: &Editor, lua: &Lua, w: usize) -> String {
         let mut result = vec![];
-        let ext = editor
+        let path = editor
             .doc()
             .file_name
-            .as_ref()
-            .and_then(|name| Some(name.split('.').last().unwrap().to_string()))
-            .unwrap_or_else(|| "".to_string());
-        let file_type = filetype(&ext).unwrap_or(ext);
-        let file_name = editor
-            .doc()
-            .file_name
-            .as_ref()
-            .and_then(|name| Some(name.split('/').last().unwrap().to_string()))
+            .to_owned()
             .unwrap_or_else(|| "[No Name]".to_string());
+        let file_extension = get_file_ext(&path).unwrap_or_else(|| "".to_string());
+        let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
+        let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
+        let file_type = filetype(&file_extension).unwrap_or_else(|| file_extension.to_string());
+        let icon = icon(&filetype(&file_extension).unwrap_or_else(|| "".to_string()));
         let modified = if editor.doc().modified { "[+]" } else { "" };
         let cursor_y = (editor.doc().loc().y + 1).to_string();
         let cursor_x = editor.doc().char_ptr.to_string();
@@ -500,11 +509,36 @@ impl StatusLine {
         for part in &self.parts {
             let mut part = part.clone();
             part = part.replace("{file_name}", &file_name).to_string();
+            part = part
+                .replace("{file_extension}", &file_extension)
+                .to_string();
+            part = part.replace("{icon}", &icon).to_string();
+            part = part.replace("{path}", &path).to_string();
+            part = part.replace("{absolute_path}", &absolute_path).to_string();
             part = part.replace("{modified}", &modified).to_string();
             part = part.replace("{file_type}", &file_type).to_string();
             part = part.replace("{cursor_y}", &cursor_y).to_string();
             part = part.replace("{cursor_x}", &cursor_x).to_string();
             part = part.replace("{line_count}", &line_count).to_string();
+            // Find functions to call and substitute in
+            let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
+            while let Some(m) = searcher.lfind(&part) {
+                let name = m
+                    .text
+                    .chars()
+                    .skip(1)
+                    .take(m.text.chars().count().saturating_sub(2))
+                    .collect::<String>();
+                if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
+                    if let Ok(r) = func.call::<(), LuaString>(()) {
+                        part = part.replace(&m.text, r.to_str().unwrap_or(""));
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
             result.push(part);
         }
         let status: Vec<&str> = result.iter().map(|s| s.as_str()).collect();
@@ -552,12 +586,12 @@ impl StatusAlign {
             "around" => Self::Around,
             "between" => Self::Between,
             _ => {
-                graceful_panic(
+                issue_warning(
                     "\
-                    Invalid status line alignment used in configuration file\n\
-                    Make sure value is either 'around' or 'between'",
+                    Invalid status line alignment used in configuration file - \
+                    make sure value is either 'around' or 'between' (defaulting to 'between')",
                 );
-                unreachable!();
+                Self::Between
             }
         }
     }
@@ -776,7 +810,7 @@ pub enum ConfigColor {
 impl ConfigColor {
     pub fn from_lua<'a>(value: LuaValue<'a>) -> Self {
         match value {
-            LuaValue::String(string) => match string.to_str().unwrap() {
+            LuaValue::String(string) => match string.to_str().unwrap_or("transparent") {
                 "black" => Self::Black,
                 "darkgrey" => Self::DarkGrey,
                 "red" => Self::Red,
@@ -797,52 +831,66 @@ impl ConfigColor {
                 hex => Self::Hex(hex.to_string()),
             },
             LuaValue::Table(table) => {
-                if table.len().unwrap() != 3 {
-                    graceful_panic("Invalid RGB sequence used in configuration file (must be a list of 3 numbers)");
+                if table.len().unwrap_or(3) != 3 {
+                    issue_warning("Invalid RGB sequence used in configuration file (must be a list of 3 numbers)");
+                    return Self::Transparent;
                 }
-                let b: u8 = table.pop().expect("Invalid rgb sequence");
-                let g: u8 = table.pop().expect("Invalid rgb sequence");
-                let r: u8 = table.pop().expect("Invalid rgb sequence");
-                Self::Rgb(r, g, b)
+                let mut tri: Vec<u8> = vec![];
+                for _ in 0..3 {
+                    if let Ok(val) = table.pop() {
+                        tri.insert(0, val)
+                    } else {
+                        issue_warning("Invalid RGB sequence provided - please check your numerical values are between 0 and 255");
+                        tri.insert(0, 255);
+                    }
+                }
+                Self::Rgb(tri[0], tri[1], tri[2])
             }
             _ => {
-                graceful_panic("Invalid data type used for colour in configuration file");
-                unreachable!()
+                issue_warning("Invalid data type used for colour in configuration file");
+                Self::Transparent
             }
         }
     }
 
     pub fn to_lua<'a>(&self, env: &'a Lua) -> LuaValue<'a> {
+        let msg = "Failed to create lua string";
         match self {
             ConfigColor::Hex(hex) => {
-                let string = env.create_string(hex).unwrap();
+                let string = env.create_string(hex).expect(msg);
                 LuaValue::String(string)
             }
             ConfigColor::Rgb(r, g, b) => {
                 // Create lua table
-                let table = env.create_table().unwrap();
-                table.push(*r as isize).unwrap();
-                table.push(*g as isize).unwrap();
-                table.push(*b as isize).unwrap();
+                let table = env.create_table().expect("Failed to create lua table");
+                let _ = table.push(*r as isize);
+                let _ = table.push(*g as isize);
+                let _ = table.push(*b as isize);
                 LuaValue::Table(table)
             }
-            ConfigColor::Black => LuaValue::String(env.create_string("black").unwrap()),
-            ConfigColor::DarkGrey => LuaValue::String(env.create_string("darkgrey").unwrap()),
-            ConfigColor::Red => LuaValue::String(env.create_string("red").unwrap()),
-            ConfigColor::DarkRed => LuaValue::String(env.create_string("darkred").unwrap()),
-            ConfigColor::Green => LuaValue::String(env.create_string("green").unwrap()),
-            ConfigColor::DarkGreen => LuaValue::String(env.create_string("darkgreen").unwrap()),
-            ConfigColor::Yellow => LuaValue::String(env.create_string("yellow").unwrap()),
-            ConfigColor::DarkYellow => LuaValue::String(env.create_string("darkyellow").unwrap()),
-            ConfigColor::Blue => LuaValue::String(env.create_string("blue").unwrap()),
-            ConfigColor::DarkBlue => LuaValue::String(env.create_string("darkblue").unwrap()),
-            ConfigColor::Magenta => LuaValue::String(env.create_string("magenta").unwrap()),
-            ConfigColor::DarkMagenta => LuaValue::String(env.create_string("darkmagenta").unwrap()),
-            ConfigColor::Cyan => LuaValue::String(env.create_string("cyan").unwrap()),
-            ConfigColor::DarkCyan => LuaValue::String(env.create_string("darkcyan").unwrap()),
-            ConfigColor::White => LuaValue::String(env.create_string("white").unwrap()),
-            ConfigColor::Grey => LuaValue::String(env.create_string("grey").unwrap()),
-            ConfigColor::Transparent => LuaValue::String(env.create_string("transparent").unwrap()),
+            ConfigColor::Black => LuaValue::String(env.create_string("black").expect(msg)),
+            ConfigColor::DarkGrey => LuaValue::String(env.create_string("darkgrey").expect(msg)),
+            ConfigColor::Red => LuaValue::String(env.create_string("red").expect(msg)),
+            ConfigColor::DarkRed => LuaValue::String(env.create_string("darkred").expect(msg)),
+            ConfigColor::Green => LuaValue::String(env.create_string("green").expect(msg)),
+            ConfigColor::DarkGreen => LuaValue::String(env.create_string("darkgreen").expect(msg)),
+            ConfigColor::Yellow => LuaValue::String(env.create_string("yellow").expect(msg)),
+            ConfigColor::DarkYellow => {
+                LuaValue::String(env.create_string("darkyellow").expect(msg))
+            }
+            ConfigColor::Blue => LuaValue::String(env.create_string("blue").expect(msg)),
+            ConfigColor::DarkBlue => LuaValue::String(env.create_string("darkblue").expect(msg)),
+            ConfigColor::Magenta => LuaValue::String(env.create_string("magenta").expect(msg)),
+            ConfigColor::DarkMagenta => {
+                LuaValue::String(env.create_string("darkmagenta").expect(msg))
+            }
+            ConfigColor::Cyan => LuaValue::String(env.create_string("cyan").expect(msg)),
+            ConfigColor::DarkCyan => LuaValue::String(env.create_string("darkcyan").expect(msg)),
+            ConfigColor::White => LuaValue::String(env.create_string("white").expect(msg)),
+            ConfigColor::Grey => LuaValue::String(env.create_string("grey").expect(msg)),
+            ConfigColor::Transparent => {
+                LuaValue::String(env.create_string("transparent").expect(msg))
+            }
         }
     }
 
@@ -883,15 +931,20 @@ impl ConfigColor {
 
         // Ensure the hex code is exactly 6 characters long
         if hex.len() != 6 {
-            graceful_panic("Invalid hex code used in configuration file");
+            panic!("Invalid hex code used in configuration file - ensure they are of length 6");
         }
 
         // Parse the hex string into the RGB components
-        let r = u8::from_str_radix(&hex[0..2], 16).expect("invalid R component in hex code");
-        let g = u8::from_str_radix(&hex[2..4], 16).expect("invalid G component in hex code");
-        let b = u8::from_str_radix(&hex[4..6], 16).expect("invalid B component in hex code");
-
-        Ok((r, g, b))
+        let mut tri: Vec<u8> = vec![];
+        for i in 0..3 {
+            let section = &hex[(i * 2)..(i * 2 + 2)];
+            if let Ok(val) = u8::from_str_radix(section, 16) {
+                tri.insert(0, val)
+            } else {
+                panic!("Invalid hex code used in configuration file - ensure all digits are between 0 and F");
+            }
+        }
+        Ok((tri[0], tri[1], tri[2]))
     }
 }
 
@@ -1049,6 +1102,16 @@ impl LuaUserData for Editor {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        // Reload the configuration file
+        methods.add_method_mut("reload_config", |lua, editor, ()| {
+            if editor
+                .load_config(editor.config_path.clone(), &lua)
+                .is_err()
+            {
+                editor.feedback = Feedback::Error("Failed to reload config".to_string());
+            }
+            Ok(())
+        });
         // Display messages
         methods.add_method_mut("display_error", |_, editor, message: String| {
             editor.feedback = Feedback::Error(message);

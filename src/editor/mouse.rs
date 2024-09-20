@@ -28,8 +28,8 @@ impl Editor {
         } else {
             let offset = self.doc().offset;
             MouseLocation::File(Loc {
-                x: event.column as usize - self.dent() + offset.x,
-                y: (event.row as usize) - tab + offset.y,
+                x: (event.column as usize).saturating_sub(self.dent()) + offset.x,
+                y: (event.row as usize).saturating_sub(tab) + offset.y,
             })
         }
     }
@@ -40,7 +40,7 @@ impl Editor {
                 MouseLocation::File(mut loc) => {
                     loc.x = self.doc_mut().character_idx(&loc);
                     self.doc_mut().move_to(&loc);
-                    self.doc_mut().old_cursor = self.doc().char_ptr;
+                    self.doc_mut().old_cursor = self.doc().loc().x;
                 }
                 MouseLocation::Tabs(i) => {
                     self.ptr = i;

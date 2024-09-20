@@ -1,5 +1,5 @@
-use crate::utils::{width, Loc};
 /// map.rs - provides an easy interface to manage characters with large widths
+use crate::utils::{width, Loc};
 use std::collections::HashMap;
 use unicode_width::UnicodeWidthChar;
 
@@ -97,7 +97,7 @@ impl CharMap {
         let start_map = self
             .count(
                 &Loc {
-                    x: start - line_start,
+                    x: start.saturating_sub(*line_start),
                     y: *y,
                 },
                 false,
@@ -106,7 +106,7 @@ impl CharMap {
         let map_count = self
             .count(
                 &Loc {
-                    x: end - line_start,
+                    x: end.saturating_sub(*line_start),
                     y: *y,
                 },
                 false,
@@ -115,8 +115,8 @@ impl CharMap {
         let line_map = self.map.get_mut(y).unwrap();
         // Update subsequent map characters
         for (display, ch) in line_map.iter_mut().skip(map_count) {
-            *display -= disp_shift;
-            *ch -= char_shift;
+            *display = display.saturating_sub(disp_shift);
+            *ch = ch.saturating_sub(char_shift);
         }
         // Remove entries for the range
         line_map.drain(start_map..map_count);
@@ -134,7 +134,7 @@ impl CharMap {
         for k in keys {
             if k >= loc {
                 let v = self.map.remove(&k).unwrap();
-                self.map.insert(k - 1, v);
+                self.map.insert(k.saturating_sub(1), v);
             }
         }
     }

@@ -1,5 +1,6 @@
-use std::ops::{Bound, RangeBounds};
 /// utils.rs - utilities to assist in editing and keep code in document.rs readable
+use std::ops::{Bound, RangeBounds};
+use std::path::Path;
 use unicode_width::UnicodeWidthStr;
 
 /// Utility for easily forming a regular expression from a string
@@ -9,7 +10,12 @@ macro_rules! regex {
         regex::Regex::new("").unwrap()
     };
     ($ex:expr) => {
-        regex::Regex::new($ex).unwrap()
+        if let Ok(reg) = regex::Regex::new($ex) {
+            reg
+        } else {
+            // Pattern that will not match anything
+            regex::Regex::new("a^").unwrap()
+        }
     };
 }
 
@@ -52,7 +58,7 @@ pub fn trim(string: &str, start: usize, length: usize, tab_width: usize) -> Stri
     if start >= string.width() {
         return "".to_string();
     }
-    let desired_length = string.width() - start;
+    let desired_length = string.width().saturating_sub(start);
     let mut chars: String = string;
     while chars.width() > desired_length {
         chars = chars.chars().skip(1).collect();
@@ -80,7 +86,7 @@ where
         Bound::Included(x) => *x,
     };
     let end = match range.end_bound() {
-        Bound::Unbounded => max - min,
+        Bound::Unbounded => max.saturating_sub(min),
         Bound::Excluded(x) => x.saturating_sub(1),
         Bound::Included(x) => *x,
     };
@@ -130,6 +136,31 @@ pub fn tab_boundaries_backward(line: &str, tab_width: usize) -> Vec<usize> {
         }
     }
     boundaries
+}
+
+/// Will get the absolute path to a file
+#[must_use]
+pub fn get_absolute_path(path: &str) -> Option<String> {
+    let abs = std::fs::canonicalize(path).ok()?;
+    Some(abs.to_string_lossy().to_string())
+}
+
+/// Will get the file name from a file
+#[must_use]
+pub fn get_file_name(path: &str) -> Option<String> {
+    let p = Path::new(path);
+    p.file_name()
+        .and_then(|name| name.to_str())
+        .map(|s| s.to_string())
+}
+
+/// Will get the file name from a file
+#[must_use]
+pub fn get_file_ext(path: &str) -> Option<String> {
+    let p = Path::new(path);
+    p.extension()
+        .and_then(|name| name.to_str())
+        .map(|s| s.to_string())
 }
 
 /// Determine the filetype from the extension
@@ -253,4 +284,99 @@ pub fn filetype(extension: &str) -> Option<String> {
         }
         .to_string(),
     )
+}
+
+/// Determine the icon for the file type
+#[allow(clippy::too_many_lines)]
+#[must_use]
+pub fn icon(language: &str) -> String {
+    match language {
+        "Ada" => "",
+        "AutoHotkey" => " ",
+        "AppleScript" => "",
+        "ActionScript" => "󰑷 ",
+        "Assembly" => " ",
+        "Batch" => "󰆍 ",
+        "Brainfuck" => " ",
+        "C" => " ",
+        "CMake" => " ",
+        "Java" => " ",
+        "Clojure" => " ",
+        "CoffeeScript" => " ",
+        "Crystal" => " ",
+        "Cuda" => " ",
+        "C++" => " ",
+        "C#" => " ",
+        "CSS" => " ",
+        "CSV" => " ",
+        "D" => " ",
+        "Dart" => " ",
+        "Diff" => " ",
+        "Dockerfile" => " ",
+        "Elixr" => " ",
+        "Elm" => " ",
+        "Emacs Lisp" => " ",
+        "Erlang" => " ",
+        "F#" => " ",
+        "FORTRAN" => "󱈚 ",
+        "Fish" => " ",
+        "GDScript" => " ",
+        "GLSL" => " ",
+        "Gnuplot" => " ",
+        "Go" => "",
+        "Groovy" => " ",
+        "C Header" => " ",
+        "Haml" => "",
+        "Handlebars" => "󰅩 ",
+        "Haskell" => " ",
+        "C++ Header" => " ",
+        "HTML" => " ",
+        "INI" => " ",
+        "Arduino" => " ",
+        "J" => " ",
+        "JSON" => " ",
+        "JSX" => " ",
+        "JavaScript" => " ",
+        "Julia" => " ",
+        "Kotlin" => " ",
+        "Lua" => " ",
+        "LiveScript" => " ",
+        "Common Lisp" => " ",
+        "Log file" => " ",
+        "Matlab" => " ",
+        "Objective-C" => " ",
+        "OCaml" => " ",
+        "Makefile" => " ",
+        "Markdown" => " ",
+        "Nix" => " ",
+        "NumPy" => "󰘨 ",
+        "PHP" => "󰌟 ",
+        "Perl" => " ",
+        "PowerShell" => "󰨊 ",
+        "Prolog" => " ",
+        "Python" => " ",
+        "Cython" => " ",
+        "R" => " ",
+        "reStructuredText" => "󰊄",
+        "Ruby" => " ",
+        "Rust" => " ",
+        "Shell" => " ",
+        "SCSS" => " ",
+        "SQL" => " ",
+        "Sass" => " ",
+        "Scala" => "",
+        "Scheme" => "",
+        "Swift" => " ",
+        "TOML" => " ",
+        "TeX" => " ",
+        "TypeScript" => " ",
+        "Plain Text" => " ",
+        "Vala" => " ",
+        "Visual Basic" => "󰯁 ",
+        "Vue" => " ",
+        "XML" => "󰗀 ",
+        "Zsh" => " ",
+        _ => "󰈙 ",
+    }
+    .to_string()
 }

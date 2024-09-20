@@ -152,7 +152,6 @@ event_mapping = {
 
 -- Define user-defined commands
 commands = {
-    -- Define the test command
     ["test"] = function(arguments)
         -- Iterate through each argument and string separate them with commas
         result = ""
@@ -180,6 +179,10 @@ commands = {
     ["filetype"] = function(arguments)
         ext = arguments[1]
         editor:set_file_type(ext)
+    end,
+    ["reload"] = function(arguments)
+        editor:reload_config()
+        editor:display_info("Configuration file reloaded")
     end,
 }
 
