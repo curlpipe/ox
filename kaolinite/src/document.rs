@@ -236,7 +236,7 @@ impl Document {
         self.tab_map.splice(loc, tab_start, tabs);
         // Go to end x position
         self.move_to_x(loc.x + st.chars().count());
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Ok(())
     }
 
@@ -297,7 +297,7 @@ impl Document {
         // Update cache
         let line: String = self.file.line(y).chars().collect();
         self.lines[y] = line.trim_end_matches(&['\n', '\r']).to_string();
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Ok(())
     }
 
@@ -326,7 +326,7 @@ impl Document {
         self.loaded_to += 1;
         // Goto line
         self.move_to_y(loc);
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Ok(())
     }
 
@@ -351,7 +351,7 @@ impl Document {
         self.loaded_to = self.loaded_to.saturating_sub(1);
         // Goto line
         self.move_to_y(loc);
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Ok(())
     }
 
@@ -368,7 +368,7 @@ impl Document {
         self.delete(loc.x.., loc.y)?;
         self.insert_line(loc.y + 1, rhs)?;
         self.move_to(&Loc::at(0, loc.y + 1));
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Ok(())
     }
 
@@ -385,7 +385,7 @@ impl Document {
         self.delete_line(y + 1)?;
         self.insert(&Loc::at(length, y), &below)?;
         self.move_to(&Loc::at(length, y));
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Ok(())
     }
 
@@ -427,7 +427,7 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
-        self.move_to_x(self.old_cursor);
+        self.move_to_x(self.character_idx(&Loc { x: self.old_cursor, y: self.loc().y }));
         Status::None
     }
 
@@ -452,7 +452,7 @@ impl Document {
         // Update the character pointer
         self.update_char_ptr();
         self.bring_cursor_in_viewport();
-        self.move_to_x(self.old_cursor);
+        self.move_to_x(self.character_idx(&Loc { x: self.old_cursor, y: self.loc().y }));
         Status::None
     }
 
@@ -486,7 +486,7 @@ impl Document {
         // Update the character pointer
         self.char_ptr -= 1;
         self.bring_cursor_in_viewport();
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Status::None
     }
 
@@ -521,7 +521,7 @@ impl Document {
         // Update the character pointer
         self.char_ptr += 1;
         self.bring_cursor_in_viewport();
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Status::None
     }
 
@@ -550,7 +550,7 @@ impl Document {
         let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
         let length = line.chars().count();
         self.select_to_x(length);
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
     }
 
     /// Move to the top of the document
@@ -567,14 +567,14 @@ impl Document {
     /// Select to the top of the document
     pub fn select_top(&mut self) {
         self.select_to(&Loc::at(0, 0));
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
     }
 
     /// Select to the bottom of the document
     pub fn select_bottom(&mut self) {
         let last = self.len_lines();
         self.select_to(&Loc::at(0, last));
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
     }
 
     /// Move up by 1 page
@@ -607,7 +607,7 @@ impl Document {
                 return self.move_prev_word();
             }
         }
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Status::None
     }
 
@@ -623,7 +623,7 @@ impl Document {
             mtch.loc.x += mtch.text.chars().count();
             self.move_to(&mtch.loc);
         }
-        self.old_cursor = self.char_ptr;
+        self.old_cursor = self.loc().x;
         Status::None
     }
 

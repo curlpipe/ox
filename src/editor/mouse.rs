@@ -40,7 +40,7 @@ impl Editor {
                 MouseLocation::File(mut loc) => {
                     loc.x = self.doc_mut().character_idx(&loc);
                     self.doc_mut().move_to(&loc);
-                    self.doc_mut().old_cursor = self.doc().char_ptr;
+                    self.doc_mut().old_cursor = self.doc().loc().x;
                 }
                 MouseLocation::Tabs(i) => {
                     self.ptr = i;

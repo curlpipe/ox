@@ -461,15 +461,15 @@ fn document_moving() {
     doc.load_to(10);
     doc.exe(Event::InsertLine(5, st!("hello你bye")));
     doc.move_to(&Loc { x: 4, y: 1 });
-    doc.old_cursor = 4;
+    doc.old_cursor = 7;
     assert_eq!(doc.char_loc(), Loc { x: 4, y: 1 });
     assert_eq!(doc.loc(), Loc { x: 7, y: 1 });
     doc.move_down();
     doc.move_down();
-    assert_eq!(doc.char_loc(), Loc { x: 3, y: 3 });
-    assert_eq!(doc.loc(), Loc { x: 8, y: 3 });
+    assert_eq!(doc.char_loc(), Loc { x: 2, y: 3 });
+    assert_eq!(doc.loc(), Loc { x: 6, y: 3 });
     doc.move_to(&Loc { x: 1000, y: 4 });
-    doc.old_cursor = 17;
+    doc.old_cursor = 19;
     assert_eq!(doc.char_loc(), Loc { x: 17, y: 4 });
     assert_eq!(doc.loc(), Loc { x: 19, y: 4 });
     doc.move_down();
@@ -533,7 +533,7 @@ fn document_moving() {
     doc.move_end();
     assert_eq!(doc.loc(), Loc { x: 8, y: 0 });
     assert_eq!(doc.char_loc(), Loc { x: 6, y: 0 });
-    assert_eq!(doc.old_cursor, 6);
+    assert_eq!(doc.old_cursor, 8);
     doc.move_home();
     assert_eq!(doc.loc(), Loc { x: 0, y: 0 });
     assert_eq!(doc.char_loc(), Loc { x: 0, y: 0 });
@@ -808,13 +808,11 @@ fn document_replacing() {
 fn document_validation() {
     let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
     doc.load_to(1000);
-    /*
-    // WARNING, uncomment once old_cursor uses display index (as it is currently broken)
     doc.move_to(&Loc { x: 2, y: 1 });
-    doc.old_cursor = 2;
+    doc.old_cursor = 5;
     doc.move_up();
+    assert_eq!(doc.char_ptr, 4);
     assert_eq!(doc.loc(), Loc { x: 4, y: 0 });
-    */
 }
 
 #[test]
