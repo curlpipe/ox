@@ -6,6 +6,7 @@ use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode},
     style::{Color, SetForegroundColor as Fg},
 };
+use kaolinite::searching::Searcher;
 use kaolinite::utils::{filetype, get_absolute_path, get_file_ext, get_file_name, icon};
 use kaolinite::{Document, Loc};
 use mlua::prelude::*;
@@ -489,7 +490,7 @@ impl Default for StatusLine {
 }
 
 impl StatusLine {
-    pub fn render(&self, editor: &Editor, w: usize) -> String {
+    pub fn render(&self, editor: &Editor, lua: &Lua, w: usize) -> String {
         let mut result = vec![];
         let path = editor
             .doc()
@@ -520,6 +521,23 @@ impl StatusLine {
             part = part.replace("{cursor_y}", &cursor_y).to_string();
             part = part.replace("{cursor_x}", &cursor_x).to_string();
             part = part.replace("{line_count}", &line_count).to_string();
+            // Find functions to call and substitute in
+            let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
+            while let Some(m) = searcher.lfind(&part) {
+                let name = m.text.chars()
+                    .skip(1)
+                    .take(m.text.chars().count().saturating_sub(2))
+                    .collect::<String>();
+                if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
+                    if let Ok(r) = func.call::<(), LuaString>(()) {
+                        part = part.replace(&m.text, r.to_str().unwrap());
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
             result.push(part);
         }
         let status: Vec<&str> = result.iter().map(|s| s.as_str()).collect();

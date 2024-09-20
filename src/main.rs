@@ -98,7 +98,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     // Run the editor and handle errors if applicable
     editor.borrow_mut().init()?;
     while editor.borrow().active {
-        let cycle = editor.borrow_mut().cycle();
+        let cycle = editor.borrow_mut().cycle(&lua);
         match cycle {
             Ok(Some(key)) => {
                 // Form the corresponding lua code to run and run it

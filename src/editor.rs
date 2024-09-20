@@ -230,9 +230,9 @@ impl Editor {
 
     /// Complete one cycle of the editor
     /// This function will return a key press code if applicable
-    pub fn cycle(&mut self) -> Result<Option<String>> {
+    pub fn cycle(&mut self, lua: &Lua) -> Result<Option<String>> {
         // Run the editor
-        self.render()?;
+        self.render(&lua)?;
         // Wait for an event
         let event = read()?;
         self.needs_rerender = match event {
@@ -302,7 +302,7 @@ impl Editor {
     }
 
     /// Render a single frame of the editor in it's current state
-    pub fn render(&mut self) -> Result<()> {
+    pub fn render(&mut self, lua: &Lua) -> Result<()> {
         if !self.needs_rerender {
             return Ok(());
         }
@@ -321,7 +321,7 @@ impl Editor {
         // Run through each line of the terminal, rendering the correct line
         self.render_document(w, h)?;
         // Leave last line for status line
-        self.render_status_line(w, h)?;
+        self.render_status_line(&lua, w, h)?;
         // Render greeting or help message if applicable
         if self.greet {
             self.render_greeting(w, h)?;
@@ -466,7 +466,7 @@ impl Editor {
     }
 
     /// Render the status line at the bottom of the document
-    fn render_status_line(&mut self, w: usize, h: usize) -> Result<()> {
+    fn render_status_line(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
         self.terminal.goto(0, h + self.push_down)?;
         write!(
             self.terminal.stdout,
@@ -474,7 +474,7 @@ impl Editor {
             Bg(self.config.colors.borrow().status_bg.to_color()?),
             Fg(self.config.colors.borrow().status_fg.to_color()?),
             SetAttribute(Attribute::Bold),
-            self.config.status_line.borrow().render(&self, w),
+            self.config.status_line.borrow().render(&self, &lua, w),
             SetAttribute(Attribute::Reset),
             Fg(self.config.colors.borrow().editor_fg.to_color()?),
             Bg(self.config.colors.borrow().editor_bg.to_color()?),
