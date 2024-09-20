@@ -45,10 +45,12 @@ fn run(cli: CommandLineInterface) -> Result<()> {
 
     // Load config and initialise
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
-    editor
+    if editor
         .borrow_mut()
-        .load_config(cli.config_path, &lua)
-        .unwrap();
+            .load_config(cli.config_path, &lua).is_err() {
+        editor.borrow_mut().feedback = 
+            Feedback::Error("Failed to load configuration file".to_string());
+    }
 
     // Open files user has asked to open
     for (c, file) in cli.to_open.iter().enumerate() {
@@ -115,7 +117,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
                                     Feedback::Error(format!("The key binding {key} is not set"));
                             }
                         } else {
-                            let mut msg: String = msg.split("\n").next().unwrap().to_string();
+                            let mut msg: String = msg.split("\n").next().unwrap_or("").to_string();
                             // Work out the type of error and display an appropriate message
                             if msg.starts_with("[") {
                                 msg = msg.split(":").skip(3).collect::<Vec<&str>>().join(":");
@@ -161,7 +163,7 @@ fn run_editor_command(editor: &Rc<RefCell<Editor>>, cmd: String, lua: &Lua) {
             let arguments = arguments.join("', '");
             let code = format!("commands['{subcmd}']({{'{arguments}'}})");
             if let Err(err) = lua.load(code).exec() {
-                let line = err.to_string().split("\n").next().unwrap().to_string();
+                let line = err.to_string().split("\n").next().unwrap_or("").to_string();
                 editor.borrow_mut().feedback = Feedback::Error(line);
             }
         }

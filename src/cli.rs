@@ -34,7 +34,7 @@ pub fn get_stdin() -> Option<String> {
     let input = io::stdin()
         .lock()
         .lines()
-        .fold("".to_string(), |acc, line| acc + &line.unwrap() + "\n");
+        .fold("".to_string(), |acc, line| acc + &line.unwrap_or_else(|_| "".to_string()) + "\n");
 
     return Some(input);
 }

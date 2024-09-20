@@ -14,10 +14,9 @@ use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
 use synoptic::{from_extension, Highlighter};
 
-// Gracefully exit the program
-fn graceful_panic(msg: &str) {
-    eprintln!("{}", msg);
-    std::process::exit(1);
+// Issue a warning to the user
+fn issue_warning(msg: &str) {
+    eprintln!("[WARNING] {}", msg);
 }
 
 /// This contains the default configuration lua file
@@ -530,7 +529,7 @@ impl StatusLine {
                     .collect::<String>();
                 if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
                     if let Ok(r) = func.call::<(), LuaString>(()) {
-                        part = part.replace(&m.text, r.to_str().unwrap());
+                        part = part.replace(&m.text, r.to_str().unwrap_or(""));
                     } else {
                         break;
                     }
@@ -585,12 +584,12 @@ impl StatusAlign {
             "around" => Self::Around,
             "between" => Self::Between,
             _ => {
-                graceful_panic(
+                issue_warning(
                     "\
-                    Invalid status line alignment used in configuration file\n\
-                    Make sure value is either 'around' or 'between'",
+                    Invalid status line alignment used in configuration file - \
+                    make sure value is either 'around' or 'between' (defaulting to 'between')",
                 );
-                unreachable!();
+                Self::Between
             }
         }
     }
@@ -809,7 +808,7 @@ pub enum ConfigColor {
 impl ConfigColor {
     pub fn from_lua<'a>(value: LuaValue<'a>) -> Self {
         match value {
-            LuaValue::String(string) => match string.to_str().unwrap() {
+            LuaValue::String(string) => match string.to_str().unwrap_or("transparent") {
                 "black" => Self::Black,
                 "darkgrey" => Self::DarkGrey,
                 "red" => Self::Red,
@@ -830,52 +829,60 @@ impl ConfigColor {
                 hex => Self::Hex(hex.to_string()),
             },
             LuaValue::Table(table) => {
-                if table.len().unwrap() != 3 {
-                    graceful_panic("Invalid RGB sequence used in configuration file (must be a list of 3 numbers)");
+                if table.len().unwrap_or(3) != 3 {
+                    issue_warning("Invalid RGB sequence used in configuration file (must be a list of 3 numbers)");
+                    return Self::Transparent;
                 }
-                let b: u8 = table.pop().expect("Invalid rgb sequence");
-                let g: u8 = table.pop().expect("Invalid rgb sequence");
-                let r: u8 = table.pop().expect("Invalid rgb sequence");
-                Self::Rgb(r, g, b)
+                let mut tri: Vec<u8> = vec![];
+                for _ in 0..3 {
+                    if let Ok(val) = table.pop() {
+                        tri.insert(0, val)
+                    } else {
+                        issue_warning("Invalid RGB sequence provided - please check your numerical values are between 0 and 255");
+                        tri.insert(0, 255);
+                    }
+                }
+                Self::Rgb(tri[0], tri[1], tri[2])
             }
             _ => {
-                graceful_panic("Invalid data type used for colour in configuration file");
-                unreachable!()
+                issue_warning("Invalid data type used for colour in configuration file");
+                Self::Transparent
             }
         }
     }
 
     pub fn to_lua<'a>(&self, env: &'a Lua) -> LuaValue<'a> {
+        let msg = "Failed to create lua string";
         match self {
             ConfigColor::Hex(hex) => {
-                let string = env.create_string(hex).unwrap();
+                let string = env.create_string(hex).expect(msg);
                 LuaValue::String(string)
             }
             ConfigColor::Rgb(r, g, b) => {
                 // Create lua table
-                let table = env.create_table().unwrap();
-                table.push(*r as isize).unwrap();
-                table.push(*g as isize).unwrap();
-                table.push(*b as isize).unwrap();
+                let table = env.create_table().expect("Failed to create lua table");
+                let _ = table.push(*r as isize);
+                let _ = table.push(*g as isize);
+                let _ = table.push(*b as isize);
                 LuaValue::Table(table)
             }
-            ConfigColor::Black => LuaValue::String(env.create_string("black").unwrap()),
-            ConfigColor::DarkGrey => LuaValue::String(env.create_string("darkgrey").unwrap()),
-            ConfigColor::Red => LuaValue::String(env.create_string("red").unwrap()),
-            ConfigColor::DarkRed => LuaValue::String(env.create_string("darkred").unwrap()),
-            ConfigColor::Green => LuaValue::String(env.create_string("green").unwrap()),
-            ConfigColor::DarkGreen => LuaValue::String(env.create_string("darkgreen").unwrap()),
-            ConfigColor::Yellow => LuaValue::String(env.create_string("yellow").unwrap()),
-            ConfigColor::DarkYellow => LuaValue::String(env.create_string("darkyellow").unwrap()),
-            ConfigColor::Blue => LuaValue::String(env.create_string("blue").unwrap()),
-            ConfigColor::DarkBlue => LuaValue::String(env.create_string("darkblue").unwrap()),
-            ConfigColor::Magenta => LuaValue::String(env.create_string("magenta").unwrap()),
-            ConfigColor::DarkMagenta => LuaValue::String(env.create_string("darkmagenta").unwrap()),
-            ConfigColor::Cyan => LuaValue::String(env.create_string("cyan").unwrap()),
-            ConfigColor::DarkCyan => LuaValue::String(env.create_string("darkcyan").unwrap()),
-            ConfigColor::White => LuaValue::String(env.create_string("white").unwrap()),
-            ConfigColor::Grey => LuaValue::String(env.create_string("grey").unwrap()),
-            ConfigColor::Transparent => LuaValue::String(env.create_string("transparent").unwrap()),
+            ConfigColor::Black => LuaValue::String(env.create_string("black").expect(msg)),
+            ConfigColor::DarkGrey => LuaValue::String(env.create_string("darkgrey").expect(msg)),
+            ConfigColor::Red => LuaValue::String(env.create_string("red").expect(msg)),
+            ConfigColor::DarkRed => LuaValue::String(env.create_string("darkred").expect(msg)),
+            ConfigColor::Green => LuaValue::String(env.create_string("green").expect(msg)),
+            ConfigColor::DarkGreen => LuaValue::String(env.create_string("darkgreen").expect(msg)),
+            ConfigColor::Yellow => LuaValue::String(env.create_string("yellow").expect(msg)),
+            ConfigColor::DarkYellow => LuaValue::String(env.create_string("darkyellow").expect(msg)),
+            ConfigColor::Blue => LuaValue::String(env.create_string("blue").expect(msg)),
+            ConfigColor::DarkBlue => LuaValue::String(env.create_string("darkblue").expect(msg)),
+            ConfigColor::Magenta => LuaValue::String(env.create_string("magenta").expect(msg)),
+            ConfigColor::DarkMagenta => LuaValue::String(env.create_string("darkmagenta").expect(msg)),
+            ConfigColor::Cyan => LuaValue::String(env.create_string("cyan").expect(msg)),
+            ConfigColor::DarkCyan => LuaValue::String(env.create_string("darkcyan").expect(msg)),
+            ConfigColor::White => LuaValue::String(env.create_string("white").expect(msg)),
+            ConfigColor::Grey => LuaValue::String(env.create_string("grey").expect(msg)),
+            ConfigColor::Transparent => LuaValue::String(env.create_string("transparent").expect(msg)),
         }
     }
 
@@ -916,15 +923,20 @@ impl ConfigColor {
 
         // Ensure the hex code is exactly 6 characters long
         if hex.len() != 6 {
-            graceful_panic("Invalid hex code used in configuration file");
+            panic!("Invalid hex code used in configuration file - ensure they are of length 6");
         }
 
         // Parse the hex string into the RGB components
-        let r = u8::from_str_radix(&hex[0..2], 16).expect("invalid R component in hex code");
-        let g = u8::from_str_radix(&hex[2..4], 16).expect("invalid G component in hex code");
-        let b = u8::from_str_radix(&hex[4..6], 16).expect("invalid B component in hex code");
-
-        Ok((r, g, b))
+        let mut tri: Vec<u8> = vec![];
+        for i in 0..3 {
+            let section = &hex[(i * 2)..(i * 2 + 2)];
+            if let Ok(val) = u8::from_str_radix(section, 16) {
+                tri.insert(0, val)
+            } else {
+                panic!("Invalid hex code used in configuration file - ensure all digits are between 0 and F");
+            }
+        }
+        Ok((tri[0], tri[1], tri[2]))
     }
 }
 
@@ -1084,9 +1096,9 @@ impl LuaUserData for Editor {
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         // Reload the configuration file
         methods.add_method_mut("reload_config", |lua, editor, ()| {
-            editor
-                .load_config(editor.config_path.clone(), &lua)
-                .unwrap();
+            if editor.load_config(editor.config_path.clone(), &lua).is_err() {
+                editor.feedback = Feedback::Error("Failed to reload config".to_string());
+            }
             Ok(())
         });
         // Display messages
