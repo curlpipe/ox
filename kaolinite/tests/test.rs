@@ -20,6 +20,8 @@ fn filetypes() {
     assert_eq!(filetype("vrx"), Some(st!("GLSL")));
     assert_eq!(filetype("zsh"), Some(st!("Zsh")));
     assert_eq!(filetype("abcd"), None);
+    assert_eq!(icon("reStructuredText"), st!("󰊄"));
+    assert_eq!(icon("abcd"), st!("󰈙 "));
 }
 
 #[test]

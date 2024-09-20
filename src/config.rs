@@ -6,7 +6,7 @@ use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode},
     style::{Color, SetForegroundColor as Fg},
 };
-use kaolinite::utils::{filetype, get_absolute_path, get_file_ext, get_file_name};
+use kaolinite::utils::{filetype, get_absolute_path, get_file_ext, get_file_name, icon};
 use kaolinite::{Document, Loc};
 use mlua::prelude::*;
 use std::collections::HashMap;
@@ -440,6 +440,7 @@ impl TabLine {
         let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
+        let icon = icon(&filetype(&file_extension).unwrap_or_else(|| "".to_string()));
         let modified = if document.modified { "[+]" } else { "" };
         let mut result = self.format.clone();
         result = result
@@ -451,6 +452,7 @@ impl TabLine {
             .to_string();
         result = result.replace("{path}", &path).to_string();
         result = result.replace("{modified}", &modified).to_string();
+        result = result.replace("{icon}", &icon).to_string();
         result
     }
 }
@@ -498,6 +500,7 @@ impl StatusLine {
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_type = filetype(&file_extension).unwrap_or_else(|| file_extension.to_string());
+        let icon = icon(&filetype(&file_extension).unwrap_or_else(|| "".to_string()));
         let modified = if editor.doc().modified { "[+]" } else { "" };
         let cursor_y = (editor.doc().loc().y + 1).to_string();
         let cursor_x = editor.doc().char_ptr.to_string();
@@ -509,6 +512,7 @@ impl StatusLine {
             part = part
                 .replace("{file_extension}", &file_extension)
                 .to_string();
+            part = part.replace("{icon}", &icon).to_string();
             part = part.replace("{path}", &path).to_string();
             part = part.replace("{absolute_path}", &absolute_path).to_string();
             part = part.replace("{modified}", &modified).to_string();
