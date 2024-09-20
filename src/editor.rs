@@ -44,6 +44,8 @@ pub struct Editor {
     pub last_active: Instant,
     /// Used for storing amount to push document down
     push_down: usize,
+    /// Used to cache the location of the configuration file
+    pub config_path: String,
 }
 
 impl Editor {
@@ -64,11 +66,13 @@ impl Editor {
             command: None,
             last_active: Instant::now(),
             push_down: 1,
+            config_path: "~/.oxrc".to_string(),
         })
     }
 
     /// Load the configuration values
     pub fn load_config(&mut self, path: String, lua: &Lua) -> Result<()> {
+        self.config_path = path.clone();
         let result = self.config.read(path, lua);
         // Display any warnings if the user configuration couldn't be found
         if let Err(OxError::Config(msg)) = result {

@@ -1049,6 +1049,13 @@ impl LuaUserData for Editor {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        // Reload the configuration file
+        methods.add_method_mut("reload_config", |lua, editor, ()| {
+            editor
+                .load_config(editor.config_path.clone(), &lua)
+                .unwrap();
+            Ok(())
+        });
         // Display messages
         methods.add_method_mut("display_error", |_, editor, message: String| {
             editor.feedback = Feedback::Error(message);
