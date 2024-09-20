@@ -6,7 +6,7 @@ use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode},
     style::{Color, SetForegroundColor as Fg},
 };
-use kaolinite::utils::filetype;
+use kaolinite::utils::{filetype, get_absolute_path, get_file_ext, get_file_name};
 use kaolinite::{Document, Loc};
 use mlua::prelude::*;
 use std::collections::HashMap;
@@ -433,13 +433,23 @@ impl Default for TabLine {
 
 impl TabLine {
     pub fn render(&self, document: &Document) -> String {
-        let file_name = document
+        let path = document
             .file_name
             .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
+        let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
+        let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
+        let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
         let modified = if document.modified { "[+]" } else { "" };
         let mut result = self.format.clone();
+        result = result
+            .replace("{file_extension}", &file_extension)
+            .to_string();
         result = result.replace("{file_name}", &file_name).to_string();
+        result = result
+            .replace("{absolute_path}", &absolute_path)
+            .to_string();
+        result = result.replace("{path}", &path).to_string();
         result = result.replace("{modified}", &modified).to_string();
         result
     }
@@ -479,19 +489,15 @@ impl Default for StatusLine {
 impl StatusLine {
     pub fn render(&self, editor: &Editor, w: usize) -> String {
         let mut result = vec![];
-        let ext = editor
+        let path = editor
             .doc()
             .file_name
-            .as_ref()
-            .and_then(|name| Some(name.split('.').last().unwrap().to_string()))
-            .unwrap_or_else(|| "".to_string());
-        let file_type = filetype(&ext).unwrap_or(ext);
-        let file_name = editor
-            .doc()
-            .file_name
-            .as_ref()
-            .and_then(|name| Some(name.split('/').last().unwrap().to_string()))
+            .to_owned()
             .unwrap_or_else(|| "[No Name]".to_string());
+        let file_extension = get_file_ext(&path).unwrap_or_else(|| "".to_string());
+        let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
+        let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
+        let file_type = filetype(&file_extension).unwrap_or_else(|| file_extension.to_string());
         let modified = if editor.doc().modified { "[+]" } else { "" };
         let cursor_y = (editor.doc().loc().y + 1).to_string();
         let cursor_x = editor.doc().char_ptr.to_string();
@@ -500,6 +506,11 @@ impl StatusLine {
         for part in &self.parts {
             let mut part = part.clone();
             part = part.replace("{file_name}", &file_name).to_string();
+            part = part
+                .replace("{file_extension}", &file_extension)
+                .to_string();
+            part = part.replace("{path}", &path).to_string();
+            part = part.replace("{absolute_path}", &absolute_path).to_string();
             part = part.replace("{modified}", &modified).to_string();
             part = part.replace("{file_type}", &file_type).to_string();
             part = part.replace("{cursor_y}", &cursor_y).to_string();

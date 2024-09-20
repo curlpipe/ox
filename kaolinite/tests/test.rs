@@ -823,6 +823,27 @@ fn document_indices() {
     assert_eq!(doc.character_idx(&Loc { x: 5, y: 1 }), 2);
 }
 
+#[test]
+fn file_paths() {
+    assert!(get_absolute_path("tests/data/unicode.txt")
+        .unwrap()
+        .starts_with("/home/"));
+    assert!(get_absolute_path("tests/data/unicode.txt")
+        .unwrap()
+        .starts_with("/home/"));
+    assert_eq!(
+        get_file_name("tests/data/unicode.txt"),
+        Some(st!("unicode.txt"))
+    );
+    assert_eq!(
+        get_file_name("tests/data/unicode.txt"),
+        Some(st!("unicode.txt"))
+    );
+    assert_eq!(get_file_name("src/document.rs"), Some(st!("document.rs")));
+    assert_eq!(get_file_ext("tests/data/unicode.txt"), Some(st!("txt")));
+    assert_eq!(get_file_ext("src/document.rs"), Some(st!("rs")));
+}
+
 /*
 Template:
 

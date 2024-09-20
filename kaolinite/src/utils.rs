@@ -1,5 +1,6 @@
 use std::ops::{Bound, RangeBounds};
 /// utils.rs - utilities to assist in editing and keep code in document.rs readable
+use std::path::Path;
 use unicode_width::UnicodeWidthStr;
 
 /// Utility for easily forming a regular expression from a string
@@ -130,6 +131,31 @@ pub fn tab_boundaries_backward(line: &str, tab_width: usize) -> Vec<usize> {
         }
     }
     boundaries
+}
+
+/// Will get the absolute path to a file
+#[must_use]
+pub fn get_absolute_path(path: &str) -> Option<String> {
+    let abs = std::fs::canonicalize(path).ok()?;
+    Some(abs.to_string_lossy().to_string())
+}
+
+/// Will get the file name from a file
+#[must_use]
+pub fn get_file_name(path: &str) -> Option<String> {
+    let p = Path::new(path);
+    p.file_name()
+        .and_then(|name| name.to_str())
+        .map(|s| s.to_string())
+}
+
+/// Will get the file name from a file
+#[must_use]
+pub fn get_file_ext(path: &str) -> Option<String> {
+    let p = Path::new(path);
+    p.extension()
+        .and_then(|name| name.to_str())
+        .map(|s| s.to_string())
 }
 
 /// Determine the filetype from the extension
