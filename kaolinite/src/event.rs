@@ -106,6 +106,7 @@ impl Document {
     pub fn apply_snapshot(&mut self, snapshot: Snapshot) {
         self.file = snapshot.content;
         self.cursor = snapshot.cursor;
+        self.char_ptr = self.character_idx(&snapshot.cursor.loc);
         self.reload_lines();
         self.bring_cursor_in_viewport();
     }
