@@ -91,6 +91,8 @@ pub struct UndoMgmt {
     pub undo: Vec<Snapshot>,
     /// Redo contains all the patches that have been undone
     pub redo: Vec<Snapshot>,
+    /// Store where the file on the disk is currently at
+    pub on_disk: usize,
 }
 
 impl Document {
@@ -148,15 +150,13 @@ impl UndoMgmt {
         Some(ev)
     }
 
-    /// Returns true if the undo stack is empty, meaning no patches have been applied
-    #[must_use]
-    pub fn is_undo_empty(&self) -> bool {
-        self.undo.is_empty()
+    /// On file save, mark where the document is to match it on the disk
+    pub fn saved(&mut self) {
+        self.on_disk = self.undo.len()
     }
 
-    /// Returns true if the redo stack is empty, meaning no patches have been undone
-    #[must_use]
-    pub fn is_redo_empty(&self) -> bool {
-        self.redo.is_empty()
+    /// Determine if the state of the document is currently that of what is on the disk
+    pub fn at_file(&self) -> bool {
+        self.undo.len() == self.on_disk
     }
 }

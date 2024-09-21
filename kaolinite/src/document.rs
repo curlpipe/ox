@@ -77,6 +77,7 @@ impl Document {
             eol: false,
         };
         this.undo_mgmt.undo.push(this.take_snapshot());
+        this.undo_mgmt.saved();
         this
     }
 
@@ -112,6 +113,7 @@ impl Document {
             in_redo: false,
         };
         this.undo_mgmt.undo.push(this.take_snapshot());
+        this.undo_mgmt.saved();
         Ok(this)
     }
 
@@ -126,6 +128,7 @@ impl Document {
     /// or character set issues.
     pub fn save(&mut self) -> Result<()> {
         if !self.read_only {
+            self.undo_mgmt.saved();
             self.modified = false;
             if let Some(file_name) = &self.file_name {
                 self.file
@@ -174,6 +177,9 @@ impl Document {
             self.apply_snapshot(s);
             self.modified = true;
         }
+        if self.undo_mgmt.at_file() {
+            self.modified = false;
+        }
         Ok(())
     }
 
@@ -184,6 +190,9 @@ impl Document {
         if let Some(s) = self.undo_mgmt.redo() {
             self.apply_snapshot(s);
             self.modified = true;
+        }
+        if self.undo_mgmt.at_file() {
+            self.modified = false;
         }
         Ok(())
     }
@@ -1067,16 +1076,12 @@ impl Document {
     }
 
     pub fn remove_selection(&mut self) {
-        // Removing a selection is significant and worth an undo commit
-        self.undo_mgmt.set_dirty();
-        self.commit();
-        self.undo_mgmt.set_dirty();
-
         self.file.remove(self.selection_range());
         self.reload_lines();
         self.cursor.loc = self.selection_loc_bound().0;
         self.cancel_selection();
         self.bring_cursor_in_viewport();
+        self.modified = true;
     }
 }
 

@@ -136,6 +136,7 @@ impl Editor {
             .get_highlighter(&ext);
         highlighter.run(&doc.lines);
         self.highlighter.push(highlighter);
+        doc.undo_mgmt.saved();
         // Add document to documents
         self.doc.push(doc);
         Ok(())
@@ -742,7 +743,10 @@ impl Editor {
     /// Handle the backspace key
     pub fn backspace(&mut self) -> Result<()> {
         if !self.doc().is_selection_empty() {
+            self.doc_mut().commit();
+            self.doc_mut().undo_mgmt.set_dirty();
             self.doc_mut().remove_selection();
+            // Removing a selection is significant and worth an undo commit
             self.reload_highlight();
             return Ok(());
         }
@@ -990,9 +994,10 @@ impl Editor {
 
     /// save the document to the disk
     pub fn save(&mut self) -> Result<()> {
-        self.doc_mut().save()?;
         // Commit events to event manager (for undo / redo)
         self.doc_mut().commit();
+        // Perform the save
+        self.doc_mut().save()?;
         // All done
         self.feedback = Feedback::Info("Document saved successfully".to_string());
         Ok(())
