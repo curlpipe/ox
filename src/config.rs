@@ -36,11 +36,15 @@ pub const PLUGIN_RUN: &str = include_str!("plugin/run.lua");
 pub fn run_key(key: &str) -> String {
     format!(
         "
+        globalevent = (global_event_mapping[\"*\"] or {{}})
+        for _, f in ipairs(globalevent) do
+            f()
+        end
         key = (global_event_mapping[\"{key}\"] or error(\"key not bound\"))
         for _, f in ipairs(key) do
             f()
         end
-    "
+        "
     )
 }
 
@@ -1056,6 +1060,9 @@ impl LuaUserData for DocumentConfig {
 
 impl LuaUserData for Editor {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("pasting", |_, editor| {
+            Ok(editor.paste_flag)
+        });
         fields.add_field_method_get("cursor", |_, editor| {
             let loc = editor.doc().char_loc();
             Ok(LuaLoc {
