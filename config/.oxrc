@@ -288,5 +288,5 @@ syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _
 syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown
 
 -- Import plugins (must be at the bottom of this file)
--- load_plugin("pairs.lua")
--- load_plugin("autoindent.lua")
+load_plugin("pairs.lua")
+load_plugin("autoindent.lua")

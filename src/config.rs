@@ -22,6 +22,10 @@ fn issue_warning(msg: &str) {
 /// This contains the default configuration lua file
 const DEFAULT_CONFIG: &str = include_str!("../config/.oxrc");
 
+/// Default plug-in code to use
+const PAIRS: &str = include_str!("../plugins/pairs.lua");
+const AUTOINDENT: &str = include_str!("../plugins/autoindent.lua");
+
 /// This contains the code for setting up plug-in infrastructure
 pub const PLUGIN_BOOTSTRAP: &str = r#"
 home = os.getenv("HOME") or os.getenv("USERPROFILE")
@@ -37,6 +41,7 @@ function file_exists(file_path)
 end
 
 plugins = {}
+builtins = {}
 plugin_issues = false
 
 function load_plugin(base)
@@ -50,8 +55,16 @@ function load_plugin(base)
     elseif file_exists(path_win) then
         path = file_win
     else
-        print("[WARNING] Failed to load plugin " .. base)
-        plugin_issues = true
+        -- Prevent warning if plug-in is built-in
+        local is_autoindent = base:match("autoindent.lua$") ~= nil
+        local is_pairs = base:match("pairs.lua$") ~= nil
+        if not is_pairs and not is_autoindent then 
+            -- Issue warning if plug-in is builtin
+            print("[WARNING] Failed to load plugin " .. base)
+            plugin_issues = true
+        else
+            table.insert(builtins, base)
+        end
     end
     plugins[#plugins + 1] = path
 end
@@ -152,20 +165,21 @@ impl Config {
     pub fn read(&mut self, path: String, lua: &Lua) -> Result<()> {
         // Load the default config to start with
         lua.load(DEFAULT_CONFIG).exec()?;
+        // Reset plugin status based on built-in configuration file
+        lua.load("plugins = {}").exec()?;
+        lua.load("builtins = {}").exec()?;
 
         // Judge pre-user config state
         let status_parts = self.status_line.borrow().parts.len();
 
         // Attempt to read config file from home directory
+        let mut user_provided_config = false;
         if let Ok(path) = shellexpand::full(&path) {
             if let Ok(config) = std::fs::read_to_string(path.to_string()) {
                 // Update configuration with user-defined values
                 lua.load(config).exec()?;
-            } else {
-                return Err(OxError::Config("Not Found".to_string()));
+                user_provided_config = true;
             }
-        } else {
-            return Err(OxError::Config("Not Found".to_string()));
         }
 
         // Remove any default values if necessary
@@ -173,7 +187,47 @@ impl Config {
             self.status_line.borrow_mut().parts.drain(0..status_parts);
         }
 
-        Ok(())
+        // Determine whether or not to load built-in plugins
+        let mut builtins: HashMap<&str, &str> = HashMap::default();
+        builtins.insert("pairs.lua", PAIRS);
+        builtins.insert("autoindent.lua", AUTOINDENT);
+        for (name, code) in builtins.iter() {
+            if self.load_bi(name, user_provided_config, &lua) {
+                lua.load(*code).exec()?;
+            }
+        }
+
+        if user_provided_config {
+            Ok(())
+        } else {
+            Err(OxError::Config("Not Found".to_string()))
+        }
+    }
+    
+    /// Decide whether to load a built-in plugin
+    pub fn load_bi(&self, name: &str, user_provided_config: bool, lua: &Lua) -> bool {
+        if !user_provided_config {
+            // Load when the user hasn't provided a configuration file
+            true
+        } else {
+            // Get list of user-loaded plug-ins
+            let plugins: Vec<String> = lua.globals()
+                .get::<_, LuaTable>("builtins")
+                .unwrap()
+                .sequence_values()
+                .filter_map(std::result::Result::ok)
+                .collect();
+            // If the user wants to load the plug-in but it isn't available
+            if let Some(idx) = plugins.iter().position(|p| p.ends_with(name)) {
+                // User wants the plug-in
+                let path = &plugins[idx];
+                // true if plug-in isn't avilable
+                !std::path::Path::new(path).exists()
+            } else {
+                // User doesn't want the plug-in
+                false
+            }
+        }
     }
 }
 
