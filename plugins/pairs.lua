@@ -15,6 +15,25 @@ pairings = {
 }
 
 just_paired = { x = nil, y = nil }
+was_pasting = editor.pasting
+
+event_mapping["*"] = function()
+    -- If the editor is pasting, try to determine the first character of the paste
+    if editor.pasting and not was_pasting then
+        local first_paste = editor:get_character_at(editor.cursor.x - 2, editor.cursor.y)
+        local between_pasting = false
+        for _, str in ipairs(pairings) do
+            if string.sub(str, 1, 1) == first_paste then
+                between_pasting = true
+            end
+        end
+        if between_pasting then
+            -- Fix rogue paste
+            editor:remove_at(editor.cursor.x, editor.cursor.y)
+        end
+    end
+    was_pasting = editor.pasting
+end
 
 -- Link up pairs to event mapping
 for i, str in ipairs(pairings) do
@@ -24,8 +43,13 @@ for i, str in ipairs(pairings) do
     if start_pair == end_pair then
         -- Handle hybrid start_pair and end_pair
         event_mapping[start_pair] = function()
+            -- Return if the user is currently pasting text
+            if editor.pasting then return end
             -- Check if there is a matching start pair
-            local at_char = editor:get_character_at(editor.cursor.x - 2, editor.cursor.y)
+            local at_char = ' '
+            if editor.cursor.x > 1 then
+                at_char = editor:get_character_at(editor.cursor.x - 2, editor.cursor.y)
+            end
             local potential_dupe = at_char == start_pair
             -- Check if we're at the site of the last pairing
             local at_immediate_pair_x = just_paired.x == editor.cursor.x - 1
@@ -42,10 +66,11 @@ for i, str in ipairs(pairings) do
                 editor:move_left()
             end
         end
-        end
     else
         -- Handle traditional pairs
         event_mapping[end_pair] = function()
+            -- Return if the user is currently pasting text
+            if editor.pasting then return end
             -- Check if there is a matching start pair
             local at_char = editor:get_character_at(editor.cursor.x - 2, editor.cursor.y)
             local potential_dupe = at_char == start_pair
@@ -61,6 +86,8 @@ for i, str in ipairs(pairings) do
             end
         end
         event_mapping[start_pair] = function()
+            -- Return if the user is currently pasting text
+            if editor.pasting then return end
             just_paired = editor.cursor
             editor:insert(end_pair)
             editor:move_left()
