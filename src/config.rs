@@ -27,78 +27,10 @@ const PAIRS: &str = include_str!("../plugins/pairs.lua");
 const AUTOINDENT: &str = include_str!("../plugins/autoindent.lua");
 
 /// This contains the code for setting up plug-in infrastructure
-pub const PLUGIN_BOOTSTRAP: &str = r#"
-home = os.getenv("HOME") or os.getenv("USERPROFILE")
-
-function file_exists(file_path)
-    local file = io.open(file_path, "r")
-    if file then
-        file:close()
-        return true
-    else
-        return false
-    end
-end
-
-plugins = {}
-builtins = {}
-plugin_issues = false
-
-function load_plugin(base)
-    path_cross = base
-    path_unix = home .. "/.config/ox/" .. base
-    path_win = home .. "/ox/" .. base
-    if file_exists(path_cross) then
-        path = path_cross
-    elseif file_exists(path_unix) then
-        path = path_unix
-    elseif file_exists(path_win) then
-        path = file_win
-    else
-        -- Prevent warning if plug-in is built-in
-        local is_autoindent = base:match("autoindent.lua$") ~= nil
-        local is_pairs = base:match("pairs.lua$") ~= nil
-        if not is_pairs and not is_autoindent then 
-            -- Issue warning if plug-in is builtin
-            print("[WARNING] Failed to load plugin " .. base)
-            plugin_issues = true
-        else
-            table.insert(builtins, base)
-        end
-    end
-    plugins[#plugins + 1] = path
-end
-"#;
+pub const PLUGIN_BOOTSTRAP: &str = include_str!("plugin/bootstrap.lua");
 
 /// This contains the code for running the plugins
-pub const PLUGIN_RUN: &str = "
-global_event_mapping = {}
-
-function merge_event_mapping()
-    for key, f in pairs(event_mapping) do
-        if global_event_mapping[key] ~= nil then
-            table.insert(global_event_mapping[key], f)
-        else
-            global_event_mapping[key] = {f,}
-        end
-    end
-    event_mapping = {}
-end
-
-for c, path in ipairs(plugins) do
-    merge_event_mapping()
-    dofile(path)
-end
-merge_event_mapping()
-
-if plugin_issues then
-    print(\"Various plug-ins failed to load\")
-    print(\"You may download these plug-ins from the ox git repository (in the plugins folder)\")
-    print(\"https://github.com/curlpipe/ox\")
-    print(\"\")
-    print(\"Alternatively, you may silence these warnings\\nby removing the load_plugin() lines in your configuration file\\nfor the missing plug-ins that are listed above\")
-end
-";
+pub const PLUGIN_RUN: &str = include_str!("plugin/run.lua");
 
 /// This contains the code for handling a key binding
 pub fn run_key(key: &str) -> String {
