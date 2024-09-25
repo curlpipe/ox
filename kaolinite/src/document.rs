@@ -122,10 +122,10 @@ impl Document {
     /// or character set issues.
     pub fn save(&mut self) -> Result<()> {
         if !self.read_only {
-            self.modified = false;
             if let Some(file_name) = &self.file_name {
                 self.file
                     .write_to(BufWriter::new(File::create(file_name)?))?;
+                self.modified = false;
                 Ok(())
             } else {
                 Err(Error::NoFileName)
