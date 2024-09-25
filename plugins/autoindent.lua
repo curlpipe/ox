@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.3
+Auto Indent v0.4
 
 You will be able to press return at the start of a block and have
 Ox automatically indent for you.
@@ -85,3 +85,55 @@ event_mapping["*"] = function()
     end
 end
 
+-- Utilties for when moving lines around
+autoindent = {}
+
+function autoindent:fix_indent()
+    -- Check the indentation of the line above this one (and match the line the cursor is currently on)
+    local line_above = editor:get_line_at(editor.cursor.y - 1)
+    local indents_above = #(line_above:match("^\t+") or "") + #(line_above:match("^ +") or "") / document.tab_width
+    local line_below = editor:get_line_at(editor.cursor.y + 1)
+    local indents_below = #(line_below:match("^\t+") or "") + #(line_below:match("^ +") or "") / document.tab_width
+    local new_indent = nil
+    if editor.cursor.y == 1 then
+        -- Always remove all indent when on the first line
+        new_indent = 0
+    elseif indents_below == indents_above then
+        new_indent = indents_below
+    elseif indents_below > indents_above then
+        new_indent = indents_below
+    else
+        new_indent = indents_above
+    end
+    -- Give a boost when entering empty blocks
+    if line_above:match("{%s*$") ~= nil and line_below:match("^%s*}") ~= nil then
+        new_indent = new_indent + 1;
+    end
+    -- Work out the contents of the new line
+    local line = editor:get_line()
+    local indents = #(line:match("^\t+") or "") + #(line:match("^ +") or "") / document.tab_width
+    local indent_change = new_indent - indents
+    local new_line = nil
+    if indent_change > 0 then
+        -- Insert indentation
+        if line:match("\t") ~= nil then
+            -- Insert Tabs
+            new_line = string.rep("\t", indent_change) .. line
+        else
+            -- Insert Spaces
+            new_line = string.rep(" ", indent_change * document.tab_width) .. line
+        end
+    elseif indent_change < 0 then
+        -- Remove indentation
+        if line:match("\t") ~= nil then
+            -- Remove Tabs
+            new_line = line:gsub("\t", "", -indent_change)
+        else
+            -- Remove Spaces
+            new_line = line:gsub(string.rep(" ", document.tab_width), "", -indent_change)
+        end
+    end
+    -- Perform replacement
+    editor:insert_line_at(new_line, editor.cursor.y)
+    editor:remove_line_at(editor.cursor.y + 1)
+end
