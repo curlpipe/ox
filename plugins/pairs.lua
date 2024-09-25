@@ -16,6 +16,7 @@ pairings = {
 
 just_paired = { x = nil, y = nil }
 was_pasting = editor.pasting
+line_cache = { y = editor.cursor.y, line = editor:get_line() }
 
 event_mapping["*"] = function()
     -- If the editor is pasting, try to determine the first character of the paste
@@ -33,6 +34,11 @@ event_mapping["*"] = function()
         end
     end
     was_pasting = editor.pasting
+    local changed_line = line_cache.y ~= editor.cursor.y;
+    local potential_backspace = not changed_line and string.len(line_cache.line) - 1 == string.len(editor:get_line());
+    if changed_line or not potential_backspace then
+        line_cache = { y = editor.cursor.y, line = editor:get_line() }
+    end
 end
 
 -- Link up pairs to event mapping
@@ -60,10 +66,12 @@ for i, str in ipairs(pairings) do
                 -- Undo it for them
                 editor:remove_at(editor.cursor.x - 1, editor.cursor.y)
                 just_paired = { x = nil, y = nil }
+                line_cache = { y = editor.cursor.y, line = editor:get_line() }
             else
                 just_paired = editor.cursor
                 editor:insert(end_pair)
                 editor:move_left()
+                line_cache = { y = editor.cursor.y, line = editor:get_line() }
             end
         end
     else
@@ -91,6 +99,26 @@ for i, str in ipairs(pairings) do
             just_paired = editor.cursor
             editor:insert(end_pair)
             editor:move_left()
+            line_cache = { y = editor.cursor.y, line = editor:get_line() }
         end
+    end
+end
+
+-- Automatically delete pairs
+function includes(array, value)
+    for _, v in ipairs(array) do
+        if v == value then
+            return true  -- Value found
+        end
+    end
+    return false  -- Value not found
+end
+
+event_mapping["backspace"] = function()
+    local old_line = line_cache.line
+    local potential_pair = string.sub(old_line, editor.cursor.x + 1, editor.cursor.x + 2)
+    if includes(pairings, potential_pair) then
+        editor:remove_at(editor.cursor.x, editor.cursor.y)
+        line_cache = { y = editor.cursor.y, line = editor:get_line() }
     end
 end
