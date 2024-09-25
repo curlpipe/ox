@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.2
+Auto Indent v0.3
 
 You will be able to press return at the start of a block and have
 Ox automatically indent for you.
@@ -43,6 +43,15 @@ event_mapping["enter"] = function()
     -- Indent the correct number of times
     for i = 1, indents do
         editor:insert("\t")
+    end
+    -- Handle the case where enter is pressed between two brackets
+    local last_char = string.sub(line, string.len(line), string.len(line))
+    local current_char = editor:get_character()
+    local potential_pair = last_char .. current_char
+    local old_cursor = editor.cursor
+    if potential_pair == "{}" or potential_pair == "[]" or potential_pair == "()" then
+        editor:insert_line()
+        editor:move_to(old_cursor.x, old_cursor.y)
     end
 end
 
