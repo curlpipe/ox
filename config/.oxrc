@@ -85,11 +85,14 @@ event_mapping = {
     ["ctrl_a"] = function()
         editor:select_all()
     end,
+    ["ctrl_x"] = function()
+        editor:cut()
+    end,
     ["ctrl_c"] = function()
         editor:copy()
     end,
     ["ctrl_v"] = function()
-        editor:paste()
+        editor:display_info("Use ctrl+shift+v for paste or set your terminal emulator to do paste on ctrl+v")
     end,
     -- Undo & Redo
     ["ctrl_z"] = function()

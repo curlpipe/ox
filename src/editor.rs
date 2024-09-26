@@ -139,6 +139,7 @@ impl Editor {
             .get_highlighter(&ext);
         highlighter.run(&doc.lines);
         self.highlighter.push(highlighter);
+        doc.undo_mgmt.saved();
         // Add document to documents
         self.doc.push(doc);
         Ok(())
@@ -253,9 +254,8 @@ impl Editor {
                 // Check period of inactivity
                 let end = Instant::now();
                 let inactivity = end.duration_since(self.last_active).as_millis() as usize;
-                // If inactivity period was over the undo period, commit
                 if inactivity > self.config.document.borrow().undo_period * 1000 {
-                    self.doc_mut().event_mgmt.commit();
+                    self.doc_mut().commit();
                 }
                 // Predict whether the user is currently pasting text (based on rapid activity)
                 self.paste_flag = inactivity < 5;
@@ -606,15 +606,11 @@ impl Editor {
         self.terminal.copy(&selected_text)
     }
 
-    /// Paste the selected text
-    pub fn paste(&mut self) -> Result<()> {
-        let clip = self.terminal.paste();
-        for ch in clip.unwrap_or_else(|| "".to_string()).chars() {
-            if let Err(err) = self.character(ch) {
-                self.feedback = Feedback::Error(err.to_string());
-            }
-        }
-        self.update_highlighter()?;
+    /// Cut the selected text
+    pub fn cut(&mut self) -> Result<()> {
+        self.copy()?;
+        self.doc_mut().remove_selection();
+        self.reload_highlight();
         Ok(())
     }
 
@@ -711,6 +707,10 @@ impl Editor {
     /// Insert a character into the document, creating a new row if editing
     /// on the last line of the document
     pub fn character(&mut self, ch: char) -> Result<()> {
+        if !self.doc().is_selection_empty() {
+            self.doc_mut().remove_selection();
+            self.reload_highlight();
+        }
         self.new_row()?;
         // Handle the character insertion
         if ch == '\n' {
@@ -722,7 +722,7 @@ impl Editor {
         }
         // Commit to event stack (for undo/redo if the character is a space)
         if ch == ' ' {
-            self.doc_mut().event_mgmt.commit();
+            self.doc_mut().commit();
         }
         Ok(())
     }
@@ -730,7 +730,7 @@ impl Editor {
     /// Handle the return key
     pub fn enter(&mut self) -> Result<()> {
         // When the return key is pressed, we want to commit to the undo/redo stack
-        self.doc_mut().event_mgmt.commit();
+        self.doc_mut().commit();
         // Perform the changes
         if self.doc().loc().y != self.doc().len_lines() {
             // Enter pressed in the start, middle or end of the line
@@ -749,6 +749,14 @@ impl Editor {
 
     /// Handle the backspace key
     pub fn backspace(&mut self) -> Result<()> {
+        if !self.doc().is_selection_empty() {
+            self.doc_mut().commit();
+            self.doc_mut().undo_mgmt.set_dirty();
+            self.doc_mut().remove_selection();
+            // Removing a selection is significant and worth an undo commit
+            self.reload_highlight();
+            return Ok(());
+        }
         let mut c = self.doc().char_ptr;
         let on_first_line = self.doc().loc().y == 0;
         let out_of_range = self.doc().out_of_range(0, self.doc().loc().y).is_err();
@@ -807,7 +815,7 @@ impl Editor {
     /// Delete the current line
     pub fn delete_line(&mut self) -> Result<()> {
         // Commit events to event manager (for undo / redo)
-        self.doc_mut().event_mgmt.commit();
+        self.doc_mut().commit();
         // Delete the line
         if self.doc().loc().y < self.doc().len_lines() {
             let y = self.doc().loc().y;
@@ -947,7 +955,7 @@ impl Editor {
     /// Replace an instance in a document
     fn do_replace(&mut self, into: &str, text: &str) -> Result<()> {
         // Commit events to event manager (for undo / redo)
-        self.doc_mut().event_mgmt.commit();
+        self.doc_mut().commit();
         // Do the replacement
         let loc = self.doc().char_loc();
         self.doc_mut().replace(loc, text, into)?;
@@ -961,7 +969,7 @@ impl Editor {
     /// Replace all instances in a document
     fn do_replace_all(&mut self, target: &str, into: &str) {
         // Commit events to event manager (for undo / redo)
-        self.doc_mut().event_mgmt.commit();
+        self.doc_mut().commit();
         // Replace everything top to bottom
         self.doc_mut().move_to(&Loc::at(0, 0));
         while let Some(mtch) = self.doc_mut().next_match(target, 1) {
@@ -971,45 +979,32 @@ impl Editor {
         }
     }
 
+    fn reload_highlight(&mut self) {
+        for (line, text) in self.doc[self.ptr].lines.iter().enumerate() {
+            self.highlighter[self.ptr].edit(line, text);
+        }
+    }
+
     /// Perform redo action
     pub fn redo(&mut self) -> Result<()> {
         let result = Ok(self.doc_mut().redo()?);
-        let mut affected_lines = vec![];
-        if let Some(patch) = self.doc().event_mgmt.undo.last() {
-            for event in patch {
-                affected_lines.push(event.clone().loc().y);
-            }
-        }
-        affected_lines.sort();
-        affected_lines.dedup();
-        for line in affected_lines {
-            self.highlighter[self.ptr].edit(line, &self.doc[self.ptr].lines[line]);
-        }
+        self.reload_highlight();
         result
     }
 
     /// Perform undo action
     pub fn undo(&mut self) -> Result<()> {
         let result = Ok(self.doc_mut().undo()?);
-        let mut affected_lines = vec![];
-        if let Some(patch) = self.doc().event_mgmt.redo.last() {
-            for event in patch {
-                affected_lines.push(event.clone().loc().y);
-            }
-        }
-        affected_lines.sort();
-        affected_lines.dedup();
-        for line in affected_lines {
-            self.highlighter[self.ptr].edit(line, &self.doc[self.ptr].lines[line]);
-        }
+        self.reload_highlight();
         result
     }
 
     /// save the document to the disk
     pub fn save(&mut self) -> Result<()> {
-        self.doc_mut().save()?;
         // Commit events to event manager (for undo / redo)
-        self.doc_mut().event_mgmt.commit();
+        self.doc_mut().commit();
+        // Perform the save
+        self.doc_mut().save()?;
         // All done
         self.feedback = Feedback::Info("Document saved successfully".to_string());
         Ok(())
@@ -1030,7 +1025,7 @@ impl Editor {
             self.doc_mut().modified = false;
         }
         // Commit events to event manager (for undo / redo)
-        self.doc_mut().event_mgmt.commit();
+        self.doc_mut().commit();
         // All done
         self.feedback = Feedback::Info(format!("Document saved as {file_name} successfully"));
         Ok(())
@@ -1041,7 +1036,7 @@ impl Editor {
         for doc in self.doc.iter_mut() {
             doc.save()?;
             // Commit events to event manager (for undo / redo)
-            doc.event_mgmt.commit();
+            doc.commit();
         }
         self.feedback = Feedback::Info(format!("Saved all documents"));
         Ok(())

@@ -27,7 +27,10 @@ fn filetypes() {
 #[test]
 fn regex() {
     let reg = regex!("a+b*c");
-    println!("{:?}", reg.captures("aaac"));
+    assert_eq!(reg.captures("aaac").as_slice().len(), 1);
+    let reg = regex!(r"\\{\{\{{}");
+    assert_eq!(reg.as_str(), "a^");
+    assert_eq!(reg.captures("abd").as_slice().len(), 0);
 }
 
 #[test]
@@ -241,62 +244,6 @@ fn char_mapping() {
 }
 
 #[test]
-#[allow(unused_must_use)]
-fn event_management() {
-    // Test data
-    let mut mgmt = EventMgmt::default();
-    mgmt.register(Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()));
-    mgmt.register(Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()));
-    mgmt.commit();
-    mgmt.register(Event::Insert(Loc { x: 2, y: 0 }, 's'.to_string()));
-    mgmt.register(Event::Insert(Loc { x: 3, y: 0 }, 't'.to_string()));
-    mgmt.commit();
-    // Output & Verification
-    assert_eq!(
-        mgmt.undo(),
-        Some(vec![
-            Event::Insert(Loc { x: 3, y: 0 }, 't'.to_string()),
-            Event::Insert(Loc { x: 2, y: 0 }, 's'.to_string()),
-        ])
-    );
-    mgmt.register(Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()));
-    assert!(!mgmt.is_patch_empty());
-    assert!(mgmt.is_redo_empty());
-    assert!(!mgmt.is_undo_empty());
-    assert_eq!(
-        mgmt.last(),
-        Some(&Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()))
-    );
-    mgmt.commit();
-    assert_eq!(
-        mgmt.undo(),
-        Some(vec![Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),])
-    );
-    assert_eq!(
-        mgmt.undo(),
-        Some(vec![
-            Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
-            Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
-        ])
-    );
-    assert_eq!(
-        mgmt.redo(),
-        Some(vec![
-            Event::Insert(Loc { x: 0, y: 0 }, 't'.to_string()),
-            Event::Insert(Loc { x: 1, y: 0 }, 'e'.to_string()),
-        ])
-    );
-    assert_eq!(
-        mgmt.redo(),
-        Some(vec![Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()),])
-    );
-    assert_eq!(
-        mgmt.last(),
-        Some(&Event::Insert(Loc { x: 0, y: 0 }, 'x'.to_string()))
-    );
-}
-
-#[test]
 fn events() {
     let ev = vec![
         Event::Insert(Loc { x: 0, y: 0 }, st!("a")),
@@ -366,6 +313,7 @@ fn document_disks() {
     assert!(doc.save_as("tests/data/ghost.txt").is_err());
     doc.read_only = false;
     assert!(doc.save_as("tests/data/ghost.txt").is_ok());
+    // Clean up and verify ghost exists
     let result = std::fs::read_to_string("tests/data/ghost.txt").unwrap();
     std::fs::remove_file("tests/data/ghost.txt").unwrap();
     assert_eq!(result, st!("\n"));
@@ -418,14 +366,21 @@ fn document_deletion() {
 fn document_undo_redo() {
     let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
     doc.load_to(100);
+    assert!(doc.undo_mgmt.undo(doc.take_snapshot()).is_none());
+    assert!(doc.redo().is_ok());
+    assert!(!doc.modified);
     doc.exe(Event::InsertLine(0, st!("hello你bye好hello")));
     doc.exe(Event::Delete(Loc { x: 0, y: 2 }, st!("\t")));
     doc.exe(Event::Insert(Loc { x: 3, y: 2 }, st!("a")));
+    doc.commit();
+    assert!(doc.modified);
     assert!(doc.undo().is_ok());
+    assert!(!doc.modified);
     assert_eq!(doc.line(0), Some(st!("    你好")));
     assert_eq!(doc.line(1), Some(st!("\thello")));
     assert_eq!(doc.line(2), Some(st!("    hello")));
     assert!(doc.redo().is_ok());
+    assert!(doc.modified);
     assert_eq!(doc.line(0), Some(st!("hello你bye好hello")));
     assert_eq!(doc.line(2), Some(st!("helalo")));
 }
@@ -635,6 +590,12 @@ fn document_selection() {
         doc.selection_text(),
         st!("5748248337351130204990967092462\n8")
     );
+    doc.remove_selection();
+    assert!(doc.is_selection_empty());
+    assert!(!doc.is_loc_selected(Loc { x: 0, y: 1 }));
+    assert!(!doc.is_loc_selected(Loc { x: 0, y: 0 }));
+    assert!(!doc.is_loc_selected(Loc { x: 2, y: 0 }));
+    assert!(!doc.is_loc_selected(Loc { x: 3, y: 0 }));
 }
 
 #[test]

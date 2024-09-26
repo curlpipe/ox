@@ -27,9 +27,6 @@ quick_error! {
             from()
             display("Error in lua: {}", err)
         }
-        Clipboard {
-            display("Error using clipboard")
-        }
         None
     }
 }
