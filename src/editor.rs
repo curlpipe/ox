@@ -1,6 +1,6 @@
 use crate::config::{key_to_string, Config};
 use crate::error::{OxError, Result};
-use crate::ui::{size, Feedback, Terminal, HELP_TEXT};
+use crate::ui::{size, Feedback, Terminal};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
     style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
@@ -34,8 +34,6 @@ pub struct Editor {
     pub active: bool,
     /// true if the editor should show a greeting message on next render
     pub greet: bool,
-    /// Whether or not to show the help message
-    pub help: bool,
     /// The feedback message to display below the status line
     pub feedback: Feedback,
     /// Will be some if there is an outstanding command to be run
@@ -61,7 +59,6 @@ impl Editor {
             config,
             active: true,
             greet: false,
-            help: false,
             needs_rerender: true,
             highlighter: vec![],
             feedback: Feedback::None,
@@ -336,7 +333,7 @@ impl Editor {
         // Render greeting or help message if applicable
         if self.greet {
             self.render_greeting(w, h)?;
-        } else if self.help {
+        } else if self.config.help_message.borrow().enabled {
             self.render_help_message(w, h)?;
         }
         // Render feedback line
@@ -502,14 +499,11 @@ impl Editor {
 
     /// Render the greeting message
     fn render_help_message(&mut self, w: usize, h: usize) -> Result<()> {
-        let color = self.config.colors.borrow().highlight.to_color()?;
-        let editor_fg = self.config.colors.borrow().editor_fg.to_color()?;
-        let message: Vec<&str> = HELP_TEXT.split('\n').collect();
-        for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
-            self.terminal.goto(w.saturating_sub(30), h / 4 + c + 1)?;
-            write!(self.terminal.stdout, "{}{line}{}", Fg(color), Fg(editor_fg))?;
-        }
-        Ok(())
+        let colors = self.config.colors.borrow();
+        self.config
+            .help_message
+            .borrow()
+            .render(&mut self.terminal, w, h, &colors)
     }
 
     /// Render the help message

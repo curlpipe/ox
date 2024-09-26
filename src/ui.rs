@@ -19,31 +19,6 @@ use std::cell::RefCell;
 use std::io::{stdout, Stdout, Write};
 use std::rc::Rc;
 
-/// Constant that shows the help message
-pub const HELP_TEXT: &str = "
-   Default Key Bindings:       
-   Ctrl + N:   New             
-   Ctrl + O:   Open            
-   Ctrl + Q:   Quit            
-   Ctrl + S:   Save            
-   Alt  + W:   Save as         
-   Alt  + A:   Save all        
-   Ctrl + A:   Select All      
-   Ctrl + C:   Copy            
-   Ctrl + V:   Paste           
-   Ctrl + Z:   Undo            
-   Ctrl + Y:   Redo            
-   Ctrl + F:   Find            
-   Ctrl + R:   Replace         
-   Ctrl + W:   Delete Word     
-   Ctrl + D:   Delete Line     
-   Ctrl + K:   Command Line    
-   Alt + Up:   Move line up    
-   Alt + Down: Move line down  
-   Alt + ->:   Next Tab        
-   Alt + <-:   Previous Tab    
-";
-
 /// Gets the size of the terminal
 pub fn size() -> Result<Size> {
     let (w, h) = terminal::size()?;

@@ -1,7 +1,7 @@
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::error::{OxError, Result};
-use crate::ui::Feedback;
+use crate::ui::{Feedback, Terminal};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode},
     style::{Color, SetForegroundColor as Fg},
@@ -11,6 +11,7 @@ use kaolinite::utils::{filetype, get_absolute_path, get_file_ext, get_file_name,
 use kaolinite::{Document, Loc};
 use mlua::prelude::*;
 use std::collections::HashMap;
+use std::io::Write;
 use std::{cell::RefCell, rc::Rc};
 use synoptic::{from_extension, Highlighter};
 
@@ -57,6 +58,7 @@ pub struct Config {
     pub status_line: Rc<RefCell<StatusLine>>,
     pub tab_line: Rc<RefCell<TabLine>>,
     pub greeting_message: Rc<RefCell<GreetingMessage>>,
+    pub help_message: Rc<RefCell<HelpMessage>>,
     pub terminal: Rc<RefCell<TerminalConfig>>,
     pub document: Rc<RefCell<DocumentConfig>>,
 }
@@ -68,6 +70,7 @@ impl Config {
         let syntax_highlighting = Rc::new(RefCell::new(SyntaxHighlighting::default()));
         let line_numbers = Rc::new(RefCell::new(LineNumbers::default()));
         let greeting_message = Rc::new(RefCell::new(GreetingMessage::default()));
+        let help_message = Rc::new(RefCell::new(HelpMessage::default()));
         let colors = Rc::new(RefCell::new(Colors::default()));
         let status_line = Rc::new(RefCell::new(StatusLine::default()));
         let tab_line = Rc::new(RefCell::new(TabLine::default()));
@@ -79,6 +82,7 @@ impl Config {
         lua.globals().set("line_numbers", line_numbers.clone())?;
         lua.globals()
             .set("greeting_message", greeting_message.clone())?;
+        lua.globals().set("help_message", help_message.clone())?;
         lua.globals().set("status_line", status_line.clone())?;
         lua.globals().set("tab_line", tab_line.clone())?;
         lua.globals().set("colors", colors.clone())?;
@@ -89,6 +93,7 @@ impl Config {
             syntax_highlighting,
             line_numbers,
             greeting_message,
+            help_message,
             tab_line,
             status_line,
             colors,
@@ -392,6 +397,55 @@ impl GreetingMessage {
 }
 
 impl LuaUserData for GreetingMessage {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
+        fields.add_field_method_set("enabled", |_, this, value| {
+            this.enabled = value;
+            Ok(())
+        });
+        fields.add_field_method_get("format", |_, this| Ok(this.format.clone()));
+        fields.add_field_method_set("format", |_, this, value| {
+            this.format = value;
+            Ok(())
+        });
+    }
+}
+
+/// For storing configuration information related to the help message
+#[derive(Debug)]
+pub struct HelpMessage {
+    pub enabled: bool,
+    pub format: String,
+}
+
+impl Default for HelpMessage {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            format: "".to_string(),
+        }
+    }
+}
+
+impl HelpMessage {
+    /// Take the configuration information and render the help message
+    pub fn render(&self, term: &mut Terminal, w: usize, h: usize, colors: &Colors) -> Result<()> {
+        let highlight = Fg(colors.highlight.to_color()?).to_string();
+        let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
+        let mut result = self.format.clone();
+        result = result.replace("{version}", &VERSION).to_string();
+        result = result.replace("{highlight_start}", &highlight).to_string();
+        result = result.replace("{highlight_end}", &editor_fg).to_string();
+        let message: Vec<&str> = result.split('\n').collect();
+        for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
+            term.goto(w.saturating_sub(30), h / 4 + c + 1)?;
+            write!(term.stdout, "{line}")?;
+        }
+        Ok(())
+    }
+}
+
+impl LuaUserData for HelpMessage {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
         fields.add_field_method_set("enabled", |_, this, value| {
@@ -1086,7 +1140,8 @@ impl LuaUserData for Editor {
         fields.add_field_method_get("version", |_, _| Ok(VERSION));
         fields.add_field_method_get("current_document_id", |_, editor| Ok(editor.ptr));
         fields.add_field_method_get("document_count", |_, editor| Ok(editor.doc.len()));
-        fields.add_field_method_get("help_visible", |_, editor| Ok(editor.help));
+        // DEPRECIATED
+        fields.add_field_method_get("help_visible", |_, _| Ok(false));
         fields.add_field_method_get("document_type", |_, editor| {
             let ext = editor
                 .doc()
@@ -1461,14 +1516,10 @@ impl LuaUserData for Editor {
             update_highlighter(editor);
             Ok(())
         });
-        methods.add_method_mut("hide_help_message", |_, editor, ()| {
-            editor.help = false;
-            Ok(())
-        });
-        methods.add_method_mut("show_help_message", |_, editor, ()| {
-            editor.help = true;
-            Ok(())
-        });
+        // DEPRECIATED
+        methods.add_method_mut("hide_help_message", |_, _, ()| Ok(()));
+        // DEPRECIATED
+        methods.add_method_mut("show_help_message", |_, _, ()| Ok(()));
         methods.add_method_mut("set_read_only", |_, editor, status: bool| {
             editor.doc_mut().read_only = status;
             Ok(())

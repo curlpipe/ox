@@ -102,6 +102,9 @@ event_mapping = {
         editor:redo()
     end,
     -- Miscellaneous
+    ["ctrl_h"] = function()
+        help_message.enabled = not help_message.enabled
+    end,
     ["ctrl_d"] = function()
         editor:remove_line()
     end,
@@ -166,11 +169,7 @@ commands = {
         editor:display_info("test complete, you passed " .. result .. " as arguments")
     end,
     ["help"] = function(arguments)
-        if editor.help_visible then
-            editor:hide_help_message()
-        else
-            editor:show_help_message()
-        end
+        help_message.enabled = not help_message.enabled
     end,
     ["readonly"] = function(arguments)
         arg = arguments[1]
@@ -244,9 +243,26 @@ greeting_message.enabled = true
 greeting_message.format = [[
 Ox Editor v{version}
 The simple but flexible text editor
+{highlight_start}
+Quick Start Guide:
 
+Ctrl + Q:  Quit        
+Ctrl + N:  New File    
+Ctrl + O:  Open File   
+Ctrl + S:  Save File   
+Alt  + S:  Save File As
+Ctrl + H:  Help Message
+
+Ready?
+Start Typing
+{highlight_end}
+]]
+
+help_message.enabled = false
+help_message.format = [[
 Key Binding Cheat Sheet
 {highlight_start}
+Ctrl + H:   Help Message  
 Ctrl + N:   New           
 Ctrl + O:   Open          
 Ctrl + Q:   Quit          
