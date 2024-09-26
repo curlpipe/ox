@@ -332,9 +332,9 @@ impl Editor {
         self.render_status_line(&lua, w, h)?;
         // Render greeting or help message if applicable
         if self.greet {
-            self.render_greeting(w, h)?;
+            self.render_greeting(lua, w, h)?;
         } else if self.config.help_message.borrow().enabled {
-            self.render_help_message(w, h)?;
+            self.render_help_message(lua, w, h)?;
         }
         // Render feedback line
         self.render_feedback_line(w, h)?;
@@ -498,18 +498,20 @@ impl Editor {
     }
 
     /// Render the greeting message
-    fn render_help_message(&mut self, w: usize, h: usize) -> Result<()> {
+    fn render_help_message(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
         let colors = self.config.colors.borrow();
-        self.config
-            .help_message
-            .borrow()
-            .render(&mut self.terminal, w, h, &colors)
+        let message = self.config.help_message.borrow().render(lua, &colors)?;
+        for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
+            self.terminal.goto(w.saturating_sub(30), h / 4 + c + 1)?;
+            write!(self.terminal.stdout, "{line}")?;
+        }
+        Ok(())
     }
 
     /// Render the help message
-    fn render_greeting(&mut self, w: usize, h: usize) -> Result<()> {
+    fn render_greeting(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
         let colors = self.config.colors.borrow();
-        let greeting = self.config.greeting_message.borrow().render(&colors)?;
+        let greeting = self.config.greeting_message.borrow().render(lua, &colors)?;
         let message: Vec<&str> = greeting.split('\n').collect();
         for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
             self.terminal.goto(4, h / 4 + c + 1)?;

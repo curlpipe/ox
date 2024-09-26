@@ -1,8 +1,8 @@
 -- Define our pomodoro state
 pomodoro = {
     -- Configuration values
-    work_time = 1,
-    rest_time = 1,
+    work_time = 25,
+    rest_time = 5,
     -- Plug-in state
     current = "none",
     started = os.date("*t"),

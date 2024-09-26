@@ -1,7 +1,7 @@
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::error::{OxError, Result};
-use crate::ui::{Feedback, Terminal};
+use crate::ui::Feedback;
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode},
     style::{Color, SetForegroundColor as Fg},
@@ -11,7 +11,6 @@ use kaolinite::utils::{filetype, get_absolute_path, get_file_ext, get_file_name,
 use kaolinite::{Document, Loc};
 use mlua::prelude::*;
 use std::collections::HashMap;
-use std::io::Write;
 use std::{cell::RefCell, rc::Rc};
 use synoptic::{from_extension, Highlighter};
 
@@ -385,13 +384,32 @@ impl Default for GreetingMessage {
 
 impl GreetingMessage {
     /// Take the configuration information and render the greeting message
-    pub fn render(&self, colors: &Colors) -> Result<String> {
+    pub fn render(&self, lua: &Lua, colors: &Colors) -> Result<String> {
         let highlight = Fg(colors.highlight.to_color()?).to_string();
         let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
         let mut result = self.format.clone();
         result = result.replace("{version}", &VERSION).to_string();
         result = result.replace("{highlight_start}", &highlight).to_string();
         result = result.replace("{highlight_end}", &editor_fg).to_string();
+        // Find functions to call and substitute in
+        let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
+        while let Some(m) = searcher.lfind(&result) {
+            let name = m
+                .text
+                .chars()
+                .skip(1)
+                .take(m.text.chars().count().saturating_sub(2))
+                .collect::<String>();
+            if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
+                if let Ok(r) = func.call::<(), LuaString>(()) {
+                    result = result.replace(&m.text, r.to_str().unwrap_or(""));
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
         Ok(result)
     }
 }
@@ -429,19 +447,33 @@ impl Default for HelpMessage {
 
 impl HelpMessage {
     /// Take the configuration information and render the help message
-    pub fn render(&self, term: &mut Terminal, w: usize, h: usize, colors: &Colors) -> Result<()> {
+    pub fn render(&self, lua: &Lua, colors: &Colors) -> Result<Vec<String>> {
         let highlight = Fg(colors.highlight.to_color()?).to_string();
         let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
         let mut result = self.format.clone();
         result = result.replace("{version}", &VERSION).to_string();
         result = result.replace("{highlight_start}", &highlight).to_string();
         result = result.replace("{highlight_end}", &editor_fg).to_string();
-        let message: Vec<&str> = result.split('\n').collect();
-        for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
-            term.goto(w.saturating_sub(30), h / 4 + c + 1)?;
-            write!(term.stdout, "{line}")?;
+        // Find functions to call and substitute in
+        let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
+        while let Some(m) = searcher.lfind(&result) {
+            let name = m
+                .text
+                .chars()
+                .skip(1)
+                .take(m.text.chars().count().saturating_sub(2))
+                .collect::<String>();
+            if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
+                if let Ok(r) = func.call::<(), LuaString>(()) {
+                    result = result.replace(&m.text, r.to_str().unwrap_or(""));
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
         }
-        Ok(())
+        Ok(result.split('\n').map(|l| l.to_string()).collect())
     }
 }
 
