@@ -46,6 +46,8 @@ pub struct Editor {
     push_down: usize,
     /// Used to cache the location of the configuration file
     pub config_path: String,
+    /// This is a handy place to figure out if the user is currently pasting something or not
+    pub paste_flag: bool,
 }
 
 impl Editor {
@@ -67,6 +69,7 @@ impl Editor {
             last_active: Instant::now(),
             push_down: 1,
             config_path: "~/.oxrc".to_string(),
+            paste_flag: false,
         })
     }
 
@@ -248,15 +251,19 @@ impl Editor {
         };
         match event {
             CEvent::Key(key) => {
-                // Check period of inactivity and commit events (for undo/redo) if over 10secs
+                // Check period of inactivity
                 let end = Instant::now();
-                let inactivity = end.duration_since(self.last_active).as_secs() as usize;
-                if inactivity > self.config.document.borrow().undo_period {
+                let inactivity = end.duration_since(self.last_active).as_millis() as usize;
+                if inactivity > self.config.document.borrow().undo_period * 1000 {
                     self.doc_mut().commit();
                 }
+                // Predict whether the user is currently pasting text (based on rapid activity)
+                self.paste_flag = inactivity < 5;
+                // Register this activity
                 self.last_active = Instant::now();
                 // Editing - these key bindings can't be modified (only added to)!
                 match (key.modifiers, key.code) {
+                    // Core key bindings (non-configurable behaviour)
                     (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
                     (KMod::NONE, KCode::Tab) => self.character('\t')?,
                     (KMod::NONE, KCode::Backspace) => self.backspace()?,

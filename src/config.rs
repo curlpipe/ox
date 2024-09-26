@@ -22,80 +22,29 @@ fn issue_warning(msg: &str) {
 /// This contains the default configuration lua file
 const DEFAULT_CONFIG: &str = include_str!("../config/.oxrc");
 
+/// Default plug-in code to use
+const PAIRS: &str = include_str!("../plugins/pairs.lua");
+const AUTOINDENT: &str = include_str!("../plugins/autoindent.lua");
+
 /// This contains the code for setting up plug-in infrastructure
-pub const PLUGIN_BOOTSTRAP: &str = r#"
-home = os.getenv("HOME") or os.getenv("USERPROFILE")
-
-function file_exists(file_path)
-    local file = io.open(file_path, "r")
-    if file then
-        file:close()
-        return true
-    else
-        return false
-    end
-end
-
-plugins = {}
-plugin_issues = false
-
-function load_plugin(base)
-    path_cross = base
-    path_unix = home .. "/.config/ox/" .. base
-    path_win = home .. "/ox/" .. base
-    if file_exists(path_cross) then
-        path = path_cross
-    elseif file_exists(path_unix) then
-        path = path_unix
-    elseif file_exists(path_win) then
-        path = file_win
-    else
-        print("[WARNING] Failed to load plugin " .. base)
-        plugin_issues = true
-    end
-    plugins[#plugins + 1] = path
-end
-"#;
+pub const PLUGIN_BOOTSTRAP: &str = include_str!("plugin/bootstrap.lua");
 
 /// This contains the code for running the plugins
-pub const PLUGIN_RUN: &str = "
-global_event_mapping = {}
-
-function merge_event_mapping()
-    for key, f in pairs(event_mapping) do
-        if global_event_mapping[key] ~= nil then
-            table.insert(global_event_mapping[key], f)
-        else
-            global_event_mapping[key] = {f,}
-        end
-    end
-    event_mapping = {}
-end
-
-for c, path in ipairs(plugins) do
-    merge_event_mapping()
-    dofile(path)
-end
-merge_event_mapping()
-
-if plugin_issues then
-    print(\"Various plug-ins failed to load\")
-    print(\"You may download these plug-ins from the ox git repository (in the plugins folder)\")
-    print(\"https://github.com/curlpipe/ox\")
-    print(\"\")
-    print(\"Alternatively, you may silence these warnings\\nby removing the load_plugin() lines in your configuration file\\nfor the missing plug-ins that are listed above\")
-end
-";
+pub const PLUGIN_RUN: &str = include_str!("plugin/run.lua");
 
 /// This contains the code for handling a key binding
 pub fn run_key(key: &str) -> String {
     format!(
         "
+        globalevent = (global_event_mapping[\"*\"] or {{}})
+        for _, f in ipairs(globalevent) do
+            f()
+        end
         key = (global_event_mapping[\"{key}\"] or error(\"key not bound\"))
         for _, f in ipairs(key) do
             f()
         end
-    "
+        "
     )
 }
 
@@ -152,20 +101,21 @@ impl Config {
     pub fn read(&mut self, path: String, lua: &Lua) -> Result<()> {
         // Load the default config to start with
         lua.load(DEFAULT_CONFIG).exec()?;
+        // Reset plugin status based on built-in configuration file
+        lua.load("plugins = {}").exec()?;
+        lua.load("builtins = {}").exec()?;
 
         // Judge pre-user config state
         let status_parts = self.status_line.borrow().parts.len();
 
         // Attempt to read config file from home directory
+        let mut user_provided_config = false;
         if let Ok(path) = shellexpand::full(&path) {
             if let Ok(config) = std::fs::read_to_string(path.to_string()) {
                 // Update configuration with user-defined values
                 lua.load(config).exec()?;
-            } else {
-                return Err(OxError::Config("Not Found".to_string()));
+                user_provided_config = true;
             }
-        } else {
-            return Err(OxError::Config("Not Found".to_string()));
         }
 
         // Remove any default values if necessary
@@ -173,7 +123,47 @@ impl Config {
             self.status_line.borrow_mut().parts.drain(0..status_parts);
         }
 
-        Ok(())
+        // Determine whether or not to load built-in plugins
+        let mut builtins: HashMap<&str, &str> = HashMap::default();
+        builtins.insert("pairs.lua", PAIRS);
+        builtins.insert("autoindent.lua", AUTOINDENT);
+        for (name, code) in builtins.iter() {
+            if self.load_bi(name, user_provided_config, &lua) {
+                lua.load(*code).exec()?;
+            }
+        }
+
+        if user_provided_config {
+            Ok(())
+        } else {
+            Err(OxError::Config("Not Found".to_string()))
+        }
+    }
+    
+    /// Decide whether to load a built-in plugin
+    pub fn load_bi(&self, name: &str, user_provided_config: bool, lua: &Lua) -> bool {
+        if !user_provided_config {
+            // Load when the user hasn't provided a configuration file
+            true
+        } else {
+            // Get list of user-loaded plug-ins
+            let plugins: Vec<String> = lua.globals()
+                .get::<_, LuaTable>("builtins")
+                .unwrap()
+                .sequence_values()
+                .filter_map(std::result::Result::ok)
+                .collect();
+            // If the user wants to load the plug-in but it isn't available
+            if let Some(idx) = plugins.iter().position(|p| p.ends_with(name)) {
+                // User wants the plug-in
+                let path = &plugins[idx];
+                // true if plug-in isn't avilable
+                !std::path::Path::new(path).exists()
+            } else {
+                // User doesn't want the plug-in
+                false
+            }
+        }
     }
 }
 
@@ -1070,6 +1060,9 @@ impl LuaUserData for DocumentConfig {
 
 impl LuaUserData for Editor {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("pasting", |_, editor| {
+            Ok(editor.paste_flag)
+        });
         fields.add_field_method_get("cursor", |_, editor| {
             let loc = editor.doc().char_loc();
             Ok(LuaLoc {

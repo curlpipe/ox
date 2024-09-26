@@ -117,6 +117,8 @@ event_mapping = {
         -- delete old copy and reposition cursor
         editor:remove_line_at(y + 1)
         editor:move_up()
+        -- correct indentation level
+        autoindent:fix_indent()
     end,
     ["alt_down"] = function()
         -- current line information
@@ -127,6 +129,8 @@ event_mapping = {
         -- delete old copy and reposition cursor
         editor:remove_line_at(y)
         editor:move_down()
+        -- correct indentation level
+        autoindent:fix_indent()
     end,
     ["ctrl_w"] = function()
         y = editor.cursor.y
@@ -291,5 +295,5 @@ syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _
 syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown
 
 -- Import plugins (must be at the bottom of this file)
--- load_plugin("pairs.lua")
--- load_plugin("autoindent.lua")
+load_plugin("pairs.lua")
+load_plugin("autoindent.lua")
