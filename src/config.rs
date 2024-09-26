@@ -139,7 +139,7 @@ impl Config {
             Err(OxError::Config("Not Found".to_string()))
         }
     }
-    
+
     /// Decide whether to load a built-in plugin
     pub fn load_bi(&self, name: &str, user_provided_config: bool, lua: &Lua) -> bool {
         if !user_provided_config {
@@ -147,7 +147,8 @@ impl Config {
             true
         } else {
             // Get list of user-loaded plug-ins
-            let plugins: Vec<String> = lua.globals()
+            let plugins: Vec<String> = lua
+                .globals()
                 .get::<_, LuaTable>("builtins")
                 .unwrap()
                 .sequence_values()
@@ -1060,9 +1061,7 @@ impl LuaUserData for DocumentConfig {
 
 impl LuaUserData for Editor {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("pasting", |_, editor| {
-            Ok(editor.paste_flag)
-        });
+        fields.add_field_method_get("pasting", |_, editor| Ok(editor.paste_flag));
         fields.add_field_method_get("cursor", |_, editor| {
             let loc = editor.doc().char_loc();
             Ok(LuaLoc {
