@@ -490,7 +490,13 @@ impl StatusLine {
         let file_extension = get_file_ext(&path).unwrap_or_else(|| "".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
-        let file_type = filetype(&file_extension).unwrap_or_else(|| file_extension.to_string());
+        let file_type = filetype(&file_extension).unwrap_or_else(|| {
+            if file_extension.is_empty() {
+                "Unknown".to_string()
+            } else {
+                file_extension.to_string()
+            }
+        });
         let icon = icon(&filetype(&file_extension).unwrap_or_else(|| "".to_string()));
         let modified = if editor.doc().modified { "[+]" } else { "" };
         let cursor_y = (editor.doc().loc().y + 1).to_string();
