@@ -104,7 +104,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     while editor.borrow().active {
         let cycle = editor.borrow_mut().cycle(&lua);
         match cycle {
-            Ok(Some(key)) => {
+            Ok(Some(mut key)) => {
                 // Form the corresponding lua code to run and run it
                 let code = run_key(&key);
                 let result = lua.load(&code).exec();
@@ -115,6 +115,10 @@ fn run(cli: CommandLineInterface) -> Result<()> {
                         // Work out if the key has been bound
                         if msg.contains(&"key not bound") {
                             if key.contains(&"_") && key != "_" && !key.starts_with("shift") {
+                                if key.ends_with(" ") {
+                                    key.pop();
+                                    key = format!("{key}space");
+                                }
                                 editor.borrow_mut().feedback =
                                     Feedback::Error(format!("The key binding {key} is not set"));
                             }
