@@ -980,9 +980,7 @@ impl Editor {
     }
 
     fn reload_highlight(&mut self) {
-        for (line, text) in self.doc[self.ptr].lines.iter().enumerate() {
-            self.highlighter[self.ptr].edit(line, text);
-        }
+        self.highlighter[self.ptr].run(&self.doc[self.ptr].lines);
     }
 
     /// Perform redo action
