@@ -1078,7 +1078,9 @@ impl Document {
     pub fn remove_selection(&mut self) {
         self.file.remove(self.selection_range());
         self.reload_lines();
-        self.cursor.loc = self.selection_loc_bound().0;
+        let mut goto = self.selection_loc_bound().0;
+        goto.x = self.display_idx(&goto);
+        self.cursor.loc = goto;
         self.char_ptr = self.character_idx(&self.cursor.loc);
         self.cancel_selection();
         self.bring_cursor_in_viewport();

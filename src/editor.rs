@@ -410,17 +410,14 @@ impl Editor {
                         TokOpt::None(text) => text,
                     };
                     for c in text.chars() {
-                        let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: x_pos });
+                        let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
+                        let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
                         if is_selected {
                             write!(
                                 self.terminal.stdout,
-                                "{}",
-                                Bg(self.config.colors.borrow().selection_bg.to_color()?)
-                            )?;
-                            write!(
-                                self.terminal.stdout,
-                                "{}",
-                                Fg(self.config.colors.borrow().selection_fg.to_color()?)
+                                "{}{}",
+                                Bg(self.config.colors.borrow().selection_bg.to_color()?),
+                                Fg(self.config.colors.borrow().selection_fg.to_color()?),
                             )?;
                         } else {
                             write!(
@@ -979,6 +976,7 @@ impl Editor {
         }
     }
 
+    /// Reload the whole document in the highlighter
     fn reload_highlight(&mut self) {
         self.highlighter[self.ptr].run(&self.doc[self.ptr].lines);
     }
