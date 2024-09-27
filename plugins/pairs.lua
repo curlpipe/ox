@@ -1,5 +1,5 @@
 --[[
-Bracket Pairs v0.3
+Bracket Pairs v0.4
 
 This will automatically insert a closing bracket or quote
 when you type an opening one
@@ -91,6 +91,7 @@ for i, str in ipairs(pairings) do
                 -- Undo it for them
                 editor:remove_at(editor.cursor.x - 1, editor.cursor.y)
                 just_paired = { x = nil, y = nil }
+                line_cache = { y = editor.cursor.y, line = editor:get_line() }
             end
         end
         event_mapping[start_pair] = function()
