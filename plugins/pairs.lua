@@ -1,5 +1,5 @@
 --[[
-Bracket Pairs v0.2
+Bracket Pairs v0.3
 
 This will automatically insert a closing bracket or quote
 when you type an opening one
@@ -104,7 +104,6 @@ for i, str in ipairs(pairings) do
     end
 end
 
--- Automatically delete pairs
 function includes(array, value)
     for _, v in ipairs(array) do
         if v == value then
@@ -114,11 +113,23 @@ function includes(array, value)
     return false  -- Value not found
 end
 
+-- Automatically delete pairs
 event_mapping["backspace"] = function()
     local old_line = line_cache.line
     local potential_pair = string.sub(old_line, editor.cursor.x + 1, editor.cursor.x + 2)
     if includes(pairings, potential_pair) then
         editor:remove_at(editor.cursor.x, editor.cursor.y)
         line_cache = { y = editor.cursor.y, line = editor:get_line() }
+    end
+end
+
+-- Space out pairs when pressing space between pairs
+event_mapping["space"] = function()
+    local first = editor:get_character_at(editor.cursor.x - 2, editor.cursor.y)
+    local second = editor:get_character_at(editor.cursor.x, editor.cursor.y)
+    local potential_pair = first .. second
+    if includes(pairings, potential_pair) then
+        editor:insert(" ")
+        editor:move_left()
     end
 end
