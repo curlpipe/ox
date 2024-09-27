@@ -17,23 +17,32 @@ for c, path in ipairs(plugins) do
 end
 merge_event_mapping()
 
--- Remap ctrl_space to ctrl_ 
-local has_name = global_event_mapping["ctrl_space"] ~= nil
-local has_char = global_event_mapping["ctrl_ "] ~= nil
-if has_name then
-    if has_char then
-        -- Append name to char
-        for i = 1, #global_event_mapping["ctrl_space"] do
-            table.insert(global_event_mapping["ctrl_ "], global_event_mapping["ctrl_space"][i])
+-- Function to remap keys if necessary
+function remap_keys(from, to)
+    local has_name = global_event_mapping[from] ~= nil
+    local has_char = global_event_mapping[to] ~= nil
+    if has_name then
+        if has_char then
+            -- Append name to char
+            for i = 1, #global_event_mapping[from] do
+                table.insert(global_event_mapping[to], global_event_mapping[from][i])
+            end
+            global_event_mapping[from] = nil
+        else
+            -- Transfer name to char
+            global_event_mapping[to] = global_event_mapping[from]
+            global_event_mapping[from] = nil
         end
-        global_event_mapping["ctrl_space"] = nil
-    else
-        -- Transfer name to char
-        global_event_mapping["ctrl_ "] = global_event_mapping["ctrl_space"]
-        global_event_mapping["ctrl_space"] = nil
     end
 end
 
+-- Remap space keys
+remap_keys("space", " ")
+remap_keys("ctrl_space", "ctrl_ ")
+remap_keys("alt_space", "alt_ ")
+remap_keys("ctrl_alt_space", "ctrl_alt_ ")
+
+-- Show warning if any plugins weren't able to be loaded
 if plugin_issues then
     print("Various plug-ins failed to load")
     print("You may download these plug-ins from the ox git repository (in the plugins folder)")
