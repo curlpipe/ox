@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.5
+Auto Indent v0.6
 
 You will be able to press return at the start of a block and have
 Ox automatically indent for you.
@@ -12,13 +12,14 @@ other syntax that indicates a block has started e.g. ":" in python
 event_mapping["enter"] = function()
     -- Indent where appropriate
     if autoindent:causes_indent(editor.cursor.y - 1) then
-        editor:display_warning("yay")
         local new_level = autoindent:get_indent(editor.cursor.y) + 1
         autoindent:set_indent(editor.cursor.y, new_level)
     end
     -- Give newly created line a boost to match it up relatively with the line before it
     local added_level = autoindent:get_indent(editor.cursor.y) + autoindent:get_indent(editor.cursor.y - 1)
     autoindent:set_indent(editor.cursor.y, added_level)
+    -- Handle the case where enter is pressed, creating a multi-line block that requires neatening up
+    autoindent:disperse_block()
 end
 
 event_mapping["*"] = function()
@@ -105,30 +106,37 @@ function autoindent:set_indent(y, new_indent)
     -- Prepare to form the new line contents
     local new_line = nil
     -- Work out if adding or removing
+    local x = editor.cursor.x
     if indent_change > 0 then
         -- Insert indentation
         if tabs then
             -- Insert Tabs
+            x = x + indent_change
             new_line = string.rep("\t", indent_change) .. line
         else
             -- Insert Spaces
+            x = x + indent_change * document.tab_width
             new_line = string.rep(" ", indent_change * document.tab_width) .. line
         end
     elseif indent_change < 0 then
         -- Remove indentation
         if tabs then
             -- Remove Tabs
+            x = x - -indent_change
             new_line = line:gsub("\t", "", -indent_change)
         else
             -- Remove Spaces
+            x = x - -indent_change * document.tab_width
             new_line = line:gsub(string.rep(" ", document.tab_width), "", -indent_change)
         end
+    else
+        return
     end
     -- Perform the substitution with the new line
     editor:insert_line_at(new_line, y)
     editor:remove_line_at(y + 1)
     -- Place the cursor at a sensible position
-    editor:move_end()
+    editor:move_to(x, y)
 end
 
 -- Get how indented a line is at a certain y index
@@ -159,4 +167,15 @@ function autoindent:fix_indent()
     end
     -- Set the indent
     autoindent:set_indent(editor.cursor.y, new_indent)
+end
+
+-- Handle the case where the enter key is pressed between two brackets
+function autoindent:disperse_block()
+    local indenting_above = autoindent:causes_indent(editor.cursor.y - 1)
+    local current_dedenting = autoindent:causes_dedent(editor.cursor.y)
+    if indenting_above and current_dedenting then
+        local old_cursor = editor.cursor
+        editor:insert_line()
+        editor:move_to(old_cursor.x, old_cursor.y)
+    end
 end
