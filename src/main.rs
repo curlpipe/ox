@@ -118,7 +118,9 @@ fn run(cli: CommandLineInterface) -> Result<()> {
         }
 
         // Actually handle editor event (errors included)
-        editor.borrow_mut().handle_event(event.clone())?;
+        if let Err(err) = editor.borrow_mut().handle_event(event.clone()) {
+            editor.borrow_mut().feedback = Feedback::Error(format!("{err:?}"));
+        }
 
         // Handle plug-in after key press mappings (if no errors occured)
         if let CEvent::Key(key) = event {
