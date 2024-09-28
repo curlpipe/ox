@@ -41,6 +41,10 @@ remap_keys("space", " ")
 remap_keys("ctrl_space", "ctrl_ ")
 remap_keys("alt_space", "alt_ ")
 remap_keys("ctrl_alt_space", "ctrl_alt_ ")
+remap_keys("before:space", "before: ")
+remap_keys("before:ctrl_space", "before:ctrl_ ")
+remap_keys("before:alt_space", "before:alt_ ")
+remap_keys("before:ctrl_alt_space", "before:ctrl_alt_ ")
 
 -- Show warning if any plugins weren't able to be loaded
 if plugin_issues then

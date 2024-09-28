@@ -32,7 +32,7 @@ pub const PLUGIN_BOOTSTRAP: &str = include_str!("plugin/bootstrap.lua");
 /// This contains the code for running the plugins
 pub const PLUGIN_RUN: &str = include_str!("plugin/run.lua");
 
-/// This contains the code for handling a key binding
+/// This contains the code for running code after a key binding is pressed
 pub fn run_key(key: &str) -> String {
     format!(
         "
@@ -41,6 +41,22 @@ pub fn run_key(key: &str) -> String {
             f()
         end
         key = (global_event_mapping[\"{key}\"] or error(\"key not bound\"))
+        for _, f in ipairs(key) do
+            f()
+        end
+        "
+    )
+}
+
+/// This contains the code for running code before a key binding is fully processed
+pub fn run_key_before(key: &str) -> String {
+    format!(
+        "
+        globalevent = (global_event_mapping[\"before:*\"] or {{}})
+        for _, f in ipairs(globalevent) do
+            f()
+        end
+        key = (global_event_mapping[\"before:{key}\"] or {{}})
         for _, f in ipairs(key) do
             f()
         end

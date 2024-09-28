@@ -1,8 +1,8 @@
-use crate::config::{key_to_string, Config};
+use crate::config::Config;
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback, Terminal};
 use crossterm::{
-    event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
+    event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEventKind},
     style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
     terminal::{Clear, ClearType as ClType},
 };
@@ -232,61 +232,55 @@ impl Editor {
         Ok(())
     }
 
-    /// Complete one cycle of the editor
-    /// This function will return a key press code if applicable
-    pub fn cycle(&mut self, lua: &Lua) -> Result<Option<String>> {
-        // Run the editor
-        self.render(&lua)?;
-        // Wait for an event
-        let event = read()?;
+    /// Handle event
+    pub fn handle_event(&mut self, event: CEvent) -> Result<()> {
         self.needs_rerender = match event {
-            CEvent::Mouse(event) => match event.kind {
-                crossterm::event::MouseEventKind::Moved => false,
-                _ => true,
-            },
+            CEvent::Mouse(event) => event.kind != MouseEventKind::Moved,
             _ => true,
         };
         match event {
-            CEvent::Key(key) => {
-                // Check period of inactivity
-                let end = Instant::now();
-                let inactivity = end.duration_since(self.last_active).as_millis() as usize;
-                if inactivity > self.config.document.borrow().undo_period * 1000 {
-                    self.doc_mut().commit();
-                }
-                // Predict whether the user is currently pasting text (based on rapid activity)
-                self.paste_flag = inactivity < 5;
-                // Register this activity
-                self.last_active = Instant::now();
-                // Editing - these key bindings can't be modified (only added to)!
-                match (key.modifiers, key.code) {
-                    // Core key bindings (non-configurable behaviour)
-                    (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
-                    (KMod::NONE, KCode::Tab) => self.character('\t')?,
-                    (KMod::NONE, KCode::Backspace) => self.backspace()?,
-                    (KMod::NONE, KCode::Delete) => self.delete()?,
-                    (KMod::NONE, KCode::Enter) => self.enter()?,
-                    _ => (),
-                }
-                // Check user-defined key combinations (includes defaults if not modified)
-                return Ok(Some(key_to_string(key.modifiers, key.code)));
-            }
-            CEvent::Resize(w, h) => {
-                // Ensure all lines in viewport are loaded
-                let max = self.dent();
-                self.doc_mut().size.w = w.saturating_sub(max as u16) as usize;
-                self.doc_mut().size.h = h.saturating_sub(3) as usize;
-                let max = self.doc().offset.x + self.doc().size.h;
-                self.doc_mut().load_to(max + 1);
-            }
-            CEvent::Mouse(mouse_event) => {
-                self.handle_mouse_event(mouse_event);
-                return Ok(None);
-            }
+            CEvent::Key(key) => self.handle_key_event(key.modifiers, key.code)?,
+            CEvent::Resize(w, h) => self.handle_resize(w, h),
+            CEvent::Mouse(mouse_event) => self.handle_mouse_event(mouse_event),
             _ => (),
         }
-        self.feedback = Feedback::None;
-        Ok(None)
+        Ok(())
+    }
+
+    /// Handle key event
+    pub fn handle_key_event(&mut self, modifiers: KMod, code: KCode) -> Result<()> {
+        // Check period of inactivity
+        let end = Instant::now();
+        let inactivity = end.duration_since(self.last_active).as_millis() as usize;
+        if inactivity > self.config.document.borrow().undo_period * 1000 {
+            self.doc_mut().commit();
+        }
+        // Predict whether the user is currently pasting text (based on rapid activity)
+        self.paste_flag = inactivity < 5;
+        // Register this activity
+        self.last_active = Instant::now();
+        // Editing - these key bindings can't be modified (only added to)!
+        match (modifiers, code) {
+            // Core key bindings (non-configurable behaviour)
+            (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
+            (KMod::NONE, KCode::Tab) => self.character('\t')?,
+            (KMod::NONE, KCode::Backspace) => self.backspace()?,
+            (KMod::NONE, KCode::Delete) => self.delete()?,
+            (KMod::NONE, KCode::Enter) => self.enter()?,
+            _ => (),
+        }
+        // Check user-defined key combinations (includes defaults if not modified)
+        Ok(())
+    }
+
+    /// Handle resize
+    pub fn handle_resize(&mut self, w: u16, h: u16) {
+        // Ensure all lines in viewport are loaded
+        let max = self.dent();
+        self.doc_mut().size.w = w.saturating_sub(max as u16) as usize;
+        self.doc_mut().size.h = h.saturating_sub(3) as usize;
+        let max = self.doc().offset.x + self.doc().size.h;
+        self.doc_mut().load_to(max + 1);
     }
 
     /// Append any missed lines to the syntax highlighter
