@@ -12,12 +12,12 @@ enum MouseLocation {
 impl Editor {
     fn find_mouse_location(&mut self, event: MouseEvent) -> MouseLocation {
         let tab_enabled = self.config.tab_line.borrow().enabled;
-        let tab = if tab_enabled { 1 } else { 0 };
+        let tab = usize::from(tab_enabled);
         if event.row == 0 && tab_enabled {
             let mut c = event.column + 2;
             for (i, doc) in self.doc.iter().enumerate() {
                 let header_len = self.config.tab_line.borrow().render(doc).len() + 1;
-                c = c.saturating_sub(header_len as u16);
+                c = c.saturating_sub(u16::try_from(header_len).unwrap_or(u16::MAX));
                 if c == 0 {
                     return MouseLocation::Tabs(i);
                 }
@@ -55,15 +55,12 @@ impl Editor {
                 MouseLocation::Tabs(_) | MouseLocation::Out => (),
             },
             MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
-                match self.find_mouse_location(event) {
-                    MouseLocation::File(_) => {
-                        if event.kind == MouseEventKind::ScrollDown {
-                            self.doc_mut().scroll_down();
-                        } else {
-                            self.doc_mut().scroll_up();
-                        }
+                if let MouseLocation::File(_) = self.find_mouse_location(event) {
+                    if event.kind == MouseEventKind::ScrollDown {
+                        self.doc_mut().scroll_down();
+                    } else {
+                        self.doc_mut().scroll_up();
                     }
-                    _ => (),
                 }
             }
             MouseEventKind::ScrollLeft => {

@@ -1,4 +1,4 @@
-use crate::config::{Colors, TerminalConfig};
+use crate::config::{Colors, Terminal as TerminalConfig};
 use crate::error::Result;
 use base64::prelude::*;
 use crossterm::{
@@ -55,24 +55,24 @@ impl Feedback {
                 Fg(colors.error_fg.to_color()?),
                 Bg(colors.error_bg.to_color()?)
             ),
-            Self::None => "".to_string(),
+            Self::None => String::new(),
         };
-        let empty = "".to_string();
+        let empty = String::new();
         let msg = match self {
-            Self::Info(msg) => msg,
-            Self::Warning(msg) => msg,
-            Self::Error(msg) => msg,
+            Self::Info(msg) | Self::Warning(msg) | Self::Error(msg) => msg,
             Self::None => &empty,
         };
-        let end_fg = Fg(colors.editor_fg.to_color()?).to_string();
-        let end_bg = Bg(colors.editor_bg.to_color()?).to_string();
+        let end = format!(
+            "{}{}",
+            Bg(colors.editor_bg.to_color()?),
+            Fg(colors.editor_fg.to_color()?),
+        );
         Ok(format!(
-            "{}{}{}{}{}{}",
+            "{}{}{}{}{}",
             SetAttribute(Attribute::Bold),
             start,
-            alinio::align::center(&msg, w).unwrap_or_else(|| "".to_string()),
-            end_bg,
-            end_fg,
+            alinio::align::center(msg, w).unwrap_or_default(),
+            end,
             SetAttribute(Attribute::Reset)
         ))
     }
@@ -103,7 +103,7 @@ impl Terminal {
                 EnableBracketedPaste
             )
             .unwrap();
-            eprintln!("{}", e);
+            eprintln!("{e}");
         }));
         execute!(
             self.stdout,
@@ -152,7 +152,13 @@ impl Terminal {
     pub fn goto<Num: Into<usize>>(&mut self, x: Num, y: Num) -> Result<()> {
         let x: usize = x.into();
         let y: usize = y.into();
-        execute!(self.stdout, MoveTo(x as u16, y as u16))?;
+        execute!(
+            self.stdout,
+            MoveTo(
+                u16::try_from(x).unwrap_or(u16::MAX),
+                u16::try_from(y).unwrap_or(u16::MAX)
+            )
+        )?;
         Ok(())
     }
 

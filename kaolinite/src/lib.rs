@@ -1,7 +1,7 @@
 //! # Kaolinite
 //! > Kaolinite is an advanced library that handles the backend of a terminal text editor. You can
-//! feel free to make your own terminal text editor using kaolinite, or see the reference
-//! implementation found under the directory `examples/cactus`.
+//! > feel free to make your own terminal text editor using kaolinite, or see the reference
+//! > implementation found under the directory `examples/cactus`.
 //!
 //! It'll handle things like
 //! - Opening and saving files

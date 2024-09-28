@@ -31,20 +31,18 @@ impl LuaUserData for Editor {
                 .doc()
                 .file_name
                 .as_ref()
-                .and_then(|name| Some(name.split('.').last().unwrap_or("")))
-                .unwrap_or("");
+                .map_or("", |name| name.split('.').last().unwrap_or(""));
             let file_type = kaolinite::utils::filetype(ext);
             Ok(file_type)
         });
     }
 
+    #[allow(clippy::too_many_lines)]
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         // Reload the configuration file
         methods.add_method_mut("reload_config", |lua, editor, ()| {
-            if editor
-                .load_config(editor.config_path.clone(), &lua)
-                .is_err()
-            {
+            let path = editor.config_path.clone();
+            if editor.load_config(&path, lua).is_err() {
                 editor.feedback = Feedback::Error("Failed to reload config".to_string());
             }
             Ok(())
@@ -75,80 +73,80 @@ impl LuaUserData for Editor {
                     editor.feedback = Feedback::Error(err.to_string());
                 }
             }
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("remove", |_, editor, ()| {
             if let Err(err) = editor.backspace() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("insert_line", |_, editor, ()| {
             if let Err(err) = editor.enter() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("remove_line", |_, editor, ()| {
             if let Err(err) = editor.delete_line() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         // Cursor moving
         methods.add_method_mut("move_to", |_, editor, (x, y): (usize, usize)| {
             let y = y.saturating_sub(1);
-            editor.doc_mut().move_to(&Loc { x, y });
-            update_highlighter(editor);
+            editor.doc_mut().move_to(&Loc { y, x });
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_up", |_, editor, ()| {
             editor.up();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_down", |_, editor, ()| {
             editor.down();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_left", |_, editor, ()| {
             editor.left();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_right", |_, editor, ()| {
             editor.right();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("select_up", |_, editor, ()| {
             editor.select_up();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("select_down", |_, editor, ()| {
             editor.select_down();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("select_left", |_, editor, ()| {
             editor.select_left();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("select_right", |_, editor, ()| {
             editor.select_right();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("select_all", |_, editor, ()| {
             editor.select_all();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("cut", |_, editor, ()| {
@@ -169,42 +167,42 @@ impl LuaUserData for Editor {
         });
         methods.add_method_mut("move_home", |_, editor, ()| {
             editor.doc_mut().move_home();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_end", |_, editor, ()| {
             editor.doc_mut().move_end();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_page_up", |_, editor, ()| {
             editor.doc_mut().move_page_up();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_page_down", |_, editor, ()| {
             editor.doc_mut().move_page_down();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_top", |_, editor, ()| {
             editor.doc_mut().move_top();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_bottom", |_, editor, ()| {
             editor.doc_mut().move_bottom();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_previous_word", |_, editor, ()| {
             editor.prev_word();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_next_word", |_, editor, ()| {
             editor.next_word();
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut(
@@ -212,26 +210,26 @@ impl LuaUserData for Editor {
             |_, editor, (text, x, y): (String, usize, usize)| {
                 let y = y.saturating_sub(1);
                 let location = editor.doc_mut().char_loc();
-                editor.doc_mut().move_to(&Loc { x, y });
+                editor.doc_mut().move_to(&Loc { y, x });
                 for ch in text.chars() {
                     if let Err(err) = editor.character(ch) {
                         editor.feedback = Feedback::Error(err.to_string());
                     }
                 }
                 editor.doc_mut().move_to(&location);
-                update_highlighter(editor);
+                editor.update_highlighter();
                 Ok(())
             },
         );
         methods.add_method_mut("remove_at", |_, editor, (x, y): (usize, usize)| {
             let y = y.saturating_sub(1);
             let location = editor.doc_mut().char_loc();
-            editor.doc_mut().move_to(&Loc { x, y });
+            editor.doc_mut().move_to(&Loc { y, x });
             if let Err(err) = editor.delete() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.doc_mut().move_to(&location);
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("insert_line_at", |_, editor, (text, y): (String, usize)| {
@@ -256,7 +254,7 @@ impl LuaUserData for Editor {
                 }
             }
             editor.doc_mut().move_to(&location);
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("remove_line_at", |_, editor, y: usize| {
@@ -267,7 +265,7 @@ impl LuaUserData for Editor {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.doc_mut().move_to(&location);
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("open_command_line", |_, editor, ()| {
@@ -329,28 +327,28 @@ impl LuaUserData for Editor {
             if let Err(err) = editor.undo() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("redo", |_, editor, ()| {
             if let Err(err) = editor.redo() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("search", |_, editor, ()| {
             if let Err(err) = editor.search() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("replace", |_, editor, ()| {
             if let Err(err) = editor.replace() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         methods.add_method("get_character", |_, editor, ()| {
@@ -358,11 +356,11 @@ impl LuaUserData for Editor {
             let ch = editor
                 .doc()
                 .line(loc.y)
-                .unwrap_or_else(|| "".to_string())
+                .unwrap_or_default()
                 .chars()
                 .nth(loc.x)
-                .and_then(|ch| Some(ch.to_string()))
-                .unwrap_or_else(|| "".to_string());
+                .map(|ch| ch.to_string())
+                .unwrap_or_default();
             Ok(ch)
         });
         methods.add_method_mut("get_character_at", |_, editor, (x, y): (usize, usize)| {
@@ -371,24 +369,23 @@ impl LuaUserData for Editor {
             let ch = editor
                 .doc()
                 .line(y)
-                .unwrap_or_else(|| "".to_string())
+                .unwrap_or_default()
                 .chars()
                 .nth(x)
-                .and_then(|ch| Some(ch.to_string()))
-                .unwrap_or_else(|| "".to_string());
-            update_highlighter(editor);
+                .map_or_else(String::new, |ch| ch.to_string());
+            editor.update_highlighter();
             Ok(ch)
         });
         methods.add_method("get_line", |_, editor, ()| {
             let loc = editor.doc().char_loc();
-            let line = editor.doc().line(loc.y).unwrap_or_else(|| "".to_string());
+            let line = editor.doc().line(loc.y).unwrap_or_default();
             Ok(line)
         });
         methods.add_method_mut("get_line_at", |_, editor, y: usize| {
             editor.doc_mut().load_to(y);
             let y = y.saturating_sub(1);
-            let line = editor.doc().line(y).unwrap_or_else(|| "".to_string());
-            update_highlighter(editor);
+            let line = editor.doc().line(y).unwrap_or_default();
+            editor.update_highlighter();
             Ok(line)
         });
         methods.add_method_mut("move_to_document", |_, editor, id: usize| {
@@ -397,7 +394,7 @@ impl LuaUserData for Editor {
         });
         methods.add_method_mut("move_previous_match", |_, editor, query: String| {
             editor.prev_match(&query);
-            update_highlighter(editor);
+            editor.update_highlighter();
             Ok(())
         });
         // DEPRECIATED
@@ -405,7 +402,7 @@ impl LuaUserData for Editor {
         // DEPRECIATED
         methods.add_method_mut("show_help_message", |_, _, ()| Ok(()));
         methods.add_method_mut("set_read_only", |_, editor, status: bool| {
-            editor.doc_mut().read_only = status;
+            editor.doc_mut().info.read_only = status;
             Ok(())
         });
         methods.add_method_mut("set_file_type", |_, editor, ext: String| {
@@ -432,11 +429,5 @@ impl IntoLua<'_> for LuaLoc {
         table.set("x", self.x)?;
         table.set("y", self.y)?;
         Ok(LuaValue::Table(table))
-    }
-}
-
-fn update_highlighter(editor: &mut Editor) {
-    if let Err(err) = editor.update_highlighter() {
-        editor.feedback = Feedback::Error(err.to_string());
     }
 }

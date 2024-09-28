@@ -24,7 +24,7 @@ impl Editor {
         h = h.saturating_sub(1 + self.push_down);
         // Update the width of the document in case of update
         let max = self.dent();
-        self.doc_mut().size.w = w.saturating_sub(max) as usize;
+        self.doc_mut().size.w = w.saturating_sub(max);
         // Render the tab line
         let tab_enabled = self.config.tab_line.borrow().enabled;
         if tab_enabled {
@@ -33,7 +33,7 @@ impl Editor {
         // Run through each line of the terminal, rendering the correct line
         self.render_document(w, h)?;
         // Leave last line for status line
-        self.render_status_line(&lua, w, h)?;
+        self.render_status_line(lua, w, h)?;
         // Render greeting or help message if applicable
         if self.greet {
             self.render_greeting(lua, w, h)?;
@@ -53,9 +53,8 @@ impl Editor {
 
     /// Render the lines of the document
     pub fn render_document(&mut self, _w: usize, h: usize) -> Result<()> {
-        for y in 0..(h as u16) {
-            self.terminal
-                .goto(0, y as usize + self.push_down as usize)?;
+        for y in 0..u16::try_from(h).unwrap_or(0) {
+            self.terminal.goto(0, y as usize + self.push_down)?;
             // Start background colour
             write!(
                 self.terminal.stdout,
@@ -99,7 +98,7 @@ impl Editor {
                             match colour {
                                 // Success, write token
                                 Ok(col) => {
-                                    write!(self.terminal.stdout, "{}", Fg(col),)?;
+                                    write!(self.terminal.stdout, "{}", Fg(col))?;
                                 }
                                 // Failure, show error message and don't highlight this token
                                 Err(err) => {
@@ -143,7 +142,7 @@ impl Editor {
 
     /// Render the tab line at the top of the document
     pub fn render_tab_line(&mut self, w: usize) -> Result<()> {
-        self.terminal.goto(0 as usize, 0 as usize)?;
+        self.terminal.goto(0_usize, 0_usize)?;
         write!(
             self.terminal.stdout,
             "{}{}",
@@ -182,7 +181,7 @@ impl Editor {
             Bg(self.config.colors.borrow().status_bg.to_color()?),
             Fg(self.config.colors.borrow().status_fg.to_color()?),
             SetAttribute(Attribute::Bold),
-            self.config.status_line.borrow().render(&self, &lua, w),
+            self.config.status_line.borrow().render(self, lua, w),
             SetAttribute(Attribute::Reset),
             Fg(self.config.colors.borrow().editor_fg.to_color()?),
             Bg(self.config.colors.borrow().editor_bg.to_color()?),
@@ -222,7 +221,7 @@ impl Editor {
             write!(
                 self.terminal.stdout,
                 "{}",
-                alinio::align::center(&line, w.saturating_sub(4)).unwrap_or_else(|| "".to_string()),
+                alinio::align::center(line, w.saturating_sub(4)).unwrap_or_default(),
             )?;
         }
         Ok(())
@@ -308,13 +307,9 @@ impl Editor {
     }
 
     /// Append any missed lines to the syntax highlighter
-    pub fn update_highlighter(&mut self) -> Result<()> {
+    pub fn update_highlighter(&mut self) {
         if self.active {
-            let actual = self
-                .doc
-                .get(self.ptr)
-                .and_then(|d| Some(d.loaded_to))
-                .unwrap_or(0);
+            let actual = self.doc.get(self.ptr).map_or(0, |d| d.info.loaded_to);
             let percieved = self.highlighter().line_ref.len();
             if percieved < actual {
                 let diff = actual.saturating_sub(percieved);
@@ -324,7 +319,6 @@ impl Editor {
                 }
             }
         }
-        Ok(())
     }
 
     /// Returns a highlighter at a certain index

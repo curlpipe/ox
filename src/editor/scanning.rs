@@ -47,7 +47,7 @@ impl Editor {
                     _ => (),
                 }
             }
-            self.update_highlighter()?;
+            self.update_highlighter();
         }
         Ok(())
     }
@@ -57,7 +57,7 @@ impl Editor {
         let mtch = self.doc_mut().next_match(target, 1)?;
         self.doc_mut().move_to(&mtch.loc);
         // Update highlighting
-        self.update_highlighter().ok()?;
+        self.update_highlighter();
         Some(mtch.text)
     }
 
@@ -66,7 +66,7 @@ impl Editor {
         let mtch = self.doc_mut().prev_match(target)?;
         self.doc_mut().move_to(&mtch.loc);
         // Update highlighting
-        self.update_highlighter().ok()?;
+        self.update_highlighter();
         Some(mtch.text)
     }
 
@@ -90,7 +90,7 @@ impl Editor {
             // Exit if there are no matches in the document
             return Ok(());
         }
-        self.update_highlighter()?;
+        self.update_highlighter();
         // Enter into the replace menu
         while !done {
             // Render just the document part
@@ -128,7 +128,7 @@ impl Editor {
                 }
             }
             // Update syntax highlighter if necessary
-            self.update_highlighter()?;
+            self.update_highlighter();
         }
         Ok(())
     }
@@ -142,7 +142,7 @@ impl Editor {
         self.doc_mut().replace(loc, text, into)?;
         self.doc_mut().move_to(&loc);
         // Update syntax highlighter
-        self.update_highlighter()?;
+        self.update_highlighter();
         self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
         Ok(())
     }
@@ -155,7 +155,7 @@ impl Editor {
         self.doc_mut().move_to(&Loc::at(0, 0));
         while let Some(mtch) = self.doc_mut().next_match(target, 1) {
             drop(self.doc_mut().replace(mtch.loc, &mtch.text, into));
-            drop(self.update_highlighter());
+            self.update_highlighter();
             self.highlighter[self.ptr].edit(mtch.loc.y, &self.doc[self.ptr].lines[mtch.loc.y]);
         }
     }

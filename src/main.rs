@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic)]
+
 mod cli;
 mod config;
 mod editor;
@@ -25,20 +27,20 @@ fn main() {
     // Handle help and version options
     cli.basic_options();
 
-    let result = run(cli);
+    let result = run(&cli);
     if let Err(err) = result {
-        panic!("{:?}", err);
+        panic!("{err:?}");
     }
 }
 
-fn run(cli: CommandLineInterface) -> Result<()> {
+fn run(cli: &CommandLineInterface) -> Result<()> {
     // Create lua interpreter
     let lua = Lua::new();
 
     // Create editor
     let editor = match Editor::new(&lua) {
         Ok(editor) => editor,
-        Err(error) => panic!("Editor failed to start: {:?}", error),
+        Err(error) => panic!("Editor failed to start: {error:?}"),
     };
 
     // Push editor into lua
@@ -49,7 +51,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
     if editor
         .borrow_mut()
-        .load_config(cli.config_path, &lua)
+        .load_config(&cli.config_path, &lua)
         .is_err()
     {
         editor.borrow_mut().feedback =
@@ -61,8 +63,8 @@ fn run(cli: CommandLineInterface) -> Result<()> {
         // Open the file
         editor.borrow_mut().open_or_new(file.to_string())?;
         // Set read only if applicable
-        if cli.read_only {
-            editor.borrow_mut().get_doc(c).read_only = true;
+        if cli.flags.read_only {
+            editor.borrow_mut().get_doc(c).info.read_only = true;
         }
         // Set highlighter if applicable
         if let Some(ref ext) = cli.file_type {
@@ -71,27 +73,26 @@ fn run(cli: CommandLineInterface) -> Result<()> {
                 .config
                 .syntax_highlighting
                 .borrow()
-                .get_highlighter(&ext);
+                .get_highlighter(ext);
             highlighter.run(&editor.borrow_mut().get_doc(c).lines);
             *editor.borrow_mut().get_highlighter(c) = highlighter;
         }
     }
 
     // Handle stdin if applicable
-    if cli.stdin {
-        if let Some(stdin) = cli::get_stdin() {
-            editor.borrow_mut().blank()?;
-            let this_doc = editor.borrow_mut().doc_len().saturating_sub(1);
-            let mut holder = editor.borrow_mut();
-            let doc = holder.get_doc(this_doc);
-            doc.exe(Event::Insert(Loc { x: 0, y: 0 }, stdin))?;
-            doc.load_to(doc.size.h);
-            let lines = doc.lines.clone();
-            let hl = holder.get_highlighter(this_doc);
-            hl.run(&lines);
-            if cli.read_only {
-                editor.borrow_mut().get_doc(this_doc).read_only = true;
-            }
+    if cli.flags.stdin {
+        let stdin = cli::get_stdin();
+        editor.borrow_mut().blank()?;
+        let this_doc = editor.borrow_mut().doc_len().saturating_sub(1);
+        let mut holder = editor.borrow_mut();
+        let doc = holder.get_doc(this_doc);
+        doc.exe(Event::Insert(Loc { x: 0, y: 0 }, stdin))?;
+        doc.load_to(doc.size.h);
+        let lines = doc.lines.clone();
+        let hl = holder.get_highlighter(this_doc);
+        hl.run(&lines);
+        if cli.flags.read_only {
+            editor.borrow_mut().get_doc(this_doc).info.read_only = true;
         }
     }
 
@@ -99,7 +100,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     editor.borrow_mut().new_if_empty()?;
 
     // Run plug-ins
-    handle_lua_error(&editor, "", lua.load(PLUGIN_RUN).exec())?;
+    handle_lua_error(&editor, "", lua.load(PLUGIN_RUN).exec());
 
     // Run the editor and handle errors if applicable
     editor.borrow_mut().init()?;
@@ -114,7 +115,7 @@ fn run(cli: CommandLineInterface) -> Result<()> {
             let key_str = key_to_string(key.modifiers, key.code);
             let code = run_key_before(&key_str);
             let result = lua.load(&code).exec();
-            handle_lua_error(&editor, &key_str, result)?;
+            handle_lua_error(&editor, &key_str, result);
         }
 
         // Actually handle editor event (errors included)
@@ -127,16 +128,16 @@ fn run(cli: CommandLineInterface) -> Result<()> {
             let key_str = key_to_string(key.modifiers, key.code);
             let code = run_key(&key_str);
             let result = lua.load(&code).exec();
-            handle_lua_error(&editor, &key_str, result)?;
+            handle_lua_error(&editor, &key_str, result);
         }
 
-        editor.borrow_mut().update_highlighter()?;
+        editor.borrow_mut().update_highlighter();
         editor.borrow_mut().greet = false;
 
         // Check for any commands to run
         let command = editor.borrow().command.clone();
         if let Some(command) = command {
-            run_editor_command(&editor, command, &lua)?;
+            run_editor_command(&editor, &command, &lua);
         }
         editor.borrow_mut().command = None;
     }
@@ -146,21 +147,17 @@ fn run(cli: CommandLineInterface) -> Result<()> {
     Ok(())
 }
 
-fn handle_lua_error(
-    editor: &Rc<RefCell<Editor>>,
-    key_str: &str,
-    error: RResult<(), mlua::Error>,
-) -> Result<()> {
+fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<(), mlua::Error>) {
     match error {
         // All good
-        Ok(_) => (),
+        Ok(()) => (),
         // Handle a runtime error
         Err(RuntimeError(msg)) => {
-            let msg = msg.split('\n').nth(0).unwrap_or("No Message Text");
+            let msg = msg.split('\n').next().unwrap_or("No Message Text");
             if msg.ends_with("key not bound") {
                 // Key was not bound, issue a warning would be helpful
-                let key_str = key_str.replace(" ", "space");
-                if key_str.contains(&"_") && key_str != "_" && !key_str.starts_with("shift") {
+                let key_str = key_str.replace(' ', "space");
+                if key_str.contains('_') && key_str != "_" && !key_str.starts_with("shift") {
                     editor.borrow_mut().feedback =
                         Feedback::Warning(format!("The key {key_str} is not bound"));
                 }
@@ -170,29 +167,24 @@ fn handle_lua_error(
                     Feedback::Error(format!("The command '{key_str}' is not defined"));
             } else {
                 // Some other runtime error
-                editor.borrow_mut().feedback = Feedback::Error(format!("{msg}"));
+                editor.borrow_mut().feedback = Feedback::Error(msg.to_string());
             }
         }
         // Other miscellaneous error
         Err(err) => {
             editor.borrow_mut().feedback =
-                Feedback::Error(format!("Failed to run Lua code: {err:?}"))
+                Feedback::Error(format!("Failed to run Lua code: {err:?}"));
         }
     }
-    Ok(())
 }
 
 // Run a command in the editor
-fn run_editor_command(editor: &Rc<RefCell<Editor>>, cmd: String, lua: &Lua) -> Result<()> {
-    let cmd = cmd.replace("'", "\\'").to_string();
-    match cmd.split(' ').collect::<Vec<&str>>().as_slice() {
-        [subcmd, arguments @ ..] => {
-            let arguments = arguments.join("', '");
-            let code =
-                format!("(commands['{subcmd}'] or error('command not found'))({{'{arguments}'}})");
-            handle_lua_error(editor, subcmd, lua.load(code).exec())?;
-        }
-        _ => (),
+fn run_editor_command(editor: &Rc<RefCell<Editor>>, cmd: &str, lua: &Lua) {
+    let cmd = cmd.replace('\'', "\\'").to_string();
+    if let [subcmd, arguments @ ..] = cmd.split(' ').collect::<Vec<&str>>().as_slice() {
+        let arguments = arguments.join("', '");
+        let code =
+            format!("(commands['{subcmd}'] or error('command not found'))({{'{arguments}'}})");
+        handle_lua_error(editor, subcmd, lua.load(code).exec());
     }
-    Ok(())
 }

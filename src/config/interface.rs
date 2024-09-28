@@ -11,11 +11,11 @@ use super::{issue_warning, Colors};
 
 /// For storing general configuration related to the terminal functionality
 #[derive(Debug)]
-pub struct TerminalConfig {
+pub struct Terminal {
     pub mouse_enabled: bool,
 }
 
-impl Default for TerminalConfig {
+impl Default for Terminal {
     fn default() -> Self {
         Self {
             mouse_enabled: true,
@@ -23,7 +23,7 @@ impl Default for TerminalConfig {
     }
 }
 
-impl LuaUserData for TerminalConfig {
+impl LuaUserData for Terminal {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("mouse_enabled", |_, this| Ok(this.mouse_enabled));
         fields.add_field_method_set("mouse_enabled", |_, this, value| {
@@ -82,7 +82,7 @@ impl Default for GreetingMessage {
     fn default() -> Self {
         Self {
             enabled: true,
-            format: "".to_string(),
+            format: String::new(),
         }
     }
 }
@@ -93,7 +93,7 @@ impl GreetingMessage {
         let highlight = Fg(colors.highlight.to_color()?).to_string();
         let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
         let mut result = self.format.clone();
-        result = result.replace("{version}", &VERSION).to_string();
+        result = result.replace("{version}", VERSION).to_string();
         result = result.replace("{highlight_start}", &highlight).to_string();
         result = result.replace("{highlight_end}", &editor_fg).to_string();
         // Find functions to call and substitute in
@@ -145,7 +145,7 @@ impl Default for HelpMessage {
     fn default() -> Self {
         Self {
             enabled: true,
-            format: "".to_string(),
+            format: String::new(),
         }
     }
 }
@@ -156,7 +156,7 @@ impl HelpMessage {
         let highlight = Fg(colors.highlight.to_color()?).to_string();
         let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
         let mut result = self.format.clone();
-        result = result.replace("{version}", &VERSION).to_string();
+        result = result.replace("{version}", VERSION).to_string();
         result = result.replace("{highlight_start}", &highlight).to_string();
         result = result.replace("{highlight_end}", &editor_fg).to_string();
         // Find functions to call and substitute in
@@ -178,7 +178,10 @@ impl HelpMessage {
                 break;
             }
         }
-        Ok(result.split('\n').map(|l| l.to_string()).collect())
+        Ok(result
+            .split('\n')
+            .map(std::string::ToString::to_string)
+            .collect())
     }
 }
 
@@ -222,8 +225,8 @@ impl TabLine {
         let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
-        let icon = icon(&filetype(&file_extension).unwrap_or_else(|| "".to_string()));
-        let modified = if document.modified { "[+]" } else { "" };
+        let icon = icon(&filetype(&file_extension).unwrap_or_default());
+        let modified = if document.info.modified { "[+]" } else { "" };
         let mut result = self.format.clone();
         result = result
             .replace("{file_extension}", &file_extension)
@@ -233,7 +236,7 @@ impl TabLine {
             .replace("{absolute_path}", &absolute_path)
             .to_string();
         result = result.replace("{path}", &path).to_string();
-        result = result.replace("{modified}", &modified).to_string();
+        result = result.replace("{modified}", modified).to_string();
         result = result.replace("{icon}", &icon).to_string();
         result
     }
@@ -276,9 +279,9 @@ impl StatusLine {
         let path = editor
             .doc()
             .file_name
-            .to_owned()
+            .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
-        let file_extension = get_file_ext(&path).unwrap_or_else(|| "".to_string());
+        let file_extension = get_file_ext(&path).unwrap_or_default();
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_type = filetype(&file_extension).unwrap_or_else(|| {
@@ -288,8 +291,12 @@ impl StatusLine {
                 file_extension.to_string()
             }
         });
-        let icon = icon(&filetype(&file_extension).unwrap_or_else(|| "".to_string()));
-        let modified = if editor.doc().modified { "[+]" } else { "" };
+        let icon = icon(&filetype(&file_extension).unwrap_or_default());
+        let modified = if editor.doc().info.modified {
+            "[+]"
+        } else {
+            ""
+        };
         let cursor_y = (editor.doc().loc().y + 1).to_string();
         let cursor_x = editor.doc().char_ptr.to_string();
         let line_count = editor.doc().len_lines().to_string();
@@ -303,7 +310,7 @@ impl StatusLine {
             part = part.replace("{icon}", &icon).to_string();
             part = part.replace("{path}", &path).to_string();
             part = part.replace("{absolute_path}", &absolute_path).to_string();
-            part = part.replace("{modified}", &modified).to_string();
+            part = part.replace("{modified}", modified).to_string();
             part = part.replace("{file_type}", &file_type).to_string();
             part = part.replace("{cursor_y}", &cursor_y).to_string();
             part = part.replace("{cursor_x}", &cursor_x).to_string();
@@ -329,12 +336,12 @@ impl StatusLine {
             }
             result.push(part);
         }
-        let status: Vec<&str> = result.iter().map(|s| s.as_str()).collect();
+        let status: Vec<&str> = result.iter().map(String::as_str).collect();
         match self.alignment {
             StatusAlign::Between => alinio::align::between(status.as_slice(), w),
             StatusAlign::Around => alinio::align::around(status.as_slice(), w),
         }
-        .unwrap_or_else(|| "".to_string())
+        .unwrap_or_else(String::new)
     }
 }
 
@@ -355,8 +362,8 @@ impl LuaUserData for StatusLine {
             let alignment: String = this.alignment.clone().into();
             Ok(alignment)
         });
-        fields.add_field_method_set("alignment", |_, this, value| {
-            this.alignment = StatusAlign::from_string(value);
+        fields.add_field_method_set("alignment", |_, this, value: String| {
+            this.alignment = StatusAlign::from_string(&value);
             Ok(())
         });
     }
@@ -369,8 +376,8 @@ pub enum StatusAlign {
 }
 
 impl StatusAlign {
-    pub fn from_string(string: String) -> Self {
-        match string.as_str() {
+    pub fn from_string(string: &str) -> Self {
+        match string {
             "around" => Self::Around,
             "between" => Self::Between,
             _ => {
@@ -385,11 +392,11 @@ impl StatusAlign {
     }
 }
 
-impl Into<String> for StatusAlign {
-    fn into(self) -> String {
-        match self {
-            Self::Around => "around",
-            Self::Between => "between",
+impl From<StatusAlign> for String {
+    fn from(val: StatusAlign) -> Self {
+        match val {
+            StatusAlign::Around => "around",
+            StatusAlign::Between => "between",
         }
         .to_string()
     }

@@ -1,5 +1,4 @@
 use crate::error::{OxError, Result};
-use crossterm::style::Color;
 use mlua::prelude::*;
 use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
@@ -10,16 +9,14 @@ mod highlighting;
 mod interface;
 mod keys;
 
-pub use colors::{Colors, ConfigColor};
+pub use colors::{Color, Colors};
 pub use highlighting::SyntaxHighlighting;
-pub use interface::{
-    GreetingMessage, HelpMessage, LineNumbers, StatusLine, TabLine, TerminalConfig,
-};
+pub use interface::{GreetingMessage, HelpMessage, LineNumbers, StatusLine, TabLine, Terminal};
 pub use keys::{key_to_string, run_key, run_key_before};
 
 // Issue a warning to the user
 fn issue_warning(msg: &str) {
-    eprintln!("[WARNING] {}", msg);
+    eprintln!("[WARNING] {msg}");
 }
 
 /// This contains the default configuration lua file
@@ -45,8 +42,8 @@ pub struct Config {
     pub tab_line: Rc<RefCell<TabLine>>,
     pub greeting_message: Rc<RefCell<GreetingMessage>>,
     pub help_message: Rc<RefCell<HelpMessage>>,
-    pub terminal: Rc<RefCell<TerminalConfig>>,
-    pub document: Rc<RefCell<DocumentConfig>>,
+    pub terminal: Rc<RefCell<Terminal>>,
+    pub document: Rc<RefCell<Document>>,
 }
 
 impl Config {
@@ -60,8 +57,8 @@ impl Config {
         let colors = Rc::new(RefCell::new(Colors::default()));
         let status_line = Rc::new(RefCell::new(StatusLine::default()));
         let tab_line = Rc::new(RefCell::new(TabLine::default()));
-        let terminal = Rc::new(RefCell::new(TerminalConfig::default()));
-        let document = Rc::new(RefCell::new(DocumentConfig::default()));
+        let terminal = Rc::new(RefCell::new(Terminal::default()));
+        let document = Rc::new(RefCell::new(Document::default()));
 
         // Push in configuration globals
         lua.globals().set("syntax", syntax_highlighting.clone())?;
@@ -78,18 +75,18 @@ impl Config {
         Ok(Config {
             syntax_highlighting,
             line_numbers,
+            colors,
+            status_line,
+            tab_line,
             greeting_message,
             help_message,
-            tab_line,
-            status_line,
-            colors,
             terminal,
             document,
         })
     }
 
     /// Actually take the configuration file, open it and interpret it
-    pub fn read(&mut self, path: String, lua: &Lua) -> Result<()> {
+    pub fn read(&mut self, path: &str, lua: &Lua) -> Result<()> {
         // Load the default config to start with
         lua.load(DEFAULT_CONFIG).exec()?;
         // Reset plugin status based on built-in configuration file
@@ -118,8 +115,8 @@ impl Config {
         let mut builtins: HashMap<&str, &str> = HashMap::default();
         builtins.insert("pairs.lua", PAIRS);
         builtins.insert("autoindent.lua", AUTOINDENT);
-        for (name, code) in builtins.iter() {
-            if self.load_bi(name, user_provided_config, &lua) {
+        for (name, code) in &builtins {
+            if Self::load_bi(name, user_provided_config, lua) {
                 lua.load(*code).exec()?;
             }
         }
@@ -132,11 +129,8 @@ impl Config {
     }
 
     /// Decide whether to load a built-in plugin
-    pub fn load_bi(&self, name: &str, user_provided_config: bool, lua: &Lua) -> bool {
-        if !user_provided_config {
-            // Load when the user hasn't provided a configuration file
-            true
-        } else {
+    pub fn load_bi(name: &str, user_provided_config: bool, lua: &Lua) -> bool {
+        if user_provided_config {
             // Get list of user-loaded plug-ins
             let plugins: Vec<String> = lua
                 .globals()
@@ -155,18 +149,21 @@ impl Config {
                 // User doesn't want the plug-in
                 false
             }
+        } else {
+            // Load when the user hasn't provided a configuration file
+            true
         }
     }
 }
 
 #[derive(Debug)]
-pub struct DocumentConfig {
+pub struct Document {
     pub tab_width: usize,
     pub undo_period: usize,
     pub wrap_cursor: bool,
 }
 
-impl Default for DocumentConfig {
+impl Default for Document {
     fn default() -> Self {
         Self {
             tab_width: 4,
@@ -176,7 +173,7 @@ impl Default for DocumentConfig {
     }
 }
 
-impl LuaUserData for DocumentConfig {
+impl LuaUserData for Document {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("tab_width", |_, document| Ok(document.tab_width));
         fields.add_field_method_set("tab_width", |_, this, value| {

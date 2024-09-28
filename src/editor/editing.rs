@@ -40,7 +40,10 @@ impl Editor {
         // When the return key is pressed, we want to commit to the undo/redo stack
         self.doc_mut().commit();
         // Perform the changes
-        if self.doc().loc().y != self.doc().len_lines() {
+        if self.doc().loc().y == self.doc().len_lines() {
+            // Enter pressed on the empty line at the bottom of the document
+            self.new_row()?;
+        } else {
             // Enter pressed in the start, middle or end of the line
             let loc = self.doc().char_loc();
             self.exe(Event::SplitDown(loc))?;
@@ -48,9 +51,6 @@ impl Editor {
             self.highlighter[self.ptr].insert_line(loc.y + 1, line);
             let line = &self.doc[self.ptr].lines[loc.y];
             self.highlighter[self.ptr].edit(loc.y, line);
-        } else {
-            // Enter pressed on the empty line at the bottom of the document
-            self.new_row()?;
         }
         Ok(())
     }
@@ -114,8 +114,8 @@ impl Editor {
     /// Insert a new row at the end of the document if the cursor is on it
     fn new_row(&mut self) -> Result<()> {
         if self.doc().loc().y == self.doc().len_lines() {
-            self.exe(Event::InsertLine(self.doc().loc().y, "".to_string()))?;
-            self.highlighter().append(&"".to_string());
+            self.exe(Event::InsertLine(self.doc().loc().y, String::new()))?;
+            self.highlighter().append(&String::new());
         }
         Ok(())
     }

@@ -34,7 +34,7 @@ pub fn run_key_before(key: &str) -> String {
 
 /// Converts a key taken from a crossterm event into string format
 pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
-    let mut result = "".to_string();
+    let mut result = String::new();
     // Deal with modifiers
     if modifiers.contains(KMod::CONTROL) {
         result += "ctrl_";
@@ -107,5 +107,5 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
         }
         .to_string(),
     };
-    return result;
+    result
 }

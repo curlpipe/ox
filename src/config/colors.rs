@@ -1,71 +1,72 @@
-use crate::error::Result;
-use crossterm::style::Color;
+use crate::error::{OxError, Result};
+use crossterm::style::Color as CColor;
 use mlua::prelude::*;
 
 use super::issue_warning;
 
 #[derive(Debug)]
 pub struct Colors {
-    pub editor_bg: ConfigColor,
-    pub editor_fg: ConfigColor,
+    pub editor_bg: Color,
+    pub editor_fg: Color,
 
-    pub status_bg: ConfigColor,
-    pub status_fg: ConfigColor,
+    pub status_bg: Color,
+    pub status_fg: Color,
 
-    pub highlight: ConfigColor,
+    pub highlight: Color,
 
-    pub line_number_fg: ConfigColor,
-    pub line_number_bg: ConfigColor,
+    pub line_number_fg: Color,
+    pub line_number_bg: Color,
 
-    pub tab_active_fg: ConfigColor,
-    pub tab_active_bg: ConfigColor,
-    pub tab_inactive_fg: ConfigColor,
-    pub tab_inactive_bg: ConfigColor,
+    pub tab_active_fg: Color,
+    pub tab_active_bg: Color,
+    pub tab_inactive_fg: Color,
+    pub tab_inactive_bg: Color,
 
-    pub info_bg: ConfigColor,
-    pub info_fg: ConfigColor,
-    pub warning_bg: ConfigColor,
-    pub warning_fg: ConfigColor,
-    pub error_bg: ConfigColor,
-    pub error_fg: ConfigColor,
+    pub info_bg: Color,
+    pub info_fg: Color,
+    pub warning_bg: Color,
+    pub warning_fg: Color,
+    pub error_bg: Color,
+    pub error_fg: Color,
 
-    pub selection_fg: ConfigColor,
-    pub selection_bg: ConfigColor,
+    pub selection_fg: Color,
+    pub selection_bg: Color,
 }
 
 impl Default for Colors {
     fn default() -> Self {
         Self {
-            editor_bg: ConfigColor::Black,
-            editor_fg: ConfigColor::Black,
+            editor_bg: Color::Black,
+            editor_fg: Color::Black,
 
-            status_bg: ConfigColor::Black,
-            status_fg: ConfigColor::Black,
+            status_bg: Color::Black,
+            status_fg: Color::Black,
 
-            highlight: ConfigColor::Black,
+            highlight: Color::Black,
 
-            line_number_fg: ConfigColor::Black,
-            line_number_bg: ConfigColor::Black,
+            line_number_fg: Color::Black,
+            line_number_bg: Color::Black,
 
-            tab_active_fg: ConfigColor::Black,
-            tab_active_bg: ConfigColor::Black,
-            tab_inactive_fg: ConfigColor::Black,
-            tab_inactive_bg: ConfigColor::Black,
+            tab_active_fg: Color::Black,
+            tab_active_bg: Color::Black,
+            tab_inactive_fg: Color::Black,
+            tab_inactive_bg: Color::Black,
 
-            info_bg: ConfigColor::Black,
-            info_fg: ConfigColor::Black,
-            warning_bg: ConfigColor::Black,
-            warning_fg: ConfigColor::Black,
-            error_bg: ConfigColor::Black,
-            error_fg: ConfigColor::Black,
+            info_bg: Color::Black,
+            info_fg: Color::Black,
+            warning_bg: Color::Black,
+            warning_fg: Color::Black,
+            error_bg: Color::Black,
+            error_fg: Color::Black,
 
-            selection_fg: ConfigColor::White,
-            selection_bg: ConfigColor::Blue,
+            selection_fg: Color::White,
+            selection_bg: Color::Blue,
         }
     }
 }
 
 impl LuaUserData for Colors {
+    #[allow(clippy::too_many_lines)]
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("editor_bg", |env, this| Ok(this.editor_bg.to_lua(env)));
         fields.add_field_method_get("editor_fg", |env, this| Ok(this.editor_fg.to_lua(env)));
@@ -103,86 +104,86 @@ impl LuaUserData for Colors {
             Ok(this.selection_bg.to_lua(env))
         });
         fields.add_field_method_set("editor_bg", |_, this, value| {
-            this.editor_bg = ConfigColor::from_lua(value);
+            this.editor_bg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("editor_fg", |_, this, value| {
-            this.editor_fg = ConfigColor::from_lua(value);
+            this.editor_fg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("status_bg", |_, this, value| {
-            this.status_bg = ConfigColor::from_lua(value);
+            this.status_bg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("status_fg", |_, this, value| {
-            this.status_fg = ConfigColor::from_lua(value);
+            this.status_fg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("highlight", |_, this, value| {
-            this.highlight = ConfigColor::from_lua(value);
+            this.highlight = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("line_number_bg", |_, this, value| {
-            this.line_number_bg = ConfigColor::from_lua(value);
+            this.line_number_bg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("line_number_fg", |_, this, value| {
-            this.line_number_fg = ConfigColor::from_lua(value);
+            this.line_number_fg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("tab_active_fg", |_, this, value| {
-            this.tab_active_fg = ConfigColor::from_lua(value);
+            this.tab_active_fg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("tab_active_bg", |_, this, value| {
-            this.tab_active_bg = ConfigColor::from_lua(value);
+            this.tab_active_bg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("tab_inactive_fg", |_, this, value| {
-            this.tab_inactive_fg = ConfigColor::from_lua(value);
+            this.tab_inactive_fg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("tab_inactive_bg", |_, this, value| {
-            this.tab_inactive_bg = ConfigColor::from_lua(value);
+            this.tab_inactive_bg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("error_bg", |_, this, value| {
-            this.error_bg = ConfigColor::from_lua(value);
+            this.error_bg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("error_fg", |_, this, value| {
-            this.error_fg = ConfigColor::from_lua(value);
+            this.error_fg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("warning_bg", |_, this, value| {
-            this.warning_bg = ConfigColor::from_lua(value);
+            this.warning_bg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("warning_fg", |_, this, value| {
-            this.warning_fg = ConfigColor::from_lua(value);
+            this.warning_fg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("info_bg", |_, this, value| {
-            this.info_bg = ConfigColor::from_lua(value);
+            this.info_bg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("info_fg", |_, this, value| {
-            this.info_fg = ConfigColor::from_lua(value);
+            this.info_fg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("selection_fg", |_, this, value| {
-            this.selection_fg = ConfigColor::from_lua(value);
+            this.selection_fg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("selection_bg", |_, this, value| {
-            this.selection_bg = ConfigColor::from_lua(value);
+            this.selection_bg = Color::from_lua(value);
             Ok(())
         });
     }
 }
 
 #[derive(Debug)]
-pub enum ConfigColor {
+pub enum Color {
     Rgb(u8, u8, u8),
     Hex(String),
     Black,
@@ -204,8 +205,8 @@ pub enum ConfigColor {
     Transparent,
 }
 
-impl ConfigColor {
-    pub fn from_lua<'a>(value: LuaValue<'a>) -> Self {
+impl Color {
+    pub fn from_lua(value: LuaValue<'_>) -> Self {
         match value {
             LuaValue::String(string) => match string.to_str().unwrap_or("transparent") {
                 "black" => Self::Black,
@@ -235,7 +236,7 @@ impl ConfigColor {
                 let mut tri: Vec<u8> = vec![];
                 for _ in 0..3 {
                     if let Ok(val) = table.pop() {
-                        tri.insert(0, val)
+                        tri.insert(0, val);
                     } else {
                         issue_warning("Invalid RGB sequence provided - please check your numerical values are between 0 and 255");
                         tri.insert(0, 255);
@@ -253,11 +254,11 @@ impl ConfigColor {
     pub fn to_lua<'a>(&self, env: &'a Lua) -> LuaValue<'a> {
         let msg = "Failed to create lua string";
         match self {
-            ConfigColor::Hex(hex) => {
+            Color::Hex(hex) => {
                 let string = env.create_string(hex).expect(msg);
                 LuaValue::String(string)
             }
-            ConfigColor::Rgb(r, g, b) => {
+            Color::Rgb(r, g, b) => {
                 // Create lua table
                 let table = env.create_table().expect("Failed to create lua table");
                 let _ = table.push(*r as isize);
@@ -265,70 +266,65 @@ impl ConfigColor {
                 let _ = table.push(*b as isize);
                 LuaValue::Table(table)
             }
-            ConfigColor::Black => LuaValue::String(env.create_string("black").expect(msg)),
-            ConfigColor::DarkGrey => LuaValue::String(env.create_string("darkgrey").expect(msg)),
-            ConfigColor::Red => LuaValue::String(env.create_string("red").expect(msg)),
-            ConfigColor::DarkRed => LuaValue::String(env.create_string("darkred").expect(msg)),
-            ConfigColor::Green => LuaValue::String(env.create_string("green").expect(msg)),
-            ConfigColor::DarkGreen => LuaValue::String(env.create_string("darkgreen").expect(msg)),
-            ConfigColor::Yellow => LuaValue::String(env.create_string("yellow").expect(msg)),
-            ConfigColor::DarkYellow => {
-                LuaValue::String(env.create_string("darkyellow").expect(msg))
-            }
-            ConfigColor::Blue => LuaValue::String(env.create_string("blue").expect(msg)),
-            ConfigColor::DarkBlue => LuaValue::String(env.create_string("darkblue").expect(msg)),
-            ConfigColor::Magenta => LuaValue::String(env.create_string("magenta").expect(msg)),
-            ConfigColor::DarkMagenta => {
-                LuaValue::String(env.create_string("darkmagenta").expect(msg))
-            }
-            ConfigColor::Cyan => LuaValue::String(env.create_string("cyan").expect(msg)),
-            ConfigColor::DarkCyan => LuaValue::String(env.create_string("darkcyan").expect(msg)),
-            ConfigColor::White => LuaValue::String(env.create_string("white").expect(msg)),
-            ConfigColor::Grey => LuaValue::String(env.create_string("grey").expect(msg)),
-            ConfigColor::Transparent => {
-                LuaValue::String(env.create_string("transparent").expect(msg))
-            }
+            Color::Black => LuaValue::String(env.create_string("black").expect(msg)),
+            Color::DarkGrey => LuaValue::String(env.create_string("darkgrey").expect(msg)),
+            Color::Red => LuaValue::String(env.create_string("red").expect(msg)),
+            Color::DarkRed => LuaValue::String(env.create_string("darkred").expect(msg)),
+            Color::Green => LuaValue::String(env.create_string("green").expect(msg)),
+            Color::DarkGreen => LuaValue::String(env.create_string("darkgreen").expect(msg)),
+            Color::Yellow => LuaValue::String(env.create_string("yellow").expect(msg)),
+            Color::DarkYellow => LuaValue::String(env.create_string("darkyellow").expect(msg)),
+            Color::Blue => LuaValue::String(env.create_string("blue").expect(msg)),
+            Color::DarkBlue => LuaValue::String(env.create_string("darkblue").expect(msg)),
+            Color::Magenta => LuaValue::String(env.create_string("magenta").expect(msg)),
+            Color::DarkMagenta => LuaValue::String(env.create_string("darkmagenta").expect(msg)),
+            Color::Cyan => LuaValue::String(env.create_string("cyan").expect(msg)),
+            Color::DarkCyan => LuaValue::String(env.create_string("darkcyan").expect(msg)),
+            Color::White => LuaValue::String(env.create_string("white").expect(msg)),
+            Color::Grey => LuaValue::String(env.create_string("grey").expect(msg)),
+            Color::Transparent => LuaValue::String(env.create_string("transparent").expect(msg)),
         }
     }
 
-    pub fn to_color(&self) -> Result<Color> {
+    pub fn to_color(&self) -> Result<CColor> {
         Ok(match self {
-            ConfigColor::Hex(hex) => {
-                let (r, g, b) = self.hex_to_rgb(hex)?;
-                Color::Rgb { r, g, b }
+            Color::Hex(hex) => {
+                let (r, g, b) = Self::hex_to_rgb(hex)?;
+                CColor::Rgb { r, g, b }
             }
-            ConfigColor::Rgb(r, g, b) => Color::Rgb {
+            Color::Rgb(r, g, b) => CColor::Rgb {
                 r: *r,
                 g: *g,
                 b: *b,
             },
-            ConfigColor::Black => Color::Black,
-            ConfigColor::DarkGrey => Color::DarkGrey,
-            ConfigColor::Red => Color::Red,
-            ConfigColor::DarkRed => Color::DarkRed,
-            ConfigColor::Green => Color::Green,
-            ConfigColor::DarkGreen => Color::DarkGreen,
-            ConfigColor::Yellow => Color::Yellow,
-            ConfigColor::DarkYellow => Color::DarkYellow,
-            ConfigColor::Blue => Color::Blue,
-            ConfigColor::DarkBlue => Color::DarkBlue,
-            ConfigColor::Magenta => Color::Magenta,
-            ConfigColor::DarkMagenta => Color::DarkMagenta,
-            ConfigColor::Cyan => Color::Cyan,
-            ConfigColor::DarkCyan => Color::DarkCyan,
-            ConfigColor::White => Color::White,
-            ConfigColor::Grey => Color::Grey,
-            ConfigColor::Transparent => Color::Reset,
+            Color::Black => CColor::Black,
+            Color::DarkGrey => CColor::DarkGrey,
+            Color::Red => CColor::Red,
+            Color::DarkRed => CColor::DarkRed,
+            Color::Green => CColor::Green,
+            Color::DarkGreen => CColor::DarkGreen,
+            Color::Yellow => CColor::Yellow,
+            Color::DarkYellow => CColor::DarkYellow,
+            Color::Blue => CColor::Blue,
+            Color::DarkBlue => CColor::DarkBlue,
+            Color::Magenta => CColor::Magenta,
+            Color::DarkMagenta => CColor::DarkMagenta,
+            Color::Cyan => CColor::Cyan,
+            Color::DarkCyan => CColor::DarkCyan,
+            Color::White => CColor::White,
+            Color::Grey => CColor::Grey,
+            Color::Transparent => CColor::Reset,
         })
     }
 
-    fn hex_to_rgb(&self, hex: &str) -> Result<(u8, u8, u8)> {
+    fn hex_to_rgb(hex: &str) -> Result<(u8, u8, u8)> {
         // Remove the leading '#' if present
         let hex = hex.trim_start_matches('#');
 
         // Ensure the hex code is exactly 6 characters long
         if hex.len() != 6 {
-            panic!("Invalid hex code used in configuration file - ensure they are of length 6");
+            let msg = "Invalid hex code used in configuration file - ensure they are of length 6";
+            return Err(OxError::Config(msg.to_string()));
         }
 
         // Parse the hex string into the RGB components
@@ -336,9 +332,10 @@ impl ConfigColor {
         for i in 0..3 {
             let section = &hex[(i * 2)..(i * 2 + 2)];
             if let Ok(val) = u8::from_str_radix(section, 16) {
-                tri.insert(0, val)
+                tri.insert(0, val);
             } else {
-                panic!("Invalid hex code used in configuration file - ensure all digits are between 0 and F");
+                let msg = "Invalid hex code used in configuration file - ensure all digits are between 0 and F";
+                return Err(OxError::Config(msg.to_string()));
             }
         }
         Ok((tri[0], tri[1], tri[2]))
