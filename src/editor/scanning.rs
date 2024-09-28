@@ -1,8 +1,6 @@
 use crate::error::Result;
 use crate::ui::size;
-use crossterm::{
-    event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
-};
+use crossterm::event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod};
 use kaolinite::utils::{Loc, Size};
 use std::io::Write;
 

@@ -1,9 +1,7 @@
 use crate::config::Config;
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback, Terminal};
-use crossterm::{
-    event::{Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEventKind},
-};
+use crossterm::event::{Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEventKind};
 use kaolinite::event::Error as KError;
 use kaolinite::Document;
 use mlua::Lua;
@@ -12,9 +10,9 @@ use std::time::Instant;
 use synoptic::Highlighter;
 
 mod cursor;
-mod mouse;
-mod interface;
 mod editing;
+mod interface;
+mod mouse;
 mod scanning;
 
 /// For managing all editing and rendering of cactus
