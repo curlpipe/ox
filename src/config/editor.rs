@@ -6,7 +6,6 @@ use mlua::prelude::*;
 
 impl LuaUserData for Editor {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("pasting", |_, editor| Ok(editor.paste_flag));
         fields.add_field_method_get("cursor", |_, editor| {
             let loc = editor.doc().char_loc();
             Ok(LuaLoc {

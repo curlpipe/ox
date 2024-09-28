@@ -4,8 +4,8 @@ use base64::prelude::*;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
-        DisableMouseCapture, EnableMouseCapture, KeyboardEnhancementFlags,
-        PushKeyboardEnhancementFlags,
+        DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        KeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute,
     style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
@@ -95,14 +95,22 @@ impl Terminal {
     pub fn start(&mut self) -> Result<()> {
         std::panic::set_hook(Box::new(|e| {
             terminal::disable_raw_mode().unwrap();
-            execute!(stdout(), LeaveAlternateScreen, Show, DisableMouseCapture).unwrap();
+            execute!(
+                stdout(),
+                LeaveAlternateScreen,
+                Show,
+                DisableMouseCapture,
+                EnableBracketedPaste
+            )
+            .unwrap();
             eprintln!("{}", e);
         }));
         execute!(
             self.stdout,
             EnterAlternateScreen,
             Clear(ClType::All),
-            DisableLineWrap
+            DisableLineWrap,
+            EnableBracketedPaste,
         )?;
         if self.config.borrow().mouse_enabled {
             execute!(self.stdout, EnableMouseCapture)?;
@@ -119,7 +127,12 @@ impl Terminal {
     pub fn end(&mut self) -> Result<()> {
         self.show_cursor()?;
         terminal::disable_raw_mode()?;
-        execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap)?;
+        execute!(
+            self.stdout,
+            LeaveAlternateScreen,
+            EnableLineWrap,
+            DisableBracketedPaste
+        )?;
         if self.config.borrow().mouse_enabled {
             execute!(self.stdout, DisableMouseCapture)?;
         }

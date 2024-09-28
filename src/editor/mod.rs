@@ -43,8 +43,6 @@ pub struct Editor {
     push_down: usize,
     /// Used to cache the location of the configuration file
     pub config_path: String,
-    /// This is a handy place to figure out if the user is currently pasting something or not
-    pub paste_flag: bool,
 }
 
 impl Editor {
@@ -65,7 +63,6 @@ impl Editor {
             last_active: Instant::now(),
             push_down: 1,
             config_path: "~/.oxrc".to_string(),
-            paste_flag: false,
         })
     }
 
@@ -297,6 +294,7 @@ impl Editor {
             CEvent::Key(key) => self.handle_key_event(key.modifiers, key.code)?,
             CEvent::Resize(w, h) => self.handle_resize(w, h),
             CEvent::Mouse(mouse_event) => self.handle_mouse_event(mouse_event),
+            CEvent::Paste(text) => self.handle_paste(text)?,
             _ => (),
         }
         Ok(())
@@ -307,11 +305,10 @@ impl Editor {
         // Check period of inactivity
         let end = Instant::now();
         let inactivity = end.duration_since(self.last_active).as_millis() as usize;
+        // Commit if over user-defined period of inactivity
         if inactivity > self.config.document.borrow().undo_period * 1000 {
             self.doc_mut().commit();
         }
-        // Predict whether the user is currently pasting text (based on rapid activity)
-        self.paste_flag = inactivity < 5;
         // Register this activity
         self.last_active = Instant::now();
         // Editing - these key bindings can't be modified (only added to)!
@@ -324,7 +321,6 @@ impl Editor {
             (KMod::NONE, KCode::Enter) => self.enter()?,
             _ => (),
         }
-        // Check user-defined key combinations (includes defaults if not modified)
         Ok(())
     }
 
@@ -336,5 +332,13 @@ impl Editor {
         self.doc_mut().size.h = h.saturating_sub(3) as usize;
         let max = self.doc().offset.x + self.doc().size.h;
         self.doc_mut().load_to(max + 1);
+    }
+
+    /// Handle paste
+    pub fn handle_paste(&mut self, text: String) -> Result<()> {
+        for ch in text.chars() {
+            self.character(ch)?;
+        }
+        Ok(())
     }
 }
