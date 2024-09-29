@@ -313,3 +313,5 @@ syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ 
 -- Import plugins (must be at the bottom of this file)
 load_plugin("pairs.lua")
 load_plugin("autoindent.lua")
+--load_plugin("pomodoro.lua")
+--load_plugin("update_notification.lua")

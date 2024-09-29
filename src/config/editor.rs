@@ -24,8 +24,6 @@ impl LuaUserData for Editor {
         fields.add_field_method_get("version", |_, _| Ok(VERSION));
         fields.add_field_method_get("current_document_id", |_, editor| Ok(editor.ptr));
         fields.add_field_method_get("document_count", |_, editor| Ok(editor.doc.len()));
-        // DEPRECIATED
-        fields.add_field_method_get("help_visible", |_, _| Ok(false));
         fields.add_field_method_get("document_type", |_, editor| {
             let ext = editor
                 .doc()
@@ -397,10 +395,6 @@ impl LuaUserData for Editor {
             editor.update_highlighter();
             Ok(())
         });
-        // DEPRECIATED
-        methods.add_method_mut("hide_help_message", |_, _, ()| Ok(()));
-        // DEPRECIATED
-        methods.add_method_mut("show_help_message", |_, _, ()| Ok(()));
         methods.add_method_mut("set_read_only", |_, editor, status: bool| {
             editor.doc_mut().info.read_only = status;
             Ok(())
@@ -413,6 +407,11 @@ impl LuaUserData for Editor {
                 .get_highlighter(&ext);
             highlighter.run(&editor.doc().lines);
             editor.highlighter[editor.ptr] = highlighter;
+            Ok(())
+        });
+        methods.add_method_mut("rerender", |lua, editor, ()| {
+            // If you can't render the editor, you're pretty much done for anyway
+            let _ = editor.render(lua);
             Ok(())
         });
     }
