@@ -156,13 +156,18 @@ fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<
         Err(RuntimeError(msg)) => {
             let msg = msg.split('\n').collect::<Vec<&str>>();
             // Extract description
-            let description = msg.get(0).unwrap_or(&"No Message Text");
+            let description = msg.first().unwrap_or(&"No Message Text");
             // See if there is any additional error location information
             let mut error_line_finder = Searcher::new(r"^\s*(.+:\d+):.*$");
-            let location_line = msg
+            let mut location_line = msg
                 .iter()
                 .skip(1)
                 .position(|line| error_line_finder.lfind(line).is_some());
+            // Don't attach additional location if description already includes it
+            if error_line_finder.lfind(description).is_some() {
+                location_line = None;
+            }
+            // Put together the message (attaching location if not already provided)
             let msg = if let Some(trace) = location_line {
                 // There is additional line info, attach it
                 let location = msg[trace + 1]
@@ -174,7 +179,7 @@ fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<
                     .join(" on line ");
                 format!("{location}: {description}")
             } else {
-                description.to_string()
+                (*description).to_string()
             };
             if msg.ends_with("key not bound") {
                 // Key was not bound, issue a warning would be helpful
