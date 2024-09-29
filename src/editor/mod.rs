@@ -40,7 +40,7 @@ pub struct Editor {
     /// Will store the last time the editor was interacted with (to track inactivity)
     pub last_active: Instant,
     /// Used for storing amount to push document down
-    push_down: usize,
+    pub push_down: usize,
     /// Used to cache the location of the configuration file
     pub config_path: String,
 }

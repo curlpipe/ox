@@ -1,7 +1,7 @@
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
-use kaolinite::Loc;
+use kaolinite::{Loc, Size};
 use mlua::prelude::*;
 
 impl LuaUserData for Editor {
@@ -414,6 +414,34 @@ impl LuaUserData for Editor {
             editor.needs_rerender = true;
             // If you can't render the editor, you're pretty much done for anyway
             let _ = editor.render(lua);
+            Ok(())
+        });
+        methods.add_method_mut("rerender_feedback_line", |_, editor, ()| {
+            // If you can't render the editor, you're pretty much done for anyway
+            let Size { w, mut h } = crate::ui::size().unwrap_or(Size { w: 0, h: 0 });
+            h = h.saturating_sub(1 + editor.push_down);
+            let _ = editor.terminal.hide_cursor();
+            let _ = editor.render_feedback_line(w, h);
+            // Apply render and restore cursor
+            let max = editor.dent();
+            if let Some(Loc { x, y }) = editor.doc().cursor_loc_in_screen() {
+                let _ = editor.terminal.goto(x + max, y + editor.push_down);
+            }
+            let _ = editor.terminal.show_cursor();
+            Ok(())
+        });
+        methods.add_method_mut("rerender_status_line", |lua, editor, ()| {
+            // If you can't render the editor, you're pretty much done for anyway
+            let Size { w, mut h } = crate::ui::size().unwrap_or(Size { w: 0, h: 0 });
+            h = h.saturating_sub(1 + editor.push_down);
+            let _ = editor.terminal.hide_cursor();
+            let _ = editor.render_status_line(lua, w, h);
+            // Apply render and restore cursor
+            let max = editor.dent();
+            if let Some(Loc { x, y }) = editor.doc().cursor_loc_in_screen() {
+                let _ = editor.terminal.goto(x + max, y + editor.push_down);
+            }
+            let _ = editor.terminal.show_cursor();
             Ok(())
         });
     }

@@ -18,7 +18,7 @@ impl TaskManager {
     pub fn cycle(&mut self) {
         for task in &mut self.tasks {
             // Decrement remaining time
-            if task.remaining < 0 {
+            if task.remaining > 0 {
                 task.remaining = task.remaining.saturating_sub(1);
             }
             // Check if activation is required
