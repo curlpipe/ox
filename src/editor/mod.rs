@@ -4,7 +4,7 @@ use crate::ui::{size, Feedback, Terminal};
 use crossterm::event::{Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEventKind};
 use kaolinite::event::Error as KError;
 use kaolinite::Document;
-use mlua::Lua;
+use mlua::{Error as LuaError, Lua};
 use std::io::ErrorKind;
 use std::time::Instant;
 use synoptic::Highlighter;
@@ -263,21 +263,25 @@ impl Editor {
     }
 
     /// Load the configuration values
-    pub fn load_config(&mut self, path: &str, lua: &Lua) -> Result<()> {
+    pub fn load_config(&mut self, path: &str, lua: &Lua) -> Option<LuaError> {
         self.config_path = path.to_string();
         let result = self.config.read(path, lua);
         // Display any warnings if the user configuration couldn't be found
-        if let Err(OxError::Config(msg)) = result {
-            if msg == "Not Found" {
-                let warn = "No configuration file found, using default configuration".to_string();
-                self.feedback = Feedback::Warning(warn);
+        match result {
+            Ok(_) => (),
+            Err(OxError::Config(msg)) => {
+                if msg == "Not Found" {
+                    let warn =
+                        "No configuration file found, using default configuration".to_string();
+                    self.feedback = Feedback::Warning(warn);
+                }
             }
-        } else {
-            result?;
-        };
+            Err(OxError::Lua(err)) => return Some(err),
+            _ => unreachable!(),
+        }
         // Calculate the correct push down based on config
         self.push_down = usize::from(self.config.tab_line.borrow().enabled);
-        Ok(())
+        None
     }
 
     /// Handle event

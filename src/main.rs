@@ -14,7 +14,7 @@ use error::Result;
 use kaolinite::event::Event;
 use kaolinite::searching::Searcher;
 use kaolinite::Loc;
-use mlua::Error::RuntimeError;
+use mlua::Error::{RuntimeError, SyntaxError};
 use mlua::Lua;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -50,14 +50,11 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
 
     // Load config and initialise
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
-    if editor
-        .borrow_mut()
-        .load_config(&cli.config_path, &lua)
-        .is_err()
-    {
-        editor.borrow_mut().feedback =
-            Feedback::Error("Failed to load configuration file".to_string());
-    }
+    let result = editor.borrow_mut().load_config(&cli.config_path, &lua);
+    if let Some(err) = result {
+        // Handle error if available
+        handle_lua_error(&editor, "configuration", Err(err));
+    };
 
     // Open files user has asked to open
     for (c, file) in cli.to_open.iter().enumerate() {
@@ -195,6 +192,19 @@ fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<
             } else {
                 // Some other runtime error
                 editor.borrow_mut().feedback = Feedback::Error(msg.to_string());
+            }
+        }
+        // Handle a syntax error
+        Err(SyntaxError { message, .. }) => {
+            if key_str == "configuration" {
+                let mut message = message.rsplit(':').take(2).collect::<Vec<&str>>();
+                message.reverse();
+                let message = message.join(":");
+                editor.borrow_mut().feedback =
+                    Feedback::Error(format!("Syntax Error in config file on line {message}"));
+            } else {
+                editor.borrow_mut().feedback =
+                    Feedback::Error(format!("Syntax Error: {message:?}"));
             }
         }
         // Other miscellaneous error

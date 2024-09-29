@@ -42,7 +42,7 @@ impl LuaUserData for Editor {
         // Reload the configuration file
         methods.add_method_mut("reload_config", |lua, editor, ()| {
             let path = editor.config_path.clone();
-            if editor.load_config(&path, lua).is_err() {
+            if editor.load_config(&path, lua).is_some() {
                 editor.feedback = Feedback::Error("Failed to reload config".to_string());
             }
             Ok(())
