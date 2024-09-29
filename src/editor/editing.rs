@@ -78,7 +78,7 @@ impl Editor {
             self.exe(Event::SpliceUp(loc))?;
             let line = &self.doc[self.ptr].lines[loc.y];
             self.highlighter[self.ptr].edit(loc.y, line);
-        } else {
+        } else if !(c == 0 && on_first_line) {
             // Backspace was pressed in the middle of the line, delete the character
             c = c.saturating_sub(1);
             if let Some(line) = self.doc().line(self.doc().loc().y) {

@@ -268,7 +268,7 @@ impl Editor {
         let result = self.config.read(path, lua);
         // Display any warnings if the user configuration couldn't be found
         match result {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(OxError::Config(msg)) => {
                 if msg == "Not Found" {
                     let warn =
