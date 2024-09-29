@@ -332,7 +332,7 @@ impl Color {
         for i in 0..3 {
             let section = &hex[(i * 2)..(i * 2 + 2)];
             if let Ok(val) = u8::from_str_radix(section, 16) {
-                tri.insert(0, val);
+                tri.push(val);
             } else {
                 let msg = "Invalid hex code used in configuration file - ensure all digits are between 0 and F";
                 return Err(OxError::Config(msg.to_string()));
