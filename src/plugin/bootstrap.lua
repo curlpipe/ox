@@ -14,6 +14,9 @@ plugins = {}
 builtins = {}
 plugin_issues = false
 
+-- Import plug-in api components
+http = require('src/plugin/networking')
+
 function load_plugin(base)
     path_cross = base
     path_unix = home .. "/.config/ox/" .. base
