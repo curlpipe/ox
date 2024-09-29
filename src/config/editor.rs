@@ -410,6 +410,8 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("rerender", |lua, editor, ()| {
+            // Force a re-render
+            editor.needs_rerender = true;
             // If you can't render the editor, you're pretty much done for anyway
             let _ = editor.render(lua);
             Ok(())

@@ -105,6 +105,20 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     while editor.borrow().active {
         // Render and wait for event
         editor.borrow_mut().render(&lua)?;
+
+        // While waiting for an event to come along, service the task manager
+        while let Ok(false) = crossterm::event::poll(std::time::Duration::from_millis(100)) {
+            let exec = editor.borrow_mut().config.task_manager.lock().unwrap().execution_list();
+            for task in exec {
+                if let Ok(target) = lua.globals().get::<_, mlua::Function>(task.clone()) {
+                    // Run the code
+                    handle_lua_error(&editor, "task", target.call(()));
+                } else {
+                    editor.borrow_mut().feedback = Feedback::Warning(format!("Function '{task}' was not found"));
+                }
+            }
+        }
+
         let event = crossterm::event::read()?;
         editor.borrow_mut().feedback = Feedback::None;
 

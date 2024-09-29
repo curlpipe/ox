@@ -2,17 +2,20 @@ use crate::error::{OxError, Result};
 use mlua::prelude::*;
 use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, Mutex};
 
 mod colors;
 mod editor;
 mod highlighting;
 mod interface;
 mod keys;
+mod tasks;
 
 pub use colors::{Color, Colors};
 pub use highlighting::SyntaxHighlighting;
 pub use interface::{GreetingMessage, HelpMessage, LineNumbers, StatusLine, TabLine, Terminal};
 pub use keys::{key_to_string, run_key, run_key_before};
+pub use tasks::TaskManager;
 
 // Issue a warning to the user
 fn issue_warning(msg: &str) {
@@ -44,6 +47,7 @@ pub struct Config {
     pub help_message: Rc<RefCell<HelpMessage>>,
     pub terminal: Rc<RefCell<Terminal>>,
     pub document: Rc<RefCell<Document>>,
+    pub task_manager: Arc<Mutex<TaskManager>>,
 }
 
 impl Config {
@@ -60,6 +64,16 @@ impl Config {
         let terminal = Rc::new(RefCell::new(Terminal::default()));
         let document = Rc::new(RefCell::new(Document::default()));
 
+        // Set up the task manager
+        let task_manager = Arc::new(Mutex::new(TaskManager::default()));
+        let task_manager_clone = Arc::clone(&task_manager);
+        std::thread::spawn(move || {
+            loop {
+                task_manager_clone.lock().unwrap().cycle();
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        });
+
         // Push in configuration globals
         lua.globals().set("syntax", syntax_highlighting.clone())?;
         lua.globals().set("line_numbers", line_numbers.clone())?;
@@ -72,6 +86,31 @@ impl Config {
         lua.globals().set("terminal", terminal.clone())?;
         lua.globals().set("document", document.clone())?;
 
+        // Define task list
+        let task_manager_clone = Arc::clone(&task_manager);
+        let get_task_list = lua.create_function(move |_, ()| {
+            Ok(format!("{:?}", task_manager_clone.lock().unwrap().execution_list()))
+        })?;
+        lua.globals().set("get_task_list", get_task_list)?;
+
+        // Provide a function "after" to run a function after n seconds
+        let task_manager_clone = Arc::clone(&task_manager);
+        let after = lua.create_function(move |_, args: (isize, String)| {
+            let (delay, target) = args;
+            task_manager_clone.lock().unwrap().attach(delay, target, false);
+            Ok(())
+        })?;
+        lua.globals().set("after", after)?;
+
+        // Provide a function "every" to run a function every n seconds
+        let task_manager_clone = Arc::clone(&task_manager);
+        let every = lua.create_function(move |_, args: (isize, String)| {
+            let (delay, target) = args;
+            task_manager_clone.lock().unwrap().attach(delay, target, true);
+            Ok(())
+        })?;
+        lua.globals().set("every", every)?;
+
         Ok(Config {
             syntax_highlighting,
             line_numbers,
@@ -82,6 +121,7 @@ impl Config {
             help_message,
             terminal,
             document,
+            task_manager,
         })
     }
 
