@@ -428,6 +428,7 @@ impl LuaUserData for Editor {
                 let _ = editor.terminal.goto(x + max, y + editor.push_down);
             }
             let _ = editor.terminal.show_cursor();
+            let _ = editor.terminal.flush();
             Ok(())
         });
         methods.add_method_mut("rerender_status_line", |lua, editor, ()| {
@@ -442,6 +443,7 @@ impl LuaUserData for Editor {
                 let _ = editor.terminal.goto(x + max, y + editor.push_down);
             }
             let _ = editor.terminal.show_cursor();
+            let _ = editor.terminal.flush();
             Ok(())
         });
     }

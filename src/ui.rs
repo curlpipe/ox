@@ -8,6 +8,7 @@ use crossterm::{
         KeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute,
+    queue,
     style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
     terminal::{
         self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen,
@@ -140,19 +141,19 @@ impl Terminal {
     }
 
     pub fn show_cursor(&mut self) -> Result<()> {
-        execute!(self.stdout, Show)?;
+        queue!(self.stdout, Show)?;
         Ok(())
     }
 
     pub fn hide_cursor(&mut self) -> Result<()> {
-        execute!(self.stdout, Hide)?;
+        queue!(self.stdout, Hide)?;
         Ok(())
     }
 
     pub fn goto<Num: Into<usize>>(&mut self, x: Num, y: Num) -> Result<()> {
         let x: usize = x.into();
         let y: usize = y.into();
-        execute!(
+        queue!(
             self.stdout,
             MoveTo(
                 u16::try_from(x).unwrap_or(u16::MAX),
@@ -163,7 +164,7 @@ impl Terminal {
     }
 
     pub fn clear_current_line(&mut self) -> Result<()> {
-        execute!(self.stdout, Clear(ClType::CurrentLine))?;
+        queue!(self.stdout, Clear(ClType::CurrentLine))?;
         Ok(())
     }
 
