@@ -186,6 +186,7 @@ impl LuaUserData for Colors {
 pub enum Color {
     Rgb(u8, u8, u8),
     Hex(String),
+    Ansi(u8),
     Black,
     DarkGrey,
     Red,
@@ -244,6 +245,17 @@ impl Color {
                 }
                 Self::Rgb(tri[0], tri[1], tri[2])
             }
+            LuaValue::Integer(number) => {
+                if (0..=255).contains(&number) {
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    Self::Ansi(number as u8)
+                } else {
+                    issue_warning(
+                        "ANSI colour codes must be between 0-255 inclusively, defaulting to black",
+                    );
+                    Self::Ansi(0)
+                }
+            }
             _ => {
                 issue_warning("Invalid data type used for colour in configuration file");
                 Self::Transparent
@@ -266,6 +278,7 @@ impl Color {
                 let _ = table.push(*b as isize);
                 LuaValue::Table(table)
             }
+            Color::Ansi(code) => LuaValue::Integer(i64::from(*code)),
             Color::Black => LuaValue::String(env.create_string("black").expect(msg)),
             Color::DarkGrey => LuaValue::String(env.create_string("darkgrey").expect(msg)),
             Color::Red => LuaValue::String(env.create_string("red").expect(msg)),
@@ -297,6 +310,7 @@ impl Color {
                 g: *g,
                 b: *b,
             },
+            Color::Ansi(code) => CColor::AnsiValue(*code),
             Color::Black => CColor::Black,
             Color::DarkGrey => CColor::DarkGrey,
             Color::Red => CColor::Red,
