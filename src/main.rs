@@ -12,6 +12,7 @@ use crossterm::event::Event as CEvent;
 use editor::Editor;
 use error::Result;
 use kaolinite::event::Event;
+use kaolinite::searching::Searcher;
 use kaolinite::Loc;
 use mlua::Error::RuntimeError;
 use mlua::Lua;
@@ -153,7 +154,28 @@ fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<
         Ok(()) => (),
         // Handle a runtime error
         Err(RuntimeError(msg)) => {
-            let msg = msg.split('\n').next().unwrap_or("No Message Text");
+            let msg = msg.split('\n').collect::<Vec<&str>>();
+            // Extract description
+            let description = msg.get(0).unwrap_or(&"No Message Text");
+            // See if there is any additional error location information
+            let mut error_line_finder = Searcher::new(r"^\s*(.+:\d+):.*$");
+            let location_line = msg
+                .iter()
+                .skip(1)
+                .position(|line| error_line_finder.lfind(line).is_some());
+            let msg = if let Some(trace) = location_line {
+                // There is additional line info, attach it
+                let location = msg[trace + 1]
+                    .to_string()
+                    .trim()
+                    .split(':')
+                    .take(2)
+                    .collect::<Vec<_>>()
+                    .join(" on line ");
+                format!("{location}: {description}")
+            } else {
+                description.to_string()
+            };
             if msg.ends_with("key not bound") {
                 // Key was not bound, issue a warning would be helpful
                 let key_str = key_str.replace(' ', "space");

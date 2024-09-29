@@ -1,34 +1,9 @@
 --[[
 Auto Indent v0.6
 
-You will be able to press return at the start of a block and have
-Ox automatically indent for you.
-
-By default, it will indent whenever you press the enter key with
-the character to the left of the cursor being an opening bracket or
-other syntax that indicates a block has started e.g. ":" in python
+Helps you when programming by guessing where indentation should go
+and then automatically applying these guesses as you program
 ]]--
-
-event_mapping["enter"] = function()
-    -- Indent where appropriate
-    if autoindent:causes_indent(editor.cursor.y - 1) then
-        local new_level = autoindent:get_indent(editor.cursor.y) + 1
-        autoindent:set_indent(editor.cursor.y, new_level)
-    end
-    -- Give newly created line a boost to match it up relatively with the line before it
-    local added_level = autoindent:get_indent(editor.cursor.y) + autoindent:get_indent(editor.cursor.y - 1)
-    autoindent:set_indent(editor.cursor.y, added_level)
-    -- Handle the case where enter is pressed, creating a multi-line block that requires neatening up
-    autoindent:disperse_block()
-end
-
-event_mapping["*"] = function()
-    -- Dedent where appropriate
-    if autoindent:causes_dedent(editor.cursor.y) then
-        local new_level = autoindent:get_indent(editor.cursor.y) - 1
-        autoindent:set_indent(editor.cursor.y, new_level)
-    end
-end
 
 autoindent = {}
 
@@ -177,5 +152,26 @@ function autoindent:disperse_block()
         local old_cursor = editor.cursor
         editor:insert_line()
         editor:move_to(old_cursor.x, old_cursor.y)
+    end
+end
+
+event_mapping["enter"] = function()
+    -- Indent where appropriate
+    if autoindent:causes_indent(editor.cursor.y - 1) then
+        local new_level = autoindent:get_indent(editor.cursor.y) + 1
+        autoindent:set_indent(editor.cursor.y, new_level)
+    end
+    -- Give newly created line a boost to match it up relatively with the line before it
+    local added_level = autoindent:get_indent(editor.cursor.y) + autoindent:get_indent(editor.cursor.y - 1)
+    autoindent:set_indent(editor.cursor.y, added_level)
+    -- Handle the case where enter is pressed, creating a multi-line block that requires neatening up
+    autoindent:disperse_block()
+end
+
+event_mapping["*"] = function()
+    -- Dedent where appropriate
+    if autoindent:causes_dedent(editor.cursor.y) then
+        local new_level = autoindent:get_indent(editor.cursor.y) - 1
+        autoindent:set_indent(editor.cursor.y, new_level)
     end
 end
