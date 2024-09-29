@@ -1,8 +1,8 @@
 use crate::error::{OxError, Result};
 use mlua::prelude::*;
 use std::collections::HashMap;
-use std::{cell::RefCell, rc::Rc};
 use std::sync::{Arc, Mutex};
+use std::{cell::RefCell, rc::Rc};
 
 mod colors;
 mod editor;
@@ -67,11 +67,9 @@ impl Config {
         // Set up the task manager
         let task_manager = Arc::new(Mutex::new(TaskManager::default()));
         let task_manager_clone = Arc::clone(&task_manager);
-        std::thread::spawn(move || {
-            loop {
-                task_manager_clone.lock().unwrap().cycle();
-                std::thread::sleep(std::time::Duration::from_secs(1));
-            }
+        std::thread::spawn(move || loop {
+            task_manager_clone.lock().unwrap().cycle();
+            std::thread::sleep(std::time::Duration::from_secs(1));
         });
 
         // Push in configuration globals
@@ -89,7 +87,10 @@ impl Config {
         // Define task list
         let task_manager_clone = Arc::clone(&task_manager);
         let get_task_list = lua.create_function(move |_, ()| {
-            Ok(format!("{:?}", task_manager_clone.lock().unwrap().execution_list()))
+            Ok(format!(
+                "{:?}",
+                task_manager_clone.lock().unwrap().execution_list()
+            ))
         })?;
         lua.globals().set("get_task_list", get_task_list)?;
 
@@ -97,7 +98,10 @@ impl Config {
         let task_manager_clone = Arc::clone(&task_manager);
         let after = lua.create_function(move |_, args: (isize, String)| {
             let (delay, target) = args;
-            task_manager_clone.lock().unwrap().attach(delay, target, false);
+            task_manager_clone
+                .lock()
+                .unwrap()
+                .attach(delay, target, false);
             Ok(())
         })?;
         lua.globals().set("after", after)?;
@@ -106,7 +110,10 @@ impl Config {
         let task_manager_clone = Arc::clone(&task_manager);
         let every = lua.create_function(move |_, args: (isize, String)| {
             let (delay, target) = args;
-            task_manager_clone.lock().unwrap().attach(delay, target, true);
+            task_manager_clone
+                .lock()
+                .unwrap()
+                .attach(delay, target, true);
             Ok(())
         })?;
         lua.globals().set("every", every)?;
