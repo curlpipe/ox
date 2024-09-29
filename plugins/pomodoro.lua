@@ -57,3 +57,11 @@ commands["pomodoro"] = function(arguments)
         editor:display_info("Stopped pomodoro timer")
     end
 end
+
+-- Force rerender of the status line every second whilst the timer is active
+function pomodoro_refresh()
+    if pomodoro.current ~= "none" then
+        editor:rerender_status_line()
+    end
+end
+every(1, "pomodoro_refresh")

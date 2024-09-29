@@ -7,8 +7,7 @@ use crossterm::{
         DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
         KeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
-    execute,
-    queue,
+    execute, queue,
     style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
     terminal::{
         self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen,
