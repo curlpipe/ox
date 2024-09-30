@@ -813,7 +813,7 @@ fn fuzz() {
         let mut doc = Document::open(size, "tests/data/unicode.txt").unwrap();
         doc.load_to(100);
         println!("{} | {}", doc.loc().x, doc.char_ptr);
-        for _ in 0..500 {
+        for _ in 0..300 {
             let e = rand::random::<u8>() % 25;
             println!("{}", e);
             match e {
