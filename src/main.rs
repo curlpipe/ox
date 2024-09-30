@@ -51,6 +51,9 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     let editor = Rc::new(RefCell::new(editor));
     lua.globals().set("editor", editor.clone())?;
 
+    // Inject the networking library for plug-ins to use
+    handle_lua_error(&editor, "", lua.load(PLUGIN_NETWORKING).exec());
+
     // Load config and initialise
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
     let result = editor.borrow_mut().load_config(&cli.config_path, &lua);
@@ -58,9 +61,6 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         // Handle error if available
         handle_lua_error(&editor, "configuration", Err(err));
     };
-
-    // Inject the networking library for plug-ins to use
-    handle_lua_error(&editor, "", lua.load(PLUGIN_NETWORKING).exec());
 
     // Open files user has asked to open
     for (c, file) in cli.to_open.iter().enumerate() {

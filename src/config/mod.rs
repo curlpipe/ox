@@ -39,7 +39,7 @@ pub const PLUGIN_BOOTSTRAP: &str = include_str!("../plugin/bootstrap.lua");
 /// This contains the code for running the plugins
 pub const PLUGIN_RUN: &str = include_str!("../plugin/run.lua");
 
-/// This contains the code for running the plugins
+/// This contains the code for plug-ins to use networking
 pub const PLUGIN_NETWORKING: &str = include_str!("../plugin/networking.lua");
 
 /// This contains the code for running the plugins

@@ -1,7 +1,7 @@
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
-use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_RUN};
+use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_RUN, PLUGIN_NETWORKING};
 use kaolinite::{Loc, Size};
 use mlua::prelude::*;
 
@@ -49,6 +49,8 @@ impl LuaUserData for Editor {
         methods.add_method_mut("reload_plugins", |lua, editor, ()| {
             // Provide plug-in bootstrap
             let _ = lua.load(PLUGIN_BOOTSTRAP).exec();
+            // Provide networking to plug-ins and configuration file
+            let _ = lua.load(PLUGIN_NETWORKING).exec();
             // Reload the configuration file
             let path = editor.config_path.clone();
             if editor.load_config(&path, lua).is_some() {
