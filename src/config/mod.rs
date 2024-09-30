@@ -2,7 +2,11 @@ use crate::error::{OxError, Result};
 use mlua::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    fmt::{Display, Error, Formatter},
+    rc::Rc,
+};
 
 mod colors;
 mod editor;
@@ -212,13 +216,16 @@ pub enum Indentation {
     Spaces,
 }
 
-impl ToString for Indentation {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Tabs => "tabs",
-            Self::Spaces => "spaces",
-        }
-        .to_string()
+impl Display for Indentation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::result::Result<(), Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Tabs => "tabs",
+                Self::Spaces => "spaces",
+            }
+        )
     }
 }
 
