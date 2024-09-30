@@ -35,6 +35,9 @@ pub const PLUGIN_BOOTSTRAP: &str = include_str!("../plugin/bootstrap.lua");
 /// This contains the code for running the plugins
 pub const PLUGIN_RUN: &str = include_str!("../plugin/run.lua");
 
+/// This contains the code for running the plugins
+pub const PLUGIN_MANAGER: &str = include_str!("../plugin/plugin_manager.lua");
+
 /// The struct that holds all the configuration information
 #[derive(Debug)]
 pub struct Config {

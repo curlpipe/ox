@@ -17,8 +17,8 @@ function dec2mmss(decimal_seconds)
     return string.format("%02d:%02d", minutes, seconds)
 end
 
--- Define a function to display the countdown in the status line
-function pomodoro_show()
+-- Helper function to work out how long the timer has left
+function pomodoro_left()
     local current = os.date("*t")
     local elapsed = os.time(current) - os.time(pomodoro.started)
     local minutes = 0
@@ -27,6 +27,12 @@ function pomodoro_show()
     elseif pomodoro.current == "rest" then
         minutes = pomodoro.rest_time * 60 - elapsed
     end
+    return minutes
+end
+
+-- Define a function to display the countdown in the status line
+function pomodoro_show()
+    local minutes = pomodoro_left()
     if minutes < 0 then
         if pomodoro.current == "work" then
             pomodoro.current = "rest"

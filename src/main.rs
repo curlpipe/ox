@@ -7,7 +7,9 @@ mod error;
 mod ui;
 
 use cli::CommandLineInterface;
-use config::{key_to_string, run_key, run_key_before, PLUGIN_BOOTSTRAP, PLUGIN_RUN};
+use config::{
+    key_to_string, run_key, run_key_before, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_RUN,
+};
 use crossterm::event::Event as CEvent;
 use editor::Editor;
 use error::Result;
@@ -99,6 +101,9 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
 
     // Run plug-ins
     handle_lua_error(&editor, "", lua.load(PLUGIN_RUN).exec());
+
+    // Add in the plugin manager
+    handle_lua_error(&editor, "", lua.load(PLUGIN_MANAGER).exec());
 
     // Run the editor and handle errors if applicable
     editor.borrow_mut().init()?;
