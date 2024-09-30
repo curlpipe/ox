@@ -1,7 +1,7 @@
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
-use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_RUN, PLUGIN_NETWORKING};
+use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::{Loc, Size};
 use mlua::prelude::*;
 
