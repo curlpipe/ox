@@ -191,6 +191,7 @@ commands = {
 
 -- Configure Documents --
 document.tab_width = 4
+document.indentation = "tabs"
 document.undo_period = 10
 document.wrap_cursor = true
 

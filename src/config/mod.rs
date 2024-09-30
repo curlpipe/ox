@@ -206,9 +206,35 @@ impl Config {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Indentation {
+    Tabs,
+    Spaces,
+}
+
+impl ToString for Indentation {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Tabs => "tabs",
+            Self::Spaces => "spaces",
+        }
+        .to_string()
+    }
+}
+
+impl From<String> for Indentation {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "spaces" => Self::Spaces,
+            _ => Self::Tabs,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Document {
     pub tab_width: usize,
+    pub indentation: Indentation,
     pub undo_period: usize,
     pub wrap_cursor: bool,
 }
@@ -217,6 +243,7 @@ impl Default for Document {
     fn default() -> Self {
         Self {
             tab_width: 4,
+            indentation: Indentation::Tabs,
             undo_period: 10,
             wrap_cursor: true,
         }
@@ -228,6 +255,13 @@ impl LuaUserData for Document {
         fields.add_field_method_get("tab_width", |_, document| Ok(document.tab_width));
         fields.add_field_method_set("tab_width", |_, this, value| {
             this.tab_width = value;
+            Ok(())
+        });
+        fields.add_field_method_get("indentation", |_, document| {
+            Ok(document.indentation.to_string())
+        });
+        fields.add_field_method_set("indentation", |_, this, value: String| {
+            this.indentation = value.into();
             Ok(())
         });
         fields.add_field_method_get("undo_period", |_, document| Ok(document.undo_period));

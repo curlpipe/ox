@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, Indentation};
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback, Terminal};
 use crossterm::event::{Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEventKind};
@@ -315,7 +315,7 @@ impl Editor {
         match (modifiers, code) {
             // Core key bindings (non-configurable behaviour)
             (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
-            (KMod::NONE, KCode::Tab) => self.character('\t')?,
+            (KMod::NONE, KCode::Tab) => self.handle_tab()?,
             (KMod::NONE, KCode::Backspace) => self.backspace()?,
             (KMod::NONE, KCode::Delete) => self.delete()?,
             (KMod::NONE, KCode::Enter) => self.enter()?,
@@ -338,6 +338,19 @@ impl Editor {
     pub fn handle_paste(&mut self, text: &str) -> Result<()> {
         for ch in text.chars() {
             self.character(ch)?;
+        }
+        Ok(())
+    }
+
+    /// Handle tab character being inserted
+    pub fn handle_tab(&mut self) -> Result<()> {
+        if self.config.document.borrow().indentation == Indentation::Tabs {
+            self.character('\t')?;
+        } else {
+            let tab_width = self.config.document.borrow().tab_width;
+            for _ in 0..tab_width {
+                self.character(' ')?;
+            }
         }
         Ok(())
     }
