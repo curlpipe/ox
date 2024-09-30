@@ -1,13 +1,13 @@
-use crate::config::{Colors, TerminalConfig};
+use crate::config::{Colors, Terminal as TerminalConfig};
 use crate::error::Result;
 use base64::prelude::*;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
-        DisableMouseCapture, EnableMouseCapture, KeyboardEnhancementFlags,
-        PushKeyboardEnhancementFlags,
+        DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        KeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
-    execute,
+    execute, queue,
     style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
     terminal::{
         self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen,
@@ -55,24 +55,24 @@ impl Feedback {
                 Fg(colors.error_fg.to_color()?),
                 Bg(colors.error_bg.to_color()?)
             ),
-            Self::None => "".to_string(),
+            Self::None => String::new(),
         };
-        let empty = "".to_string();
+        let empty = String::new();
         let msg = match self {
-            Self::Info(msg) => msg,
-            Self::Warning(msg) => msg,
-            Self::Error(msg) => msg,
+            Self::Info(msg) | Self::Warning(msg) | Self::Error(msg) => msg,
             Self::None => &empty,
         };
-        let end_fg = Fg(colors.editor_fg.to_color()?).to_string();
-        let end_bg = Bg(colors.editor_bg.to_color()?).to_string();
+        let end = format!(
+            "{}{}",
+            Bg(colors.editor_bg.to_color()?),
+            Fg(colors.editor_fg.to_color()?),
+        );
         Ok(format!(
-            "{}{}{}{}{}{}",
+            "{}{}{}{}{}",
             SetAttribute(Attribute::Bold),
             start,
-            alinio::align::center(&msg, w).unwrap_or_else(|| "".to_string()),
-            end_bg,
-            end_fg,
+            alinio::align::center(msg, w).unwrap_or_default(),
+            end,
             SetAttribute(Attribute::Reset)
         ))
     }
@@ -95,14 +95,22 @@ impl Terminal {
     pub fn start(&mut self) -> Result<()> {
         std::panic::set_hook(Box::new(|e| {
             terminal::disable_raw_mode().unwrap();
-            execute!(stdout(), LeaveAlternateScreen, Show, DisableMouseCapture).unwrap();
-            eprintln!("{}", e);
+            execute!(
+                stdout(),
+                LeaveAlternateScreen,
+                Show,
+                DisableMouseCapture,
+                EnableBracketedPaste
+            )
+            .unwrap();
+            eprintln!("{e}");
         }));
         execute!(
             self.stdout,
             EnterAlternateScreen,
             Clear(ClType::All),
-            DisableLineWrap
+            DisableLineWrap,
+            EnableBracketedPaste,
         )?;
         if self.config.borrow().mouse_enabled {
             execute!(self.stdout, EnableMouseCapture)?;
@@ -119,7 +127,12 @@ impl Terminal {
     pub fn end(&mut self) -> Result<()> {
         self.show_cursor()?;
         terminal::disable_raw_mode()?;
-        execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap)?;
+        execute!(
+            self.stdout,
+            LeaveAlternateScreen,
+            EnableLineWrap,
+            DisableBracketedPaste
+        )?;
         if self.config.borrow().mouse_enabled {
             execute!(self.stdout, DisableMouseCapture)?;
         }
@@ -127,24 +140,30 @@ impl Terminal {
     }
 
     pub fn show_cursor(&mut self) -> Result<()> {
-        execute!(self.stdout, Show)?;
+        queue!(self.stdout, Show)?;
         Ok(())
     }
 
     pub fn hide_cursor(&mut self) -> Result<()> {
-        execute!(self.stdout, Hide)?;
+        queue!(self.stdout, Hide)?;
         Ok(())
     }
 
     pub fn goto<Num: Into<usize>>(&mut self, x: Num, y: Num) -> Result<()> {
         let x: usize = x.into();
         let y: usize = y.into();
-        execute!(self.stdout, MoveTo(x as u16, y as u16))?;
+        queue!(
+            self.stdout,
+            MoveTo(
+                u16::try_from(x).unwrap_or(u16::MAX),
+                u16::try_from(y).unwrap_or(u16::MAX)
+            )
+        )?;
         Ok(())
     }
 
     pub fn clear_current_line(&mut self) -> Result<()> {
-        execute!(self.stdout, Clear(ClType::CurrentLine))?;
+        queue!(self.stdout, Clear(ClType::CurrentLine))?;
         Ok(())
     }
 

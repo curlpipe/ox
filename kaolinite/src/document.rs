@@ -10,6 +10,19 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::ops::{Range, RangeBounds};
 
+/// A document info struct to store information about the file it represents
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct DocumentInfo {
+    /// Whether or not the document can be edited
+    pub read_only: bool,
+    /// Flag for an EOL
+    pub eol: bool,
+    /// true if the file has been modified since saving, false otherwise
+    pub modified: bool,
+    /// Contains the number of lines buffered into the document
+    pub loaded_to: usize,
+}
+
 /// A document struct manages a file.
 /// It has tools to read, write and traverse a document.
 /// By default, it uses file buffering so it can open almost immediately.
@@ -21,10 +34,10 @@ pub struct Document {
     pub file_name: Option<String>,
     /// The rope of the document to facilitate reading and writing to disk
     pub file: Rope,
-    /// Contains the number of lines buffered into the document
-    pub loaded_to: usize,
     /// Cache of all the loaded lines in this document
     pub lines: Vec<String>,
+    /// Stores information about the underlying file
+    pub info: DocumentInfo,
     /// Stores the locations of double width characters
     pub dbl_map: CharMap,
     /// Stores the locations of tab characters
@@ -39,42 +52,39 @@ pub struct Document {
     pub char_ptr: usize,
     /// Manages events, for the purpose of undo and redo
     pub undo_mgmt: UndoMgmt,
-    /// true if the file has been modified since saving, false otherwise
-    pub modified: bool,
-    /// The number of spaces a tab should be rendered as
-    pub tab_width: usize,
-    /// Whether or not the document can be edited
-    pub read_only: bool,
     /// Storage of the old cursor x position (to snap back to)
     pub old_cursor: usize,
     /// Flag for if the editor is currently in a redo action
     pub in_redo: bool,
-    /// Flag for an EOL
-    pub eol: bool,
+    /// The number of spaces a tab should be rendered as
+    pub tab_width: usize,
 }
 
 impl Document {
     /// Creates a new, empty document with no file name.
     #[cfg(not(tarpaulin_include))]
+    #[must_use]
     pub fn new(size: Size) -> Self {
         let mut this = Self {
             file: Rope::from_str("\n"),
-            lines: vec!["".to_string()],
+            lines: vec![String::new()],
             dbl_map: CharMap::default(),
             tab_map: CharMap::default(),
-            loaded_to: 1,
             file_name: None,
             cursor: Cursor::default(),
             offset: Loc::default(),
             size,
             char_ptr: 0,
             undo_mgmt: UndoMgmt::default(),
-            modified: false,
             tab_width: 4,
-            read_only: false,
             old_cursor: 0,
             in_redo: false,
-            eol: false,
+            info: DocumentInfo {
+                loaded_to: 1,
+                eol: false,
+                read_only: false,
+                modified: false,
+            },
         };
         this.undo_mgmt.undo.push(this.take_snapshot());
         this.undo_mgmt.saved();
@@ -91,24 +101,26 @@ impl Document {
         let file_name = file_name.into();
         let file = Rope::from_reader(BufReader::new(File::open(&file_name)?))?;
         let mut this = Self {
-            eol: !file
-                .line(file.len_lines().saturating_sub(1))
-                .to_string()
-                .is_empty(),
+            info: DocumentInfo {
+                loaded_to: 0,
+                eol: !file
+                    .line(file.len_lines().saturating_sub(1))
+                    .to_string()
+                    .is_empty(),
+                read_only: false,
+                modified: false,
+            },
             file,
             lines: vec![],
             dbl_map: CharMap::default(),
             tab_map: CharMap::default(),
-            loaded_to: 0,
             file_name: Some(file_name),
             cursor: Cursor::default(),
             offset: Loc::default(),
             size,
             char_ptr: 0,
             undo_mgmt: UndoMgmt::default(),
-            modified: false,
             tab_width: 4,
-            read_only: false,
             old_cursor: 0,
             in_redo: false,
         };
@@ -127,18 +139,16 @@ impl Document {
     /// Returns an error if the file fails to write, due to permissions
     /// or character set issues.
     pub fn save(&mut self) -> Result<()> {
-        if !self.read_only {
-            if let Some(file_name) = &self.file_name {
-                self.file
-                    .write_to(BufWriter::new(File::create(file_name)?))?;
-                self.undo_mgmt.saved();
-                self.modified = false;
-                Ok(())
-            } else {
-                Err(Error::NoFileName)
-            }
-        } else {
+        if self.info.read_only {
             Err(Error::ReadOnlyFile)
+        } else if let Some(file_name) = &self.file_name {
+            self.file
+                .write_to(BufWriter::new(File::create(file_name)?))?;
+            self.undo_mgmt.saved();
+            self.info.modified = false;
+            Ok(())
+        } else {
+            Err(Error::NoFileName)
         }
     }
 
@@ -147,12 +157,12 @@ impl Document {
     /// Returns an error if the file fails to write, due to permissions
     /// or character set issues.
     pub fn save_as(&self, file_name: &str) -> Result<()> {
-        if !self.read_only {
+        if self.info.read_only {
+            Err(Error::ReadOnlyFile)
+        } else {
             self.file
                 .write_to(BufWriter::new(File::create(file_name)?))?;
             Ok(())
-        } else {
-            Err(Error::ReadOnlyFile)
         }
     }
 
@@ -161,7 +171,7 @@ impl Document {
     /// # Errors
     /// Will return an error if the event was unable to be completed.
     pub fn exe(&mut self, ev: Event) -> Result<()> {
-        if !self.read_only {
+        if !self.info.read_only {
             self.undo_mgmt.set_dirty();
             self.forth(ev)?;
         }
@@ -175,10 +185,10 @@ impl Document {
     pub fn undo(&mut self) -> Result<()> {
         if let Some(s) = self.undo_mgmt.undo(self.take_snapshot()) {
             self.apply_snapshot(s);
-            self.modified = true;
+            self.info.modified = true;
         }
         if self.undo_mgmt.at_file() {
-            self.modified = false;
+            self.info.modified = false;
         }
         Ok(())
     }
@@ -189,10 +199,10 @@ impl Document {
     pub fn redo(&mut self) -> Result<()> {
         if let Some(s) = self.undo_mgmt.redo() {
             self.apply_snapshot(s);
-            self.modified = true;
+            self.info.modified = true;
         }
         if self.undo_mgmt.at_file() {
-            self.modified = false;
+            self.info.modified = false;
         }
         Ok(())
     }
@@ -212,6 +222,7 @@ impl Document {
     }
 
     /// Takes a loc and converts it into a char index for ropey
+    #[must_use]
     pub fn loc_to_file_pos(&self, loc: &Loc) -> usize {
         self.file.line_to_char(loc.y) + loc.x
     }
@@ -221,7 +232,7 @@ impl Document {
     /// Returns an error if location is out of range.
     pub fn insert(&mut self, loc: &Loc, st: &str) -> Result<()> {
         self.out_of_range(loc.x, loc.y)?;
-        self.modified = true;
+        self.info.modified = true;
         // Move cursor to location
         self.move_to(loc);
         // Update rope
@@ -252,15 +263,16 @@ impl Document {
     }
 
     /// Deletes a character at a location whilst checking for tab spaces
+    ///
+    /// # Errors
+    /// This code will error if the location is invalid
     pub fn delete_with_tab(&mut self, loc: &Loc, st: &str) -> Result<()> {
         // Check for tab spaces
-        let boundaries = tab_boundaries_backward(
-            &self.line(loc.y).unwrap_or_else(|| "".to_string()),
-            self.tab_width,
-        );
+        let boundaries =
+            tab_boundaries_backward(&self.line(loc.y).unwrap_or_default(), self.tab_width);
         if boundaries.contains(&loc.x.saturating_add(1)) && !self.in_redo {
             // Register other delete actions to delete the whole tab
-            let mut loc_copy = loc.clone();
+            let mut loc_copy = *loc;
             self.delete(loc.x..=loc.x + st.chars().count(), loc.y)?;
             for _ in 1..self.tab_width {
                 loc_copy.x = loc_copy.x.saturating_sub(1);
@@ -285,7 +297,7 @@ impl Document {
         // Extract range information
         let (mut start, mut end) = get_range(&x, line_start, line_end);
         self.valid_range(start, end, y)?;
-        self.modified = true;
+        self.info.modified = true;
         self.move_to(&Loc::at(start, y));
         start += line_start;
         end += line_start;
@@ -316,12 +328,10 @@ impl Document {
     /// # Errors
     /// Returns an error if location is out of range.
     pub fn insert_line(&mut self, loc: usize, contents: String) -> Result<()> {
-        if !self.lines.is_empty() {
-            if !(self.len_lines() == 0 && loc == 0) {
-                self.out_of_range(0, loc.saturating_sub(1))?;
-            }
+        if !(self.lines.is_empty() || self.len_lines() == 0 && loc == 0) {
+            self.out_of_range(0, loc.saturating_sub(1))?;
         }
-        self.modified = true;
+        self.info.modified = true;
         // Update unicode and tab map
         self.dbl_map.shift_down(loc);
         self.tab_map.shift_down(loc);
@@ -334,7 +344,7 @@ impl Document {
         // Update rope
         let char_idx = self.file.line_to_char(loc);
         self.file.insert(char_idx, &(contents + "\n"));
-        self.loaded_to += 1;
+        self.info.loaded_to += 1;
         // Goto line
         self.move_to_y(loc);
         self.old_cursor = self.loc().x;
@@ -349,7 +359,7 @@ impl Document {
         // Update tab & unicode map
         self.dbl_map.delete(loc);
         self.tab_map.delete(loc);
-        self.modified = true;
+        self.info.modified = true;
         // Shift down other line numbers in the hashmap
         self.dbl_map.shift_up(loc);
         self.tab_map.shift_up(loc);
@@ -359,7 +369,7 @@ impl Document {
         let idx_start = self.file.line_to_char(loc);
         let idx_end = self.file.line_to_char(loc + 1);
         self.file.remove(idx_start..idx_end);
-        self.loaded_to = self.loaded_to.saturating_sub(1);
+        self.info.loaded_to = self.info.loaded_to.saturating_sub(1);
         // Goto line
         self.move_to_y(loc);
         self.old_cursor = self.loc().x;
@@ -372,7 +382,7 @@ impl Document {
     /// Returns an error if location is out of range.
     pub fn split_down(&mut self, loc: &Loc) -> Result<()> {
         self.out_of_range(loc.x, loc.y)?;
-        self.modified = true;
+        self.info.modified = true;
         // Gather context
         let line = self.line(loc.y).ok_or(Error::OutOfRange)?;
         let rhs: String = line.chars().skip(loc.x).collect();
@@ -389,7 +399,7 @@ impl Document {
     /// Returns an error if location is out of range.
     pub fn splice_up(&mut self, y: usize) -> Result<()> {
         self.out_of_range(0, y + 1)?;
-        self.modified = true;
+        self.info.modified = true;
         // Gather context
         let length = self.line(y).ok_or(Error::OutOfRange)?.chars().count();
         let below = self.line(y + 1).ok_or(Error::OutOfRange)?;
@@ -481,7 +491,7 @@ impl Document {
             return Status::StartOfLine;
         }
         // Determine the width of the character to traverse
-        let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
+        let line = self.line(self.loc().y).unwrap_or_default();
         let boundaries = tab_boundaries_backward(&line, self.tab_width);
         let width = if boundaries.contains(&self.char_ptr) {
             // Push the character pointer up
@@ -513,7 +523,7 @@ impl Document {
     /// Select with the cursor right
     pub fn select_right(&mut self) -> Status {
         // Return if already on end of line
-        let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
+        let line = self.line(self.loc().y).unwrap_or_default();
         let width = width(&line, self.tab_width);
         if width == self.loc().x {
             return Status::EndOfLine;
@@ -560,7 +570,7 @@ impl Document {
 
     /// Select to the end of the line
     pub fn select_end(&mut self) {
-        let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
+        let line = self.line(self.loc().y).unwrap_or_default();
         let length = line.chars().count();
         self.select_to_x(length);
         self.old_cursor = self.loc().x;
@@ -627,7 +637,7 @@ impl Document {
     /// Moves to the next word in the document
     pub fn move_next_word(&mut self) -> Status {
         let Loc { x, y } = self.char_loc();
-        let line = self.line(y).unwrap_or_else(|| "".to_string());
+        let line = self.line(y).unwrap_or_default();
         if x == line.chars().count() && y != self.len_lines() {
             return Status::EndOfLine;
         }
@@ -736,14 +746,14 @@ impl Document {
 
     /// Function to select to a specific x position
     pub fn select_to_x(&mut self, x: usize) {
-        let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
+        let line = self.line(self.loc().y).unwrap_or_default();
         // If we're already at this x coordinate, just exit
         if self.char_ptr == x {
             return;
         }
         // If the move position is out of bounds, move to the end of the line
         if line.chars().count() < x {
-            let line = self.line(self.loc().y).unwrap_or_else(|| "".to_string());
+            let line = self.line(self.loc().y).unwrap_or_default();
             let length = line.chars().count();
             self.select_to_x(length);
             return;
@@ -800,6 +810,10 @@ impl Document {
     /// Determines if specified coordinates are out of range of the document.
     /// # Errors
     /// Returns an error when the given coordinates are out of range.
+    /// # Panics
+    /// When you try using this function on a location that has not yet been loaded into buffer
+    /// If you see this error, you should double check that you have used `Document::load_to`
+    /// enough
     pub fn out_of_range(&self, x: usize, y: usize) -> Result<()> {
         let msg = "Did you forget to use load_to?";
         if y >= self.len_lines() || x > self.line(y).expect(msg).chars().count() {
@@ -821,6 +835,7 @@ impl Document {
     }
 
     /// Calculate the character index from the display index on a certain line
+    #[must_use]
     pub fn character_idx(&self, loc: &Loc) -> usize {
         let mut idx = loc.x;
         // Account for double width characters
@@ -903,9 +918,9 @@ impl Document {
             to = len_lines;
         }
         // Only act if there are lines we haven't loaded yet
-        if to > self.loaded_to {
+        if to > self.info.loaded_to {
             // For each line, run through each character and make note of any double width characters
-            for i in self.loaded_to..to {
+            for i in self.info.loaded_to..to {
                 let line: String = self.file.line(i).chars().collect();
                 // Add to char maps
                 let (dbl_map, tab_map) = form_map(&line, self.tab_width);
@@ -916,7 +931,7 @@ impl Document {
                     .push(line.trim_end_matches(&['\n', '\r']).to_string());
             }
             // Store new loaded point
-            self.loaded_to = to;
+            self.info.loaded_to = to;
         }
     }
 
@@ -936,7 +951,7 @@ impl Document {
     /// Returns the number of lines in the document
     #[must_use]
     pub fn len_lines(&self) -> usize {
-        self.file.len_lines().saturating_sub(1) + if self.eol { 1 } else { 0 }
+        self.file.len_lines().saturating_sub(1) + usize::from(self.info.eol)
     }
 
     /// Evaluate the line number text for a specific line
@@ -1004,6 +1019,7 @@ impl Document {
     }
 
     /// If the cursor is within the viewport, this will return where it is relatively
+    #[must_use]
     pub fn cursor_loc_in_screen(&self) -> Option<Loc> {
         if self.cursor.loc.x < self.offset.x {
             return None;
@@ -1018,15 +1034,17 @@ impl Document {
         if result.x > self.size.w || result.y > self.size.h {
             return None;
         }
-        return Some(result);
+        Some(result)
     }
 
     /// Returns true if there is no active selection and vice versa
+    #[must_use]
     pub fn is_selection_empty(&self) -> bool {
         self.cursor.loc == self.cursor.selection_end
     }
 
     /// Will return the bounds of the current active selection
+    #[must_use]
     pub fn selection_loc_bound(&self) -> (Loc, Loc) {
         let mut left = self.cursor.loc;
         let mut right = self.cursor.selection_end;
@@ -1040,15 +1058,17 @@ impl Document {
     }
 
     /// Returns true if the provided location is within the current active selection
+    #[must_use]
     pub fn is_loc_selected(&self, loc: Loc) -> bool {
         let (left, right) = self.selection_loc_bound();
         left <= loc && loc < right
     }
 
     /// Will return the current active selection as a range over file characters
+    #[must_use]
     pub fn selection_range(&self) -> Range<usize> {
-        let mut cursor = self.cursor.loc.clone();
-        let mut selection_end = self.cursor.selection_end.clone();
+        let mut cursor = self.cursor.loc;
+        let mut selection_end = self.cursor.selection_end;
         cursor.x = self.character_idx(&cursor);
         selection_end.x = self.character_idx(&selection_end);
         let mut left = self.loc_to_file_pos(&cursor);
@@ -1060,6 +1080,7 @@ impl Document {
     }
 
     /// Will return the text contained within the current selection
+    #[must_use]
     pub fn selection_text(&self) -> String {
         self.file.slice(self.selection_range()).to_string()
     }
@@ -1070,7 +1091,7 @@ impl Document {
     }
 
     pub fn reload_lines(&mut self) {
-        let to = std::mem::take(&mut self.loaded_to);
+        let to = std::mem::take(&mut self.info.loaded_to);
         self.lines.clear();
         self.load_to(to);
     }
@@ -1084,7 +1105,7 @@ impl Document {
         self.char_ptr = self.character_idx(&self.cursor.loc);
         self.cancel_selection();
         self.bring_cursor_in_viewport();
-        self.modified = true;
+        self.info.modified = true;
     }
 }
 

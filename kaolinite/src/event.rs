@@ -39,12 +39,11 @@ impl Event {
     #[must_use]
     pub fn loc(self) -> Loc {
         match self {
-            Event::Insert(loc, _) => loc,
-            Event::Delete(loc, _) => loc,
-            Event::InsertLine(loc, _) => Loc { x: 0, y: loc },
-            Event::DeleteLine(loc, _) => Loc { x: 0, y: loc },
-            Event::SplitDown(loc) => loc,
-            Event::SpliceUp(loc) => loc,
+            Event::Insert(loc, _)
+            | Event::Delete(loc, _)
+            | Event::SplitDown(loc)
+            | Event::SpliceUp(loc) => loc,
+            Event::InsertLine(loc, _) | Event::DeleteLine(loc, _) => Loc { x: 0, y: loc },
         }
     }
 }
@@ -96,6 +95,7 @@ pub struct UndoMgmt {
 }
 
 impl Document {
+    #[must_use]
     pub fn take_snapshot(&self) -> Snapshot {
         Snapshot {
             content: self.file.clone(),
@@ -153,10 +153,11 @@ impl UndoMgmt {
 
     /// On file save, mark where the document is to match it on the disk
     pub fn saved(&mut self) {
-        self.on_disk = self.undo.len()
+        self.on_disk = self.undo.len();
     }
 
     /// Determine if the state of the document is currently that of what is on the disk
+    #[must_use]
     pub fn at_file(&self) -> bool {
         self.undo.len() == self.on_disk
     }

@@ -30,7 +30,7 @@ impl Loc {
     /// Shorthand to produce a location
     #[must_use]
     pub fn at(x: usize, y: usize) -> Self {
-        Self { x, y }
+        Self { y, x }
     }
 }
 
@@ -56,7 +56,7 @@ impl Size {
 pub fn trim(string: &str, start: usize, length: usize, tab_width: usize) -> String {
     let string = string.replace('\t', &" ".repeat(tab_width));
     if start >= string.width() {
-        return "".to_string();
+        return String::new();
     }
     let desired_length = string.width().saturating_sub(start);
     let mut chars: String = string;
@@ -64,13 +64,13 @@ pub fn trim(string: &str, start: usize, length: usize, tab_width: usize) -> Stri
         chars = chars.chars().skip(1).collect();
     }
     if chars.width() < desired_length {
-        chars = format!(" {}", chars);
+        chars = format!(" {chars}");
     }
     while chars.width() > length {
         chars.pop();
     }
     if chars.width() < length && desired_length > length {
-        chars = format!("{} ", chars);
+        chars = format!("{chars} ");
     }
     chars
 }
@@ -151,7 +151,7 @@ pub fn get_file_name(path: &str) -> Option<String> {
     let p = Path::new(path);
     p.file_name()
         .and_then(|name| name.to_str())
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 /// Will get the file name from a file
@@ -160,7 +160,7 @@ pub fn get_file_ext(path: &str) -> Option<String> {
     let p = Path::new(path);
     p.extension()
         .and_then(|name| name.to_str())
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 /// Determine the filetype from the extension
@@ -298,14 +298,14 @@ pub fn icon(language: &str) -> String {
         "Assembly" => " ",
         "Batch" => "󰆍 ",
         "Brainfuck" => " ",
-        "C" => " ",
-        "CMake" => " ",
+        "C" | "C Header" => " ",
+        "CMake" | "Makefile" => " ",
         "Java" => " ",
         "Clojure" => " ",
         "CoffeeScript" => " ",
         "Crystal" => " ",
         "Cuda" => " ",
-        "C++" => " ",
+        "C++" | "C++ Header" => " ",
         "C#" => " ",
         "CSS" => " ",
         "CSV" => " ",
@@ -325,11 +325,9 @@ pub fn icon(language: &str) -> String {
         "Gnuplot" => " ",
         "Go" => "",
         "Groovy" => " ",
-        "C Header" => " ",
         "Haml" => "",
         "Handlebars" => "󰅩 ",
         "Haskell" => " ",
-        "C++ Header" => " ",
         "HTML" => " ",
         "INI" => " ",
         "Arduino" => " ",
@@ -346,7 +344,6 @@ pub fn icon(language: &str) -> String {
         "Matlab" => " ",
         "Objective-C" => " ",
         "OCaml" => " ",
-        "Makefile" => " ",
         "Markdown" => " ",
         "Nix" => " ",
         "NumPy" => "󰘨 ",
@@ -354,16 +351,14 @@ pub fn icon(language: &str) -> String {
         "Perl" => " ",
         "PowerShell" => "󰨊 ",
         "Prolog" => " ",
-        "Python" => " ",
-        "Cython" => " ",
+        "Python" | "Cython" => " ",
         "R" => " ",
         "reStructuredText" => "󰊄",
         "Ruby" => " ",
         "Rust" => " ",
-        "Shell" => " ",
-        "SCSS" => " ",
+        "Shell" | "Zsh" => " ",
+        "SCSS" | "Sass" => " ",
         "SQL" => " ",
-        "Sass" => " ",
         "Scala" => "",
         "Scheme" => "",
         "Swift" => " ",
@@ -375,7 +370,6 @@ pub fn icon(language: &str) -> String {
         "Visual Basic" => "󰯁 ",
         "Vue" => " ",
         "XML" => "󰗀 ",
-        "Zsh" => " ",
         _ => "󰈙 ",
     }
     .to_string()

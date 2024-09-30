@@ -307,11 +307,11 @@ fn document_disks() {
     let mut doc = Document::new(Size::is(100, 10));
     assert!(doc.save().is_err());
     let mut doc = Document::new(Size::is(100, 10));
-    doc.read_only = true;
+    doc.info.read_only = true;
     assert!(doc.save().is_err());
     // Save as
     assert!(doc.save_as("tests/data/ghost.txt").is_err());
-    doc.read_only = false;
+    doc.info.read_only = false;
     assert!(doc.save_as("tests/data/ghost.txt").is_ok());
     // Clean up and verify ghost exists
     let result = std::fs::read_to_string("tests/data/ghost.txt").unwrap();
@@ -368,19 +368,19 @@ fn document_undo_redo() {
     doc.load_to(100);
     assert!(doc.undo_mgmt.undo(doc.take_snapshot()).is_none());
     assert!(doc.redo().is_ok());
-    assert!(!doc.modified);
+    assert!(!doc.info.modified);
     doc.exe(Event::InsertLine(0, st!("hello你bye好hello")));
     doc.exe(Event::Delete(Loc { x: 0, y: 2 }, st!("\t")));
     doc.exe(Event::Insert(Loc { x: 3, y: 2 }, st!("a")));
     doc.commit();
-    assert!(doc.modified);
+    assert!(doc.info.modified);
     assert!(doc.undo().is_ok());
-    assert!(!doc.modified);
+    assert!(!doc.info.modified);
     assert_eq!(doc.line(0), Some(st!("    你好")));
     assert_eq!(doc.line(1), Some(st!("\thello")));
     assert_eq!(doc.line(2), Some(st!("    hello")));
     assert!(doc.redo().is_ok());
-    assert!(doc.modified);
+    assert!(doc.info.modified);
     assert_eq!(doc.line(0), Some(st!("hello你bye好hello")));
     assert_eq!(doc.line(2), Some(st!("helalo")));
 }
@@ -401,7 +401,7 @@ fn document_moving() {
                 (1 + loaded).saturating_sub(9)
             }
         );
-        assert!(doc.loaded_to >= loaded);
+        assert!(doc.info.loaded_to >= loaded);
     }
     assert_eq!(doc.move_down(), Status::EndOfFile);
     // Check moving up
@@ -507,7 +507,7 @@ fn document_moving() {
         }
     );
     assert_eq!(doc.old_cursor, 0);
-    assert_eq!(doc.loaded_to, doc.len_lines() + 1);
+    assert_eq!(doc.info.loaded_to, doc.len_lines() + 1);
     doc.move_top();
     assert_eq!(doc.char_loc(), Loc { x: 0, y: 0 });
     assert_eq!(doc.old_cursor, 0);
@@ -520,7 +520,7 @@ fn document_moving() {
         }
     );
     assert_eq!(doc.old_cursor, 0);
-    assert_eq!(doc.loaded_to, doc.len_lines() + 1);
+    assert_eq!(doc.info.loaded_to, doc.len_lines() + 1);
     doc.select_top();
     assert_eq!(doc.char_loc(), Loc { x: 0, y: 0 });
     assert_eq!(doc.old_cursor, 0);
@@ -606,12 +606,12 @@ fn document_scrolling() {
     assert_eq!(doc.offset.y, 0);
     doc.scroll_down();
     assert_eq!(doc.offset.y, 1);
-    assert_eq!(doc.loaded_to, 11);
+    assert_eq!(doc.info.loaded_to, 11);
     // Scrolling up
     assert_eq!(doc.offset.y, 1);
     doc.scroll_up();
     assert_eq!(doc.offset.y, 0);
-    assert_eq!(doc.loaded_to, 11);
+    assert_eq!(doc.info.loaded_to, 11);
 }
 
 #[test]
@@ -725,7 +725,7 @@ fn document_searching() {
             text: st!("world")
         })
     );
-    assert_eq!(doc.loaded_to, 5);
+    assert_eq!(doc.info.loaded_to, 5);
     doc.move_to(&Loc { x: 2, y: 2 });
     assert_eq!(
         doc.next_match("hello", 0),
@@ -803,6 +803,105 @@ fn file_paths() {
     assert_eq!(get_file_name("src/document.rs"), Some(st!("document.rs")));
     assert_eq!(get_file_ext("tests/data/unicode.txt"), Some(st!("txt")));
     assert_eq!(get_file_ext("src/document.rs"), Some(st!("rs")));
+}
+
+#[test]
+fn fuzz() {
+    for _ in 0..20 {
+        println!("--");
+        let size = Size { w: 10, h: 8 };
+        let mut doc = Document::open(size, "tests/data/unicode.txt").unwrap();
+        doc.load_to(100);
+        println!("{} | {}", doc.loc().x, doc.char_ptr);
+        for _ in 0..500 {
+            let e = rand::random::<u8>() % 25;
+            println!("{}", e);
+            match e {
+                0 => doc.forth(Event::Insert(doc.char_loc(), 'a'.to_string())),
+                1 => doc.forth(Event::Insert(doc.char_loc(), 'b'.to_string())),
+                2 => doc.forth(Event::Insert(doc.char_loc(), '在'.to_string())),
+                3 => doc.forth(Event::Delete(
+                    Loc {
+                        x: doc.char_ptr.saturating_sub(1),
+                        y: doc.char_loc().y,
+                    },
+                    ' '.to_string(),
+                )),
+                4 => doc.forth(Event::InsertLine(doc.loc().y, "surpri在se".to_string())),
+                5 => doc.forth(Event::DeleteLine(doc.loc().y, "".to_string())),
+                6 => doc.forth(Event::SplitDown(doc.char_loc())),
+                7 => doc.forth(Event::SpliceUp(Loc {
+                    x: 0,
+                    y: doc.loc().y,
+                })),
+                8 => {
+                    doc.move_left();
+                    Ok(())
+                }
+                9 => {
+                    doc.move_right();
+                    Ok(())
+                }
+                10 => {
+                    doc.move_up();
+                    Ok(())
+                }
+                11 => {
+                    doc.move_down();
+                    Ok(())
+                }
+                12 => {
+                    doc.move_end();
+                    Ok(())
+                }
+                13 => {
+                    doc.move_home();
+                    Ok(())
+                }
+                14 => {
+                    doc.move_top();
+                    Ok(())
+                }
+                15 => {
+                    doc.move_bottom();
+                    Ok(())
+                }
+                16 => {
+                    doc.move_page_up();
+                    Ok(())
+                }
+                17 => {
+                    doc.move_page_down();
+                    Ok(())
+                }
+                18 => {
+                    doc.move_prev_word();
+                    Ok(())
+                }
+                19 => {
+                    doc.move_next_word();
+                    Ok(())
+                }
+                20 => {
+                    doc.replace_all("a", "c");
+                    Ok(())
+                }
+                21 => {
+                    doc.commit();
+                    Ok(())
+                }
+                22 => {
+                    doc.commit();
+                    Ok(())
+                }
+                23 => doc.undo(),
+                24 => doc.redo(),
+                _ => Ok(()),
+            };
+            println!("{} | {}", doc.loc().x, doc.char_ptr);
+            doc.load_to(doc.len_lines() + 10);
+        }
+    }
 }
 
 /*

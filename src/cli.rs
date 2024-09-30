@@ -30,23 +30,24 @@ EXAMPLES:
 ";
 
 /// Read from the standard input
-pub fn get_stdin() -> Option<String> {
-    let input = io::stdin()
-        .lock()
-        .lines()
-        .fold("".to_string(), |acc, line| {
-            acc + &line.unwrap_or_else(|_| "".to_string()) + "\n"
-        });
-
-    return Some(input);
+pub fn get_stdin() -> String {
+    io::stdin().lock().lines().fold(String::new(), |acc, line| {
+        acc + &line.unwrap_or_else(|_| String::new()) + "\n"
+    })
 }
 
-/// Struct to help with starting ox
-pub struct CommandLineInterface {
+/// Flags for command line interface
+#[allow(clippy::struct_excessive_bools)]
+pub struct CommandLineInterfaceFlags {
     pub help: bool,
     pub version: bool,
     pub read_only: bool,
     pub stdin: bool,
+}
+
+/// Struct to help with starting ox
+pub struct CommandLineInterface {
+    pub flags: CommandLineInterfaceFlags,
     pub file_type: Option<String>,
     pub config_path: String,
     pub to_open: Vec<String>,
@@ -63,10 +64,12 @@ impl CommandLineInterface {
         let config: Key = ["-c", "--config"].into();
 
         Self {
-            help: j.contains(["-h", "--help"]),
-            version: j.contains(["-v", "--version"]),
-            read_only: j.contains(["-r", "--readonly"]),
-            stdin: j.contains("--stdin"),
+            flags: CommandLineInterfaceFlags {
+                help: j.contains(["-h", "--help"]),
+                version: j.contains(["-v", "--version"]),
+                read_only: j.contains(["-r", "--readonly"]),
+                stdin: j.contains("--stdin"),
+            },
             file_type: j.option_arg::<String, Key>(filetype.clone()),
             config_path: j
                 .option_arg::<String, Key>(config.clone())
@@ -77,11 +80,11 @@ impl CommandLineInterface {
 
     /// Handle options that won't need to start the editor
     pub fn basic_options(&self) {
-        if self.help {
-            println!("{}", HELP);
+        if self.flags.help {
+            println!("{HELP}");
             std::process::exit(0);
-        } else if self.version {
-            println!("{}", VERSION);
+        } else if self.flags.version {
+            println!("{VERSION}");
             std::process::exit(0);
         }
     }

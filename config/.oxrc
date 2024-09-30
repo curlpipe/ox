@@ -191,6 +191,7 @@ commands = {
 
 -- Configure Documents --
 document.tab_width = 4
+document.indentation = "tabs"
 document.undo_period = 10
 document.wrap_cursor = true
 
@@ -313,3 +314,5 @@ syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ 
 -- Import plugins (must be at the bottom of this file)
 load_plugin("pairs.lua")
 load_plugin("autoindent.lua")
+--load_plugin("pomodoro.lua")
+--load_plugin("update_notification.lua")
