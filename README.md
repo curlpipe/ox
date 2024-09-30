@@ -34,6 +34,7 @@ If you're looking for a text editor that...
     - search and replace
     - line numbers
     - opening multiple files
+    - full mouse cursor interaction
 
 ...then Ox is right up your street
 
@@ -62,6 +63,8 @@ It is mainly used on linux systems, but macOS and Windows users (via WSL) are fr
 - :mag: Search and replace text
 - :file_folder: Opening multiple files at once
 - :eye: UI that shows you the state of the editor and file
+- :computer_mouse: You can move the cursor and select text with your mouse
+- :writing_hand: Convenient shortcuts when writing code
 
 ### Robustness
 
@@ -70,7 +73,7 @@ It is mainly used on linux systems, but macOS and Windows users (via WSL) are fr
 
 ## Installation
 
-> :warning: Huge Warning: A lot of these (except manual) are quite out of date, it is quite a huge task having to push to all these sources each time I update and I'd rather focus on creating high quality updates
+> :warning: Huge Warning: A lot of these (except manual, AUR and homebrew) are quite out of date, it is quite a huge task having to push to all these sources each time I update and I'd rather focus on creating high-quality updates
 
 ### Prerequisites
 
@@ -87,7 +90,7 @@ If you are not using Arch, you can easily set it up on other distros by running 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 /usr/bin/rustup toolchain install stable
 ```
-You must have `curl` installed in order to run this command.
+You must have `curl` installed to run this command.
 
 ### Installation Routes
 
@@ -116,11 +119,11 @@ sudo dnf copr enable atim/ox -y
 sudo dnf install ox
 ```
 
-You can also find an rpm file in the releases page
+You can also find an RPM file in the releases page
 
 #### Debian
 
-You can find a deb file in the releases page, which can be installed via dpkg:
+You can find a deb file on the releases page, which can be installed via dpkg:
 
 ```sh
 dpkg -i ox_version.deb
@@ -185,7 +188,7 @@ If you want to move tabs and look at other files that are open, you can use <kbd
 
 ### Editing Files
 
-There are no modes in Ox, so you can just type straight into an open file, just as you would nano, or windows notepad.
+There are no modes in Ox, so you can just type straight into an open file, just as you would Nano, or Windows notepad.
 
 You can move the cursor around the file using the standard arrow keys. 
 
@@ -207,10 +210,10 @@ We've covered most keyboard shortcuts, but there are some other features you mig
 
 | Keybinding  | What it does  |
 | ------------ | ------------ |
-| `Ctrl + F`  | Searches the document for a search query. Allows pressing of <kbd>←</kbd> to move the cursor to the previous occurance fof the query and <kbd>→</kbd> to move to the next occurance of the query. Press <kbd>Return</kbd> or <kbd>Esc</kbd> to leave the search. Note: you can use regular expressions for search queries. | 
+| `Ctrl + F`  | Searches the document for a search query. Allows pressing of <kbd>←</kbd> to move the cursor to the previous occurrence of the query and <kbd>→</kbd> to move to the next occurrence of the query. Press <kbd>Return</kbd> or <kbd>Esc</kbd> to leave the search. Note: you can use regular expressions for search queries. | 
 | `Ctrl + Z`  | Undoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
 | `Ctrl + Y`  | Redoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
-| `Ctrl + R`  | Allows replacing of occurances in the document. Uses the same keybindings as the search feature: <kbd>←</kbd> to move the cursor to the previous occurance of the query and <kbd>→</kbd> to move to the next occurance of the query. You can also press <kbd>Return</kbd> to carry out the replace action. To exit replace mode once you're finished, you can press <kbd>Esc</kbd>. You can also use <kbd>Tab</kbd> to replace every instance in the document at once. Note: you can use regular expressions for search queries. | 
+| `Ctrl + R`  | Allows replacing of occurrences in the document. Uses the same keybindings as the search feature: <kbd>←</kbd> to move the cursor to the previous occurrence of the query and <kbd>→</kbd> to move to the next occurrence of the query. You can also press <kbd>Return</kbd> to carry out the replace action. To exit replace mode once you're finished, you can press <kbd>Esc</kbd>. You can also use <kbd>Tab</kbd> to replace every instance in the document at once. Note: you can use regular expressions for search queries. | 
 | `Ctrl + K`  | Opens the command line.  |
 | `Ctrl + W`  | Shortcut to delete a whole word.  |
 | `Alt + Up`  | Move the current line up.  |
@@ -222,29 +225,32 @@ We've covered most keyboard shortcuts, but there are some other features you mig
 
 ### Configuration
 
-Ox features a configuration system that allows modification and personalization of the editor.
+Ox features a configuration system that allows the editor to be modified and personalised.
 
 By default, Ox will look for a file here: `$XDG_CONFIG_HOME/.oxrc` or `~/.oxrc`.
 
+On Windows, Ox will try to look here `C:/Users/user/ox/.oxrc` (where `user` is the user name of your account)
+
 Ox's configuration language is [Lua](https://lua.org).
 
-There is a default config in the `config` folder in the repository for you to refer to. You can either download it and place it in the default config directory or create your own using the example ones as a reference.
+For reference, there is a default config in the `config` folder in the repository. You can either download it and place it in the default config directory or create your own using the example ones as a reference.
 
-If you don't have a config file, or don't want to mess around with it, don't worry, Ox has default settings it will use.
+If you don't have a config file or don't want to mess around with it, don't worry, Ox has default settings it will use.
 
 ## Documentation
 
-If you've been through the quick start guide above, but are looking for more detail, you can find in-depth documentation in the [wiki page](https://github.com/curlpipe/ox/wiki/)
+If you've been through the quick start guide above, but are looking for more detail, you can find in-depth documentation on the [wiki page](https://github.com/curlpipe/ox/wiki/)
 
 This will take you step-by-step in great detail through 5 different stages:
 
 1. **Installation** - advice and how-tos on installation
 2. **Starting** - using the command line interface
 3. **Using** - editing a document and controlling the editor
-4. **Configuring** - writing plug-ins, changing layout, adding to and changing the syntax highlighting
-5. **Next Steps** - planned features and contributing
+4. **Configuring** - writing plug-ins, changing the layout, adding to and changing the syntax highlighting
+5. **Plugins** - installing or uninstalling community plug-ins and writing or distributing your own plug-ins
+6. **Roadmap** - planned features
 
-Hopefully it contains everything you need to take you from beginner to a power user.
+Hopefully, it contains everything you need to take you from a beginner to a power user.
 
 ## License
 
