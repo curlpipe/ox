@@ -1,8 +1,8 @@
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
+use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_RUN};
 use kaolinite::{Loc, Size};
-use crate::{PLUGIN_BOOTSTRAP, PLUGIN_RUN, PLUGIN_MANAGER};
 use mlua::prelude::*;
 
 impl LuaUserData for Editor {
