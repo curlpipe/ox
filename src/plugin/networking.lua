@@ -66,5 +66,3 @@ function http.delete(url)
     end
     return execute(cmd)
 end
-
-return http

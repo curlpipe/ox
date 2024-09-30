@@ -8,7 +8,8 @@ mod ui;
 
 use cli::CommandLineInterface;
 use config::{
-    key_to_string, run_key, run_key_before, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_RUN,
+    key_to_string, run_key, run_key_before, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING,
+    PLUGIN_RUN,
 };
 use crossterm::event::Event as CEvent;
 use editor::Editor;
@@ -57,6 +58,9 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         // Handle error if available
         handle_lua_error(&editor, "configuration", Err(err));
     };
+
+    // Inject the networking library for plug-ins to use
+    handle_lua_error(&editor, "", lua.load(PLUGIN_NETWORKING).exec());
 
     // Open files user has asked to open
     for (c, file) in cli.to_open.iter().enumerate() {
