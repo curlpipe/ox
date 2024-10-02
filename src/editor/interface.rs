@@ -5,7 +5,7 @@ use crossterm::{
     queue,
     style::{Attribute, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
 };
-use kaolinite::utils::{Loc, Size, width};
+use kaolinite::utils::{width, Loc, Size};
 use mlua::Lua;
 use synoptic::{trim, Highlighter, TokOpt};
 
@@ -234,6 +234,7 @@ impl Editor {
             let w = size()?.w;
             // Render prompt message
             self.terminal.prepare_line(h)?;
+            self.terminal.show_cursor()?;
             let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
             queue!(
                 self.terminal.stdout,
