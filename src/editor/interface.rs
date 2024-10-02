@@ -4,9 +4,8 @@ use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
     queue,
     style::{Attribute, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
-    terminal::{Clear, ClearType as ClType},
 };
-use kaolinite::utils::{Loc, Size};
+use kaolinite::utils::{Loc, Size, width};
 use mlua::Lua;
 use synoptic::{trim, Highlighter, TokOpt};
 
@@ -53,7 +52,7 @@ impl Editor {
 
     /// Render the lines of the document
     #[allow(clippy::similar_names)]
-    pub fn render_document(&mut self, _w: usize, h: usize) -> Result<()> {
+    pub fn render_document(&mut self, w: usize, h: usize) -> Result<()> {
         for y in 0..u16::try_from(h).unwrap_or(0) {
             self.terminal.goto(0, y as usize + self.push_down)?;
             // Start colours
@@ -81,7 +80,6 @@ impl Editor {
                     Print(editor_bg),
                 )?;
             }
-            queue!(self.terminal.stdout, Clear(ClType::UntilNewLine))?;
             // Render line if it exists
             let idx = y as usize + self.doc().offset.y;
             if let Some(line) = self.doc().line(idx) {
@@ -122,8 +120,13 @@ impl Editor {
                         queue!(self.terminal.stdout, Print(c))?;
                         x_pos += 1;
                     }
-                    queue!(self.terminal.stdout, Print(editor_fg),)?;
+                    queue!(self.terminal.stdout, Print(editor_fg))?;
                 }
+                // Pad out the line (to remove any junk left over from previous render)
+                let tab_width = self.config.document.borrow().tab_width;
+                let line_width = width(&line, tab_width);
+                let pad_amount = w.saturating_sub(self.dent()).saturating_sub(line_width) + 1;
+                queue!(self.terminal.stdout, Print(" ".repeat(pad_amount)))?;
             }
         }
         Ok(())
