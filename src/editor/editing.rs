@@ -7,8 +7,10 @@ use super::Editor;
 impl Editor {
     /// Execute an edit event
     pub fn exe(&mut self, ev: Event) -> Result<()> {
+        if !self.doc().undo_mgmt.last_event.same_type(&ev) {
+            self.doc_mut().commit();
+        }
         self.doc_mut().exe(ev)?;
-        // TODO: Check for change in event type and commit to undo/redo stack if present
         Ok(())
     }
 
@@ -28,17 +30,11 @@ impl Editor {
             self.exe(Event::Insert(loc, ch.to_string()))?;
             self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
         }
-        // Commit to event stack (for undo/redo if the character is a space)
-        if ch == ' ' {
-            self.doc_mut().commit();
-        }
         Ok(())
     }
 
     /// Handle the return key
     pub fn enter(&mut self) -> Result<()> {
-        // When the return key is pressed, we want to commit to the undo/redo stack
-        self.doc_mut().commit();
         // Perform the changes
         if self.doc().loc().y == self.doc().len_lines() {
             // Enter pressed on the empty line at the bottom of the document
@@ -58,10 +54,10 @@ impl Editor {
     /// Handle the backspace key
     pub fn backspace(&mut self) -> Result<()> {
         if !self.doc().is_selection_empty() {
+            // Removing a selection is significant and worth an undo commit
             self.doc_mut().commit();
             self.doc_mut().undo_mgmt.set_dirty();
             self.doc_mut().remove_selection();
-            // Removing a selection is significant and worth an undo commit
             self.reload_highlight();
             return Ok(());
         }
@@ -122,8 +118,6 @@ impl Editor {
 
     /// Delete the current line
     pub fn delete_line(&mut self) -> Result<()> {
-        // Commit events to event manager (for undo / redo)
-        self.doc_mut().commit();
         // Delete the line
         if self.doc().loc().y < self.doc().len_lines() {
             let y = self.doc().loc().y;

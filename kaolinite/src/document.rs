@@ -172,6 +172,7 @@ impl Document {
     /// Will return an error if the event was unable to be completed.
     pub fn exe(&mut self, ev: Event) -> Result<()> {
         if !self.info.read_only {
+            self.undo_mgmt.last_event = ev.clone();
             self.undo_mgmt.set_dirty();
             self.forth(ev)?;
         }

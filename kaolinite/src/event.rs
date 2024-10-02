@@ -46,6 +46,20 @@ impl Event {
             Event::InsertLine(loc, _) | Event::DeleteLine(loc, _) => Loc { x: 0, y: loc },
         }
     }
+
+    /// Work out if the event is of the same type
+    #[must_use]
+    pub fn same_type(&self, ev: &Self) -> bool {
+        matches!(
+            (self, ev),
+            (&Event::Insert(_, _), &Event::Insert(_, _))
+                | (&Event::Delete(_, _), &Event::Delete(_, _))
+                | (&Event::InsertLine(_, _), &Event::InsertLine(_, _))
+                | (&Event::DeleteLine(_, _), &Event::DeleteLine(_, _))
+                | (&Event::SplitDown(_), &Event::SplitDown(_))
+                | (&Event::SpliceUp(_), &Event::SpliceUp(_))
+        )
+    }
 }
 
 /// Represents various statuses of functions
@@ -82,7 +96,7 @@ quick_error! {
 }
 
 /// For managing events for purposes of undo and redo
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UndoMgmt {
     /// Whether the file touched since the latest commit
     pub is_dirty: bool,
@@ -92,6 +106,20 @@ pub struct UndoMgmt {
     pub redo: Vec<Snapshot>,
     /// Store where the file on the disk is currently at
     pub on_disk: usize,
+    /// Store the last event to occur (so that we can see if there is a change)
+    pub last_event: Event,
+}
+
+impl Default for UndoMgmt {
+    fn default() -> Self {
+        Self {
+            is_dirty: false,
+            undo: vec![],
+            redo: vec![],
+            on_disk: 0,
+            last_event: Event::Insert(Loc { x: 0, y: 0 }, " ".to_string()),
+        }
+    }
 }
 
 impl Document {
