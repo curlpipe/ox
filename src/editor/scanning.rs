@@ -1,8 +1,11 @@
 use crate::error::Result;
 use crate::ui::size;
-use crossterm::event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod};
+use crossterm::{
+    event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
+    queue,
+    style::Print,
+};
 use kaolinite::utils::{Loc, Size};
-use std::io::Write;
 
 use super::Editor;
 
@@ -22,9 +25,9 @@ impl Editor {
             self.render_document(w, h.saturating_sub(2))?;
             // Render custom status line with mode information
             self.terminal.goto(0, h)?;
-            write!(
+            queue!(
                 self.terminal.stdout,
-                "[<-]: Search previous | [->]: Search next"
+                Print("[<-]: Search previous | [->]: Search next")
             )?;
             self.terminal.flush()?;
             // Move back to correct cursor position
@@ -98,9 +101,9 @@ impl Editor {
             self.render_document(w, h.saturating_sub(2))?;
             // Write custom status line for the replace mode
             self.terminal.goto(0, h)?;
-            write!(
+            queue!(
                 self.terminal.stdout,
-                "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All"
+                Print("[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All")
             )?;
             self.terminal.flush()?;
             // Move back to correct cursor location

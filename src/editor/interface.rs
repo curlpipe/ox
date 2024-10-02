@@ -2,12 +2,12 @@ use crate::error::Result;
 use crate::ui::{size, Feedback};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
-    style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
+    queue,
+    style::{Attribute, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
     terminal::{Clear, ClearType as ClType},
 };
 use kaolinite::utils::{Loc, Size};
 use mlua::Lua;
-use std::io::Write;
 use synoptic::{trim, Highlighter, TokOpt};
 
 use super::Editor;
@@ -52,38 +52,36 @@ impl Editor {
     }
 
     /// Render the lines of the document
+    #[allow(clippy::similar_names)]
     pub fn render_document(&mut self, _w: usize, h: usize) -> Result<()> {
         for y in 0..u16::try_from(h).unwrap_or(0) {
             self.terminal.goto(0, y as usize + self.push_down)?;
-            // Start background colour
-            write!(
-                self.terminal.stdout,
-                "{}",
-                Bg(self.config.colors.borrow().editor_bg.to_color()?)
-            )?;
-            write!(
-                self.terminal.stdout,
-                "{}",
-                Fg(self.config.colors.borrow().editor_fg.to_color()?)
-            )?;
+            // Start colours
+            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
+            let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
+            let line_number_bg = Bg(self.config.colors.borrow().line_number_bg.to_color()?);
+            let line_number_fg = Fg(self.config.colors.borrow().line_number_fg.to_color()?);
+            let selection_bg = Bg(self.config.colors.borrow().selection_bg.to_color()?);
+            let selection_fg = Fg(self.config.colors.borrow().selection_fg.to_color()?);
+            queue!(self.terminal.stdout, Print(editor_bg), Print(editor_fg),)?;
             // Write line number of document
             if self.config.line_numbers.borrow().enabled {
                 let num = self.doc().line_number(y as usize + self.doc().offset.y);
                 let padding_left = " ".repeat(self.config.line_numbers.borrow().padding_left);
                 let padding_right = " ".repeat(self.config.line_numbers.borrow().padding_right);
-                write!(
+                queue!(
                     self.terminal.stdout,
-                    "{}{}{}{}{}│{}{}",
-                    Bg(self.config.colors.borrow().line_number_bg.to_color()?),
-                    Fg(self.config.colors.borrow().line_number_fg.to_color()?),
-                    padding_left,
-                    num,
-                    padding_right,
-                    Fg(self.config.colors.borrow().editor_fg.to_color()?),
-                    Bg(self.config.colors.borrow().editor_bg.to_color()?),
+                    Print(line_number_bg),
+                    Print(line_number_fg),
+                    Print(padding_left),
+                    Print(num),
+                    Print(padding_right),
+                    Print("│"),
+                    Print(editor_fg),
+                    Print(editor_bg),
                 )?;
             }
-            write!(self.terminal.stdout, "{}", Clear(ClType::UntilNewLine))?;
+            queue!(self.terminal.stdout, Clear(ClType::UntilNewLine))?;
             // Render line if it exists
             let idx = y as usize + self.doc().offset.y;
             if let Some(line) = self.doc().line(idx) {
@@ -98,7 +96,7 @@ impl Editor {
                             match colour {
                                 // Success, write token
                                 Ok(col) => {
-                                    write!(self.terminal.stdout, "{}", Fg(col))?;
+                                    queue!(self.terminal.stdout, Fg(col))?;
                                 }
                                 // Failure, show error message and don't highlight this token
                                 Err(err) => {
@@ -113,27 +111,18 @@ impl Editor {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
                         if is_selected {
-                            write!(
+                            queue!(
                                 self.terminal.stdout,
-                                "{}{}",
-                                Bg(self.config.colors.borrow().selection_bg.to_color()?),
-                                Fg(self.config.colors.borrow().selection_fg.to_color()?),
+                                Print(selection_bg),
+                                Print(selection_fg),
                             )?;
                         } else {
-                            write!(
-                                self.terminal.stdout,
-                                "{}",
-                                Bg(self.config.colors.borrow().editor_bg.to_color()?)
-                            )?;
+                            queue!(self.terminal.stdout, Print(editor_bg),)?;
                         }
-                        write!(self.terminal.stdout, "{c}")?;
+                        queue!(self.terminal.stdout, Print(c))?;
                         x_pos += 1;
                     }
-                    write!(
-                        self.terminal.stdout,
-                        "{}",
-                        Fg(self.config.colors.borrow().editor_fg.to_color()?)
-                    )?;
+                    queue!(self.terminal.stdout, Print(editor_fg),)?;
                 }
             }
         }
@@ -141,50 +130,60 @@ impl Editor {
     }
 
     /// Render the tab line at the top of the document
+    #[allow(clippy::similar_names)]
     pub fn render_tab_line(&mut self, w: usize) -> Result<()> {
         self.terminal.goto(0_usize, 0_usize)?;
-        write!(
+        let tab_inactive_bg = Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?);
+        let tab_inactive_fg = Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?);
+        let tab_active_bg = Bg(self.config.colors.borrow().tab_active_bg.to_color()?);
+        let tab_active_fg = Fg(self.config.colors.borrow().tab_active_fg.to_color()?);
+        queue!(
             self.terminal.stdout,
-            "{}{}",
-            Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?),
-            Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?)
+            Print(tab_inactive_fg),
+            Print(tab_inactive_bg),
         )?;
         for (c, document) in self.doc.iter().enumerate() {
             let document_header = self.config.tab_line.borrow().render(document);
             if c == self.ptr {
                 // Representing the document we're currently looking at
-                write!(
+                queue!(
                     self.terminal.stdout,
-                    "{}{}{}{document_header}{}{}{}│",
-                    Bg(self.config.colors.borrow().tab_active_bg.to_color()?),
-                    Fg(self.config.colors.borrow().tab_active_fg.to_color()?),
+                    Print(tab_active_bg),
+                    Print(tab_active_fg),
                     SetAttribute(Attribute::Bold),
+                    Print(document_header),
                     SetAttribute(Attribute::Reset),
-                    Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?),
-                    Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?),
+                    Print(tab_inactive_fg),
+                    Print(tab_inactive_bg),
+                    Print("│"),
                 )?;
             } else {
                 // Other document that is currently open
-                write!(self.terminal.stdout, "{document_header}│")?;
+                queue!(self.terminal.stdout, Print(document_header), Print("│"))?;
             }
         }
-        write!(self.terminal.stdout, "{}", " ".to_string().repeat(w))?;
+        queue!(self.terminal.stdout, Print(" ".to_string().repeat(w)))?;
         Ok(())
     }
 
     /// Render the status line at the bottom of the document
+    #[allow(clippy::similar_names)]
     pub fn render_status_line(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
         self.terminal.goto(0, h + self.push_down)?;
-        write!(
+        let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
+        let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
+        let status_bg = Bg(self.config.colors.borrow().status_bg.to_color()?);
+        let status_fg = Fg(self.config.colors.borrow().status_fg.to_color()?);
+        let content = self.config.status_line.borrow().render(self, lua, w);
+        queue!(
             self.terminal.stdout,
-            "{}{}{}{}{}{}{}",
-            Bg(self.config.colors.borrow().status_bg.to_color()?),
-            Fg(self.config.colors.borrow().status_fg.to_color()?),
+            Print(status_bg),
+            Print(status_fg),
             SetAttribute(Attribute::Bold),
-            self.config.status_line.borrow().render(self, lua, w),
+            Print(content),
             SetAttribute(Attribute::Reset),
-            Fg(self.config.colors.borrow().editor_fg.to_color()?),
-            Bg(self.config.colors.borrow().editor_bg.to_color()?),
+            Print(editor_fg),
+            Print(editor_bg),
         )?;
         Ok(())
     }
@@ -192,11 +191,8 @@ impl Editor {
     /// Render the feedback line
     pub fn render_feedback_line(&mut self, w: usize, h: usize) -> Result<()> {
         self.terminal.goto(0, h + 2)?;
-        write!(
-            self.terminal.stdout,
-            "{}",
-            self.feedback.render(&self.config.colors.borrow(), w)?,
-        )?;
+        let content = self.feedback.render(&self.config.colors.borrow(), w)?;
+        queue!(self.terminal.stdout, Print(content))?;
         Ok(())
     }
 
@@ -206,7 +202,7 @@ impl Editor {
         let message = self.config.help_message.borrow().render(lua, &colors)?;
         for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
             self.terminal.goto(w.saturating_sub(30), h / 4 + c + 1)?;
-            write!(self.terminal.stdout, "{line}")?;
+            queue!(self.terminal.stdout, Print(line))?;
         }
         Ok(())
     }
@@ -218,11 +214,8 @@ impl Editor {
         let message: Vec<&str> = greeting.split('\n').collect();
         for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
             self.terminal.goto(4, h / 4 + c + 1)?;
-            write!(
-                self.terminal.stdout,
-                "{}",
-                alinio::align::center(line, w.saturating_sub(4)).unwrap_or_default(),
-            )?;
+            let content = alinio::align::center(line, w.saturating_sub(4)).unwrap_or_default();
+            queue!(self.terminal.stdout, Print(content),)?;
         }
         Ok(())
     }
@@ -238,17 +231,14 @@ impl Editor {
             let w = size()?.w;
             // Render prompt message
             self.terminal.prepare_line(h)?;
-            write!(
+            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
+            queue!(
                 self.terminal.stdout,
-                "{}",
-                Bg(self.config.colors.borrow().editor_bg.to_color()?)
-            )?;
-            write!(
-                self.terminal.stdout,
-                "{}: {}{}",
-                prompt,
-                input,
-                " ".to_string().repeat(w)
+                Print(editor_bg),
+                Print(prompt.clone()),
+                Print(": "),
+                Print(input.clone()),
+                Print(" ".to_string().repeat(w)),
             )?;
             self.terminal.goto(prompt.len() + input.len() + 2, h)?;
             self.terminal.flush()?;
