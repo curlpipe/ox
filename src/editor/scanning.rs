@@ -29,7 +29,6 @@ impl Editor {
                 self.terminal.stdout,
                 Print("[<-]: Search previous | [->]: Search next")
             )?;
-            self.terminal.flush()?;
             // Move back to correct cursor position
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
                 let max = self.dent();
@@ -38,6 +37,7 @@ impl Editor {
             } else {
                 self.terminal.hide_cursor()?;
             }
+            self.terminal.flush()?;
             // Handle events
             if let CEvent::Key(key) = read()? {
                 match (key.modifiers, key.code) {
@@ -105,7 +105,6 @@ impl Editor {
                 self.terminal.stdout,
                 Print("[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All")
             )?;
-            self.terminal.flush()?;
             // Move back to correct cursor location
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
                 let max = self.dent();
@@ -114,6 +113,7 @@ impl Editor {
             } else {
                 self.terminal.hide_cursor()?;
             }
+            self.terminal.flush()?;
             // Handle events
             if let CEvent::Key(key) = read()? {
                 match (key.modifiers, key.code) {
