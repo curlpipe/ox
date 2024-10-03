@@ -385,6 +385,10 @@ impl LuaUserData for Editor {
             editor.update_highlighter();
             Ok(())
         });
+        methods.add_method_mut("commit", |_, editor, ()| {
+            editor.doc_mut().commit();
+            Ok(())
+        });
         // Searching and replacing
         methods.add_method_mut("search", |_, editor, ()| {
             if let Err(err) = editor.search() {

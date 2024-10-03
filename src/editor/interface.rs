@@ -127,6 +127,10 @@ impl Editor {
                 let line_width = width(&line, tab_width);
                 let pad_amount = w.saturating_sub(self.dent()).saturating_sub(line_width) + 1;
                 queue!(self.terminal.stdout, Print(" ".repeat(pad_amount)))?;
+            } else {
+                // Render empty line
+                let pad_amount = w.saturating_sub(self.dent()) + 1;
+                queue!(self.terminal.stdout, Print(" ".repeat(pad_amount)))?;
             }
         }
         Ok(())
