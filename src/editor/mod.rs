@@ -16,6 +16,7 @@ mod mouse;
 mod scanning;
 
 /// For managing all editing and rendering of cactus
+#[allow(clippy::struct_excessive_bools)]
 pub struct Editor {
     /// Interface for writing to the terminal
     pub terminal: Terminal,
@@ -43,6 +44,8 @@ pub struct Editor {
     pub push_down: usize,
     /// Used to cache the location of the configuration file
     pub config_path: String,
+    /// Flag to determine whether or not the editor is under control by a plug-in
+    pub plugin_active: bool,
 }
 
 impl Editor {
@@ -63,6 +66,7 @@ impl Editor {
             last_active: Instant::now(),
             push_down: 1,
             config_path: "~/.oxrc".to_string(),
+            plugin_active: false,
         })
     }
 

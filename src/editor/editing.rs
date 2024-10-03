@@ -7,7 +7,7 @@ use super::Editor;
 impl Editor {
     /// Execute an edit event
     pub fn exe(&mut self, ev: Event) -> Result<()> {
-        if !self.doc().undo_mgmt.last_event.same_type(&ev) {
+        if !self.doc().undo_mgmt.last_event.same_type(&ev) && !self.plugin_active {
             self.doc_mut().commit();
         }
         self.doc_mut().exe(ev)?;
