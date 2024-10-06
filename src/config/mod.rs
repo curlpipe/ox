@@ -21,7 +21,7 @@ pub use interface::{GreetingMessage, HelpMessage, LineNumbers, StatusLine, TabLi
 pub use keys::{key_to_string, run_key, run_key_before};
 pub use tasks::TaskManager;
 
-// Issue a warning to the user
+/// Issue a warning to the user
 fn issue_warning(msg: &str) {
     eprintln!("[WARNING] {msg}");
 }
@@ -233,6 +233,7 @@ impl Display for Indentation {
 }
 
 impl From<String> for Indentation {
+    /// Interpret an indentation setting from a string format
     fn from(s: String) -> Self {
         match s.as_str() {
             "spaces" => Self::Spaces,

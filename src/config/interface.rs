@@ -217,6 +217,7 @@ impl Default for TabLine {
 }
 
 impl TabLine {
+    /// Take the configuration information and render the tab line
     pub fn render(&self, document: &Document) -> String {
         let path = document
             .file_name
@@ -274,6 +275,7 @@ impl Default for StatusLine {
 }
 
 impl StatusLine {
+    /// Take the configuration information and render the status line
     pub fn render(&self, editor: &Editor, lua: &Lua, w: usize) -> String {
         let mut result = vec![];
         let path = editor
@@ -376,10 +378,12 @@ pub enum StatusAlign {
 }
 
 impl StatusAlign {
+    /// Converts a status line alignment value from string representation (in lua)
     pub fn from_string(string: &str) -> Self {
         match string {
             "around" => Self::Around,
             "between" => Self::Between,
+            // If the user has provided some random value, just default to between
             _ => {
                 issue_warning(
                     "\
@@ -393,6 +397,7 @@ impl StatusAlign {
 }
 
 impl From<StatusAlign> for String {
+    /// Turns a status line object into a string
     fn from(val: StatusAlign) -> Self {
         match val {
             StatusAlign::Around => "around",

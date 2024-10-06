@@ -358,6 +358,7 @@ impl Editor {
     }
 }
 
+/// Takes a document, and tries to help determine the file type
 pub fn which_extension(doc: &Document) -> Option<String> {
     let file_name = doc.file_name.clone().unwrap_or_default();
     let is_config = Path::new(&file_name)

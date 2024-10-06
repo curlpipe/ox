@@ -500,12 +500,14 @@ impl LuaUserData for Editor {
     }
 }
 
+/// For representing a cursor location object within lua
 pub struct LuaLoc {
     x: usize,
     y: usize,
 }
 
 impl IntoLua<'_> for LuaLoc {
+    /// Convert this rust struct so the plug-in and configuration system can use it
     fn into_lua(self, lua: &Lua) -> std::result::Result<LuaValue<'_>, LuaError> {
         let table = lua.create_table()?;
         table.set("x", self.x)?;
