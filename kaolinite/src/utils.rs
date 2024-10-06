@@ -163,6 +163,52 @@ pub fn get_file_ext(path: &str) -> Option<String> {
         .map(std::string::ToString::to_string)
 }
 
+/// Will get the current working directory
+#[must_use]
+#[cfg(not(tarpaulin_include))]
+pub fn get_cwd() -> Option<String> {
+    Some(std::env::current_dir().ok()?.display().to_string())
+}
+
+/// Will list a directory
+#[must_use]
+#[cfg(not(tarpaulin_include))]
+pub fn list_dir(path: &str) -> Option<Vec<String>> {
+    Some(
+        std::fs::read_dir(path)
+            .ok()?
+            .filter_map(std::result::Result::ok)
+            .filter_map(|e| e.path().to_str().map(std::string::ToString::to_string))
+            .collect(),
+    )
+}
+
+/// Get the parent directory
+#[must_use]
+#[cfg(not(tarpaulin_include))]
+pub fn get_parent(path: &str) -> Option<String> {
+    Path::new(path).parent().map(|p| p.display().to_string())
+}
+
+/// Determine if something is a directory or a file
+#[must_use]
+#[cfg(not(tarpaulin_include))]
+pub fn file_or_dir(path: &str) -> &str {
+    let path = Path::new(path);
+    let metadata = std::fs::metadata(path);
+    if let Ok(metadata) = metadata {
+        if metadata.is_file() {
+            "file"
+        } else if metadata.is_dir() {
+            "directory"
+        } else {
+            "neither"
+        }
+    } else {
+        "neither"
+    }
+}
+
 /// Determine the filetype from the extension
 #[allow(clippy::too_many_lines)]
 #[must_use]

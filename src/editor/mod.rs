@@ -136,7 +136,7 @@ impl Editor {
 
     /// Function to ask the user for a file to open
     pub fn open_document(&mut self) -> Result<()> {
-        let path = self.prompt("File to open")?;
+        let path = self.path_prompt()?;
         self.open(&path)?;
         self.ptr = self.doc.len().saturating_sub(1);
         Ok(())

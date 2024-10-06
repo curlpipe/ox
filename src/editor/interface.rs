@@ -4,9 +4,11 @@ use crate::ui::{size, Feedback};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
     queue,
-    style::{Attribute, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
+    style::{
+        Attribute, Color, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg,
+    },
 };
-use kaolinite::utils::{width, Loc, Size};
+use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, Loc, Size};
 use mlua::Lua;
 use synoptic::{trim, Highlighter, TokOpt};
 
@@ -254,6 +256,70 @@ impl Editor {
                     }
                     // Add to the input string if the user presses a character
                     (KMod::NONE | KMod::SHIFT, KCode::Char(c)) => input.push(c),
+                    _ => (),
+                }
+            }
+        }
+        // Return input string result
+        Ok(input)
+    }
+
+    /// Prompt for selecting a file
+    pub fn path_prompt(&mut self) -> Result<String> {
+        let mut input = get_cwd().map(|s| s + "/").unwrap_or_default();
+        let mut done = false;
+        // Enter into a menu that asks for a prompt
+        while !done {
+            // Find the suggested file / folder
+            let parent = if input.ends_with('/') {
+                input.to_string()
+            } else {
+                get_parent(&input).unwrap_or_default()
+            };
+            let mut suggestion = list_dir(&parent)
+                .unwrap_or_default()
+                .iter()
+                .find(|p| p.starts_with(&input))
+                .map(std::string::ToString::to_string)
+                .unwrap_or(input.clone());
+            // Render prompt message
+            let h = size()?.h;
+            self.terminal.prepare_line(h)?;
+            self.terminal.show_cursor()?;
+            let suggestion_text = suggestion
+                .chars()
+                .skip(input.chars().count())
+                .collect::<String>();
+            let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
+            display!(
+                self,
+                "Path: ",
+                input.clone(),
+                Fg(Color::DarkGrey),
+                suggestion_text,
+                editor_fg
+            );
+            let tab_width = self.config.document.borrow_mut().tab_width;
+            self.terminal.goto(6 + width(&input, tab_width), h)?;
+            self.terminal.flush()?;
+            // Handle events
+            if let CEvent::Key(key) = read()? {
+                match (key.modifiers, key.code) {
+                    // Exit the menu when the enter key is pressed
+                    (KMod::NONE, KCode::Enter) => done = true,
+                    // Remove from the input string if the user presses backspace
+                    (KMod::NONE, KCode::Backspace) => {
+                        input.pop();
+                    }
+                    // Add to the input string if the user presses a character
+                    (KMod::NONE | KMod::SHIFT, KCode::Char(c)) => input.push(c),
+                    // Autocomplete path
+                    (KMod::NONE, KCode::Right | KCode::Tab) => {
+                        if file_or_dir(&suggestion) == "directory" {
+                            suggestion += "/";
+                        }
+                        input = suggestion;
+                    }
                     _ => (),
                 }
             }
