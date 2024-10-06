@@ -96,7 +96,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         let hl = holder.get_highlighter(this_doc);
         hl.run(&lines);
         if cli.flags.read_only {
-            editor.borrow_mut().get_doc(this_doc).info.read_only = true;
+            holder.get_doc(this_doc).info.read_only = true;
         }
     }
 
