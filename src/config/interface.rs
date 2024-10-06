@@ -1,9 +1,9 @@
 use crate::cli::VERSION;
-use crate::editor::Editor;
+use crate::editor::{which_extension, Editor};
 use crate::error::Result;
 use crossterm::style::SetForegroundColor as Fg;
 use kaolinite::searching::Searcher;
-use kaolinite::utils::{filetype, get_absolute_path, get_file_ext, get_file_name, icon};
+use kaolinite::utils::{filetype, get_absolute_path, get_file_name, icon};
 use kaolinite::Document;
 use mlua::prelude::*;
 
@@ -222,7 +222,7 @@ impl TabLine {
             .file_name
             .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
-        let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
+        let file_extension = which_extension(document).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
         let icon = icon(&filetype(&file_extension).unwrap_or_default());
@@ -281,7 +281,7 @@ impl StatusLine {
             .file_name
             .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
-        let file_extension = get_file_ext(&path).unwrap_or_default();
+        let file_extension = which_extension(editor.doc()).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_type = filetype(&file_extension).unwrap_or_else(|| {
