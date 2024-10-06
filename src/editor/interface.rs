@@ -1,3 +1,4 @@
+use crate::display;
 use crate::error::Result;
 use crate::ui::{size, Feedback};
 use crossterm::{
@@ -62,23 +63,23 @@ impl Editor {
             let line_number_fg = Fg(self.config.colors.borrow().line_number_fg.to_color()?);
             let selection_bg = Bg(self.config.colors.borrow().selection_bg.to_color()?);
             let selection_fg = Fg(self.config.colors.borrow().selection_fg.to_color()?);
-            queue!(self.terminal.stdout, Print(editor_bg), Print(editor_fg),)?;
+            display!(self, editor_bg, editor_fg);
             // Write line number of document
             if self.config.line_numbers.borrow().enabled {
                 let num = self.doc().line_number(y as usize + self.doc().offset.y);
                 let padding_left = " ".repeat(self.config.line_numbers.borrow().padding_left);
                 let padding_right = " ".repeat(self.config.line_numbers.borrow().padding_right);
-                queue!(
-                    self.terminal.stdout,
-                    Print(line_number_bg),
-                    Print(line_number_fg),
-                    Print(padding_left),
-                    Print(num),
-                    Print(padding_right),
-                    Print("│"),
-                    Print(editor_fg),
-                    Print(editor_bg),
-                )?;
+                display!(
+                    self,
+                    line_number_bg,
+                    line_number_fg,
+                    padding_left,
+                    num,
+                    padding_right,
+                    "│",
+                    editor_fg,
+                    editor_bg
+                );
             }
             // Render line if it exists
             let idx = y as usize + self.doc().offset.y;
@@ -94,7 +95,7 @@ impl Editor {
                             match colour {
                                 // Success, write token
                                 Ok(col) => {
-                                    queue!(self.terminal.stdout, Fg(col))?;
+                                    display!(self, Fg(col));
                                 }
                                 // Failure, show error message and don't highlight this token
                                 Err(err) => {
@@ -109,28 +110,24 @@ impl Editor {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
                         if is_selected {
-                            queue!(
-                                self.terminal.stdout,
-                                Print(selection_bg),
-                                Print(selection_fg),
-                            )?;
+                            display!(self, selection_bg, selection_fg);
                         } else {
-                            queue!(self.terminal.stdout, Print(editor_bg),)?;
+                            display!(self, editor_bg);
                         }
-                        queue!(self.terminal.stdout, Print(c))?;
+                        display!(self, c);
                         x_pos += 1;
                     }
-                    queue!(self.terminal.stdout, Print(editor_fg))?;
+                    display!(self, editor_fg);
                 }
                 // Pad out the line (to remove any junk left over from previous render)
                 let tab_width = self.config.document.borrow().tab_width;
                 let line_width = width(&line, tab_width);
                 let pad_amount = w.saturating_sub(self.dent()).saturating_sub(line_width) + 1;
-                queue!(self.terminal.stdout, Print(" ".repeat(pad_amount)))?;
+                display!(self, " ".repeat(pad_amount));
             } else {
                 // Render empty line
                 let pad_amount = w.saturating_sub(self.dent()) + 1;
-                queue!(self.terminal.stdout, Print(" ".repeat(pad_amount)))?;
+                display!(self, " ".repeat(pad_amount));
             }
         }
         Ok(())
@@ -144,32 +141,28 @@ impl Editor {
         let tab_inactive_fg = Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?);
         let tab_active_bg = Bg(self.config.colors.borrow().tab_active_bg.to_color()?);
         let tab_active_fg = Fg(self.config.colors.borrow().tab_active_fg.to_color()?);
-        queue!(
-            self.terminal.stdout,
-            Print(tab_inactive_fg),
-            Print(tab_inactive_bg),
-        )?;
+        display!(self, tab_inactive_fg, tab_inactive_bg);
         for (c, document) in self.doc.iter().enumerate() {
             let document_header = self.config.tab_line.borrow().render(document);
             if c == self.ptr {
                 // Representing the document we're currently looking at
-                queue!(
-                    self.terminal.stdout,
-                    Print(tab_active_bg),
-                    Print(tab_active_fg),
+                display!(
+                    self,
+                    tab_active_bg,
+                    tab_active_fg,
                     SetAttribute(Attribute::Bold),
-                    Print(document_header),
+                    document_header,
                     SetAttribute(Attribute::Reset),
-                    Print(tab_inactive_fg),
-                    Print(tab_inactive_bg),
-                    Print("│"),
-                )?;
+                    tab_inactive_fg,
+                    tab_inactive_bg,
+                    "│"
+                );
             } else {
                 // Other document that is currently open
-                queue!(self.terminal.stdout, Print(document_header), Print("│"))?;
+                display!(self, document_header, "│");
             }
         }
-        queue!(self.terminal.stdout, Print(" ".to_string().repeat(w)))?;
+        display!(self, " ".to_string().repeat(w));
         Ok(())
     }
 
@@ -182,16 +175,16 @@ impl Editor {
         let status_bg = Bg(self.config.colors.borrow().status_bg.to_color()?);
         let status_fg = Fg(self.config.colors.borrow().status_fg.to_color()?);
         let content = self.config.status_line.borrow().render(self, lua, w);
-        queue!(
-            self.terminal.stdout,
-            Print(status_bg),
-            Print(status_fg),
+        display!(
+            self,
+            status_bg,
+            status_fg,
             SetAttribute(Attribute::Bold),
-            Print(content),
+            content,
             SetAttribute(Attribute::Reset),
-            Print(editor_fg),
-            Print(editor_bg),
-        )?;
+            editor_fg,
+            editor_bg
+        );
         Ok(())
     }
 
@@ -199,7 +192,7 @@ impl Editor {
     pub fn render_feedback_line(&mut self, w: usize, h: usize) -> Result<()> {
         self.terminal.goto(0, h + 2)?;
         let content = self.feedback.render(&self.config.colors.borrow(), w)?;
-        queue!(self.terminal.stdout, Print(content))?;
+        display!(self, content);
         Ok(())
     }
 
@@ -209,7 +202,7 @@ impl Editor {
         let message = self.config.help_message.borrow().render(lua, &colors)?;
         for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
             self.terminal.goto(w.saturating_sub(30), h / 4 + c + 1)?;
-            queue!(self.terminal.stdout, Print(line))?;
+            display!(self, line);
         }
         Ok(())
     }
@@ -222,7 +215,7 @@ impl Editor {
         for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
             self.terminal.goto(4, h / 4 + c + 1)?;
             let content = alinio::align::center(line, w.saturating_sub(4)).unwrap_or_default();
-            queue!(self.terminal.stdout, Print(content),)?;
+            display!(self, content);
         }
         Ok(())
     }
@@ -240,14 +233,14 @@ impl Editor {
             self.terminal.prepare_line(h)?;
             self.terminal.show_cursor()?;
             let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
-            queue!(
-                self.terminal.stdout,
-                Print(editor_bg),
-                Print(prompt.clone()),
-                Print(": "),
-                Print(input.clone()),
-                Print(" ".to_string().repeat(w)),
-            )?;
+            display!(
+                self,
+                editor_bg,
+                prompt.clone(),
+                ": ",
+                input.clone(),
+                " ".to_string().repeat(w)
+            );
             self.terminal.goto(prompt.len() + input.len() + 2, h)?;
             self.terminal.flush()?;
             // Handle events

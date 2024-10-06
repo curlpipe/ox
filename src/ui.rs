@@ -19,6 +19,17 @@ use std::cell::RefCell;
 use std::io::{stdout, Stdout, Write};
 use std::rc::Rc;
 
+/// Printing macro
+#[macro_export]
+macro_rules! display {
+    ( $self:expr, $( $x:expr ),* ) => {
+        queue!($self.terminal.stdout, SetAttribute(Attribute::NormalIntensity))?;
+        $(
+            queue!($self.terminal.stdout, Print($x))?;
+        )*
+    };
+}
+
 /// Gets the size of the terminal
 pub fn size() -> Result<Size> {
     let (w, h) = terminal::size()?;
@@ -100,7 +111,7 @@ impl Terminal {
                 LeaveAlternateScreen,
                 Show,
                 DisableMouseCapture,
-                EnableBracketedPaste
+                EnableBracketedPaste,
             )
             .unwrap();
             eprintln!("{e}");
