@@ -6,6 +6,7 @@ use kaolinite::event::Error as KError;
 use kaolinite::Document;
 use mlua::{Error as LuaError, Lua};
 use std::io::ErrorKind;
+use std::path::Path;
 use std::time::Instant;
 use synoptic::Highlighter;
 
@@ -16,6 +17,7 @@ mod mouse;
 mod scanning;
 
 /// For managing all editing and rendering of cactus
+#[allow(clippy::struct_excessive_bools)]
 pub struct Editor {
     /// Interface for writing to the terminal
     pub terminal: Terminal,
@@ -43,6 +45,8 @@ pub struct Editor {
     pub push_down: usize,
     /// Used to cache the location of the configuration file
     pub config_path: String,
+    /// Flag to determine whether or not the editor is under control by a plug-in
+    pub plugin_active: bool,
 }
 
 impl Editor {
@@ -63,6 +67,7 @@ impl Editor {
             last_active: Instant::now(),
             push_down: 1,
             config_path: "~/.oxrc".to_string(),
+            plugin_active: false,
         })
     }
 
@@ -115,15 +120,12 @@ impl Editor {
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
         // Update in the syntax highlighter
-        let mut ext = file_name.split('.').last().unwrap_or("");
-        if ext == "oxrc" {
-            ext = "lua";
-        }
+        let ext = which_extension(&doc);
         let mut highlighter = self
             .config
             .syntax_highlighting
             .borrow()
-            .get_highlighter(ext);
+            .get_highlighter(&ext.unwrap_or_default());
         highlighter.run(&doc.lines);
         self.highlighter.push(highlighter);
         doc.undo_mgmt.saved();
@@ -134,7 +136,7 @@ impl Editor {
 
     /// Function to ask the user for a file to open
     pub fn open_document(&mut self) -> Result<()> {
-        let path = self.prompt("File to open")?;
+        let path = self.path_prompt()?;
         self.open(&path)?;
         self.ptr = self.doc.len().saturating_sub(1);
         Ok(())
@@ -185,12 +187,12 @@ impl Editor {
         let file_name = self.prompt("Save as")?;
         self.doc_mut().save_as(&file_name)?;
         if self.doc().file_name.is_none() {
-            let ext = file_name.split('.').last().unwrap_or("");
+            let ext = which_extension(self.doc());
             self.highlighter[self.ptr] = self
                 .config
                 .syntax_highlighting
                 .borrow()
-                .get_highlighter(ext);
+                .get_highlighter(&ext.unwrap_or_default());
             self.doc_mut().file_name = Some(file_name.clone());
             self.doc_mut().info.modified = false;
         }
@@ -354,4 +356,18 @@ impl Editor {
         }
         Ok(())
     }
+}
+
+/// Takes a document, and tries to help determine the file type
+pub fn which_extension(doc: &Document) -> Option<String> {
+    let file_name = doc.file_name.clone().unwrap_or_default();
+    let is_config = Path::new(&file_name)
+        .extension()
+        .map_or(false, |ext| ext.eq_ignore_ascii_case("oxrc"));
+    match (is_config, doc.get_file_type()) {
+        (true, _) => Some("lua"),
+        (false, Some(ext)) => Some(ext),
+        (_, None) => None,
+    }
+    .map(std::string::ToString::to_string)
 }

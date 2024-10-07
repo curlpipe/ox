@@ -2,6 +2,7 @@ use kaolinite::event::Error as KError;
 use quick_error::quick_error;
 
 quick_error! {
+    /// Error type used throughout the editor
     #[derive(Debug)]
     pub enum OxError {
         Render(err: std::io::Error) {
@@ -31,4 +32,5 @@ quick_error! {
     }
 }
 
+/// Easy syntax sugar to have functions return the custom error type
 pub type Result<T> = std::result::Result<T, OxError>;

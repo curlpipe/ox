@@ -207,6 +207,7 @@ pub enum Color {
 }
 
 impl Color {
+    /// Converts from a lua value into a colour
     pub fn from_lua(value: LuaValue<'_>) -> Self {
         match value {
             LuaValue::String(string) => match string.to_str().unwrap_or("transparent") {
@@ -263,6 +264,7 @@ impl Color {
         }
     }
 
+    /// Converts from a colour into a lua value
     pub fn to_lua<'a>(&self, env: &'a Lua) -> LuaValue<'a> {
         let msg = "Failed to create lua string";
         match self {
@@ -299,6 +301,7 @@ impl Color {
         }
     }
 
+    /// Returns a colour as a crossterm colour, ready to turn into ANSI codes
     pub fn to_color(&self) -> Result<CColor> {
         Ok(match self {
             Color::Hex(hex) => {
@@ -331,6 +334,7 @@ impl Color {
         })
     }
 
+    /// Turn a hex value into an rgb value
     fn hex_to_rgb(hex: &str) -> Result<(u8, u8, u8)> {
         // Remove the leading '#' if present
         let hex = hex.trim_start_matches('#');

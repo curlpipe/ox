@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.6
+Auto Indent v0.7
 
 Helps you when programming by guessing where indentation should go
 and then automatically applying these guesses as you program
@@ -149,8 +149,10 @@ function autoindent:disperse_block()
     local indenting_above = autoindent:causes_indent(editor.cursor.y - 1)
     local current_dedenting = autoindent:causes_dedent(editor.cursor.y)
     if indenting_above and current_dedenting then
+        local starting_indent = autoindent:get_indent(editor.cursor.y - 1)
         local old_cursor = editor.cursor
         editor:insert_line()
+        autoindent:set_indent(editor.cursor.y, starting_indent)
         editor:move_to(old_cursor.x, old_cursor.y)
     end
 end

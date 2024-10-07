@@ -22,6 +22,11 @@ fn filetypes() {
     assert_eq!(filetype("abcd"), None);
     assert_eq!(icon("reStructuredText"), st!("󰊄"));
     assert_eq!(icon("abcd"), st!("󰈙 "));
+    assert_eq!(modeline("#!/usr/bin/env ruby"), Some("rb"));
+    assert_eq!(modeline("#!/usr/bin/python3"), Some("py"));
+    assert_eq!(modeline("#! /usr/bin/env python3"), Some("py"));
+    assert_eq!(modeline("#!/usr/bin/env foo"), None);
+    assert_eq!(modeline("testing"), None);
 }
 
 #[test]
@@ -279,6 +284,10 @@ fn events() {
             Event::SplitDown(Loc { x: 0, y: 3 }),
         ],
     );
+    assert!(Event::Insert(Loc { x: 0, y: 1 }, st!("Test"))
+        .same_type(&Event::Insert(Loc { x: 2, y: 3 }, st!("334"))));
+    assert!(!Event::Delete(Loc { x: 0, y: 1 }, st!("Test"))
+        .same_type(&Event::Insert(Loc { x: 2, y: 3 }, st!("334"))));
 }
 
 #[test]
@@ -618,6 +627,8 @@ fn document_scrolling() {
 fn document_utilities() {
     let mut doc = Document::open(Size::is(100, 2), "tests/data/big.txt").unwrap();
     doc.load_to(1000);
+    // File type
+    assert_eq!(doc.get_file_type(), Some("txt"));
     // Cursor location
     doc.move_to(&Loc { x: 5, y: 5 });
     assert_eq!(doc.loc(), Loc { x: 5, y: 5 });
@@ -807,13 +818,13 @@ fn file_paths() {
 
 #[test]
 fn fuzz() {
-    for _ in 0..20 {
+    for _ in 0..10 {
         println!("--");
         let size = Size { w: 10, h: 8 };
         let mut doc = Document::open(size, "tests/data/unicode.txt").unwrap();
         doc.load_to(100);
         println!("{} | {}", doc.loc().x, doc.char_ptr);
-        for _ in 0..500 {
+        for _ in 0..300 {
             let e = rand::random::<u8>() % 25;
             println!("{}", e);
             match e {

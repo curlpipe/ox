@@ -24,6 +24,7 @@ use std::rc::Rc;
 use std::result::Result as RResult;
 use ui::Feedback;
 
+/// Entry point - grabs command line arguments and runs the editor
 fn main() {
     // Interact with user to find out what they want to do
     let cli = CommandLineInterface::new();
@@ -37,6 +38,7 @@ fn main() {
     }
 }
 
+/// Run the editor
 fn run(cli: &CommandLineInterface) -> Result<()> {
     // Create lua interpreter
     let lua = Lua::new();
@@ -51,6 +53,9 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     let editor = Rc::new(RefCell::new(editor));
     lua.globals().set("editor", editor.clone())?;
 
+    // Inject the networking library for plug-ins to use
+    handle_lua_error(&editor, "", lua.load(PLUGIN_NETWORKING).exec());
+
     // Load config and initialise
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
     let result = editor.borrow_mut().load_config(&cli.config_path, &lua);
@@ -58,9 +63,6 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         // Handle error if available
         handle_lua_error(&editor, "configuration", Err(err));
     };
-
-    // Inject the networking library for plug-ins to use
-    handle_lua_error(&editor, "", lua.load(PLUGIN_NETWORKING).exec());
 
     // Open files user has asked to open
     for (c, file) in cli.to_open.iter().enumerate() {
@@ -96,7 +98,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         let hl = holder.get_highlighter(this_doc);
         hl.run(&lines);
         if cli.flags.read_only {
-            editor.borrow_mut().get_doc(this_doc).info.read_only = true;
+            holder.get_doc(this_doc).info.read_only = true;
         }
     }
 
@@ -175,6 +177,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     Ok(())
 }
 
+/// Handle a lua error, showing the user an informative error
 fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<(), mlua::Error>) {
     match error {
         // All good
@@ -245,7 +248,7 @@ fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<
     }
 }
 
-// Run a command in the editor
+/// Run a command in the editor
 fn run_editor_command(editor: &Rc<RefCell<Editor>>, cmd: &str, lua: &Lua) {
     let cmd = cmd.replace('\'', "\\'").to_string();
     if let [subcmd, arguments @ ..] = cmd.split(' ').collect::<Vec<&str>>().as_slice() {

@@ -19,6 +19,17 @@ use std::cell::RefCell;
 use std::io::{stdout, Stdout, Write};
 use std::rc::Rc;
 
+/// Printing macro
+#[macro_export]
+macro_rules! display {
+    ( $self:expr, $( $x:expr ),* ) => {
+        queue!($self.terminal.stdout, SetAttribute(Attribute::NormalIntensity))?;
+        $(
+            queue!($self.terminal.stdout, Print($x))?;
+        )*
+    };
+}
+
 /// Gets the size of the terminal
 pub fn size() -> Result<Size> {
     let (w, h) = terminal::size()?;
@@ -100,7 +111,7 @@ impl Terminal {
                 LeaveAlternateScreen,
                 Show,
                 DisableMouseCapture,
-                EnableBracketedPaste
+                EnableBracketedPaste,
             )
             .unwrap();
             eprintln!("{e}");
@@ -139,16 +150,19 @@ impl Terminal {
         Ok(())
     }
 
+    /// Shows the cursor on the screen
     pub fn show_cursor(&mut self) -> Result<()> {
         queue!(self.stdout, Show)?;
         Ok(())
     }
 
+    /// Hides the cursor on the screen
     pub fn hide_cursor(&mut self) -> Result<()> {
         queue!(self.stdout, Hide)?;
         Ok(())
     }
 
+    /// Moves the cursor to a specific position on screen
     pub fn goto<Num: Into<usize>>(&mut self, x: Num, y: Num) -> Result<()> {
         let x: usize = x.into();
         let y: usize = y.into();
@@ -162,16 +176,19 @@ impl Terminal {
         Ok(())
     }
 
+    /// Clears the current line
     pub fn clear_current_line(&mut self) -> Result<()> {
         queue!(self.stdout, Clear(ClType::CurrentLine))?;
         Ok(())
     }
 
+    /// Moves to a line and makes sure it is cleared
     pub fn prepare_line(&mut self, y: usize) -> Result<()> {
         self.goto(0, y)?;
         self.clear_current_line()
     }
 
+    /// Flush the stdout (push the queued events to the screen)
     pub fn flush(&mut self) -> Result<()> {
         self.stdout.flush()?;
         Ok(())

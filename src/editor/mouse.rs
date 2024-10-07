@@ -3,13 +3,18 @@ use kaolinite::Loc;
 
 use super::Editor;
 
+/// Represents where the mouse has clicked / been dragged
 enum MouseLocation {
+    /// Where the mouse has clicked within a file
     File(Loc),
+    /// Where the mouse has clicked on a tab
     Tabs(usize),
+    /// Mouse has clicked nothing of importance
     Out,
 }
 
 impl Editor {
+    /// Finds the position of the mouse within the viewport
     fn find_mouse_location(&mut self, event: MouseEvent) -> MouseLocation {
         let tab_enabled = self.config.tab_line.borrow().enabled;
         let tab = usize::from(tab_enabled);
@@ -34,6 +39,7 @@ impl Editor {
         }
     }
 
+    /// Handles a mouse event (dragging / clicking)
     pub fn handle_mouse_event(&mut self, event: MouseEvent) {
         match event.kind {
             MouseEventKind::Down(MouseButton::Left) => match self.find_mouse_location(event) {

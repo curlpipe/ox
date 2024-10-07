@@ -1,7 +1,7 @@
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
-use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_RUN};
+use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::{Loc, Size};
 use mlua::prelude::*;
 
@@ -49,6 +49,8 @@ impl LuaUserData for Editor {
         methods.add_method_mut("reload_plugins", |lua, editor, ()| {
             // Provide plug-in bootstrap
             let _ = lua.load(PLUGIN_BOOTSTRAP).exec();
+            // Provide networking to plug-ins and configuration file
+            let _ = lua.load(PLUGIN_NETWORKING).exec();
             // Reload the configuration file
             let path = editor.config_path.clone();
             if editor.load_config(&path, lua).is_some() {
@@ -81,33 +83,41 @@ impl LuaUserData for Editor {
         });
         // Edit commands (relative)
         methods.add_method_mut("insert", |_, editor, text: String| {
+            editor.plugin_active = true;
             for ch in text.chars() {
                 if let Err(err) = editor.character(ch) {
                     editor.feedback = Feedback::Error(err.to_string());
                 }
             }
             editor.update_highlighter();
+            editor.plugin_active = false;
             Ok(())
         });
         methods.add_method_mut("remove", |_, editor, ()| {
+            editor.plugin_active = true;
             if let Err(err) = editor.backspace() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
+            editor.plugin_active = false;
             Ok(())
         });
         methods.add_method_mut("insert_line", |_, editor, ()| {
+            editor.plugin_active = true;
             if let Err(err) = editor.enter() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
+            editor.plugin_active = false;
             Ok(())
         });
         methods.add_method_mut("remove_line", |_, editor, ()| {
+            editor.plugin_active = true;
             if let Err(err) = editor.delete_line() {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
+            editor.plugin_active = false;
             Ok(())
         });
         // Cursor moving
@@ -204,11 +214,13 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("cut", |_, editor, ()| {
+            editor.plugin_active = true;
             if let Err(err) = editor.cut() {
                 editor.feedback = Feedback::Error(err.to_string());
             } else {
                 editor.feedback = Feedback::Info("Text cut to clipboard".to_owned());
             }
+            editor.plugin_active = false;
             Ok(())
         });
         methods.add_method_mut("copy", |_, editor, ()| {
@@ -223,6 +235,7 @@ impl LuaUserData for Editor {
         methods.add_method_mut(
             "insert_at",
             |_, editor, (text, x, y): (String, usize, usize)| {
+                editor.plugin_active = true;
                 let y = y.saturating_sub(1);
                 let location = editor.doc_mut().char_loc();
                 editor.doc_mut().move_to(&Loc { y, x });
@@ -233,10 +246,12 @@ impl LuaUserData for Editor {
                 }
                 editor.doc_mut().move_to(&location);
                 editor.update_highlighter();
+                editor.plugin_active = false;
                 Ok(())
             },
         );
         methods.add_method_mut("remove_at", |_, editor, (x, y): (usize, usize)| {
+            editor.plugin_active = true;
             let y = y.saturating_sub(1);
             let location = editor.doc_mut().char_loc();
             editor.doc_mut().move_to(&Loc { y, x });
@@ -245,9 +260,11 @@ impl LuaUserData for Editor {
             }
             editor.doc_mut().move_to(&location);
             editor.update_highlighter();
+            editor.plugin_active = false;
             Ok(())
         });
         methods.add_method_mut("insert_line_at", |_, editor, (text, y): (String, usize)| {
+            editor.plugin_active = true;
             let y = y.saturating_sub(1);
             let location = editor.doc_mut().char_loc();
             if y < editor.doc().len_lines() {
@@ -270,9 +287,11 @@ impl LuaUserData for Editor {
             }
             editor.doc_mut().move_to(&location);
             editor.update_highlighter();
+            editor.plugin_active = false;
             Ok(())
         });
         methods.add_method_mut("remove_line_at", |_, editor, y: usize| {
+            editor.plugin_active = true;
             let y = y.saturating_sub(1);
             let location = editor.doc_mut().char_loc();
             editor.doc_mut().move_to_y(y);
@@ -281,6 +300,7 @@ impl LuaUserData for Editor {
             }
             editor.doc_mut().move_to(&location);
             editor.update_highlighter();
+            editor.plugin_active = false;
             Ok(())
         });
         methods.add_method("get_character", |_, editor, ()| {
@@ -383,6 +403,10 @@ impl LuaUserData for Editor {
             editor.update_highlighter();
             Ok(())
         });
+        methods.add_method_mut("commit", |_, editor, ()| {
+            editor.doc_mut().commit();
+            Ok(())
+        });
         // Searching and replacing
         methods.add_method_mut("search", |_, editor, ()| {
             if let Err(err) = editor.search() {
@@ -476,12 +500,14 @@ impl LuaUserData for Editor {
     }
 }
 
+/// For representing a cursor location object within lua
 pub struct LuaLoc {
     x: usize,
     y: usize,
 }
 
 impl IntoLua<'_> for LuaLoc {
+    /// Convert this rust struct so the plug-in and configuration system can use it
     fn into_lua(self, lua: &Lua) -> std::result::Result<LuaValue<'_>, LuaError> {
         let table = lua.create_table()?;
         table.set("x", self.x)?;

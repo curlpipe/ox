@@ -3,12 +3,13 @@ use crate::event::{Error, Event, Result, Status, UndoMgmt};
 use crate::map::{form_map, CharMap};
 use crate::searching::{Match, Searcher};
 use crate::utils::{
-    get_range, tab_boundaries_backward, tab_boundaries_forward, trim, width, Loc, Size,
+    get_range, modeline, tab_boundaries_backward, tab_boundaries_forward, trim, width, Loc, Size,
 };
 use ropey::Rope;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::ops::{Range, RangeBounds};
+use std::path::Path;
 
 /// A document info struct to store information about the file it represents
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -129,6 +130,24 @@ impl Document {
         Ok(this)
     }
 
+    /// Determine the file type of this file (represented by an extension)
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn get_file_type(&self) -> Option<&str> {
+        let mut result = None;
+        // Try to use modeline first off
+        if let Some(first_line) = self.lines.first() {
+            result = modeline(first_line);
+        }
+        // If an extension is available, use that instead
+        if let Some(file_name) = &self.file_name {
+            if let Some(extension) = Path::new(file_name).extension() {
+                result = extension.to_str();
+            }
+        }
+        result
+    }
+
     /// Sets the tab display width measured in spaces, default being 4
     pub fn set_tab_width(&mut self, tab_width: usize) {
         self.tab_width = tab_width;
@@ -172,6 +191,7 @@ impl Document {
     /// Will return an error if the event was unable to be completed.
     pub fn exe(&mut self, ev: Event) -> Result<()> {
         if !self.info.read_only {
+            self.undo_mgmt.last_event = ev.clone();
             self.undo_mgmt.set_dirty();
             self.forth(ev)?;
         }

@@ -163,6 +163,52 @@ pub fn get_file_ext(path: &str) -> Option<String> {
         .map(std::string::ToString::to_string)
 }
 
+/// Will get the current working directory
+#[must_use]
+#[cfg(not(tarpaulin_include))]
+pub fn get_cwd() -> Option<String> {
+    Some(std::env::current_dir().ok()?.display().to_string())
+}
+
+/// Will list a directory
+#[must_use]
+#[cfg(not(tarpaulin_include))]
+pub fn list_dir(path: &str) -> Option<Vec<String>> {
+    Some(
+        std::fs::read_dir(path)
+            .ok()?
+            .filter_map(std::result::Result::ok)
+            .filter_map(|e| e.path().to_str().map(std::string::ToString::to_string))
+            .collect(),
+    )
+}
+
+/// Get the parent directory
+#[must_use]
+#[cfg(not(tarpaulin_include))]
+pub fn get_parent(path: &str) -> Option<String> {
+    Path::new(path).parent().map(|p| p.display().to_string())
+}
+
+/// Determine if something is a directory or a file
+#[must_use]
+#[cfg(not(tarpaulin_include))]
+pub fn file_or_dir(path: &str) -> &str {
+    let path = Path::new(path);
+    let metadata = std::fs::metadata(path);
+    if let Ok(metadata) = metadata {
+        if metadata.is_file() {
+            "file"
+        } else if metadata.is_dir() {
+            "directory"
+        } else {
+            "neither"
+        }
+    } else {
+        "neither"
+    }
+}
+
 /// Determine the filetype from the extension
 #[allow(clippy::too_many_lines)]
 #[must_use]
@@ -373,4 +419,39 @@ pub fn icon(language: &str) -> String {
         _ => "󰈙 ",
     }
     .to_string()
+}
+
+/// Determine the file extension based off the magic modeline (if present)
+#[must_use]
+pub fn modeline(first_line: &str) -> Option<&str> {
+    // Create a regex to handle leading/trailing whitespaces and spaces between '#!' and path
+    let re = regex!(r"^#!\s*/\s*(\S+)(\s+\S+)?");
+
+    // Match the cleaned-up shebang
+    if let Some(caps) = re.captures(first_line) {
+        let shebang = caps
+            .get(0)
+            .map(|m| m.as_str().replace("#! ", "#!"))
+            .unwrap_or_default();
+        match shebang.as_str() {
+            "#!/bin/sh" | "#!/usr/bin/env bash" | "#!/bin/bash" => Some("sh"),
+            "#!/usr/bin/python"
+            | "#!/usr/bin/python3"
+            | "#!/usr/bin/env python"
+            | "#!/usr/bin/env python3" => Some("py"),
+            "#!/usr/bin/env ruby" | "#!/usr/bin/ruby" => Some("rb"),
+            "#!/usr/bin/perl" | "#!/usr/bin/env perl" => Some("pl"),
+            "#!/usr/bin/env node" | "#!/usr/bin/node" => Some("js"),
+            "#!/usr/bin/env lua" | "#!/usr/bin/lua" => Some("lua"),
+            "#!/usr/bin/env php" | "#!/usr/bin/php" => Some("php"),
+            "#!/usr/bin/env rust" => Some("rs"),
+            "#!/usr/bin/env tcl" => Some("tcl"),
+            "#!/bin/awk" | "#!/usr/bin/env awk" => Some("awk"),
+            "#!/bin/sed" | "#!/usr/bin/env sed" => Some("sed"),
+            "#!/usr/bin/env fish" => Some("fish"),
+            _ => None,
+        }
+    } else {
+        None
+    }
 }

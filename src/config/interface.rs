@@ -1,9 +1,9 @@
 use crate::cli::VERSION;
-use crate::editor::Editor;
+use crate::editor::{which_extension, Editor};
 use crate::error::Result;
 use crossterm::style::SetForegroundColor as Fg;
 use kaolinite::searching::Searcher;
-use kaolinite::utils::{filetype, get_absolute_path, get_file_ext, get_file_name, icon};
+use kaolinite::utils::{filetype, get_absolute_path, get_file_name, icon};
 use kaolinite::Document;
 use mlua::prelude::*;
 
@@ -217,12 +217,13 @@ impl Default for TabLine {
 }
 
 impl TabLine {
+    /// Take the configuration information and render the tab line
     pub fn render(&self, document: &Document) -> String {
         let path = document
             .file_name
             .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
-        let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
+        let file_extension = which_extension(document).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
         let icon = icon(&filetype(&file_extension).unwrap_or_default());
@@ -274,6 +275,7 @@ impl Default for StatusLine {
 }
 
 impl StatusLine {
+    /// Take the configuration information and render the status line
     pub fn render(&self, editor: &Editor, lua: &Lua, w: usize) -> String {
         let mut result = vec![];
         let path = editor
@@ -281,7 +283,7 @@ impl StatusLine {
             .file_name
             .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
-        let file_extension = get_file_ext(&path).unwrap_or_default();
+        let file_extension = which_extension(editor.doc()).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_type = filetype(&file_extension).unwrap_or_else(|| {
@@ -376,10 +378,12 @@ pub enum StatusAlign {
 }
 
 impl StatusAlign {
+    /// Converts a status line alignment value from string representation (in lua)
     pub fn from_string(string: &str) -> Self {
         match string {
             "around" => Self::Around,
             "between" => Self::Between,
+            // If the user has provided some random value, just default to between
             _ => {
                 issue_warning(
                     "\
@@ -393,6 +397,7 @@ impl StatusAlign {
 }
 
 impl From<StatusAlign> for String {
+    /// Turns a status line object into a string
     fn from(val: StatusAlign) -> Self {
         match val {
             StatusAlign::Around => "around",
