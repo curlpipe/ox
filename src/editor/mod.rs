@@ -1,7 +1,7 @@
 use crate::config::{Config, Indentation};
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback, Terminal};
-use crossterm::event::{Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEventKind};
+use crossterm::event::{Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEventKind, MouseEvent};
 use kaolinite::event::Error as KError;
 use kaolinite::Document;
 use mlua::{Error as LuaError, Lua};
@@ -47,6 +47,8 @@ pub struct Editor {
     pub config_path: String,
     /// Flag to determine whether or not the editor is under control by a plug-in
     pub plugin_active: bool,
+    /// Stores the last click the user made (in order to detect double-click)
+    pub last_click: Option<(Instant, MouseEvent)>,
 }
 
 impl Editor {
@@ -68,6 +70,7 @@ impl Editor {
             push_down: 1,
             config_path: "~/.oxrc".to_string(),
             plugin_active: false,
+            last_click: None,
         })
     }
 
