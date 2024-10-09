@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.7
+Auto Indent v0.8
 
 Helps you when programming by guessing where indentation should go
 and then automatically applying these guesses as you program
@@ -170,10 +170,23 @@ event_mapping["enter"] = function()
     autoindent:disperse_block()
 end
 
-event_mapping["*"] = function()
-    -- Dedent where appropriate
-    if autoindent:causes_dedent(editor.cursor.y) then
-        local new_level = autoindent:get_indent(editor.cursor.y) - 1
-        autoindent:set_indent(editor.cursor.y, new_level)
+-- For each ascii characters and punctuation
+was_dedenting = false
+for i = 32, 126 do
+    local char = string.char(i)
+    -- ... excluding the global event binding
+    if char ~= "*" then
+        -- Keep track of whether the line was previously dedenting beforehand
+        event_mapping["before:" .. char] = function()
+            was_dedenting = autoindent:causes_dedent(editor.cursor.y)
+        end
+        -- Trigger dedent checking
+        event_mapping[char] = function()
+            -- Dedent where appropriate
+            if autoindent:causes_dedent(editor.cursor.y) and not was_dedenting then
+                local new_level = autoindent:get_indent(editor.cursor.y) - 1
+                autoindent:set_indent(editor.cursor.y, new_level)
+            end
+        end
     end
 end
