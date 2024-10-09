@@ -64,11 +64,12 @@ function plugin_manager:uninstall(plugin)
     -- Check if downloaded / in config
     local downloaded = self:plugin_downloaded(plugin)
     local in_config = self:plugin_in_config(plugin)
+    local is_builtin = self:plugin_is_builtin(plugin)
     if not downloaded and not in_config then
-        editor:display_error("Plugin does not exist")
+        editor:display_error("Plugin is not installed")
         return
     end
-    if downloaded then
+    if downloaded and not is_builtin then
         local result = plugin_manager:remove_plugin(plugin)
         if result ~= nil then
             editor:display_error(result)
@@ -91,11 +92,23 @@ end
 function plugin_manager:status()
     local count = 0
     local list = ""
+    for _, v in ipairs(builtins) do
+        count = count + 1
+        list = list .. v:match("(.+).lua$") .. " "
+    end
     for _, v in ipairs(plugins) do
         count = count + 1
         list = list .. v:match("^.+[\\/](.+).lua$") .. " "
     end
     editor:display_info(tostring(count) .. " plug-ins installed: " .. list)
+end
+
+-- Verify whether or not a plug-in is built-in
+function plugin_manager:plugin_is_builtin(plugin)
+    local base = plugin .. ".lua"
+    local is_autoindent = base == "autoindent.lua"
+    local is_pairs = base == "pairs.lua"
+    return is_autoindent or is_pairs
 end
 
 -- Verify whether or not a plug-in is downloaded
@@ -106,9 +119,8 @@ function plugin_manager:plugin_downloaded(plugin)
     local path_win = home .. "/ox/" .. base
     local installed = file_exists(path_cross) or file_exists(path_unix) or file_exists(path_win)
     -- Return true if plug-ins are built in
-    local is_autoindent = base == "autoindent.lua"
-    local is_pairs = base == "pairs.lua"
-    return installed or is_pairs or is_autoindent
+    local builtin = self:plugin_is_builtin(plugin)
+    return installed or builtin
 end
 
 -- Download a plug-in from the ox repository

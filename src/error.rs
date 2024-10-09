@@ -28,6 +28,9 @@ quick_error! {
             from()
             display("Error in lua: {}", err)
         }
+        Cancelled {
+            display("Operation Cancelled")
+        }
         None
     }
 }

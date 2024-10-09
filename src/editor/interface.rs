@@ -1,5 +1,5 @@
 use crate::display;
-use crate::error::Result;
+use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
@@ -250,6 +250,8 @@ impl Editor {
                 match (key.modifiers, key.code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
+                    // Cancel operation
+                    (KMod::NONE, KCode::Esc) => return Err(OxError::Cancelled),
                     // Remove from the input string if the user presses backspace
                     (KMod::NONE, KCode::Backspace) => {
                         input.pop();
@@ -267,19 +269,31 @@ impl Editor {
     /// Prompt for selecting a file
     pub fn path_prompt(&mut self) -> Result<String> {
         let mut input = get_cwd().map(|s| s + "/").unwrap_or_default();
+        let mut offset = 0;
         let mut done = false;
+        let mut old_suggestions = vec![];
         // Enter into a menu that asks for a prompt
         while !done {
-            // Find the suggested file / folder
+            // Find the suggested files and folders
             let parent = if input.ends_with('/') {
                 input.to_string()
             } else {
                 get_parent(&input).unwrap_or_default()
             };
-            let mut suggestion = list_dir(&parent)
+            let suggestions = list_dir(&parent)
                 .unwrap_or_default()
                 .iter()
-                .find(|p| p.starts_with(&input))
+                .filter(|p| p.starts_with(&input))
+                .cloned()
+                .collect::<Vec<_>>();
+            // Reset offset if we've changed suggestions / out of bounds
+            if suggestions != old_suggestions || offset >= suggestions.len() {
+                offset = 0;
+            }
+            old_suggestions.clone_from(&suggestions);
+            // Select suggestion
+            let mut suggestion = suggestions
+                .get(offset)
                 .map(std::string::ToString::to_string)
                 .unwrap_or(input.clone());
             // Render prompt message
@@ -307,6 +321,8 @@ impl Editor {
                 match (key.modifiers, key.code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
+                    // Cancel when escape key is pressed
+                    (KMod::NONE, KCode::Esc) => return Err(OxError::Cancelled),
                     // Remove from the input string if the user presses backspace
                     (KMod::NONE, KCode::Backspace) => {
                         input.pop();
@@ -314,11 +330,19 @@ impl Editor {
                     // Add to the input string if the user presses a character
                     (KMod::NONE | KMod::SHIFT, KCode::Char(c)) => input.push(c),
                     // Autocomplete path
-                    (KMod::NONE, KCode::Right | KCode::Tab) => {
+                    (KMod::NONE, KCode::Right) => {
                         if file_or_dir(&suggestion) == "directory" {
                             suggestion += "/";
                         }
                         input = suggestion;
+                        offset = 0;
+                    }
+                    // Cycle through suggestions
+                    (KMod::SHIFT, KCode::BackTab) => offset = offset.saturating_sub(1),
+                    (KMod::NONE, KCode::Tab) => {
+                        if offset + 1 < suggestions.len() {
+                            offset += 1;
+                        }
                     }
                     _ => (),
                 }

@@ -25,6 +25,7 @@ function load_plugin(base)
     elseif file_exists(path_win) then
         path = file_win
     else
+        path = nil
         -- Prevent warning if plug-in is built-in
         local is_autoindent = base:match("autoindent.lua$") ~= nil
         local is_pairs = base:match("pairs.lua$") ~= nil
@@ -36,5 +37,7 @@ function load_plugin(base)
             table.insert(builtins, base)
         end
     end
-    plugins[#plugins + 1] = path
+    if path ~= nil then
+        plugins[#plugins + 1] = path
+    end
 end
