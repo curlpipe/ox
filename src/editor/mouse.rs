@@ -88,6 +88,13 @@ impl Editor {
                 }
                 MouseLocation::Tabs(_) | MouseLocation::Out => (),
             },
+            MouseEventKind::Drag(MouseButton::Right) => match self.find_mouse_location(event) {
+                MouseLocation::File(mut loc) => {
+                    loc.x = self.doc_mut().character_idx(&loc);
+                    self.doc_mut().select_to_y(loc.y);
+                }
+                MouseLocation::Tabs(_) | MouseLocation::Out => (),
+            },
             // Mouse scroll behaviour
             MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
                 if let MouseLocation::File(_) = self.find_mouse_location(event) {

@@ -839,7 +839,7 @@ impl Document {
     /// Select a line at a location
     pub fn select_line_at(&mut self, y: usize) {
         self.move_to(&Loc { x: 0, y });
-        self.select_to(&Loc { x: self.line(y).unwrap_or_default().chars().count(), y });
+        self.select_to(&Loc { x: 0, y: y + 1 });
     }
 
     /// Brings the cursor into the viewport so it can be seen
