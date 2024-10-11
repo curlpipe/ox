@@ -836,6 +836,12 @@ impl Document {
         self.old_cursor = self.loc().x;
     }
 
+    /// Select a line at a location
+    pub fn select_line_at(&mut self, y: usize) {
+        self.move_to(&Loc { x: 0, y });
+        self.select_to(&Loc { x: self.line(y).unwrap_or_default().chars().count(), y });
+    }
+
     /// Brings the cursor into the viewport so it can be seen
     pub fn bring_cursor_in_viewport(&mut self) {
         if self.offset.y > self.cursor.loc.y {

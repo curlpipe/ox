@@ -68,6 +68,12 @@ impl Editor {
                     MouseLocation::Out => (),
                 }
             }
+            MouseEventKind::Down(MouseButton::Right) => {
+                // Select the current line
+                if let MouseLocation::File(loc) = self.find_mouse_location(event) {
+                    self.doc_mut().select_line_at(loc.y);
+                }
+            }
             // Double click detection
             MouseEventKind::Up(MouseButton::Left) => {
                 let now = Instant::now();
