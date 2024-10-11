@@ -119,7 +119,7 @@ impl Editor {
                         display!(self, c);
                         x_pos += 1;
                     }
-                    display!(self, editor_fg);
+                    display!(self, editor_fg, editor_bg);
                 }
                 // Pad out the line (to remove any junk left over from previous render)
                 let tab_width = self.config.document.borrow().tab_width;
