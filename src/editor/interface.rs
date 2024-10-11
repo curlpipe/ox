@@ -90,38 +90,40 @@ impl Editor {
                 let tokens = trim(&tokens, self.doc().offset.x);
                 let mut x_pos = self.doc().offset.x;
                 for token in tokens {
-                    let text = match token {
+                    // Find out the text (and colour of that text)
+                    let (text, colour) = match token {
+                        // Non-highlighted text
                         TokOpt::Some(text, kind) => {
-                            // Try to get the corresponding colour for this token
                             let colour = self.config.syntax_highlighting.borrow().get_theme(&kind);
-                            match colour {
+                            let colour = match colour {
                                 // Success, write token
-                                Ok(col) => {
-                                    display!(self, Fg(col));
-                                }
+                                Ok(col) => Fg(col),
                                 // Failure, show error message and don't highlight this token
                                 Err(err) => {
                                     self.feedback = Feedback::Error(err.to_string());
+                                    editor_fg
                                 }
-                            }
-                            text
+                            };
+                            (text, colour)
                         }
-                        TokOpt::None(text) => text,
+                        // Highlighted text
+                        TokOpt::None(text) => (text, editor_fg),
                     };
+                    // Do the rendering
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
                         if is_selected {
                             display!(self, selection_bg, selection_fg);
                         } else {
-                            display!(self, editor_bg);
+                            display!(self, editor_bg, colour);
                         }
                         display!(self, c);
                         x_pos += 1;
                     }
-                    display!(self, editor_fg, editor_bg);
                 }
                 // Pad out the line (to remove any junk left over from previous render)
+                display!(self, editor_fg, editor_bg);
                 let tab_width = self.config.document.borrow().tab_width;
                 let line_width = width(&line, tab_width);
                 let pad_amount = w.saturating_sub(self.dent()).saturating_sub(line_width) + 1;
