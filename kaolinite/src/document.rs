@@ -767,10 +767,6 @@ impl Document {
     /// Function to select to a specific x position
     pub fn select_to_x(&mut self, x: usize) {
         let line = self.line(self.loc().y).unwrap_or_default();
-        // If we're already at this x coordinate, just exit
-        if self.char_ptr == x {
-            return;
-        }
         // If the move position is out of bounds, move to the end of the line
         if line.chars().count() < x {
             let line = self.line(self.loc().y).unwrap_or_default();

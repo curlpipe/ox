@@ -1,7 +1,9 @@
 use crate::config::{Config, Indentation};
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback, Terminal};
-use crossterm::event::{Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEventKind, MouseEvent};
+use crossterm::event::{
+    Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEvent, MouseEventKind,
+};
 use kaolinite::event::Error as KError;
 use kaolinite::Document;
 use mlua::{Error as LuaError, Lua};

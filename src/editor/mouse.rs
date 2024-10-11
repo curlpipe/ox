@@ -49,7 +49,8 @@ impl Editor {
                 if let Some((time, last_event)) = self.last_click {
                     let now = Instant::now();
                     let short_period = now.duration_since(time) <= Duration::from_millis(500);
-                    let same_location = last_event.column == event.column && last_event.row == event.row;
+                    let same_location =
+                        last_event.column == event.column && last_event.row == event.row;
                     if short_period && same_location {
                         self.handle_double_click(event);
                         return;
@@ -66,7 +67,7 @@ impl Editor {
                     }
                     MouseLocation::Out => (),
                 }
-            },
+            }
             // Double click detection
             MouseEventKind::Up(MouseButton::Left) => {
                 let now = Instant::now();
