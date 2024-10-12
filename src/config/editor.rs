@@ -24,7 +24,7 @@ impl LuaUserData for Editor {
         });
         fields.add_field_method_get("version", |_, _| Ok(VERSION));
         fields.add_field_method_get("current_document_id", |_, editor| Ok(editor.ptr));
-        fields.add_field_method_get("document_count", |_, editor| Ok(editor.doc.len()));
+        fields.add_field_method_get("document_count", |_, editor| Ok(editor.files.len()));
         fields.add_field_method_get("document_type", |_, editor| {
             let ext = editor
                 .doc()
@@ -437,14 +437,15 @@ impl LuaUserData for Editor {
             editor.doc_mut().info.read_only = status;
             Ok(())
         });
-        methods.add_method_mut("set_file_type", |_, editor, ext: String| {
-            let mut highlighter = editor
-                .config
-                .syntax_highlighting
-                .borrow()
-                .get_highlighter(&ext);
-            highlighter.run(&editor.doc().lines);
-            editor.highlighter[editor.ptr] = highlighter;
+        methods.add_method_mut("set_file_type", |_, editor, name: String| {
+            if let Some(file_type) = editor.config.document.borrow().file_types.get_name(&name) {
+                let mut highlighter = file_type.get_highlighter(&editor.config, 4);
+                highlighter.run(&editor.doc().lines);
+                editor.files[editor.ptr].highlighter = highlighter;
+                editor.files[editor.ptr].file_type = Some(file_type);
+            } else {
+                editor.feedback = Feedback::Error(format!("Invalid file type: {name}"));
+            }
             Ok(())
         });
         // Rerendering

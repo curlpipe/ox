@@ -8,15 +8,19 @@ use kaolinite::event::Error as KError;
 use kaolinite::Document;
 use mlua::{Error as LuaError, Lua};
 use std::io::ErrorKind;
-use std::path::Path;
 use std::time::Instant;
 use synoptic::Highlighter;
 
 mod cursor;
+mod documents;
 mod editing;
+mod filetypes;
 mod interface;
 mod mouse;
 mod scanning;
+
+pub use documents::FileContainer;
+pub use filetypes::{FileType, FileTypes};
 
 /// For managing all editing and rendering of cactus
 #[allow(clippy::struct_excessive_bools)]
@@ -28,9 +32,7 @@ pub struct Editor {
     /// Configuration information for the editor
     pub config: Config,
     /// Storage of all the documents opened in the editor
-    pub doc: Vec<Document>,
-    /// Syntax highlighting integration
-    pub highlighter: Vec<Highlighter>,
+    pub files: Vec<FileContainer>,
     /// Pointer to the document that is currently being edited
     pub ptr: usize,
     /// true if the editor is still running, false otherwise
@@ -58,14 +60,13 @@ impl Editor {
     pub fn new(lua: &Lua) -> Result<Self> {
         let config = Config::new(lua)?;
         Ok(Self {
-            doc: vec![],
+            files: vec![],
             ptr: 0,
             terminal: Terminal::new(config.terminal.clone()),
             config,
             active: true,
             greet: false,
             needs_rerender: true,
-            highlighter: vec![],
             feedback: Feedback::None,
             command: None,
             last_active: Instant::now(),
@@ -93,23 +94,26 @@ impl Editor {
         // Update in the syntax highlighter
         let mut highlighter = Highlighter::new(4);
         highlighter.run(&doc.lines);
-        self.highlighter.push(highlighter);
         // Add document to documents
-        self.doc.push(doc);
+        self.files.push(FileContainer {
+            highlighter,
+            file_type: Some(FileType::default()),
+            doc,
+        });
         Ok(())
     }
 
     /// Create a new document and move to it
     pub fn new_document(&mut self) -> Result<()> {
         self.blank()?;
-        self.ptr = self.doc.len().saturating_sub(1);
+        self.ptr = self.files.len().saturating_sub(1);
         Ok(())
     }
 
     /// Create a blank document if none are already opened
     pub fn new_if_empty(&mut self) -> Result<()> {
         // If no documents were provided, create a new empty document
-        if self.doc.is_empty() {
+        if self.files.is_empty() {
             self.blank()?;
             self.greet = self.config.greeting_message.borrow().enabled;
         }
@@ -121,21 +125,24 @@ impl Editor {
         let mut size = size()?;
         size.h = size.h.saturating_sub(1 + self.push_down);
         let mut doc = Document::open(size, file_name)?;
-        doc.set_tab_width(self.config.document.borrow().tab_width);
-        // Load all the lines within viewport into the document
+        // Collect various data from the document
+        let tab_width = self.config.document.borrow().tab_width;
+        let file_type = self.config.document.borrow().file_types.identify(&mut doc);
+        // Set up the document
+        doc.set_tab_width(tab_width);
         doc.load_to(size.h);
-        // Update in the syntax highlighter
-        let ext = which_extension(&doc);
-        let mut highlighter = self
-            .config
-            .syntax_highlighting
-            .borrow()
-            .get_highlighter(&ext.unwrap_or_default());
-        highlighter.run(&doc.lines);
-        self.highlighter.push(highlighter);
         doc.undo_mgmt.saved();
-        // Add document to documents
-        self.doc.push(doc);
+        // Update in the syntax highlighter
+        let mut highlighter = file_type.as_ref().map_or(Highlighter::new(tab_width), |t| {
+            t.get_highlighter(&self.config, tab_width)
+        });
+        highlighter.run(&doc.lines);
+        // Add in the file
+        self.files.push(FileContainer {
+            doc,
+            highlighter,
+            file_type,
+        });
         Ok(())
     }
 
@@ -143,7 +150,7 @@ impl Editor {
     pub fn open_document(&mut self) -> Result<()> {
         let path = self.path_prompt()?;
         self.open(&path)?;
-        self.ptr = self.doc.len().saturating_sub(1);
+        self.ptr = self.files.len().saturating_sub(1);
         Ok(())
     }
 
@@ -152,21 +159,28 @@ impl Editor {
         let file = self.open(&file_name);
         if let Err(OxError::Kaolinite(KError::Io(ref os))) = file {
             if os.kind() == ErrorKind::NotFound {
+                // Create a new document if not found
                 self.blank()?;
-                let binding = file_name.clone();
-                let ext = binding.split('.').last().unwrap_or("");
-                self.doc.last_mut().unwrap().file_name = Some(file_name);
-                self.doc.last_mut().unwrap().info.modified = true;
-                let highlighter = self
+                let file = self.files.last_mut().unwrap();
+                file.doc.file_name = Some(file_name);
+                // Work out information for the document
+                let tab_width = self.config.document.borrow().tab_width;
+                let file_type = self
                     .config
-                    .syntax_highlighting
+                    .document
                     .borrow()
-                    .get_highlighter(ext);
-                *self.highlighter.last_mut().unwrap() = highlighter;
-                self.highlighter
-                    .last_mut()
-                    .unwrap()
-                    .run(&self.doc.last_mut().unwrap().lines);
+                    .file_types
+                    .identify(&mut file.doc);
+                // Set up the document
+                file.doc.info.modified = true;
+                file.doc.set_tab_width(tab_width);
+                // Attach the correct highlighter
+                let highlighter = file_type.clone().map_or(Highlighter::new(tab_width), |t| {
+                    t.get_highlighter(&self.config, tab_width)
+                });
+                file.highlighter = highlighter;
+                file.highlighter.run(&file.doc.lines);
+                file.file_type = file_type;
                 Ok(())
             } else {
                 file
@@ -192,14 +206,23 @@ impl Editor {
         let file_name = self.prompt("Save as")?;
         self.doc_mut().save_as(&file_name)?;
         if self.doc().file_name.is_none() {
-            let ext = which_extension(self.doc());
-            self.highlighter[self.ptr] = self
+            // Get information about the document
+            let file = self.files.last_mut().unwrap();
+            let tab_width = self.config.document.borrow().tab_width;
+            let file_type = self
                 .config
-                .syntax_highlighting
+                .document
                 .borrow()
-                .get_highlighter(&ext.unwrap_or_default());
-            self.doc_mut().file_name = Some(file_name.clone());
-            self.doc_mut().info.modified = false;
+                .file_types
+                .identify(&mut file.doc);
+            // Reattach an appropriate highlighter
+            let highlighter = file_type.map_or(Highlighter::new(tab_width), |t| {
+                t.get_highlighter(&self.config, tab_width)
+            });
+            file.highlighter = highlighter;
+            file.highlighter.run(&file.doc.lines);
+            file.doc.file_name = Some(file_name.clone());
+            file.doc.info.modified = false;
         }
         // Commit events to event manager (for undo / redo)
         self.doc_mut().commit();
@@ -210,10 +233,10 @@ impl Editor {
 
     /// Save all the open documents to the disk
     pub fn save_all(&mut self) -> Result<()> {
-        for doc in &mut self.doc {
-            doc.save()?;
+        for file in &mut self.files {
+            file.doc.save()?;
             // Commit events to event manager (for undo / redo)
-            doc.commit();
+            file.doc.commit();
         }
         self.feedback = Feedback::Info("Saved all documents".to_string());
         Ok(())
@@ -221,23 +244,22 @@ impl Editor {
 
     /// Quit the editor
     pub fn quit(&mut self) -> Result<()> {
-        self.active = !self.doc.is_empty();
+        self.active = !self.files.is_empty();
         // If there are still documents open, only close the requested document
         if self.active {
             let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
             if !self.doc().info.modified || self.confirm(msg)? {
-                self.doc.remove(self.ptr);
-                self.highlighter.remove(self.ptr);
+                self.files.remove(self.ptr);
                 self.prev();
             }
         }
-        self.active = !self.doc.is_empty();
+        self.active = !self.files.is_empty();
         Ok(())
     }
 
     /// Move to the next document opened in the editor
     pub fn next(&mut self) {
-        if self.ptr + 1 < self.doc.len() {
+        if self.ptr + 1 < self.files.len() {
             self.ptr += 1;
         }
     }
@@ -251,22 +273,22 @@ impl Editor {
 
     /// Returns a document at a certain index
     pub fn get_doc(&mut self, idx: usize) -> &mut Document {
-        self.doc.get_mut(idx).unwrap()
+        &mut self.files.get_mut(idx).unwrap().doc
     }
 
     /// Gets a reference to the current document
     pub fn doc(&self) -> &Document {
-        self.doc.get(self.ptr).unwrap()
+        &self.files.get(self.ptr).unwrap().doc
     }
 
     /// Gets a mutable reference to the current document
     pub fn doc_mut(&mut self) -> &mut Document {
-        self.doc.get_mut(self.ptr).unwrap()
+        &mut self.files.get_mut(self.ptr).unwrap().doc
     }
 
     /// Gets the number of documents currently open
     pub fn doc_len(&mut self) -> usize {
-        self.doc.len()
+        self.files.len()
     }
 
     /// Load the configuration values
@@ -361,18 +383,4 @@ impl Editor {
         }
         Ok(())
     }
-}
-
-/// Takes a document, and tries to help determine the file type
-pub fn which_extension(doc: &Document) -> Option<String> {
-    let file_name = doc.file_name.clone().unwrap_or_default();
-    let is_config = Path::new(&file_name)
-        .extension()
-        .map_or(false, |ext| ext.eq_ignore_ascii_case("oxrc"));
-    match (is_config, doc.get_file_type()) {
-        (true, _) => Some("lua"),
-        (false, Some(ext)) => Some(ext),
-        (_, None) => None,
-    }
-    .map(std::string::ToString::to_string)
 }

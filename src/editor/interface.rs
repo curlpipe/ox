@@ -146,8 +146,8 @@ impl Editor {
         let tab_active_bg = Bg(self.config.colors.borrow().tab_active_bg.to_color()?);
         let tab_active_fg = Fg(self.config.colors.borrow().tab_active_fg.to_color()?);
         display!(self, tab_inactive_fg, tab_inactive_bg);
-        for (c, document) in self.doc.iter().enumerate() {
-            let document_header = self.config.tab_line.borrow().render(document);
+        for (c, file) in self.files.iter().enumerate() {
+            let document_header = self.config.tab_line.borrow().render(file);
             if c == self.ptr {
                 // Representing the document we're currently looking at
                 display!(
@@ -392,13 +392,14 @@ impl Editor {
     /// Append any missed lines to the syntax highlighter
     pub fn update_highlighter(&mut self) {
         if self.active {
-            let actual = self.doc.get(self.ptr).map_or(0, |d| d.info.loaded_to);
+            let actual = self.files.get(self.ptr).map_or(0, |d| d.doc.info.loaded_to);
             let percieved = self.highlighter().line_ref.len();
             if percieved < actual {
                 let diff = actual.saturating_sub(percieved);
                 for i in 0..diff {
-                    let line = &self.doc[self.ptr].lines[percieved + i];
-                    self.highlighter[self.ptr].append(line);
+                    let file = &mut self.files[self.ptr];
+                    let line = &file.doc.lines[percieved + i];
+                    file.highlighter.append(line);
                 }
             }
         }
@@ -406,17 +407,18 @@ impl Editor {
 
     /// Returns a highlighter at a certain index
     pub fn get_highlighter(&mut self, idx: usize) -> &mut Highlighter {
-        self.highlighter.get_mut(idx).unwrap()
+        &mut self.files.get_mut(idx).unwrap().highlighter
     }
 
     /// Gets a mutable reference to the current document
     pub fn highlighter(&mut self) -> &mut Highlighter {
-        self.highlighter.get_mut(self.ptr).unwrap()
+        &mut self.files.get_mut(self.ptr).unwrap().highlighter
     }
 
     /// Reload the whole document in the highlighter
     pub fn reload_highlight(&mut self) {
-        self.highlighter[self.ptr].run(&self.doc[self.ptr].lines);
+        let file = &mut self.files[self.ptr];
+        file.highlighter.run(&file.doc.lines);
     }
 
     /// Work out how much to push the document to the right (to make way for line numbers)

@@ -146,7 +146,8 @@ impl Editor {
         self.doc_mut().move_to(&loc);
         // Update syntax highlighter
         self.update_highlighter();
-        self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
+        let file = &mut self.files[self.ptr];
+        file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
         Ok(())
     }
 
@@ -159,7 +160,9 @@ impl Editor {
         while let Some(mtch) = self.doc_mut().next_match(target, 1) {
             drop(self.doc_mut().replace(mtch.loc, &mtch.text, into));
             self.update_highlighter();
-            self.highlighter[self.ptr].edit(mtch.loc.y, &self.doc[self.ptr].lines[mtch.loc.y]);
+            let file = &mut self.files[self.ptr];
+            file.highlighter
+                .edit(mtch.loc.y, &file.doc.lines[mtch.loc.y]);
         }
     }
 }

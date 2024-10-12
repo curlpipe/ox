@@ -180,8 +180,8 @@ commands = {
         end
     end,
     ["filetype"] = function(arguments)
-        ext = arguments[1]
-        editor:set_file_type(ext)
+        local file_type_name = arguments[1]
+        editor:set_file_type(file_type_name)
     end,
     ["reload"] = function(arguments)
         editor:reload_config()

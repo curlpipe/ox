@@ -21,8 +21,8 @@ impl Editor {
         let tab = usize::from(tab_enabled);
         if event.row == 0 && tab_enabled {
             let mut c = event.column + 2;
-            for (i, doc) in self.doc.iter().enumerate() {
-                let header_len = self.config.tab_line.borrow().render(doc).len() + 1;
+            for (i, file) in self.files.iter().enumerate() {
+                let header_len = self.config.tab_line.borrow().render(file).len() + 1;
                 c = c.saturating_sub(u16::try_from(header_len).unwrap_or(u16::MAX));
                 if c == 0 {
                     return MouseLocation::Tabs(i);

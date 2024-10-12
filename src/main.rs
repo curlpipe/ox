@@ -39,6 +39,7 @@ fn main() {
 }
 
 /// Run the editor
+#[allow(clippy::too_many_lines)]
 fn run(cli: &CommandLineInterface) -> Result<()> {
     // Create lua interpreter
     let lua = Lua::new();
@@ -73,15 +74,22 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             editor.borrow_mut().get_doc(c).info.read_only = true;
         }
         // Set highlighter if applicable
-        if let Some(ref ext) = cli.file_type {
-            let mut highlighter = editor
-                .borrow()
+        if let Some(ref file_type) = cli.file_type {
+            let tab_width = editor.borrow().config.document.borrow().tab_width;
+            let file_type = editor
+                .borrow_mut()
                 .config
-                .syntax_highlighting
+                .document
                 .borrow()
-                .get_highlighter(ext);
+                .file_types
+                .get_name(file_type)
+                .unwrap_or_default();
+            let mut highlighter = file_type.get_highlighter(&editor.borrow().config, tab_width);
             highlighter.run(&editor.borrow_mut().get_doc(c).lines);
-            *editor.borrow_mut().get_highlighter(c) = highlighter;
+            let mut editor = editor.borrow_mut();
+            let file = editor.files.get_mut(c).unwrap();
+            file.highlighter = highlighter;
+            file.file_type = Some(file_type);
         }
     }
 
@@ -172,7 +180,6 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         editor.borrow_mut().command = None;
     }
 
-    // Exit
     editor.borrow_mut().terminal.end()?;
     Ok(())
 }
