@@ -605,6 +605,27 @@ fn document_selection() {
     assert!(!doc.is_loc_selected(Loc { x: 0, y: 0 }));
     assert!(!doc.is_loc_selected(Loc { x: 2, y: 0 }));
     assert!(!doc.is_loc_selected(Loc { x: 3, y: 0 }));
+    doc.select_line_at(1);
+    assert_eq!(
+        doc.selection_loc_bound(),
+        (Loc { x: 0, y: 1 }, Loc { x: 31, y: 1 })
+    );
+    doc.remove_selection();
+    doc.exe(Event::InsertLine(1, "hello there world".to_string()));
+    doc.exe(Event::InsertLine(2, "hello".to_string()));
+    doc.move_to(&Loc { x: 8, y: 1 });
+    doc.select_word_at(&Loc { x: 8, y: 1 });
+    assert_eq!(
+        doc.selection_loc_bound(),
+        (Loc { x: 6, y: 1 }, Loc { x: 11, y: 1 })
+    );
+    doc.remove_selection();
+    doc.move_to(&Loc { x: 0, y: 2 });
+    doc.select_word_at(&Loc { x: 0, y: 2 });
+    assert_eq!(
+        doc.selection_loc_bound(),
+        (Loc { x: 0, y: 2 }, Loc { x: 5, y: 2 })
+    );
 }
 
 #[test]
