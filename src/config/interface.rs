@@ -1,10 +1,9 @@
 use crate::cli::VERSION;
-use crate::editor::{which_extension, Editor};
+use crate::editor::{Editor, FileContainer};
 use crate::error::Result;
 use crossterm::style::SetForegroundColor as Fg;
 use kaolinite::searching::Searcher;
-use kaolinite::utils::{filetype, get_absolute_path, get_file_name, icon};
-use kaolinite::Document;
+use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
 use mlua::prelude::*;
 
 use super::{issue_warning, Colors};
@@ -218,16 +217,17 @@ impl Default for TabLine {
 
 impl TabLine {
     /// Take the configuration information and render the tab line
-    pub fn render(&self, document: &Document) -> String {
-        let path = document
+    pub fn render(&self, file: &FileContainer) -> String {
+        let path = file
+            .doc
             .file_name
             .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
-        let file_extension = which_extension(document).unwrap_or_else(|| "Unknown".to_string());
+        let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
-        let icon = icon(&filetype(&file_extension).unwrap_or_default());
-        let modified = if document.info.modified { "[+]" } else { "" };
+        let icon = file.file_type.clone().map_or("󰈙 ".to_string(), |t| t.icon);
+        let modified = if file.doc.info.modified { "[+]" } else { "" };
         let mut result = self.format.clone();
         result = result
             .replace("{file_extension}", &file_extension)
@@ -277,23 +277,21 @@ impl Default for StatusLine {
 impl StatusLine {
     /// Take the configuration information and render the status line
     pub fn render(&self, editor: &Editor, lua: &Lua, w: usize) -> String {
+        let file = &editor.files[editor.ptr];
         let mut result = vec![];
         let path = editor
             .doc()
             .file_name
             .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
-        let file_extension = which_extension(editor.doc()).unwrap_or_else(|| "Unknown".to_string());
+        let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
-        let file_type = filetype(&file_extension).unwrap_or_else(|| {
-            if file_extension.is_empty() {
-                "Unknown".to_string()
-            } else {
-                file_extension.to_string()
-            }
-        });
-        let icon = icon(&filetype(&file_extension).unwrap_or_default());
+        let file_type = file
+            .file_type
+            .clone()
+            .map_or("Unknown".to_string(), |t| t.name);
+        let icon = file.file_type.clone().map_or("󰈙 ".to_string(), |t| t.icon);
         let modified = if editor.doc().info.modified {
             "[+]"
         } else {

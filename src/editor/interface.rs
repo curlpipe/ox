@@ -1,5 +1,5 @@
 use crate::display;
-use crate::error::Result;
+use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
@@ -90,38 +90,40 @@ impl Editor {
                 let tokens = trim(&tokens, self.doc().offset.x);
                 let mut x_pos = self.doc().offset.x;
                 for token in tokens {
-                    let text = match token {
+                    // Find out the text (and colour of that text)
+                    let (text, colour) = match token {
+                        // Non-highlighted text
                         TokOpt::Some(text, kind) => {
-                            // Try to get the corresponding colour for this token
                             let colour = self.config.syntax_highlighting.borrow().get_theme(&kind);
-                            match colour {
+                            let colour = match colour {
                                 // Success, write token
-                                Ok(col) => {
-                                    display!(self, Fg(col));
-                                }
+                                Ok(col) => Fg(col),
                                 // Failure, show error message and don't highlight this token
                                 Err(err) => {
                                     self.feedback = Feedback::Error(err.to_string());
+                                    editor_fg
                                 }
-                            }
-                            text
+                            };
+                            (text, colour)
                         }
-                        TokOpt::None(text) => text,
+                        // Highlighted text
+                        TokOpt::None(text) => (text, editor_fg),
                     };
+                    // Do the rendering
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
                         if is_selected {
                             display!(self, selection_bg, selection_fg);
                         } else {
-                            display!(self, editor_bg);
+                            display!(self, editor_bg, colour);
                         }
                         display!(self, c);
                         x_pos += 1;
                     }
-                    display!(self, editor_fg);
                 }
                 // Pad out the line (to remove any junk left over from previous render)
+                display!(self, editor_fg, editor_bg);
                 let tab_width = self.config.document.borrow().tab_width;
                 let line_width = width(&line, tab_width);
                 let pad_amount = w.saturating_sub(self.dent()).saturating_sub(line_width) + 1;
@@ -144,8 +146,8 @@ impl Editor {
         let tab_active_bg = Bg(self.config.colors.borrow().tab_active_bg.to_color()?);
         let tab_active_fg = Fg(self.config.colors.borrow().tab_active_fg.to_color()?);
         display!(self, tab_inactive_fg, tab_inactive_bg);
-        for (c, document) in self.doc.iter().enumerate() {
-            let document_header = self.config.tab_line.borrow().render(document);
+        for (c, file) in self.files.iter().enumerate() {
+            let document_header = self.config.tab_line.borrow().render(file);
             if c == self.ptr {
                 // Representing the document we're currently looking at
                 display!(
@@ -250,6 +252,8 @@ impl Editor {
                 match (key.modifiers, key.code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
+                    // Cancel operation
+                    (KMod::NONE, KCode::Esc) => return Err(OxError::Cancelled),
                     // Remove from the input string if the user presses backspace
                     (KMod::NONE, KCode::Backspace) => {
                         input.pop();
@@ -267,19 +271,31 @@ impl Editor {
     /// Prompt for selecting a file
     pub fn path_prompt(&mut self) -> Result<String> {
         let mut input = get_cwd().map(|s| s + "/").unwrap_or_default();
+        let mut offset = 0;
         let mut done = false;
+        let mut old_suggestions = vec![];
         // Enter into a menu that asks for a prompt
         while !done {
-            // Find the suggested file / folder
+            // Find the suggested files and folders
             let parent = if input.ends_with('/') {
                 input.to_string()
             } else {
                 get_parent(&input).unwrap_or_default()
             };
-            let mut suggestion = list_dir(&parent)
+            let suggestions = list_dir(&parent)
                 .unwrap_or_default()
                 .iter()
-                .find(|p| p.starts_with(&input))
+                .filter(|p| p.starts_with(&input))
+                .cloned()
+                .collect::<Vec<_>>();
+            // Reset offset if we've changed suggestions / out of bounds
+            if suggestions != old_suggestions || offset >= suggestions.len() {
+                offset = 0;
+            }
+            old_suggestions.clone_from(&suggestions);
+            // Select suggestion
+            let mut suggestion = suggestions
+                .get(offset)
                 .map(std::string::ToString::to_string)
                 .unwrap_or(input.clone());
             // Render prompt message
@@ -307,6 +323,8 @@ impl Editor {
                 match (key.modifiers, key.code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
+                    // Cancel when escape key is pressed
+                    (KMod::NONE, KCode::Esc) => return Err(OxError::Cancelled),
                     // Remove from the input string if the user presses backspace
                     (KMod::NONE, KCode::Backspace) => {
                         input.pop();
@@ -314,11 +332,19 @@ impl Editor {
                     // Add to the input string if the user presses a character
                     (KMod::NONE | KMod::SHIFT, KCode::Char(c)) => input.push(c),
                     // Autocomplete path
-                    (KMod::NONE, KCode::Right | KCode::Tab) => {
+                    (KMod::NONE, KCode::Right) => {
                         if file_or_dir(&suggestion) == "directory" {
                             suggestion += "/";
                         }
                         input = suggestion;
+                        offset = 0;
+                    }
+                    // Cycle through suggestions
+                    (KMod::SHIFT, KCode::BackTab) => offset = offset.saturating_sub(1),
+                    (KMod::NONE, KCode::Tab) => {
+                        if offset + 1 < suggestions.len() {
+                            offset += 1;
+                        }
                     }
                     _ => (),
                 }
@@ -366,13 +392,14 @@ impl Editor {
     /// Append any missed lines to the syntax highlighter
     pub fn update_highlighter(&mut self) {
         if self.active {
-            let actual = self.doc.get(self.ptr).map_or(0, |d| d.info.loaded_to);
+            let actual = self.files.get(self.ptr).map_or(0, |d| d.doc.info.loaded_to);
             let percieved = self.highlighter().line_ref.len();
             if percieved < actual {
                 let diff = actual.saturating_sub(percieved);
                 for i in 0..diff {
-                    let line = &self.doc[self.ptr].lines[percieved + i];
-                    self.highlighter[self.ptr].append(line);
+                    let file = &mut self.files[self.ptr];
+                    let line = &file.doc.lines[percieved + i];
+                    file.highlighter.append(line);
                 }
             }
         }
@@ -380,17 +407,18 @@ impl Editor {
 
     /// Returns a highlighter at a certain index
     pub fn get_highlighter(&mut self, idx: usize) -> &mut Highlighter {
-        self.highlighter.get_mut(idx).unwrap()
+        &mut self.files.get_mut(idx).unwrap().highlighter
     }
 
     /// Gets a mutable reference to the current document
     pub fn highlighter(&mut self) -> &mut Highlighter {
-        self.highlighter.get_mut(self.ptr).unwrap()
+        &mut self.files.get_mut(self.ptr).unwrap().highlighter
     }
 
     /// Reload the whole document in the highlighter
     pub fn reload_highlight(&mut self) {
-        self.highlighter[self.ptr].run(&self.doc[self.ptr].lines);
+        let file = &mut self.files[self.ptr];
+        file.highlighter.run(&file.doc.lines);
     }
 
     /// Work out how much to push the document to the right (to make way for line numbers)

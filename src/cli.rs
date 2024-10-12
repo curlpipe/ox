@@ -12,12 +12,12 @@ Ox: A lightweight and flexible text editor
 USAGE: ox [options] [files]
 
 OPTIONS:
-  --help, -h                 : Show this help message
-  --version, -v              : Show the version number
-  --config [path], -c [path] : Specify the configuration file
-  --readonly, -r             : Prevent opened files from writing
-  --filetype [ext], -f [ext] : Set the file type of files opened
-  --stdin                    : Reads file from the stdin
+  --help, -h                   : Show this help message
+  --version, -v                : Show the version number
+  --config [path], -c [path]   : Specify the configuration file
+  --readonly, -r               : Prevent opened files from writing
+  --filetype [name], -f [name] : Set the file type of files opened
+  --stdin                      : Reads file from the stdin
 
 EXAMPLES:
   ox
@@ -25,7 +25,7 @@ EXAMPLES:
   ox test.txt test2.txt
   ox /home/user/docs/test.txt
   ox -c config.lua test.txt
-  ox -r -c ~/.config/.oxrc -f lua my_file.lua
+  ox -r -c ~/.config/.oxrc -f Lua my_file.lua
   tree | ox -r --stdin\
 ";
 

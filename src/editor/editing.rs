@@ -28,7 +28,8 @@ impl Editor {
         } else {
             let loc = self.doc().char_loc();
             self.exe(Event::Insert(loc, ch.to_string()))?;
-            self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
+            let file = &mut self.files[self.ptr];
+            file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
         }
         Ok(())
     }
@@ -43,10 +44,11 @@ impl Editor {
             // Enter pressed in the start, middle or end of the line
             let loc = self.doc().char_loc();
             self.exe(Event::SplitDown(loc))?;
-            let line = &self.doc[self.ptr].lines[loc.y + 1];
-            self.highlighter[self.ptr].insert_line(loc.y + 1, line);
-            let line = &self.doc[self.ptr].lines[loc.y];
-            self.highlighter[self.ptr].edit(loc.y, line);
+            let file = &mut self.files[self.ptr];
+            let line = &file.doc.lines[loc.y + 1];
+            file.highlighter.insert_line(loc.y + 1, line);
+            let line = &file.doc.lines[loc.y];
+            file.highlighter.edit(loc.y, line);
         }
         Ok(())
     }
@@ -70,10 +72,12 @@ impl Editor {
             let mut loc = self.doc().char_loc();
             self.highlighter().remove_line(loc.y);
             loc.y = loc.y.saturating_sub(1);
-            loc.x = self.doc().line(loc.y).unwrap().chars().count();
+            let file = &mut self.files[self.ptr];
+            loc.x = file.doc.line(loc.y).unwrap().chars().count();
             self.exe(Event::SpliceUp(loc))?;
-            let line = &self.doc[self.ptr].lines[loc.y];
-            self.highlighter[self.ptr].edit(loc.y, line);
+            let file = &mut self.files[self.ptr];
+            let line = &file.doc.lines[loc.y];
+            file.highlighter.edit(loc.y, line);
         } else if !(c == 0 && on_first_line) {
             // Backspace was pressed in the middle of the line, delete the character
             c = c.saturating_sub(1);
@@ -84,7 +88,8 @@ impl Editor {
                         y: self.doc().loc().y,
                     };
                     self.exe(Event::Delete(loc, ch.to_string()))?;
-                    self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
+                    let file = &mut self.files[self.ptr];
+                    file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
                 }
             }
         }
@@ -101,7 +106,8 @@ impl Editor {
                     y: self.doc().loc().y,
                 };
                 self.exe(Event::Delete(loc, ch.to_string()))?;
-                self.highlighter[self.ptr].edit(loc.y, &self.doc[self.ptr].lines[loc.y]);
+                let file = &mut self.files[self.ptr];
+                file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
             }
         }
         Ok(())

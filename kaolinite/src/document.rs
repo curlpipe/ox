@@ -767,10 +767,6 @@ impl Document {
     /// Function to select to a specific x position
     pub fn select_to_x(&mut self, x: usize) {
         let line = self.line(self.loc().y).unwrap_or_default();
-        // If we're already at this x coordinate, just exit
-        if self.char_ptr == x {
-            return;
-        }
         // If the move position is out of bounds, move to the end of the line
         if line.chars().count() < x {
             let line = self.line(self.loc().y).unwrap_or_default();
@@ -808,6 +804,43 @@ impl Document {
         self.bring_cursor_in_viewport();
         // Load any lines necessary
         self.load_to(self.offset.y + self.size.h);
+    }
+
+    /// Select a word at a location
+    pub fn select_word_at(&mut self, loc: &Loc) {
+        let y = loc.y;
+        let x = self.character_idx(loc);
+        let re = format!("(\t| {{{}}}|^|\\W| )", self.tab_width);
+        let start = if let Some(mut mtch) = self.prev_match(&re) {
+            let len = mtch.text.chars().count();
+            let same = mtch.loc.x + len == x;
+            if !same {
+                mtch.loc.x += len;
+            }
+            self.move_to(&mtch.loc);
+            if same && self.loc().x != 0 {
+                self.move_prev_word();
+            }
+            mtch.loc.x
+        } else {
+            0
+        };
+        let re = format!("(\t| {{{}}}|\\W|$|^ +| )", self.tab_width);
+        let end = if let Some(mtch) = self.next_match(&re, 0) {
+            mtch.loc.x
+        } else {
+            self.line(y).unwrap_or_default().chars().count()
+        };
+        self.move_to(&Loc { x: start, y });
+        self.select_to(&Loc { x: end, y });
+        self.old_cursor = self.loc().x;
+    }
+
+    /// Select a line at a location
+    pub fn select_line_at(&mut self, y: usize) {
+        let len = self.line(y).unwrap_or_default().chars().count();
+        self.move_to(&Loc { x: 0, y });
+        self.select_to(&Loc { x: len, y });
     }
 
     /// Brings the cursor into the viewport so it can be seen

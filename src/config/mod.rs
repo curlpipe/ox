@@ -1,3 +1,4 @@
+use crate::editor::{FileType, FileTypes};
 use crate::error::{OxError, Result};
 use mlua::prelude::*;
 use std::collections::HashMap;
@@ -178,6 +179,15 @@ impl Config {
             }
         }
 
+        // Load in the file types
+        let file_types = lua
+            .globals()
+            .get("file_types")
+            .unwrap_or(LuaValue::Table(lua.create_table()?));
+        let file_types = FileTypes::from_lua(file_types, lua).unwrap_or_default();
+        self.document.borrow_mut().file_types = file_types;
+
+        // Return result
         if user_provided_config {
             Ok(())
         } else {
@@ -248,6 +258,7 @@ pub struct Document {
     pub indentation: Indentation,
     pub undo_period: usize,
     pub wrap_cursor: bool,
+    pub file_types: FileTypes,
 }
 
 impl Default for Document {
@@ -257,6 +268,7 @@ impl Default for Document {
             indentation: Indentation::Tabs,
             undo_period: 10,
             wrap_cursor: true,
+            file_types: FileTypes::default(),
         }
     }
 }
@@ -285,5 +297,40 @@ impl LuaUserData for Document {
             this.wrap_cursor = value;
             Ok(())
         });
+    }
+}
+
+impl FromLua<'_> for FileTypes {
+    fn from_lua(value: LuaValue<'_>, _: &Lua) -> std::result::Result<Self, LuaError> {
+        let mut result = vec![];
+        if let LuaValue::Table(table) = value {
+            for i in table.pairs::<String, LuaTable>() {
+                let (name, info) = i?;
+                let icon = info.get::<_, String>("icon")?;
+                let extensions = info
+                    .get::<_, LuaTable>("extensions")?
+                    .pairs::<usize, String>()
+                    .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
+                    .collect::<Vec<String>>();
+                let files = info
+                    .get::<_, LuaTable>("files")?
+                    .pairs::<usize, String>()
+                    .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
+                    .collect::<Vec<String>>();
+                let modelines = info
+                    .get::<_, LuaTable>("modelines")?
+                    .pairs::<usize, String>()
+                    .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
+                    .collect::<Vec<String>>();
+                result.push(FileType {
+                    name,
+                    icon,
+                    files,
+                    extensions,
+                    modelines,
+                });
+            }
+        }
+        Ok(Self { types: result })
     }
 }
