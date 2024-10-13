@@ -2,8 +2,8 @@ use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
 use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
+use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
 use kaolinite::{Loc, Size};
-use kaolinite::utils::{get_file_name, get_file_ext, get_absolute_path};
 use mlua::prelude::*;
 
 impl LuaUserData for Editor {
