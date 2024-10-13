@@ -26,6 +26,8 @@ function live_html:start()
     pid = pid:gsub("\\t", "")
     -- Store PID
     self.pid = pid
+    -- Notify user of location
+    editor:display_info("Running server on http://localhost:5000")
 end
 
 function live_html:stop()
