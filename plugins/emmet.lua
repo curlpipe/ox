@@ -21,25 +21,31 @@ function emmet:expand()
     -- Request the expanded equivalent
     local code = emmet_expand:gsub("\n", "; ")
     local command = string.format("python -c \"%s\" '%s'", code, unexpanded)
-	local handler = io.popen(command)
+    local handler = io.popen(command)
     local expanded = handler:read("*a")
     expanded = expanded:gsub("\n$", "")
     handler:close()
     -- Keep track of the level of indentation
     local indent_level = autoindent:get_indent(editor.cursor.y)
     -- Delete the existing line
-	editor:remove_line_at(editor.cursor.y)
+    editor:remove_line_at(editor.cursor.y)
     editor:insert_line_at("", editor.cursor.y)
     local old_cursor = editor.cursor
     -- Insert the expanded equivalent
+    local lines = {}
     for line in expanded:gmatch("[^\r\n]+") do
-    	-- Ensure correct indentation
-    	autoindent:set_indent(editor.cursor.y, indent_level)
-    	old_cursor.x = editor.cursor.x
-    	-- Insert rest of line
-    	editor:insert(line)
-    	-- Press return
-    	editor:insert_line()
+        table.insert(lines, line)
+    end
+    for i, line in ipairs(lines) do
+        -- Ensure correct indentation
+        autoindent:set_indent(editor.cursor.y, indent_level)
+        old_cursor.x = editor.cursor.x
+        -- Insert rest of line
+        editor:insert(line)
+        -- Press return
+        if i ~= #lines then
+            editor:insert_line()
+        end
     end
     -- Restore cursor position
     editor:move_to(old_cursor.x, old_cursor.y)
@@ -53,8 +59,8 @@ print(emmet.expand(contents))
 ]]
 
 event_mapping["ctrl_m"] = function()
-	if emmet:ready() then
-		emmet:expand()
+    if emmet:ready() then
+        emmet:expand()
     else
         editor:display_error("Emmet: can't find python or py-emmet module")
     end
