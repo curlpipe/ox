@@ -306,10 +306,11 @@ syntax:set("heading", {47, 141, 252}) -- Headings in various markup languages e.
 syntax:set("link", {223, 52, 249}) -- Links in various markup languages e.g. URLs
 syntax:set("key", {223, 52, 249}) -- Keys in various markup languages
 syntax:set("quote", {113, 113, 169}) -- Quotes in various markup languages e.g. > in markdown
-syntax:set("bold", {40, 198, 232}) -- Quotes in various markup languages e.g. * in markdown
-syntax:set("italic", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
-syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
-syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown
+syntax:set("bold", {40, 198, 232}) -- Bold text in various markup languages e.g. * in markdown
+syntax:set("italic", {40, 198, 232}) -- Italic text in various markup languages e.g. ** in markdown
+syntax:set("block", {40, 198, 232}) -- Code blocks in various markup languages e.g. `````` in markdown
+syntax:set("image", {40, 198, 232}) -- Images in various markup languages e.g. ![]() in markdown
+syntax:set("list", {86, 217, 178}) -- Lists in various markup languages e.g. - in markdown
 
 -- Import plugins (must be at the bottom of this file)
 load_plugin("pairs.lua")
