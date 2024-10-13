@@ -179,14 +179,6 @@ impl Config {
             }
         }
 
-        // Load in the file types
-        let file_types = lua
-            .globals()
-            .get("file_types")
-            .unwrap_or(LuaValue::Table(lua.create_table()?));
-        let file_types = FileTypes::from_lua(file_types, lua).unwrap_or_default();
-        self.document.borrow_mut().file_types = file_types;
-
         // Return result
         if user_provided_config {
             Ok(())
@@ -301,24 +293,27 @@ impl LuaUserData for Document {
 }
 
 impl FromLua<'_> for FileTypes {
-    fn from_lua(value: LuaValue<'_>, _: &Lua) -> std::result::Result<Self, LuaError> {
+    fn from_lua(value: LuaValue<'_>, lua: &Lua) -> std::result::Result<Self, LuaError> {
         let mut result = vec![];
         if let LuaValue::Table(table) = value {
             for i in table.pairs::<String, LuaTable>() {
                 let (name, info) = i?;
                 let icon = info.get::<_, String>("icon")?;
                 let extensions = info
-                    .get::<_, LuaTable>("extensions")?
+                    .get::<_, LuaTable>("extensions")
+                    .unwrap_or(lua.create_table()?)
                     .pairs::<usize, String>()
                     .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
                     .collect::<Vec<String>>();
                 let files = info
-                    .get::<_, LuaTable>("files")?
+                    .get::<_, LuaTable>("files")
+                    .unwrap_or(lua.create_table()?)
                     .pairs::<usize, String>()
                     .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
                     .collect::<Vec<String>>();
                 let modelines = info
-                    .get::<_, LuaTable>("modelines")?
+                    .get::<_, LuaTable>("modelines")
+                    .unwrap_or(lua.create_table()?)
                     .pairs::<usize, String>()
                     .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
                     .collect::<Vec<String>>();

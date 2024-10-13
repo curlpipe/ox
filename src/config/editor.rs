@@ -26,13 +26,10 @@ impl LuaUserData for Editor {
         fields.add_field_method_get("current_document_id", |_, editor| Ok(editor.ptr));
         fields.add_field_method_get("document_count", |_, editor| Ok(editor.files.len()));
         fields.add_field_method_get("document_type", |_, editor| {
-            let ext = editor
-                .doc()
-                .file_name
-                .as_ref()
-                .map_or("", |name| name.split('.').last().unwrap_or(""));
-            let file_type = kaolinite::utils::filetype(ext);
-            Ok(file_type)
+            Ok(editor.files[editor.ptr]
+                .file_type
+                .clone()
+                .map_or("Unknown".to_string(), |t| t.name))
         });
     }
 
