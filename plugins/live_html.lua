@@ -34,12 +34,16 @@ function live_html:stop()
     if self.pid ~= nil then
         -- Kill the process
         os.execute("kill " .. tostring(self.pid))
+        self.entry_point = nil
+        self.pid = nil
     end
 end
 
 function live_html_refresh()
     if editor.file_path == live_html.entry_point then
-        local contents = editor:get():gsub("'", "&apos;"):gsub("\n", "")
+        local contents = editor:get():gsub('"', '\\"'):gsub("\n", "")
+        editor:display_info(contents)
+        editor:rerender()
         http.post("localhost:5000/update", contents)
     end
 end
@@ -48,6 +52,9 @@ commands["html"] = function(args)
     -- Check dependencies
     if live_html:ready() then
         if args[1] == "start" then
+            -- Prevent duplicate server
+            live_html:stop()
+            -- Run the server
             live_html:start()
             after(5, "live_html_refresh")
         elseif args[1] == "stop" then
@@ -99,9 +106,44 @@ reload_script = """
 """
 
 html_content = """
-<h1>Welcome to Ox Live HTML Edit</h1>
+<style>
+body {
+    padding: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: middle;
+    gap: 10px;
+}
 
-<h3>Please wait whilst we load your website...</h3>
+h1, h3 {
+    font-family: Helvetica;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+.loader {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #3498db;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin-top: 30px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
+<body>
+	<h1>Welcome to Ox Live HTML Edit</h1>
+    <h3>Please wait whilst we load your website...</h3>
+    <div class="loader"></div>
+</body>
 """
 
 # A list to keep track of clients that are connected

@@ -29,7 +29,7 @@ end
 function http.post(url, data)
     local cmd
     if http.backend == 'curl' then
-        cmd = "curl -s -X POST -d '" .. data .. "' '" .. url .. "'"
+        cmd = "curl -s -X POST -d \"" .. data .. "\" '" .. url .. "'"
     else
         cmd = table.concat({
             'powershell -Command "Invoke-WebRequest -Uri \'', url,

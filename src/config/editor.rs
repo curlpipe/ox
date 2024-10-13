@@ -313,7 +313,9 @@ impl LuaUserData for Editor {
             editor.plugin_active = false;
             Ok(())
         });
-        methods.add_method("get", |_, editor, ()| {
+        methods.add_method_mut("get", |_, editor, ()| {
+            let lines = editor.doc().len_lines();
+            editor.doc_mut().load_to(lines);
             let contents = editor.doc().lines.join("\n");
             Ok(contents)
         });
