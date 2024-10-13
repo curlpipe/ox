@@ -313,6 +313,10 @@ impl LuaUserData for Editor {
             editor.plugin_active = false;
             Ok(())
         });
+        methods.add_method("get", |_, editor, ()| {
+            let contents = editor.doc().lines.join("\n");
+            Ok(contents)
+        });
         methods.add_method("get_character", |_, editor, ()| {
             let loc = editor.doc().char_loc();
             let ch = editor

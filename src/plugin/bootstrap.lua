@@ -1,6 +1,12 @@
 -- Bootstrap plug-ins
 home = os.getenv("HOME") or os.getenv("USERPROFILE")
 
+if package.config:sub(1,1) == "\\" then
+    plugin_path = home .. "/ox"
+else
+    plugin_path = home .. "/.config/ox"
+end
+
 function file_exists(file_path)
     local file = io.open(file_path, "r")
     if file then
@@ -124,7 +130,7 @@ function python_interop:fork(code)
         pid = handle:read("*n")  -- Read the PID
         handle:close()
     else
-        -- For Linux/macOS, use nohup and get the PID
+        -- For Linux/macOS, run and get the PID
         local cmd = string.format("%s > /dev/null & echo $!", command)
         local handle = io.popen(cmd)
         pid = handle:read("*n") - 1  -- Read the PID
