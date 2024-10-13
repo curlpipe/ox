@@ -42,7 +42,6 @@ end
 function live_html_refresh()
     if editor.file_path == live_html.entry_point then
         local contents = editor:get():gsub('"', '\\"'):gsub("\n", "")
-        editor:display_info(contents)
         editor:rerender()
         http.post("localhost:5000/update", contents)
     end
