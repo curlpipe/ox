@@ -1,9 +1,15 @@
+--[[
+Discord RPC v0.1
+
+For showing your use of the Ox editor to other users on Discord
+]]--
+
 -- Verify whether the dependencies are installed
 discord_rpc = {
     has_python = python_interop:installation() ~= nil,
     has_discord_rpc_module = python_interop:has_module("discordrpc"),
     pid = nil,
-    doc = editor.current_document_id,
+    doc = "",
 }
 
 function discord_rpc:ready()
@@ -42,10 +48,10 @@ end
 
 function check_discord_rpc()
     -- Detect change in document
-    if discord_rpc.doc ~= editor.current_document_id then
+    if discord_rpc.doc ~= editor.file_path then
         -- Reload the rpc
         kill_discord_rpc()
-        discord_rpc.doc = editor.current_document_id
+        discord_rpc.doc = editor.file_path
         after(1, "run_discord_rpc")
     end
 end
@@ -56,8 +62,6 @@ event_mapping["exit"] = function()
     -- Kill the rpc process
     kill_discord_rpc()
 end
-
-after(0, "run_discord_rpc")
 
 drpc = [[
 import discordrpc
