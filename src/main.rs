@@ -188,6 +188,10 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         editor.borrow_mut().command = None;
     }
 
+    // Run any plugin cleanup operations
+    let result = lua.load(run_key("exit")).exec();
+    handle_lua_error(&editor, "exit", result);
+
     editor.borrow_mut().terminal.end()?;
     Ok(())
 }

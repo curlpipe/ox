@@ -3,6 +3,7 @@ use crate::editor::Editor;
 use crate::ui::Feedback;
 use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::{Loc, Size};
+use kaolinite::utils::{get_file_name, get_file_ext, get_absolute_path};
 use mlua::prelude::*;
 
 impl LuaUserData for Editor {
@@ -30,6 +31,18 @@ impl LuaUserData for Editor {
                 .file_type
                 .clone()
                 .map_or("Unknown".to_string(), |t| t.name))
+        });
+        fields.add_field_method_get("file_name", |_, editor| {
+            let name = get_file_name(&editor.doc().file_name.clone().unwrap_or_default());
+            Ok(name)
+        });
+        fields.add_field_method_get("file_extension", |_, editor| {
+            let name = get_file_ext(&editor.doc().file_name.clone().unwrap_or_default());
+            Ok(name)
+        });
+        fields.add_field_method_get("file_path", |_, editor| {
+            let name = get_absolute_path(&editor.doc().file_name.clone().unwrap_or_default());
+            Ok(name)
         });
     }
 

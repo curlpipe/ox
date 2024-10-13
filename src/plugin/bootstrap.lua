@@ -43,7 +43,108 @@ function load_plugin(base)
     end
 end
 
--- Populate the document object with built-in file type detection
+-- Python interoperability tools
+python_interop = {}
+
+function python_interop:installation()
+    -- Try to capture Python version output using io.popen
+    local python_handle = io.popen("python --version 2>&1")
+    local python_output = python_handle:read("*a")
+    python_handle:close()
+    if python_output:find("Python") then
+        return 2
+    end
+
+    -- If 'python' didn't work, try 'python3'
+    local python3_handle = io.popen("python3 --version 2>&1")
+    local python3_output = python3_handle:read("*a")
+    python3_handle:close()
+    if python3_output:find("Python") then
+        return 3
+    end
+
+    return nil
+end
+
+function python_interop:has_module(module_name)
+    -- Use python -c "import <module>"
+    local command = "python -c \"import " .. module_name .. "\" 2>&1"
+    local handle = io.popen(command)
+    local result = handle:read("*a")
+    handle:close()
+
+    if result == "" then  -- No output means successful import
+        return true
+    end
+
+    -- Try with python3 in case 'python' is python 2.x
+    command = "python3 -c \"import " .. module_name .. "\" 2>&1"
+    local handle_python3 = io.popen(command)
+    local result_python3 = handle_python3:read("*a")
+    handle_python3:close()
+
+    return result_python3 == ""
+end
+
+function python_interop:run(code)
+    local variant = self:installation()
+    local handler = nil
+    if variant == 2 then
+        local command = "python -c \"" .. code .. "\" 2>&1"
+        handler = io.popen(command)
+    elseif variant == 3 then
+        local command = "python3 -c \"" .. code .. "\" 2>&1"
+        handler = io.popen(command)
+    end
+    if handler ~= nil then
+        local result = handler:read("*a")
+        handler:close()
+        return result
+    end
+    return nil
+end
+
+function python_interop:fork(code)
+    local is_windows = package.config:sub(1, 1) == '\\'
+    local variant = self:installation()
+    local command = nil;
+    if variant == 2 then
+        command = "python -c \"" .. code .. "\" &"
+    elseif variant == 3 then
+        command = "python3 -c \"" .. code .. "\" &"
+    else
+        return
+    end
+    -- Run the command
+    local pid
+    if is_windows then
+        -- For Windows, use start /B and PowerShell to get the PID
+        local cmd = string.format("start /B cmd /C \"%s & echo $!\"", command)
+        local handle = io.popen(cmd)
+        pid = handle:read("*n")  -- Read the PID
+        handle:close()
+    else
+        -- For Linux/macOS, use nohup and get the PID
+        local cmd = string.format("%s > /dev/null & echo $!", command)
+        local handle = io.popen(cmd)
+        pid = handle:read("*n") - 1  -- Read the PID
+        handle:close()
+    end
+    return pid
+end
+
+function python_interop:kill(pid)
+    local is_windows = package.config:sub(1, 1) == '\\'
+    if pid then
+        if is_windows then
+            os.execute("taskkill /PID " .. pid .. " /F")
+        else
+            os.execute("kill " .. tostring(pid))
+        end
+    end
+end
+
+-- Add types for built-in file type detection
 file_types = {
     ["ABAP"] = {
         icon = "󰅩 ",
