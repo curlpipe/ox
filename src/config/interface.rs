@@ -1,6 +1,7 @@
 use crate::cli::VERSION;
 use crate::editor::{Editor, FileContainer};
 use crate::error::Result;
+use crate::Feedback;
 use crossterm::style::SetForegroundColor as Fg;
 use kaolinite::searching::Searcher;
 use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
@@ -217,7 +218,7 @@ impl Default for TabLine {
 
 impl TabLine {
     /// Take the configuration information and render the tab line
-    pub fn render(&self, file: &FileContainer) -> String {
+    pub fn render(&self, lua: &Lua, file: &FileContainer, feedback: &mut Feedback) -> String {
         let path = file
             .doc
             .file_name
@@ -239,6 +240,29 @@ impl TabLine {
         result = result.replace("{path}", &path).to_string();
         result = result.replace("{modified}", modified).to_string();
         result = result.replace("{icon}", &icon).to_string();
+        // Find functions to call and substitute in
+        let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
+        while let Some(m) = searcher.lfind(&result) {
+            let name = m
+                .text
+                .chars()
+                .skip(1)
+                .take(m.text.chars().count().saturating_sub(2))
+                .collect::<String>();
+            if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
+                match func.call::<String, LuaString>(absolute_path.clone()) {
+                    Ok(r) => {
+                        result = result.replace(&m.text, r.to_str().unwrap_or(""));
+                    }
+                    Err(e) => {
+                        *feedback = Feedback::Error(format!("Error occured in tab line: {e:?}"));
+                        break;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
         result
     }
 }

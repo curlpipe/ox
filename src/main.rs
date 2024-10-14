@@ -165,7 +165,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         }
 
         // Actually handle editor event (errors included)
-        if let Err(err) = editor.borrow_mut().handle_event(event.clone()) {
+        if let Err(err) = editor.borrow_mut().handle_event(&lua, event.clone()) {
             editor.borrow_mut().feedback = Feedback::Error(format!("{err:?}"));
         }
 

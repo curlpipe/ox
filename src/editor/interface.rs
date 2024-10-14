@@ -30,7 +30,7 @@ impl Editor {
         // Render the tab line
         let tab_enabled = self.config.tab_line.borrow().enabled;
         if tab_enabled {
-            self.render_tab_line(w)?;
+            self.render_tab_line(lua, w)?;
         }
         // Run through each line of the terminal, rendering the correct line
         self.render_document(w, h)?;
@@ -139,7 +139,7 @@ impl Editor {
 
     /// Render the tab line at the top of the document
     #[allow(clippy::similar_names)]
-    pub fn render_tab_line(&mut self, w: usize) -> Result<()> {
+    pub fn render_tab_line(&mut self, lua: &Lua, w: usize) -> Result<()> {
         self.terminal.goto(0_usize, 0_usize)?;
         let tab_inactive_bg = Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?);
         let tab_inactive_fg = Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?);
@@ -147,7 +147,11 @@ impl Editor {
         let tab_active_fg = Fg(self.config.colors.borrow().tab_active_fg.to_color()?);
         display!(self, tab_inactive_fg, tab_inactive_bg);
         for (c, file) in self.files.iter().enumerate() {
-            let document_header = self.config.tab_line.borrow().render(file);
+            let document_header =
+                self.config
+                    .tab_line
+                    .borrow()
+                    .render(lua, file, &mut self.feedback);
             if c == self.ptr {
                 // Representing the document we're currently looking at
                 display!(
