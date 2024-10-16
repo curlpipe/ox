@@ -3,8 +3,8 @@ use crate::event::{Error, Event, Result, Status, UndoMgmt};
 use crate::map::{form_map, CharMap};
 use crate::searching::{Match, Searcher};
 use crate::utils::{
-    get_range, modeline, tab_boundaries_backward, tab_boundaries_forward, trim, width, Loc, Size,
-    get_absolute_path,
+    get_absolute_path, get_range, modeline, tab_boundaries_backward, tab_boundaries_forward, trim,
+    width, Loc, Size,
 };
 use ropey::Rope;
 use std::fs::File;

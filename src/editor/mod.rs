@@ -5,13 +5,13 @@ use crossterm::event::{
     Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEvent, MouseEventKind,
 };
 use kaolinite::event::Error as KError;
-use kaolinite::Document;
 use kaolinite::utils::get_absolute_path;
+use kaolinite::Document;
 use mlua::{Error as LuaError, Lua};
-use std::io::ErrorKind;
-use std::time::Instant;
 use std::env;
+use std::io::ErrorKind;
 use std::path::Path;
+use std::time::Instant;
 use synoptic::Highlighter;
 
 mod cursor;
