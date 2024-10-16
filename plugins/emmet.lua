@@ -21,10 +21,8 @@ function emmet:expand()
     -- Request the expanded equivalent
     local code = emmet_expand:gsub("\n", "; ")
     local command = string.format("python -c \"%s\" '%s'", code, unexpanded)
-    local handler = io.popen(command)
-    local expanded = handler:read("*a")
+    local expanded = shell:output(command)
     expanded = expanded:gsub("\n$", "")
-    handler:close()
     -- Keep track of the level of indentation
     local indent_level = autoindent:get_indent(editor.cursor.y)
     -- Delete the existing line

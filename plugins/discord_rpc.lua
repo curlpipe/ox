@@ -25,13 +25,7 @@ function discord_rpc:show_rpc()
         local kind = string.lower(editor.document_type:gsub("%+", "p"):gsub("#", "s"))
         local code = drpc:gsub("\n", "; ")
         local command = string.format("python -c \"%s\" 'Ox' 'Editing %s' '%s'", code, name, kind)
-        local handler = io.popen(command .. " > /dev/null 2>&1 & echo $!")
-        local pid = handler:read("*a")
-        pid = pid:gsub("%s+", "")
-        pid = pid:gsub("\\n", "")
-        pid = pid:gsub("\\t", "")
-        self.pid = pid
-        handler:close()
+        self.pid = shell:spawn(command)
     end
 end
 
@@ -41,9 +35,7 @@ function run_discord_rpc()
 end
 
 function kill_discord_rpc()
-    if discord_rpc.pid ~= nil then
-        os.execute(string.format("kill %s > /dev/null 2>&1", discord_rpc.pid))
-    end
+    shell:kill(discord_rpc.pid)
 end
 
 function check_discord_rpc()

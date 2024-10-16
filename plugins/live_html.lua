@@ -16,27 +16,18 @@ function live_html:ready()
 end
 
 function live_html:start()
-    -- Fork flask server
+    -- Start up flask server
     live_html.entry_point = editor.file_path
     local command = string.format("python %s/livehtml.py '%s'", plugin_path, editor.file_path)
-    local handler = io.popen(command .. " > /dev/null 2>&1 & echo $!")
-    local pid = handler:read("*a")
-    pid = pid:gsub("%s+", "")
-    pid = pid:gsub("\\n", "")
-    pid = pid:gsub("\\t", "")
-    -- Store PID
-    self.pid = pid
+    self.pid = shell:spawn(command)
     -- Notify user of location
     editor:display_info("Running server on http://localhost:5000")
 end
 
 function live_html:stop()
-    if self.pid ~= nil then
-        -- Kill the process
-        os.execute("kill " .. tostring(self.pid))
-        self.entry_point = nil
-        self.pid = nil
-    end
+    shell:kill(self.pid)
+    self.entry_point = nil
+    self.pid = nil
 end
 
 function live_html_refresh()

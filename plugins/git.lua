@@ -13,30 +13,21 @@ A plug-in for git integration that provides features to:
 git = {
     status = {},
     icons = false,
+    has_git = shell:output("git --version"):find("git version"),
 }
-
--- Verify that git is installed
-local git_handle = io.popen("git --version 2>&1")
-local git_output = git_handle:read("*a")
-git_handle:close()
-git.has_git = git_output:find("git version")
 
 function git:ready()
     return self.has_git
 end
 
 function git:repo_path()
-    local handle = io.popen("git rev-parse --show-toplevel 2>/dev/null")
-    local repo_path_output = handle:read("*a")
-    handle:close()
+    local repo_path_output = shell:output("git rev-parse --show-toplevel")
     return repo_path_output:gsub("[\r\n]+", "")
 end
 
 function git:refresh_status()
     local repo_path = self:repo_path()
-    local handle = io.popen("git status --porcelain 2>/dev/null")
-    local status_output = handle:read("*a")
-    handle:close()
+    local status_output = shell:output("git status --porcelain")
     local status = {}
     for line in status_output:gmatch("[^\r\n]+") do
         local staged_status = line:sub(1, 1)
@@ -62,9 +53,7 @@ function git:refresh_status()
 end
 
 function git:get_stats()
-    local handle = io.popen("git diff --stat")
-    local result = handle:read("*a")
-    handle:close()
+    local result = shell:output("git diff --stat")
 
     local files = {}
     local total_insertions = 0
@@ -89,25 +78,16 @@ function git:get_stats()
 end
 
 function git:diff(file)
-    local repo_path = git:repo_path()
-    local handle = io.popen("git diff " ..  file)
-    local result = handle:read("*a")
-    handle:close()
-    return result
+    return shell:output("git diff " .. file)
 end
 
 function git:diff_all()
     local repo_path = git:repo_path()
-    local handle = io.popen("git diff " ..  repo_path)
-    local result = handle:read("*a")
-    handle:close()
-    return result
+    return shell:output("git diff " .. repo_path)
 end
 
 function git_branch()
-    local handle = io.popen("git rev-parse --abbrev-ref HEAD 2>/dev/null")
-    local branch = handle:read("*a")
-    handle:close()
+    local branch = shell:output("git rev-parse --abbrev-ref HEAD")
     if branch == "" then
         return "N/A"
     else
@@ -141,31 +121,31 @@ commands["git"] = function(args)
         if args[1] == "commit" then
             local message = editor:prompt("Message")
             editor:display_info("Committing with message: " .. message)
-            if select(3, os.execute(string.format("git commit -S -m \"%s\" > /dev/null", message))) ~= 0 then
+            if shell:run('git commit -S -m "' .. message .. '"') ~= 0 then
                 editor:display_error("Failed to commit")
             end
         elseif args[1] == "push" then
-            if select(3, os.execute("git push")) ~= 0 then
+            if shell:run('git push') ~= 0 then
                 editor:display_error("Failed to push")
             end
         elseif args[1] == "pull" then
-            if select(3, os.execute("git pull")) ~= 0 then
+            if shell:run('git pull') ~= 0 then
                 editor:display_error("Failed to pull")
             end
         elseif args[1] == "add" and args[2] == "all" then
-            if select(3, os.execute(string.format("git add %s", repo_path))) ~= 0 then
+            if shell:run('git add ' .. repo_path) ~= 0 then
                 editor:display_error("Failed to add all files")
             end
         elseif args[1] == "add" then
-            if select(3, os.execute(string.format("git add %s", editor.file_path))) ~= 0 then
+            if shell:run('git add ' .. editor.file_path) ~= 0 then
                 editor:display_error("Failed to add file")
             end
         elseif args[1] == "reset" and args[2] == "all" then
-            if select(3, os.execute(string.format("git reset %s > /dev/null", repo_path))) ~= 0 then
+            if shell:run('git reset ' .. repo_path) ~= 0 then
                 editor:display_error("Failed to unstage all files")
             end
         elseif args[1] == "reset" then
-            if select(3, os.execute(string.format("git reset %s > /dev/null", editor.file_path))) ~= 0 then
+            if shell:run('git reset ' .. editor.file_path) ~= 0 then
                 editor:display_error("Failed to unstage file")
             end
         elseif args[1] == "stat" and args[2] == "all" then
@@ -201,5 +181,3 @@ commands["git"] = function(args)
         end
     end
 end
-
-
