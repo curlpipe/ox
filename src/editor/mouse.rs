@@ -1,5 +1,5 @@
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
-use kaolinite::{Loc, utils::width};
+use kaolinite::{utils::width, Loc};
 use mlua::Lua;
 use std::time::{Duration, Instant};
 
