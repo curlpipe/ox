@@ -12,7 +12,7 @@ A plug-in for git integration that provides features to:
 
 git = {
     status = {},
-    icons = false,
+    icons = true,
     has_git = shell:output("git --version"):find("git version"),
 }
 
@@ -124,6 +124,7 @@ commands["git"] = function(args)
             if shell:run('git commit -S -m "' .. message .. '"') ~= 0 then
                 editor:display_error("Failed to commit")
             end
+            editor:reset_terminal()
         elseif args[1] == "push" then
             if shell:run('git push') ~= 0 then
                 editor:display_error("Failed to push")

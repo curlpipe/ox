@@ -49,6 +49,10 @@ impl LuaUserData for Editor {
     #[allow(clippy::too_many_lines)]
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         // Reload the configuration file
+        methods.add_method_mut("reset_terminal", |_, editor, ()| {
+            let _ = editor.terminal.start();
+            Ok(())
+        });
         methods.add_method_mut("reload_config", |lua, editor, ()| {
             let path = editor.config_path.clone();
             if editor.load_config(&path, lua).is_some() {

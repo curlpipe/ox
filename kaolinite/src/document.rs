@@ -668,17 +668,18 @@ impl Document {
         if x == 0 && y != 0 {
             return Status::StartOfLine;
         }
-        let re = format!("(\t| {{{}}}|^|\\W| )", self.tab_width);
-        if let Some(mut mtch) = self.prev_match(&re) {
-            let len = mtch.text.chars().count();
-            let same = mtch.loc.x + len == x;
-            if !same {
-                mtch.loc.x += len;
+        let re = format!("(\t| {{{}}}|^|\\W|$| )", self.tab_width);
+        let mut searcher = Searcher::new(&re);
+        let line = self.line(y).unwrap_or_default().chars().take(x).collect::<String>();
+        let mut matches = searcher.rfinds(&line);
+        if let Some(mtch) = matches.first() {
+            if mtch.loc.x == x {
+                matches.remove(0);
             }
+        }
+        if let Some(mtch) = matches.first_mut() {
+            mtch.loc.y = self.loc().y;
             self.move_to(&mtch.loc);
-            if same && self.loc().x != 0 {
-                return self.move_prev_word();
-            }
         }
         self.old_cursor = self.loc().x;
         Status::None
