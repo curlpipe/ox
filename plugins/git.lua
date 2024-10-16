@@ -12,7 +12,7 @@ A plug-in for git integration that provides features to:
 
 git = {
     status = {},
-    icons = true,
+    icons = false,
     has_git = shell:output("git --version"):find("git version"),
 }
 
@@ -88,7 +88,7 @@ end
 
 function git_branch()
     local branch = shell:output("git rev-parse --abbrev-ref HEAD")
-    if branch == "" then
+    if branch == "" or branch:match("fatal") then
         return "N/A"
     else
         return branch:gsub("[\r\n]+", "")
