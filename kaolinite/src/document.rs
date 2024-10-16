@@ -624,14 +624,42 @@ impl Document {
 
     /// Move up by 1 page
     pub fn move_page_up(&mut self) {
-        self.move_to_y(self.cursor.loc.y.saturating_sub(self.size.h));
+        // Set x to 0
+        self.cursor.loc.x = 0;
+        self.char_ptr = 0;
         self.old_cursor = 0;
+        // Calculate where to move the cursor
+        let new_cursor_y = self.cursor.loc.y.saturating_sub(self.size.h);
+        // Move to the new location and shift down offset proportionally
+        self.cursor.loc.y = new_cursor_y;
+        self.offset.y = self.offset.y.saturating_sub(self.size.h);
+        // Clean up
+        self.cancel_selection();
     }
 
     /// Move down by 1 page
     pub fn move_page_down(&mut self) {
-        self.move_to_y(self.cursor.loc.y + self.size.h);
+        // Set x to 0
+        self.cursor.loc.x = 0;
+        self.char_ptr = 0;
         self.old_cursor = 0;
+        // Calculate where to move the cursor
+        let new_cursor_y = self.cursor.loc.y + self.size.h;
+        if new_cursor_y <= self.len_lines() {
+            // Cursor is in range, move to the new location and shift down offset proportionally
+            self.cursor.loc.y = new_cursor_y;
+            self.offset.y += self.size.h;
+        } else if self.len_lines() < self.offset.y + self.size.h {
+            // End line is in view, no need to move offset
+            self.cursor.loc.y = self.len_lines().saturating_sub(1);
+        } else {
+            // Cursor would be out of range (adjust to bottom of document)
+            self.cursor.loc.y = self.len_lines().saturating_sub(1);
+            self.offset.y = self.len_lines().saturating_sub(self.size.h);
+        }
+        // Clean up
+        self.load_to(self.offset.y + self.size.h);
+        self.cancel_selection();
     }
 
     /// Moves to the previous word in the document
@@ -1086,7 +1114,7 @@ impl Document {
             x: self.cursor.loc.x.saturating_sub(self.offset.x),
             y: self.cursor.loc.y.saturating_sub(self.offset.y),
         };
-        if result.x > self.size.w || result.y > self.size.h {
+        if result.x > self.size.w || result.y >= self.size.h {
             return None;
         }
         Some(result)
