@@ -128,6 +128,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     handle_lua_error(&editor, "", lua.load(PLUGIN_MANAGER).exec());
 
     // Run the editor and handle errors if applicable
+    editor.borrow().update_cwd();
     editor.borrow_mut().init()?;
     while editor.borrow().active {
         // Render and wait for event

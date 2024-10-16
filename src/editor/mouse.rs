@@ -71,6 +71,7 @@ impl Editor {
                     }
                     MouseLocation::Tabs(i) => {
                         self.ptr = i;
+                        self.update_cwd();
                     }
                     MouseLocation::Out => (),
                 }

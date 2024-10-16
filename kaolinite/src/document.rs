@@ -4,6 +4,7 @@ use crate::map::{form_map, CharMap};
 use crate::searching::{Match, Searcher};
 use crate::utils::{
     get_range, modeline, tab_boundaries_backward, tab_boundaries_forward, trim, width, Loc, Size,
+    get_absolute_path,
 };
 use ropey::Rope;
 use std::fs::File;
@@ -101,6 +102,7 @@ impl Document {
     pub fn open<S: Into<String>>(size: Size, file_name: S) -> Result<Self> {
         let file_name = file_name.into();
         let file = Rope::from_reader(BufReader::new(File::open(&file_name)?))?;
+        let file_name = get_absolute_path(&file_name);
         let mut this = Self {
             info: DocumentInfo {
                 loaded_to: 0,
@@ -115,7 +117,7 @@ impl Document {
             lines: vec![],
             dbl_map: CharMap::default(),
             tab_map: CharMap::default(),
-            file_name: Some(file_name),
+            file_name,
             cursor: Cursor::default(),
             offset: Loc::default(),
             size,

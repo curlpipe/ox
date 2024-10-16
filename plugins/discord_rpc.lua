@@ -1,5 +1,5 @@
 --[[
-Discord RPC v0.1
+Discord RPC v0.2
 
 For showing your use of the Ox editor to other users on Discord
 ]]--
@@ -42,7 +42,7 @@ end
 
 function kill_discord_rpc()
     if discord_rpc.pid ~= nil then
-        os.execute("kill " .. discord_rpc.pid)
+        os.execute(string.format("kill %s > /dev/null 2>&1", discord_rpc.pid))
     end
 end
 

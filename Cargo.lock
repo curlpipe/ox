@@ -591,9 +591,9 @@ dependencies = [
 
 [[package]]
 name = "synoptic"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "059cf8fdb9193dd28765386812e30d6a9e4369255630d0ea36334e03d3f2c7c6"
+checksum = "1397c98697342b5b76b1dce4ecf2a912dc6407257b7db8c3006ab7d9b69b5b70"
 dependencies = [
  "if_chain",
  "regex",

@@ -6,9 +6,12 @@ use crossterm::event::{
 };
 use kaolinite::event::Error as KError;
 use kaolinite::Document;
+use kaolinite::utils::get_absolute_path;
 use mlua::{Error as LuaError, Lua};
 use std::io::ErrorKind;
 use std::time::Instant;
+use std::env;
+use std::path::Path;
 use synoptic::Highlighter;
 
 mod cursor;
@@ -94,6 +97,8 @@ impl Editor {
         // Update in the syntax highlighter
         let mut highlighter = Highlighter::new(4);
         highlighter.run(&doc.lines);
+        // Mark as not saved on disk
+        doc.info.modified = true;
         // Add document to documents
         self.files.push(FileContainer {
             highlighter,
@@ -151,6 +156,7 @@ impl Editor {
         let path = self.path_prompt()?;
         self.open(&path)?;
         self.ptr = self.files.len().saturating_sub(1);
+        self.update_cwd();
         Ok(())
     }
 
@@ -261,6 +267,7 @@ impl Editor {
     pub fn next(&mut self) {
         if self.ptr + 1 < self.files.len() {
             self.ptr += 1;
+            self.update_cwd();
         }
     }
 
@@ -268,6 +275,17 @@ impl Editor {
     pub fn prev(&mut self) {
         if self.ptr != 0 {
             self.ptr = self.ptr.saturating_sub(1);
+            self.update_cwd();
+        }
+    }
+
+    /// Updates the current working directory of the editor
+    pub fn update_cwd(&self) {
+        if let Some(name) = get_absolute_path(&self.doc().file_name.clone().unwrap_or_default()) {
+            let file = Path::new(&name);
+            if let Some(cwd) = file.parent() {
+                let _ = env::set_current_dir(cwd);
+            }
         }
     }
 

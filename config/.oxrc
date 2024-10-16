@@ -311,6 +311,8 @@ syntax:set("italic", {40, 198, 232}) -- Italic text in various markup languages 
 syntax:set("block", {40, 198, 232}) -- Code blocks in various markup languages e.g. `````` in markdown
 syntax:set("image", {40, 198, 232}) -- Images in various markup languages e.g. ![]() in markdown
 syntax:set("list", {86, 217, 178}) -- Lists in various markup languages e.g. - in markdown
+syntax:set("insertion", {39, 222, 145}) -- Images in various markup languages e.g. ![]() in markdown
+syntax:set("deletion", {255, 100, 100}) -- Lists in various markup languages e.g. - in markdown
 
 -- Import plugins (must be at the bottom of this file)
 load_plugin("pairs.lua")
