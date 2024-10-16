@@ -13,12 +13,14 @@ use super::{issue_warning, Colors};
 #[derive(Debug)]
 pub struct Terminal {
     pub mouse_enabled: bool,
+    pub scroll_amount: usize,
 }
 
 impl Default for Terminal {
     fn default() -> Self {
         Self {
             mouse_enabled: true,
+            scroll_amount: 1,
         }
     }
 }
@@ -28,6 +30,11 @@ impl LuaUserData for Terminal {
         fields.add_field_method_get("mouse_enabled", |_, this| Ok(this.mouse_enabled));
         fields.add_field_method_set("mouse_enabled", |_, this, value| {
             this.mouse_enabled = value;
+            Ok(())
+        });
+        fields.add_field_method_get("scroll_amount", |_, this| Ok(this.scroll_amount));
+        fields.add_field_method_set("scroll_amount", |_, this, value| {
+            this.scroll_amount = value;
             Ok(())
         });
     }

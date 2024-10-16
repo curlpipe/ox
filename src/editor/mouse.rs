@@ -107,10 +107,13 @@ impl Editor {
             // Mouse scroll behaviour
             MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
                 if let MouseLocation::File(_) = self.find_mouse_location(lua, event) {
-                    if event.kind == MouseEventKind::ScrollDown {
-                        self.doc_mut().scroll_down();
-                    } else {
-                        self.doc_mut().scroll_up();
+                    let scroll_amount = self.config.terminal.borrow().scroll_amount;
+                    for _ in 0..scroll_amount {
+                        if event.kind == MouseEventKind::ScrollDown {
+                            self.doc_mut().scroll_down();
+                        } else {
+                            self.doc_mut().scroll_up();
+                        }
                     }
                 }
             }

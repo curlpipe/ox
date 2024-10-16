@@ -232,6 +232,7 @@ line_numbers.padding_right = 1
 
 -- Configure Mouse Behaviour --
 terminal.mouse_enabled = true
+terminal.scroll_amount = 1
 
 -- Configure Tab Line --
 tab_line.enabled = true
