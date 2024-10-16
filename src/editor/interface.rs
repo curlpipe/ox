@@ -33,14 +33,12 @@ impl Editor {
             self.render_tab_line(lua, w)?;
         }
         // Run through each line of the terminal, rendering the correct line
-        self.render_document(w, h)?;
+        self.render_document(lua, w, h)?;
         // Leave last line for status line
         self.render_status_line(lua, w, h)?;
-        // Render greeting or help message if applicable
+        // Render greeting if applicable
         if self.greet {
             self.render_greeting(lua, w, h)?;
-        } else if self.config.help_message.borrow().enabled {
-            self.render_help_message(lua, w, h)?;
         }
         // Render feedback line
         self.render_feedback_line(w, h)?;
@@ -55,7 +53,29 @@ impl Editor {
 
     /// Render the lines of the document
     #[allow(clippy::similar_names)]
-    pub fn render_document(&mut self, w: usize, h: usize) -> Result<()> {
+    pub fn render_document(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
+        // Get some details about the help message
+        let colors = self.config.colors.borrow().highlight.to_color()?;
+        let tab_width = self.config.document.borrow().tab_width;
+        let message = self.config.help_message.borrow().render(lua);
+        let max_width = message
+            .iter()
+            .map(|(_, line)| width(line, tab_width))
+            .max()
+            .unwrap_or(0)
+            + 5;
+        let message = message
+            .iter()
+            .map(|(hl, line)| {
+                if *hl {
+                    format!("{}{line}", Fg(colors))
+                } else {
+                    line.to_owned()
+                }
+            })
+            .collect::<Vec<_>>();
+        let start = u16::try_from(h / 4).unwrap_or(u16::MAX);
+        let end = start + u16::try_from(message.len()).unwrap_or(u16::MAX);
         for y in 0..u16::try_from(h).unwrap_or(0) {
             self.terminal.goto(0, y as usize + self.push_down)?;
             // Start colours
@@ -85,6 +105,7 @@ impl Editor {
             }
             // Render line if it exists
             let idx = y as usize + self.doc().offset.y;
+            let pad_amount;
             if let Some(line) = self.doc().line(idx) {
                 let tokens = self.highlighter().line(idx, &line);
                 let tokens = trim(&tokens, self.doc().offset.x);
@@ -126,11 +147,17 @@ impl Editor {
                 display!(self, editor_fg, editor_bg);
                 let tab_width = self.config.document.borrow().tab_width;
                 let line_width = width(&line, tab_width);
-                let pad_amount = w.saturating_sub(self.dent()).saturating_sub(line_width) + 1;
-                display!(self, " ".repeat(pad_amount));
+                pad_amount = w.saturating_sub(self.dent()).saturating_sub(line_width) + 1;
             } else {
                 // Render empty line
-                let pad_amount = w.saturating_sub(self.dent()) + 1;
+                pad_amount = w.saturating_sub(self.dent()) + 1;
+            }
+            // Render help message if applicable (otherwise, just output padding to clear buffer)
+            if self.config.help_message.borrow().enabled && (start..=end).contains(&y) {
+                let idx = y.saturating_sub(start);
+                display!(self, " ".repeat(pad_amount.saturating_sub(max_width)));
+                display!(self, message.get(idx as usize).unwrap_or(&String::new()));
+            } else {
                 display!(self, " ".repeat(pad_amount));
             }
         }
@@ -201,17 +228,6 @@ impl Editor {
         self.terminal.goto(0, h + 2)?;
         let content = self.feedback.render(&self.config.colors.borrow(), w)?;
         display!(self, content);
-        Ok(())
-    }
-
-    /// Render the greeting message
-    fn render_help_message(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
-        let colors = self.config.colors.borrow();
-        let message = self.config.help_message.borrow().render(lua, &colors)?;
-        for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
-            self.terminal.goto(w.saturating_sub(30), h / 4 + c + 1)?;
-            display!(self, line);
-        }
         Ok(())
     }
 

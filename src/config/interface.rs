@@ -152,16 +152,14 @@ impl Default for HelpMessage {
 
 impl HelpMessage {
     /// Take the configuration information and render the help message
-    pub fn render(&self, lua: &Lua, colors: &Colors) -> Result<Vec<String>> {
-        let highlight = Fg(colors.highlight.to_color()?).to_string();
-        let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
-        let mut result = self.format.clone();
-        result = result.replace("{version}", VERSION).to_string();
-        result = result.replace("{highlight_start}", &highlight).to_string();
-        result = result.replace("{highlight_end}", &editor_fg).to_string();
+    pub fn render(&self, lua: &Lua) -> Vec<(bool, String)> {
+        let mut message = self.format.clone();
+        //result = result.replace("{highlight_start}", &highlight).to_string();
+        //result = result.replace("{highlight_end}", &editor_fg).to_string();
+        message = message.replace("{version}", VERSION).to_string();
         // Find functions to call and substitute in
         let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
-        while let Some(m) = searcher.lfind(&result) {
+        while let Some(m) = searcher.lfind(&message) {
             let name = m
                 .text
                 .chars()
@@ -170,7 +168,7 @@ impl HelpMessage {
                 .collect::<String>();
             if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
                 if let Ok(r) = func.call::<(), LuaString>(()) {
-                    result = result.replace(&m.text, r.to_str().unwrap_or(""));
+                    message = message.replace(&m.text, r.to_str().unwrap_or(""));
                 } else {
                     break;
                 }
@@ -178,10 +176,20 @@ impl HelpMessage {
                 break;
             }
         }
-        Ok(result
-            .split('\n')
-            .map(std::string::ToString::to_string)
-            .collect())
+        let mut highlighted = false;
+        let mut result = vec![];
+        for line in message.split('\n') {
+            // Process highlighter lines
+            if line.trim() == "{highlight_start}" {
+                result.push((true, String::new()));
+                highlighted = true;
+            } else if line.trim() == "{highlight_end}" {
+                highlighted = false;
+            } else {
+                result.push((highlighted, line.to_string()));
+            }
+        }
+        result
     }
 }
 

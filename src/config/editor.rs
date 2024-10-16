@@ -424,15 +424,15 @@ impl LuaUserData for Editor {
             Ok(())
         });
         // Searching and replacing
-        methods.add_method_mut("search", |_, editor, ()| {
-            if let Err(err) = editor.search() {
+        methods.add_method_mut("search", |lua, editor, ()| {
+            if let Err(err) = editor.search(lua) {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
             Ok(())
         });
-        methods.add_method_mut("replace", |_, editor, ()| {
-            if let Err(err) = editor.replace() {
+        methods.add_method_mut("replace", |lua, editor, ()| {
+            if let Err(err) = editor.replace(lua) {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
