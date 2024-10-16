@@ -1,10 +1,10 @@
 --[[
-Todo Lists v0.1
+Todo Lists v0.2
 
 This plug-in will provide todo list functionality on files with the extension .todo
 You can mark todos as done / not done by using the Ctrl + Enter key combination
 Todos are in the format "- [ ] Your Todo Name"
---]]
+]]--
 
 -- Add language specific information for .todo files
 file_types["Todo"] = {
@@ -17,7 +17,7 @@ file_types["Todo"] = {
 -- Add syntax highlighting to .todo files (done todos are comments)
 syntax:new(
     "Todo",
-    {syntax:keyword("comment", "\\s*(-\\s*\\[X\\].*)")}
+    {syntax:keyword("comment", "\\s*(-\\s*\\[(?:X|x)\\].*)")}
 )
 
 -- Create the structure and behaviour for todo list files
@@ -29,7 +29,7 @@ function todo_lists:how_complete()
     local complete = 0
     for y = 1, editor.document_length do
         local line = editor:get_line_at(y)
-        if string.match(line, "^%s*%-%s*%[X%].*") then
+        if string.match(line, "^%s*%-%s*%[([Xx])%].*") then
             complete = complete + 1
             total = total + 1
         elseif string.match(line, "^%s*%-%s*%[ %].*") then
@@ -46,9 +46,9 @@ event_mapping["ctrl_enter"] = function()
     if editor.document_type == "Todo" then
         -- Determine what kind of line we're dealing with
         local line = editor:get_line()
-        if string.match(line, "^%s*%-%s*%[X%].*") then
+        if string.match(line, "^%s*%-%s*%[([Xx])%].*") then
             -- Mark this line as not done
-            line = string.gsub(line, "^(%s*%-%s*)%[X%]", "%1[ ]")
+            line = string.gsub(line, "^(%s*%-%s*)%[([Xx])%]", "%1[ ]")
             editor:insert_line_at(line, editor.cursor.y)
             editor:remove_line_at(editor.cursor.y + 1)
             -- Print handy statistics
@@ -66,4 +66,9 @@ event_mapping["ctrl_enter"] = function()
             editor:display_error("This todo is incorrectly formatted")
         end
     end
+end
+
+-- Autoadd empty task when the user presses enter onto a new line
+event_mapping["enter"] = function()
+    editor:insert("- [ ] ")
 end
