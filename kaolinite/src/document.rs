@@ -670,7 +670,12 @@ impl Document {
         }
         let re = format!("(\t| {{{}}}|^|\\W|$| )", self.tab_width);
         let mut searcher = Searcher::new(&re);
-        let line = self.line(y).unwrap_or_default().chars().take(x).collect::<String>();
+        let line = self
+            .line(y)
+            .unwrap_or_default()
+            .chars()
+            .take(x)
+            .collect::<String>();
         let mut matches = searcher.rfinds(&line);
         if let Some(mtch) = matches.first() {
             if mtch.loc.x == x {
