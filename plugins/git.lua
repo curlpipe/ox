@@ -12,7 +12,7 @@ A plug-in for git integration that provides features to:
 
 git = {
     status = {},
-    icons = true,
+    icons = false,
 }
 
 -- Verify that git is installed

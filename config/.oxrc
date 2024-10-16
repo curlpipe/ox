@@ -49,6 +49,10 @@ event_mapping = {
     ["pagedown"] = function() 
         editor:move_page_down() 
     end,
+    ["ctrl_g"] = function()
+        local line = editor:prompt("Go to line")
+        editor:move_to(0, tonumber(line))
+    end,
     -- Searching & Replacing
     ["ctrl_f"] = function()
         editor:search()
@@ -276,6 +280,7 @@ Ctrl + F:   Find
 Ctrl + R:   Replace       
 Ctrl + W:   Delete Word   
 Ctrl + D:   Delete Line   
+Ctrl + G:   Go to a line  
 Alt + Up:   Move line up  
 Alt + Down: Move line down
 Ctrl + K:   Command Line  
