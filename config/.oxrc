@@ -184,7 +184,7 @@ commands = {
         end
     end,
     ["filetype"] = function(arguments)
-        local file_type_name = arguments[1]
+        local file_type_name = table.concat(arguments, " ")
         editor:set_file_type(file_type_name)
     end,
     ["reload"] = function(arguments)

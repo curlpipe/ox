@@ -296,7 +296,7 @@ file_types = {
         extensions = {"dockerfile"},
         modelines = {},
     },
-    ["Elixr"] = {
+    ["Elixir"] = {
         icon = " ",
         files = {},
         extensions = {"ex", "exs"},
@@ -550,7 +550,7 @@ file_types = {
     },
     ["Makefile"] = {
         icon = " ",
-        files = {},
+        files = {"Makefile"},
         extensions = {"mk", "mak"},
         modelines = {},
     },

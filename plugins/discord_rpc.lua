@@ -23,7 +23,7 @@ function discord_rpc:show_rpc()
     else
         -- Spawn an rpc process
         local name = editor.file_name or "Untitled"
-        local kind = string.lower(editor.document_type:gsub("%+", "p"):gsub("#", "s"))
+        local kind = string.lower(editor.document_type:gsub("%+", "p"):gsub("#", "s"):gsub(" ", "_"))
         local code = drpc:gsub("\n", "; ")
         local command = string.format("python -c \"%s\" 'Ox' 'Editing %s' '%s'", code, name, kind)
         self.pid = shell:spawn(command)
@@ -44,11 +44,12 @@ function check_discord_rpc()
         -- Reload the rpc
         kill_discord_rpc()
         discord_rpc.doc = editor.file_path
-        after(1, "run_discord_rpc")
+        after(0, "run_discord_rpc")
     end
 end
 
 every(5, "check_discord_rpc")
+after(0, "check_discord_rpc")
 
 event_mapping["exit"] = function()
     -- Kill the rpc process
