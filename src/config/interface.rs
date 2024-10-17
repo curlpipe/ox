@@ -1,3 +1,4 @@
+/// Utilities for configuring and rendering parts of the interface
 use crate::cli::VERSION;
 use crate::editor::{Editor, FileContainer};
 use crate::error::Result;

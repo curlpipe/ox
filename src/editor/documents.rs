@@ -1,3 +1,4 @@
+/// Tools for placing all information about open files into one place
 use crate::editor::FileType;
 use kaolinite::Document;
 use synoptic::Highlighter;

@@ -1,3 +1,4 @@
+/// For dealing with keys in the configuration file
 use crossterm::event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode};
 
 /// This contains the code for running code after a key binding is pressed

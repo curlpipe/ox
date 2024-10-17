@@ -1,3 +1,4 @@
+/// Utilities for dealing with the command line interface of Ox
 use jargon_args::{Jargon, Key};
 use std::io;
 use std::io::BufRead;

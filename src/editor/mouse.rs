@@ -1,3 +1,4 @@
+/// For handling mouse events
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use kaolinite::{utils::width, Loc};
 use mlua::Lua;

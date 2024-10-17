@@ -1,3 +1,4 @@
+/// Functions for moving the cursor around
 use kaolinite::event::Status;
 
 use super::Editor;

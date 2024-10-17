@@ -1,3 +1,4 @@
+/// Functions for rendering the UI
 use crate::display;
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback};

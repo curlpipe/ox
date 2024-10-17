@@ -1,3 +1,4 @@
+/// For general configuration
 use crate::editor::{FileType, FileTypes};
 use crate::error::{OxError, Result};
 use mlua::prelude::*;

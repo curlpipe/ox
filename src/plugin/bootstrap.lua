@@ -1,4 +1,4 @@
--- Bootstrap plug-ins
+-- Bootstrap code provides plug-ins and configuration with APIs and other utilities
 home = os.getenv("HOME") or os.getenv("USERPROFILE")
 
 if package.config:sub(1,1) == "\\" then

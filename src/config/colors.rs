@@ -1,3 +1,4 @@
+/// For dealing with colours in the configuration file
 use crate::error::{OxError, Result};
 use crossterm::style::Color as CColor;
 use mlua::prelude::*;

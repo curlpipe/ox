@@ -1,3 +1,4 @@
+/// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;

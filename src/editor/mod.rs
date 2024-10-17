@@ -1,3 +1,4 @@
+/// Main functionality of the editor
 use crate::config::{Config, Indentation};
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback, Terminal};

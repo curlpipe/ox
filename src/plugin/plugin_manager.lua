@@ -1,4 +1,4 @@
--- Plug-in management system
+-- Plug-in management system code
 
 plugin_manager = {}
 

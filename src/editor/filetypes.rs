@@ -1,3 +1,4 @@
+/// Tools for managing and identifying file types
 use crate::editor::Config;
 use kaolinite::utils::get_file_name;
 use kaolinite::Document;

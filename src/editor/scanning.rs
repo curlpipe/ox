@@ -1,3 +1,4 @@
+/// Functions for searching and replacing
 use crate::error::Result;
 use crate::ui::size;
 use crossterm::{
