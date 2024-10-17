@@ -70,5 +70,7 @@ end
 
 -- Autoadd empty task when the user presses enter onto a new line
 event_mapping["enter"] = function()
-    editor:insert("- [ ] ")
+    if editor.document_type == "Todo" then
+        editor:insert("- [ ] ")
+    end
 end
