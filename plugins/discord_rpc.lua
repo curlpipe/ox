@@ -19,6 +19,7 @@ end
 function discord_rpc:show_rpc()
     if not self:ready() then
         editor:display_error("Discord RPC: missing python or discord-rpc python module")
+        editor:rerender_feedback_line()
     else
         -- Spawn an rpc process
         local name = editor.file_name or "Untitled"
@@ -31,7 +32,6 @@ end
 
 function run_discord_rpc() 
     discord_rpc:show_rpc()
-    editor:rerender()
 end
 
 function kill_discord_rpc()
