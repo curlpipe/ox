@@ -1,5 +1,11 @@
--- Bootstrap plug-ins
+-- Bootstrap code provides plug-ins and configuration with APIs and other utilities
 home = os.getenv("HOME") or os.getenv("USERPROFILE")
+
+if package.config:sub(1,1) == "\\" then
+    plugin_path = home .. "/ox"
+else
+    plugin_path = home .. "/.config/ox"
+end
 
 function file_exists(file_path)
     local file = io.open(file_path, "r")
@@ -43,7 +49,84 @@ function load_plugin(base)
     end
 end
 
--- Populate the document object with built-in file type detection
+-- Python interoperability tools
+python_interop = {}
+
+function python_interop:installation()
+    -- Try to capture Python version output using io.popen
+    local python_handle = io.popen("python --version 2>&1")
+    local python_output = python_handle:read("*a")
+    python_handle:close()
+    if python_output:find("Python") then
+        return 2
+    end
+
+    -- If 'python' didn't work, try 'python3'
+    local python3_handle = io.popen("python3 --version 2>&1")
+    local python3_output = python3_handle:read("*a")
+    python3_handle:close()
+    if python3_output:find("Python") then
+        return 3
+    end
+
+    return nil
+end
+
+function python_interop:has_module(module_name)
+    -- Use python -c "import <module>"
+    local command = "python -c \"import " .. module_name .. "\" 2>&1"
+    local handle = io.popen(command)
+    local result = handle:read("*a")
+    handle:close()
+
+    if result == "" then  -- No output means successful import
+        return true
+    end
+
+    -- Try with python3 in case 'python' is python 2.x
+    command = "python3 -c \"import " .. module_name .. "\" 2>&1"
+    local handle_python3 = io.popen(command)
+    local result_python3 = handle_python3:read("*a")
+    handle_python3:close()
+
+    return result_python3 == ""
+end
+
+-- Command line interaction
+shell = {}
+
+function shell:run(cmd)
+    -- Runs a command (silently) and return the exit code
+    return select(3, os.execute(cmd .. " > /dev/null 2>&1"))
+end
+
+function shell:output(cmd)
+    -- Runs a command (silently) and returns stdout and stderr together in a single string
+    local command = cmd .. " 2>&1"
+    local handle = io.popen(command)
+    local result = handle:read("*a")
+    handle:close()
+    return result
+end
+
+function shell:spawn(cmd)
+    -- Spawns a command (silently), and have it run in the background
+    -- Returns PID so process can be killed later
+    local command = cmd .. " > /dev/null 2>&1 & echo $!"
+    local pid = shell:output(command)
+    pid = pid:gsub("%s+", "")
+    pid = pid:gsub("\\n", "")
+    pid = pid:gsub("\\t", "")
+    return pid
+end
+
+function shell:kill(pid)
+    if pid ~= nil then
+        shell:run("kill " .. tostring(pid))
+    end
+end
+
+-- Add types for built-in file type detection
 file_types = {
     ["ABAP"] = {
         icon = "󰅩 ",
@@ -213,7 +296,7 @@ file_types = {
         extensions = {"dockerfile"},
         modelines = {},
     },
-    ["Elixr"] = {
+    ["Elixir"] = {
         icon = " ",
         files = {},
         extensions = {"ex", "exs"},
@@ -467,7 +550,7 @@ file_types = {
     },
     ["Makefile"] = {
         icon = " ",
-        files = {},
+        files = {"Makefile"},
         extensions = {"mk", "mak"},
         modelines = {},
     },

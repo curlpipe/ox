@@ -1,3 +1,5 @@
+-- Code for running and processing plug-ins
+
 global_event_mapping = {}
 
 function merge_event_mapping()

@@ -1,3 +1,5 @@
+/// For dealing with tasks (part of the plug-in concurrency API)
+
 #[derive(Default, Debug)]
 pub struct Task {
     repeat: bool,

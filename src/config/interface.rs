@@ -1,6 +1,8 @@
+/// Utilities for configuring and rendering parts of the interface
 use crate::cli::VERSION;
 use crate::editor::{Editor, FileContainer};
 use crate::error::Result;
+use crate::Feedback;
 use crossterm::style::SetForegroundColor as Fg;
 use kaolinite::searching::Searcher;
 use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
@@ -12,12 +14,14 @@ use super::{issue_warning, Colors};
 #[derive(Debug)]
 pub struct Terminal {
     pub mouse_enabled: bool,
+    pub scroll_amount: usize,
 }
 
 impl Default for Terminal {
     fn default() -> Self {
         Self {
             mouse_enabled: true,
+            scroll_amount: 1,
         }
     }
 }
@@ -27,6 +31,11 @@ impl LuaUserData for Terminal {
         fields.add_field_method_get("mouse_enabled", |_, this| Ok(this.mouse_enabled));
         fields.add_field_method_set("mouse_enabled", |_, this, value| {
             this.mouse_enabled = value;
+            Ok(())
+        });
+        fields.add_field_method_get("scroll_amount", |_, this| Ok(this.scroll_amount));
+        fields.add_field_method_set("scroll_amount", |_, this, value| {
+            this.scroll_amount = value;
             Ok(())
         });
     }
@@ -151,16 +160,14 @@ impl Default for HelpMessage {
 
 impl HelpMessage {
     /// Take the configuration information and render the help message
-    pub fn render(&self, lua: &Lua, colors: &Colors) -> Result<Vec<String>> {
-        let highlight = Fg(colors.highlight.to_color()?).to_string();
-        let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
-        let mut result = self.format.clone();
-        result = result.replace("{version}", VERSION).to_string();
-        result = result.replace("{highlight_start}", &highlight).to_string();
-        result = result.replace("{highlight_end}", &editor_fg).to_string();
+    pub fn render(&self, lua: &Lua) -> Vec<(bool, String)> {
+        let mut message = self.format.clone();
+        //result = result.replace("{highlight_start}", &highlight).to_string();
+        //result = result.replace("{highlight_end}", &editor_fg).to_string();
+        message = message.replace("{version}", VERSION).to_string();
         // Find functions to call and substitute in
         let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
-        while let Some(m) = searcher.lfind(&result) {
+        while let Some(m) = searcher.lfind(&message) {
             let name = m
                 .text
                 .chars()
@@ -169,7 +176,7 @@ impl HelpMessage {
                 .collect::<String>();
             if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
                 if let Ok(r) = func.call::<(), LuaString>(()) {
-                    result = result.replace(&m.text, r.to_str().unwrap_or(""));
+                    message = message.replace(&m.text, r.to_str().unwrap_or(""));
                 } else {
                     break;
                 }
@@ -177,10 +184,20 @@ impl HelpMessage {
                 break;
             }
         }
-        Ok(result
-            .split('\n')
-            .map(std::string::ToString::to_string)
-            .collect())
+        let mut highlighted = false;
+        let mut result = vec![];
+        for line in message.split('\n') {
+            // Process highlighter lines
+            if line.trim() == "{highlight_start}" {
+                result.push((true, String::new()));
+                highlighted = true;
+            } else if line.trim() == "{highlight_end}" {
+                highlighted = false;
+            } else {
+                result.push((highlighted, line.to_string()));
+            }
+        }
+        result
     }
 }
 
@@ -217,7 +234,7 @@ impl Default for TabLine {
 
 impl TabLine {
     /// Take the configuration information and render the tab line
-    pub fn render(&self, file: &FileContainer) -> String {
+    pub fn render(&self, lua: &Lua, file: &FileContainer, feedback: &mut Feedback) -> String {
         let path = file
             .doc
             .file_name
@@ -239,6 +256,29 @@ impl TabLine {
         result = result.replace("{path}", &path).to_string();
         result = result.replace("{modified}", modified).to_string();
         result = result.replace("{icon}", &icon).to_string();
+        // Find functions to call and substitute in
+        let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
+        while let Some(m) = searcher.lfind(&result) {
+            let name = m
+                .text
+                .chars()
+                .skip(1)
+                .take(m.text.chars().count().saturating_sub(2))
+                .collect::<String>();
+            if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
+                match func.call::<String, LuaString>(absolute_path.clone()) {
+                    Ok(r) => {
+                        result = result.replace(&m.text, r.to_str().unwrap_or(""));
+                    }
+                    Err(e) => {
+                        *feedback = Feedback::Error(format!("Error occured in tab line: {e:?}"));
+                        break;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
         result
     }
 }

@@ -52,6 +52,38 @@ impl Searcher {
         None
     }
 
+    /// Finds all the matches to the left
+    pub fn lfinds(&mut self, st: &str) -> Vec<Match> {
+        let mut result = vec![];
+        for cap in self.re.captures_iter(st) {
+            if let Some(c) = cap.get(cap.len().saturating_sub(1)) {
+                let x = Self::raw_to_char(c.start(), st);
+                result.push(Match {
+                    loc: Loc::at(x, 0),
+                    text: c.as_str().to_string(),
+                });
+            }
+        }
+        result
+    }
+
+    /// Finds all the matches to the right
+    pub fn rfinds(&mut self, st: &str) -> Vec<Match> {
+        let mut result = vec![];
+        let mut caps: Vec<_> = self.re.captures_iter(st).collect();
+        caps.reverse();
+        for cap in caps {
+            if let Some(c) = cap.get(cap.len().saturating_sub(1)) {
+                let x = Self::raw_to_char(c.start(), st);
+                result.push(Match {
+                    loc: Loc::at(x, 0),
+                    text: c.as_str().to_string(),
+                });
+            }
+        }
+        result
+    }
+
     /// Converts a raw index into a character index, so that matches are in character indices
     #[must_use]
     pub fn raw_to_char(x: usize, st: &str) -> usize {

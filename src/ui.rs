@@ -1,3 +1,4 @@
+/// Utilities for rendering the user interface
 use crate::config::{Colors, Terminal as TerminalConfig};
 use crate::error::Result;
 use base64::prelude::*;

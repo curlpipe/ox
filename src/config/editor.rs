@@ -1,7 +1,9 @@
+/// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
 use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
+use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
 use kaolinite::{Loc, Size};
 use mlua::prelude::*;
 
@@ -26,19 +28,32 @@ impl LuaUserData for Editor {
         fields.add_field_method_get("current_document_id", |_, editor| Ok(editor.ptr));
         fields.add_field_method_get("document_count", |_, editor| Ok(editor.files.len()));
         fields.add_field_method_get("document_type", |_, editor| {
-            let ext = editor
-                .doc()
-                .file_name
-                .as_ref()
-                .map_or("", |name| name.split('.').last().unwrap_or(""));
-            let file_type = kaolinite::utils::filetype(ext);
-            Ok(file_type)
+            Ok(editor.files[editor.ptr]
+                .file_type
+                .clone()
+                .map_or("Unknown".to_string(), |t| t.name))
+        });
+        fields.add_field_method_get("file_name", |_, editor| {
+            let name = get_file_name(&editor.doc().file_name.clone().unwrap_or_default());
+            Ok(name)
+        });
+        fields.add_field_method_get("file_extension", |_, editor| {
+            let name = get_file_ext(&editor.doc().file_name.clone().unwrap_or_default());
+            Ok(name)
+        });
+        fields.add_field_method_get("file_path", |_, editor| {
+            let name = get_absolute_path(&editor.doc().file_name.clone().unwrap_or_default());
+            Ok(name)
         });
     }
 
     #[allow(clippy::too_many_lines)]
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         // Reload the configuration file
+        methods.add_method_mut("reset_terminal", |_, editor, ()| {
+            let _ = editor.terminal.start();
+            Ok(())
+        });
         methods.add_method_mut("reload_config", |lua, editor, ()| {
             let path = editor.config_path.clone();
             if editor.load_config(&path, lua).is_some() {
@@ -303,6 +318,12 @@ impl LuaUserData for Editor {
             editor.plugin_active = false;
             Ok(())
         });
+        methods.add_method_mut("get", |_, editor, ()| {
+            let lines = editor.doc().len_lines();
+            editor.doc_mut().load_to(lines);
+            let contents = editor.doc().lines.join("\n");
+            Ok(contents)
+        });
         methods.add_method("get_character", |_, editor, ()| {
             let loc = editor.doc().char_loc();
             let ch = editor
@@ -408,15 +429,15 @@ impl LuaUserData for Editor {
             Ok(())
         });
         // Searching and replacing
-        methods.add_method_mut("search", |_, editor, ()| {
-            if let Err(err) = editor.search() {
+        methods.add_method_mut("search", |lua, editor, ()| {
+            if let Err(err) = editor.search(lua) {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
             Ok(())
         });
-        methods.add_method_mut("replace", |_, editor, ()| {
-            if let Err(err) = editor.replace() {
+        methods.add_method_mut("replace", |lua, editor, ()| {
+            if let Err(err) = editor.replace(lua) {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();

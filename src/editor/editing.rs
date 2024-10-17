@@ -1,3 +1,4 @@
+/// General functions for editing a document
 use crate::error::Result;
 use kaolinite::event::Event;
 use kaolinite::utils::Loc;

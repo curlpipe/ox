@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.8
+Auto Indent v0.9
 
 Helps you when programming by guessing where indentation should go
 and then automatically applying these guesses as you program
@@ -31,6 +31,7 @@ function autoindent:causes_indent(y)
         if self:ends(y, "do") then return true end
     elseif editor.document_type == "Lua" then
         local func = self:ends(y, "%)") and (self:starts(y, "function") or self:starts(y, "local function"))
+        local func = func or self:ends(y, "function%([^)]*%)")
         if self:ends(y, "else") or self:ends(y, "do") or self:ends(y, "then") or func then return true end
     elseif editor.document_type == "Haskell" then
         if self:ends(y, "where") or self:ends(y, "let") or self:ends(y, "do") then return true end

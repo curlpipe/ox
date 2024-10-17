@@ -3,7 +3,8 @@ use crate::event::{Error, Event, Result, Status, UndoMgmt};
 use crate::map::{form_map, CharMap};
 use crate::searching::{Match, Searcher};
 use crate::utils::{
-    get_range, modeline, tab_boundaries_backward, tab_boundaries_forward, trim, width, Loc, Size,
+    get_absolute_path, get_range, modeline, tab_boundaries_backward, tab_boundaries_forward, trim,
+    width, Loc, Size,
 };
 use ropey::Rope;
 use std::fs::File;
@@ -101,6 +102,7 @@ impl Document {
     pub fn open<S: Into<String>>(size: Size, file_name: S) -> Result<Self> {
         let file_name = file_name.into();
         let file = Rope::from_reader(BufReader::new(File::open(&file_name)?))?;
+        let file_name = get_absolute_path(&file_name);
         let mut this = Self {
             info: DocumentInfo {
                 loaded_to: 0,
@@ -115,7 +117,7 @@ impl Document {
             lines: vec![],
             dbl_map: CharMap::default(),
             tab_map: CharMap::default(),
-            file_name: Some(file_name),
+            file_name,
             cursor: Cursor::default(),
             offset: Loc::default(),
             size,
@@ -622,14 +624,42 @@ impl Document {
 
     /// Move up by 1 page
     pub fn move_page_up(&mut self) {
-        self.move_to_y(self.cursor.loc.y.saturating_sub(self.size.h));
+        // Set x to 0
+        self.cursor.loc.x = 0;
+        self.char_ptr = 0;
         self.old_cursor = 0;
+        // Calculate where to move the cursor
+        let new_cursor_y = self.cursor.loc.y.saturating_sub(self.size.h);
+        // Move to the new location and shift down offset proportionally
+        self.cursor.loc.y = new_cursor_y;
+        self.offset.y = self.offset.y.saturating_sub(self.size.h);
+        // Clean up
+        self.cancel_selection();
     }
 
     /// Move down by 1 page
     pub fn move_page_down(&mut self) {
-        self.move_to_y(self.cursor.loc.y + self.size.h);
+        // Set x to 0
+        self.cursor.loc.x = 0;
+        self.char_ptr = 0;
         self.old_cursor = 0;
+        // Calculate where to move the cursor
+        let new_cursor_y = self.cursor.loc.y + self.size.h;
+        if new_cursor_y <= self.len_lines() {
+            // Cursor is in range, move to the new location and shift down offset proportionally
+            self.cursor.loc.y = new_cursor_y;
+            self.offset.y += self.size.h;
+        } else if self.len_lines() < self.offset.y + self.size.h {
+            // End line is in view, no need to move offset
+            self.cursor.loc.y = self.len_lines().saturating_sub(1);
+        } else {
+            // Cursor would be out of range (adjust to bottom of document)
+            self.cursor.loc.y = self.len_lines().saturating_sub(1);
+            self.offset.y = self.len_lines().saturating_sub(self.size.h);
+        }
+        // Clean up
+        self.load_to(self.offset.y + self.size.h);
+        self.cancel_selection();
     }
 
     /// Moves to the previous word in the document
@@ -638,17 +668,23 @@ impl Document {
         if x == 0 && y != 0 {
             return Status::StartOfLine;
         }
-        let re = format!("(\t| {{{}}}|^|\\W| )", self.tab_width);
-        if let Some(mut mtch) = self.prev_match(&re) {
-            let len = mtch.text.chars().count();
-            let same = mtch.loc.x + len == x;
-            if !same {
-                mtch.loc.x += len;
+        let re = format!("(\t| {{{}}}|^|\\W|$| )", self.tab_width);
+        let mut searcher = Searcher::new(&re);
+        let line = self
+            .line(y)
+            .unwrap_or_default()
+            .chars()
+            .take(x)
+            .collect::<String>();
+        let mut matches = searcher.rfinds(&line);
+        if let Some(mtch) = matches.first() {
+            if mtch.loc.x == x {
+                matches.remove(0);
             }
+        }
+        if let Some(mtch) = matches.first_mut() {
+            mtch.loc.y = self.loc().y;
             self.move_to(&mtch.loc);
-            if same && self.loc().x != 0 {
-                return self.move_prev_word();
-            }
         }
         self.old_cursor = self.loc().x;
         Status::None
@@ -1084,7 +1120,7 @@ impl Document {
             x: self.cursor.loc.x.saturating_sub(self.offset.x),
             y: self.cursor.loc.y.saturating_sub(self.offset.y),
         };
-        if result.x > self.size.w || result.y > self.size.h {
+        if result.x > self.size.w || result.y >= self.size.h {
             return None;
         }
         Some(result)

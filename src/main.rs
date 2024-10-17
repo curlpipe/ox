@@ -12,13 +12,13 @@ use config::{
     PLUGIN_RUN,
 };
 use crossterm::event::Event as CEvent;
-use editor::Editor;
+use editor::{Editor, FileTypes};
 use error::Result;
 use kaolinite::event::Event;
 use kaolinite::searching::Searcher;
 use kaolinite::Loc;
 use mlua::Error::{RuntimeError, SyntaxError};
-use mlua::Lua;
+use mlua::{FromLua, Lua, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::result::Result as RResult;
@@ -64,6 +64,17 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         // Handle error if available
         handle_lua_error(&editor, "configuration", Err(err));
     };
+
+    // Run plug-ins
+    handle_lua_error(&editor, "", lua.load(PLUGIN_RUN).exec());
+
+    // Load in the file types
+    let file_types = lua
+        .globals()
+        .get("file_types")
+        .unwrap_or(Value::Table(lua.create_table()?));
+    let file_types = FileTypes::from_lua(file_types, &lua).unwrap_or_default();
+    editor.borrow_mut().config.document.borrow_mut().file_types = file_types;
 
     // Open files user has asked to open
     for (c, file) in cli.to_open.iter().enumerate() {
@@ -113,13 +124,11 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     // Create a blank document if none are opened
     editor.borrow_mut().new_if_empty()?;
 
-    // Run plug-ins
-    handle_lua_error(&editor, "", lua.load(PLUGIN_RUN).exec());
-
     // Add in the plugin manager
     handle_lua_error(&editor, "", lua.load(PLUGIN_MANAGER).exec());
 
     // Run the editor and handle errors if applicable
+    editor.borrow().update_cwd();
     editor.borrow_mut().init()?;
     while editor.borrow().active {
         // Render and wait for event
@@ -157,7 +166,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         }
 
         // Actually handle editor event (errors included)
-        if let Err(err) = editor.borrow_mut().handle_event(event.clone()) {
+        if let Err(err) = editor.borrow_mut().handle_event(&lua, event.clone()) {
             editor.borrow_mut().feedback = Feedback::Error(format!("{err:?}"));
         }
 
@@ -179,6 +188,10 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         }
         editor.borrow_mut().command = None;
     }
+
+    // Run any plugin cleanup operations
+    let result = lua.load(run_key("exit")).exec();
+    handle_lua_error(&editor, "exit", result);
 
     editor.borrow_mut().terminal.end()?;
     Ok(())

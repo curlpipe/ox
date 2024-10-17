@@ -49,6 +49,10 @@ event_mapping = {
     ["pagedown"] = function() 
         editor:move_page_down() 
     end,
+    ["ctrl_g"] = function()
+        local line = editor:prompt("Go to line")
+        editor:move_to(0, tonumber(line))
+    end,
     -- Searching & Replacing
     ["ctrl_f"] = function()
         editor:search()
@@ -180,7 +184,7 @@ commands = {
         end
     end,
     ["filetype"] = function(arguments)
-        local file_type_name = arguments[1]
+        local file_type_name = table.concat(arguments, " ")
         editor:set_file_type(file_type_name)
     end,
     ["reload"] = function(arguments)
@@ -228,6 +232,7 @@ line_numbers.padding_right = 1
 
 -- Configure Mouse Behaviour --
 terminal.mouse_enabled = true
+terminal.scroll_amount = 1
 
 -- Configure Tab Line --
 tab_line.enabled = true
@@ -276,6 +281,7 @@ Ctrl + F:   Find
 Ctrl + R:   Replace       
 Ctrl + W:   Delete Word   
 Ctrl + D:   Delete Line   
+Ctrl + G:   Go to a line  
 Alt + Up:   Move line up  
 Alt + Down: Move line down
 Ctrl + K:   Command Line  
@@ -306,10 +312,13 @@ syntax:set("heading", {47, 141, 252}) -- Headings in various markup languages e.
 syntax:set("link", {223, 52, 249}) -- Links in various markup languages e.g. URLs
 syntax:set("key", {223, 52, 249}) -- Keys in various markup languages
 syntax:set("quote", {113, 113, 169}) -- Quotes in various markup languages e.g. > in markdown
-syntax:set("bold", {40, 198, 232}) -- Quotes in various markup languages e.g. * in markdown
-syntax:set("italic", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
-syntax:set("block", {40, 198, 232}) -- Quotes in various markup languages e.g. _ in markdown
-syntax:set("list", {86, 217, 178}) -- Quotes in various markup languages e.g. _ in markdown
+syntax:set("bold", {40, 198, 232}) -- Bold text in various markup languages e.g. * in markdown
+syntax:set("italic", {40, 198, 232}) -- Italic text in various markup languages e.g. ** in markdown
+syntax:set("block", {40, 198, 232}) -- Code blocks in various markup languages e.g. `````` in markdown
+syntax:set("image", {40, 198, 232}) -- Images in various markup languages e.g. ![]() in markdown
+syntax:set("list", {86, 217, 178}) -- Lists in various markup languages e.g. - in markdown
+syntax:set("insertion", {39, 222, 145}) -- Images in various markup languages e.g. ![]() in markdown
+syntax:set("deletion", {255, 100, 100}) -- Lists in various markup languages e.g. - in markdown
 
 -- Import plugins (must be at the bottom of this file)
 load_plugin("pairs.lua")

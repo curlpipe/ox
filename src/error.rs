@@ -1,3 +1,4 @@
+/// Error handling utilities
 use kaolinite::event::Error as KError;
 use quick_error::quick_error;
 

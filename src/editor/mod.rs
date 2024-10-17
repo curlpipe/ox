@@ -1,3 +1,4 @@
+/// Main functionality of the editor
 use crate::config::{Config, Indentation};
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback, Terminal};
@@ -5,9 +6,12 @@ use crossterm::event::{
     Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEvent, MouseEventKind,
 };
 use kaolinite::event::Error as KError;
+use kaolinite::utils::get_absolute_path;
 use kaolinite::Document;
 use mlua::{Error as LuaError, Lua};
+use std::env;
 use std::io::ErrorKind;
+use std::path::Path;
 use std::time::Instant;
 use synoptic::Highlighter;
 
@@ -94,6 +98,8 @@ impl Editor {
         // Update in the syntax highlighter
         let mut highlighter = Highlighter::new(4);
         highlighter.run(&doc.lines);
+        // Mark as not saved on disk
+        doc.info.modified = true;
         // Add document to documents
         self.files.push(FileContainer {
             highlighter,
@@ -151,6 +157,7 @@ impl Editor {
         let path = self.path_prompt()?;
         self.open(&path)?;
         self.ptr = self.files.len().saturating_sub(1);
+        self.update_cwd();
         Ok(())
     }
 
@@ -261,6 +268,7 @@ impl Editor {
     pub fn next(&mut self) {
         if self.ptr + 1 < self.files.len() {
             self.ptr += 1;
+            self.update_cwd();
         }
     }
 
@@ -268,6 +276,17 @@ impl Editor {
     pub fn prev(&mut self) {
         if self.ptr != 0 {
             self.ptr = self.ptr.saturating_sub(1);
+            self.update_cwd();
+        }
+    }
+
+    /// Updates the current working directory of the editor
+    pub fn update_cwd(&self) {
+        if let Some(name) = get_absolute_path(&self.doc().file_name.clone().unwrap_or_default()) {
+            let file = Path::new(&name);
+            if let Some(cwd) = file.parent() {
+                let _ = env::set_current_dir(cwd);
+            }
         }
     }
 
@@ -314,7 +333,7 @@ impl Editor {
     }
 
     /// Handle event
-    pub fn handle_event(&mut self, event: CEvent) -> Result<()> {
+    pub fn handle_event(&mut self, lua: &Lua, event: CEvent) -> Result<()> {
         self.needs_rerender = match event {
             CEvent::Mouse(event) => event.kind != MouseEventKind::Moved,
             _ => true,
@@ -322,7 +341,7 @@ impl Editor {
         match event {
             CEvent::Key(key) => self.handle_key_event(key.modifiers, key.code)?,
             CEvent::Resize(w, h) => self.handle_resize(w, h),
-            CEvent::Mouse(mouse_event) => self.handle_mouse_event(mouse_event),
+            CEvent::Mouse(mouse_event) => self.handle_mouse_event(lua, mouse_event),
             CEvent::Paste(text) => self.handle_paste(&text)?,
             _ => (),
         }

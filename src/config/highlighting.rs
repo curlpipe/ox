@@ -1,3 +1,4 @@
+/// For changing around syntax highlighting in the config file
 use crate::error::{OxError, Result};
 use crossterm::style::Color as CColor;
 use mlua::prelude::*;

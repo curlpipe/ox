@@ -1,3 +1,4 @@
+/// Functions for searching and replacing
 use crate::error::Result;
 use crate::ui::size;
 use crossterm::{
@@ -6,12 +7,13 @@ use crossterm::{
     style::Print,
 };
 use kaolinite::utils::{Loc, Size};
+use mlua::Lua;
 
 use super::Editor;
 
 impl Editor {
     /// Use search feature
-    pub fn search(&mut self) -> Result<()> {
+    pub fn search(&mut self, lua: &Lua) -> Result<()> {
         // Prompt for a search term
         let target = self.prompt("Search")?;
         let mut done = false;
@@ -22,7 +24,7 @@ impl Editor {
         while !done {
             // Render just the document part
             self.terminal.hide_cursor()?;
-            self.render_document(w, h.saturating_sub(2))?;
+            self.render_document(lua, w, h.saturating_sub(2))?;
             // Render custom status line with mode information
             self.terminal.goto(0, h)?;
             queue!(
@@ -74,7 +76,7 @@ impl Editor {
     }
 
     /// Use replace feature
-    pub fn replace(&mut self) -> Result<()> {
+    pub fn replace(&mut self, lua: &Lua) -> Result<()> {
         // Request replace information
         let target = self.prompt("Replace")?;
         let into = self.prompt("With")?;
@@ -98,7 +100,7 @@ impl Editor {
         while !done {
             // Render just the document part
             self.terminal.hide_cursor()?;
-            self.render_document(w, h.saturating_sub(2))?;
+            self.render_document(lua, w, h.saturating_sub(2))?;
             // Write custom status line for the replace mode
             self.terminal.goto(0, h)?;
             queue!(
