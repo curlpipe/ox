@@ -1,12 +1,12 @@
 --[[
-Git v0.1
+Git v0.2
 
 A plug-in for git integration that provides features to: 
  - Choose which files to add to a commit
  - Do a commit
  - Push local commits
  - View diffs
- - See which branch you are on
+ - See which branch you are on and checkout other branches
  - Pull any changes upstream
 ]]--
 
@@ -179,6 +179,11 @@ commands["git"] = function(args)
             editor:set_file_type("Diff")
             editor:set_read_only(true)
             editor:move_top()
+        elseif args[1] == "checkout" then
+            local branch = args[2]
+            if shell:run("git checkout " .. branch) ~= 0 then
+                editor:display_error("Failed to checkout branch '" .. branch .. "'")
+            end
         end
     end
 end
