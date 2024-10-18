@@ -75,6 +75,21 @@ Typing Speed - Shows the rough speed that you're typing in the status line
 Update Notification - Warns you if there is a new version of Ox - requires curl to be installed on unix based systems\n
 ";
 
+const FINAL_WORDS: &str = r"
+Configuration file was successfully written.
+
+Just a few things before you go:
+
+See the documentation here: https://github.com/curlpipe/ox/wiki
+Report any bugs or request new features here: https://github.com/curlpipe/ox/issues/new/choose
+
+Remember: You can press Ctrl + H when you are in the editor to reveal a help message to get started
+
+I hope you enjoy your Ox experience
+
+Ready? Press the enter key to start Ox
+";
+
 #[derive(PartialEq)]
 pub enum Theme {
     Tropical,
@@ -280,6 +295,8 @@ impl Assistant {
                 println!("Below is your newly generated configuration file:\n\n");
                 println!("{result}");
             }
+            println!("{FINAL_WORDS}");
+            let _ = gets!();
         }
         Ok(())
     }
