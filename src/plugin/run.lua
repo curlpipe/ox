@@ -51,8 +51,7 @@ remap_keys("before:ctrl_alt_space", "before:ctrl_alt_ ")
 -- Show warning if any plugins weren't able to be loaded
 if plugin_issues then
     print("Various plug-ins failed to load")
-    print("You may download these plug-ins from the ox git repository (in the plugins folder)")
-    print("https://github.com/curlpipe/ox")
+    print("You may download these plug-ins by running the command `plugin install [plugin_name]`")
     print("")
     print("Alternatively, you may silence these warnings\nby removing the load_plugin() lines in your configuration file\nfor the missing plug-ins that are listed above")
 end
