@@ -313,7 +313,7 @@ impl Editor {
     /// Load the configuration values
     pub fn load_config(&mut self, path: &str, lua: &Lua) -> Option<LuaError> {
         self.config_path = path.to_string();
-        let result = self.config.read(path, lua);
+        let result = Config::read(path, lua);
         // Display any warnings if the user configuration couldn't be found
         match result {
             Ok(()) => (),

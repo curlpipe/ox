@@ -37,31 +37,31 @@ pub struct Colors {
 impl Default for Colors {
     fn default() -> Self {
         Self {
-            editor_bg: Color::Black,
-            editor_fg: Color::Black,
+            editor_bg: Color::Rgb(41, 41, 61),
+            editor_fg: Color::Rgb(255, 255, 255),
 
-            status_bg: Color::Black,
-            status_fg: Color::Black,
+            status_bg: Color::Rgb(59, 59, 84),
+            status_fg: Color::Rgb(35, 240, 144),
 
-            highlight: Color::Black,
+            highlight: Color::Rgb(35, 240, 144),
 
-            line_number_fg: Color::Black,
-            line_number_bg: Color::Black,
+            line_number_fg: Color::Rgb(65, 65, 98),
+            line_number_bg: Color::Rgb(41, 41, 61),
 
-            tab_active_fg: Color::Black,
-            tab_active_bg: Color::Black,
-            tab_inactive_fg: Color::Black,
-            tab_inactive_bg: Color::Black,
+            tab_active_fg: Color::Rgb(255, 255, 255),
+            tab_active_bg: Color::Rgb(41, 41, 61),
+            tab_inactive_fg: Color::Rgb(255, 255, 255),
+            tab_inactive_bg: Color::Rgb(59, 59, 84),
 
-            info_bg: Color::Black,
-            info_fg: Color::Black,
-            warning_bg: Color::Black,
-            warning_fg: Color::Black,
-            error_bg: Color::Black,
-            error_fg: Color::Black,
+            info_bg: Color::Rgb(41, 41, 61),
+            info_fg: Color::Rgb(99, 162, 255),
+            warning_bg: Color::Rgb(41, 41, 61),
+            warning_fg: Color::Rgb(255, 182, 99),
+            error_bg: Color::Rgb(41, 41, 61),
+            error_fg: Color::Rgb(255, 100, 100),
 
-            selection_fg: Color::White,
-            selection_bg: Color::Blue,
+            selection_fg: Color::Rgb(41, 41, 61),
+            selection_bg: Color::Rgb(41, 41, 61),
         }
     }
 }

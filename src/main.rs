@@ -8,8 +8,8 @@ mod ui;
 
 use cli::CommandLineInterface;
 use config::{
-    key_to_string, run_key, run_key_before, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING,
-    PLUGIN_RUN,
+    key_to_string, run_key, run_key_before, Assistant, Config, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER,
+    PLUGIN_NETWORKING, PLUGIN_RUN,
 };
 use crossterm::event::Event as CEvent;
 use editor::{Editor, FileTypes};
@@ -32,6 +32,15 @@ fn main() {
     // Handle help and version options
     cli.basic_options();
 
+    // Activate configuration assistant if applicable
+    let no_config = Config::get_user_provided_config(&cli.config_path).is_none();
+    if no_config || cli.flags.config_assist {
+        if let Err(err) = Assistant::run(no_config) {
+            panic!("{err:?}");
+        }
+    }
+
+    // Run the editor
     let result = run(&cli);
     if let Err(err) = result {
         panic!("{err:?}");

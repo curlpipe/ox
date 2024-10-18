@@ -10,11 +10,49 @@ use super::Color;
 type BoundedInterpArgs = (String, String, String, String, String, bool);
 
 /// For storing configuration information related to syntax highlighting
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[allow(clippy::module_name_repetitions)]
 pub struct SyntaxHighlighting {
     pub theme: HashMap<String, Color>,
     pub user_rules: HashMap<String, Highlighter>,
+}
+
+impl Default for SyntaxHighlighting {
+    fn default() -> Self {
+        let mut theme = HashMap::default();
+        theme.insert("string".to_string(), Color::Rgb(39, 222, 145));
+        theme.insert("comment".to_string(), Color::Rgb(113, 113, 169));
+        theme.insert("digit".to_string(), Color::Rgb(40, 198, 232));
+        theme.insert("keyword".to_string(), Color::Rgb(134, 76, 232));
+        theme.insert("attribute".to_string(), Color::Rgb(40, 198, 232));
+        theme.insert("character".to_string(), Color::Rgb(40, 198, 232));
+        theme.insert("type".to_string(), Color::Rgb(47, 141, 252));
+        theme.insert("function".to_string(), Color::Rgb(47, 141, 252));
+        theme.insert("header".to_string(), Color::Rgb(40, 198, 232));
+        theme.insert("macro".to_string(), Color::Rgb(223, 52, 249));
+        theme.insert("namespace".to_string(), Color::Rgb(47, 141, 252));
+        theme.insert("struct".to_string(), Color::Rgb(47, 141, 252));
+        theme.insert("operator".to_string(), Color::Rgb(113, 113, 169));
+        theme.insert("boolean".to_string(), Color::Rgb(86, 217, 178));
+        theme.insert("table".to_string(), Color::Rgb(47, 141, 252));
+        theme.insert("reference".to_string(), Color::Rgb(134, 76, 232));
+        theme.insert("tag".to_string(), Color::Rgb(40, 198, 232));
+        theme.insert("heading".to_string(), Color::Rgb(47, 141, 252));
+        theme.insert("link".to_string(), Color::Rgb(223, 52, 249));
+        theme.insert("key".to_string(), Color::Rgb(223, 52, 249));
+        theme.insert("quote".to_string(), Color::Rgb(113, 113, 169));
+        theme.insert("bold".to_string(), Color::Rgb(40, 198, 232));
+        theme.insert("italic".to_string(), Color::Rgb(40, 198, 232));
+        theme.insert("block".to_string(), Color::Rgb(40, 198, 232));
+        theme.insert("image".to_string(), Color::Rgb(40, 198, 232));
+        theme.insert("list".to_string(), Color::Rgb(86, 217, 178));
+        theme.insert("insertion".to_string(), Color::Rgb(39, 222, 145));
+        theme.insert("deletion".to_string(), Color::Rgb(255, 100, 100));
+        Self {
+            theme,
+            user_rules: HashMap::default(),
+        }
+    }
 }
 
 impl SyntaxHighlighting {

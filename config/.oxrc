@@ -232,17 +232,18 @@ line_numbers.padding_right = 1
 
 -- Configure Mouse Behaviour --
 terminal.mouse_enabled = true
-terminal.scroll_amount = 1
+terminal.scroll_amount = 2
 
 -- Configure Tab Line --
 tab_line.enabled = true
 tab_line.format = "  {file_name}{modified}  "
 
 -- Configure Status Line --
-status_line:add_part("  {file_name}{modified}  │  {file_type}  │") -- The left side of the status line
-status_line:add_part("│  {cursor_y} / {line_count}  {cursor_x}  ")  -- The right side of the status line
-
-status_line.alignment = "between" -- This will put a space between the left and right sides
+status_line.parts = {
+    "  {file_name}{modified}  │  {file_type}  │", -- The left side of the status line
+    "│  {cursor_y} / {line_count}  {cursor_x}  ",  -- The right side of the status line
+}
+status_line.alignment = "between" -- This will put a space between the parts (left and right sides)
 
 -- Configure Greeting Message --
 greeting_message.enabled = true
