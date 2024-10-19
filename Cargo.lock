@@ -580,9 +580,9 @@ checksum = "cc0db74f9ee706e039d031a560bd7d110c7022f016051b3d33eeff9583e3e67a"
 
 [[package]]
 name = "syn"
-version = "2.0.79"
+version = "2.0.80"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89132cd0bf050864e1d38dc3bbc07a0eb8e7530af26344d3d2bbbef83499f590"
+checksum = "e6e185e337f816bc8da115b8afcb3324006ccc82eeaddf35113888d3bd8e44ac"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -591,13 +591,13 @@ dependencies = [
 
 [[package]]
 name = "synoptic"
-version = "2.0.9"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58e69f54fedd3b7dc77c792a22844c7917102ecd2bb6f6a7f3347863e0b23540"
+checksum = "97419cc9b1e79552ca0622b66093fc5217d9b0048415f2c8680a52be2fcd41f7"
 dependencies = [
  "if_chain",
  "regex",
- "unicode-width 0.1.14",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
