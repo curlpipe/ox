@@ -1,13 +1,15 @@
 use crate::cli::VERSION;
 /// Code for the configuration set-up assistant
-use crate::config::{Colors, Indentation, SyntaxHighlighting};
+use crate::config::{Color, Colors, Indentation, SyntaxHighlighting};
 use crate::error::Result;
+use crossterm::cursor::MoveTo;
+use crossterm::execute;
 use crossterm::style::{SetBackgroundColor as Bg, SetForegroundColor as Fg};
+use crossterm::terminal::{Clear, ClearType};
 use mlua::prelude::*;
 use std::cell::RefCell;
-use std::io::Write;
+use std::io::{stdout, Write};
 use std::rc::Rc;
-//use crate::config::Color;
 //use std::collections::HashMap;
 
 pub const TROPICAL: &str = include_str!("../themes/tropical.lua");
@@ -48,7 +50,7 @@ This way, you'll have a better user experience out of the box.
 const INTRODUCTION: &str = r"
 Welcome to the configuration assistant for the Ox Editor.
 This is a tool that will help get Ox set up for you.
-It will take no more than 5 minutes and the config assistant will not show again after set-up.
+It will take no more than 3 minutes and the config assistant will not show again after set-up.
 You can always re-access this tool using `ox --config-assist`
 
 ";
@@ -191,7 +193,7 @@ impl Default for Assistant {
 impl Assistant {
     /// Run the configuration assistant
     pub fn run(because_no_config: bool) -> Result<()> {
-        println!("{TITLE}");
+        Self::reset()?;
         if because_no_config {
             println!("{NO_CONFIG_MESSAGE}");
         }
@@ -199,98 +201,33 @@ impl Assistant {
         if Self::confirmation("Do you wish to set-up the editor?", true) {
             let mut result = Self::default();
             // Theme
-            println!("Let's begin with what theme you'd like to use\n\n");
-            // Prepare demonstration
-            Self::demonstrate_themes()?;
-            let choice = Self::options(
-                "Please choose which theme you'd like",
-                &["default", "tropical", "galaxy", "transparent"],
-                "default",
-            );
-            result.theme = match choice.as_str() {
-                "default" => Theme::Default,
-                "tropical" => Theme::Tropical,
-                "galaxy" => Theme::Galaxy,
-                "transparent" => Theme::Transparent,
-                _ => unreachable!(),
-            };
+            Self::ask_theme(&mut result)?;
             // Document
-            println!("Great choice, now let's move onto indentation\n");
-            result.indentation = Self::options(
-                "Please choose how you'd like to represent indentation",
-                &["spaces", "tabs"],
-                "tabs",
-            )
-            .into();
-            result.tab_width = if result.indentation == Indentation::Tabs {
-                Self::integer("How wide should tabs be rendered as", 4)
-            } else {
-                Self::integer("How many spaces should make up 1 indent", 4)
-            };
+            Self::ask_document(&mut result)?;
             // Line Numbers
-            println!("Great, now for deciding which parts of the editor should be visible\n");
-            result.line_numbers =
-                Self::confirmation("Would you like line numbers to be visible", true);
-            if result.line_numbers {
-                result.line_number_padding = (
-                    Self::integer(
-                        "How much space should there be on the left hand side of the line numbers",
-                        1,
-                    ),
-                    Self::integer(
-                        "How much space should there be on the right hand side of the line numbers",
-                        1,
-                    ),
-                );
-            }
+            Self::ask_line_numbers(&mut result)?;
             // Tab line
-            result.tab_line = Self::confirmation("Would you like the tab line to be visible", true);
-            // Greeting message
-            result.greeting_message = Self::confirmation(
-                "Would you like the greeting message to be visible on start-up",
-                true,
-            );
+            Self::ask_tab_line(&mut result)?;
             // Mouse and Cursor
-            println!("Now for the mouse and cursor behaviour\n");
-            result.mouse = Self::confirmation(
-                "Would you like to use your mouse cursor in the editor",
-                true,
-            );
-            result.scroll_sensitivity = Self::integer(
-                "How sensitive should scrolling be, 1 = least sensitive, 5 = very sensitive",
-                2,
-            );
-            result.cursor_wrap = Self::confirmation(
-                "Would you like the cursor to wrap around when at the edge of a line",
-                true,
-            );
+            Self::ask_mouse_cursor(&mut result)?;
             // Icons
-            println!("Ox has support for icons, which can enhance the UI, if you choose to enable them, ensure you install nerd fonts\n");
-            result.icons =
-                Self::confirmation("Would you like to enable icons, yes is recommended", false);
+            Self::ask_icons(&mut result)?;
             // Plug-Ins
-            Self::ask_plugins(&mut result);
+            Self::ask_plugins(&mut result)?;
             // Create the configuration file (and print it)
+            Self::reset()?;
             println!("\nSet-up is complete!");
             if !because_no_config {
-                println!("WARNING: config file already exists, it will be backed-up to ~/.oxrc-backup if you write");
+                let yellow = Fg(Color::Ansi(220).to_color()?);
+                let reset = Fg(Color::Transparent.to_color()?);
+                println!("{yellow}WARNING{reset}: config file already exists, it will be backed-up to ~/.oxrc-backup if you write");
             }
             let result = result.to_config();
             if Self::confirmation(
                 "Would you like to write the configuration file?",
                 because_no_config,
             ) {
-                let config_path = format!("{}/.oxrc", shellexpand::tilde("~"));
-                let backup_path = format!("{}/.oxrc-backup", shellexpand::tilde("~"));
-                if !because_no_config {
-                    let _ = std::fs::rename(config_path.clone(), backup_path);
-                }
-                let mut file = std::fs::OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .open(config_path)?;
-                file.write_all(result.as_bytes())?;
+                Self::write_config(&result, because_no_config)?;
             } else {
                 println!("Below is your newly generated configuration file:\n\n");
                 println!("{result}");
@@ -298,6 +235,27 @@ impl Assistant {
             println!("{FINAL_WORDS}");
             let _ = gets!();
         }
+        Ok(())
+    }
+
+    pub fn reset() -> Result<()> {
+        execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0))?;
+        println!("{TITLE}");
+        Ok(())
+    }
+
+    pub fn write_config(result: &str, because_no_config: bool) -> Result<()> {
+        let config_path = format!("{}/.oxrc", shellexpand::tilde("~"));
+        let backup_path = format!("{}/.oxrc-backup", shellexpand::tilde("~"));
+        if !because_no_config {
+            let _ = std::fs::rename(config_path.clone(), backup_path);
+        }
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(config_path)?;
+        file.write_all(result.as_bytes())?;
         Ok(())
     }
 
@@ -348,12 +306,161 @@ impl Assistant {
             response.parse::<usize>().unwrap()
         }
     }
-    
-    pub fn ask_plugins(result: &mut Self) {
+
+    pub fn ask_theme(result: &mut Self) -> Result<()> {
+        Self::reset()?;
+        println!("Let's begin with what theme you'd like to use\n\n");
+        // Prepare demonstration
+        Self::demonstrate_themes()?;
+        let choice = Self::options(
+            "Please choose which theme you'd like",
+            &["default", "tropical", "galaxy", "transparent"],
+            "default",
+        );
+        result.theme = match choice.as_str() {
+            "default" => Theme::Default,
+            "tropical" => Theme::Tropical,
+            "galaxy" => Theme::Galaxy,
+            "transparent" => Theme::Transparent,
+            _ => unreachable!(),
+        };
+        Ok(())
+    }
+
+    pub fn ask_document(result: &mut Self) -> Result<()> {
+        let red = Fg(Color::Ansi(196).to_color()?);
+        let orange = Fg(Color::Ansi(202).to_color()?);
+        let yellow = Fg(Color::Ansi(220).to_color()?);
+        let green = Fg(Color::Ansi(34).to_color()?);
+        let blue = Fg(Color::Ansi(39).to_color()?);
+        let purple = Fg(Color::Ansi(141).to_color()?);
+        let pink = Fg(Color::Ansi(213).to_color()?);
+        let reset = Fg(Color::Transparent.to_color()?);
+        Self::reset()?;
+        println!("Great choice, now let's move onto indentation\n");
+        println!("{purple}_{blue}_{purple}_{blue}_{reset}spaces");
+        println!("    tabs\n{purple}‾‾‾‾{reset}");
+        result.indentation = Self::options(
+            "Please choose how you'd like to represent indentation",
+            &["spaces", "tabs"],
+            "tabs",
+        )
+        .into();
+        println!("{red}•{reset}1");
+        println!("{orange}••{reset}2");
+        println!("{yellow}•••{reset}3");
+        println!("{green}••••{reset}4");
+        println!("{blue}•••••{reset}5");
+        println!("{purple}••••••{reset}6");
+        println!("{pink}•••••••{reset}7");
+        println!("••••••••8\n");
+        result.tab_width = if result.indentation == Indentation::Tabs {
+            Self::integer("How wide should tabs be rendered as", 4)
+        } else {
+            Self::integer("How many spaces should make up 1 indent", 4)
+        };
+        Ok(())
+    }
+
+    pub fn ask_mouse_cursor(result: &mut Self) -> Result<()> {
+        let red = Fg(Color::Ansi(196).to_color()?);
+        let yellow = Fg(Color::Ansi(220).to_color()?);
+        let green = Fg(Color::Ansi(34).to_color()?);
+        let blue = Fg(Color::Ansi(39).to_color()?);
+        let purple = Fg(Color::Ansi(141).to_color()?);
+        let pink = Fg(Color::Ansi(213).to_color()?);
+        let reset = Fg(Color::Transparent.to_color()?);
+        Self::reset()?;
+        println!("Now for the mouse and cursor behaviour\n");
+        println!("{blue}🖰 {reset}Clicking to move cursor, {purple}◅ 🖰 ▻ {reset} Dragging to select text\n");
+        result.mouse = Self::confirmation(
+            "Would you like to use your mouse cursor in the editor",
+            true,
+        );
+        println!("{red}🖰 ⭥ {reset}  {yellow}🖰 ⭥ {reset}  {green}🖰 ⭥ {reset}\n");
+        result.scroll_sensitivity = Self::integer(
+            "How sensitive should scrolling be, 1 = least sensitive, 5 = very sensitive",
+            2,
+        );
+        println!("    Cursor wraps{pink}|{reset}→ \n  ↳ {pink}|{reset}Onto new line\n");
+        result.cursor_wrap = Self::confirmation(
+            "Would you like the cursor to wrap around when at the edge of a line",
+            true,
+        );
+        Ok(())
+    }
+
+    pub fn ask_tab_line(result: &mut Self) -> Result<()> {
+        let orange = Fg(Color::Ansi(202).to_color()?);
+        let yellow = Fg(Color::Ansi(220).to_color()?);
+        let green = Fg(Color::Ansi(34).to_color()?);
+        let purple = Fg(Color::Ansi(141).to_color()?);
+        let reset = Fg(Color::Transparent.to_color()?);
+        println!(
+            "|  {purple}File 1{reset}  |  {green}File 2{reset}  |  {orange}File 3{reset}  |\n"
+        );
+        result.tab_line = Self::confirmation("Would you like the tab line to be visible", true);
+        // Greeting message
+        println!("   {yellow}Welcome to Ox Editor!{reset}   \n");
+        result.greeting_message = Self::confirmation(
+            "Would you like the greeting message to be visible on start-up",
+            true,
+        );
+        Ok(())
+    }
+
+    pub fn ask_line_numbers(result: &mut Self) -> Result<()> {
+        let red = Fg(Color::Ansi(196).to_color()?);
+        let orange = Fg(Color::Ansi(202).to_color()?);
+        let yellow = Fg(Color::Ansi(220).to_color()?);
+        let green = Fg(Color::Ansi(34).to_color()?);
+        let reset = Fg(Color::Transparent.to_color()?);
+        Self::reset()?;
+        println!("Great, now for deciding which parts of the editor should be visible\n");
+        println!("{green} 1 {reset}│");
+        println!("{yellow} 2 {reset}│");
+        println!("{red} 3 {reset}│\n");
+        result.line_numbers = Self::confirmation("Would you like line numbers to be visible", true);
+        if result.line_numbers {
+            println!("{red}•{reset}1 │");
+            println!("{orange}••{reset}2 │");
+            println!("{yellow}•••{reset}3 │\n");
+            let left_tab = Self::integer(
+                "How much space should there be on the left hand side of the line numbers",
+                1,
+            );
+            println!(" 1{red}•{reset}│");
+            println!(" 2{orange}••{reset}│");
+            println!(" 3{yellow}•••{reset}│\n");
+            let right_tab = Self::integer(
+                "How much space should there be on the right hand side of the line numbers",
+                1,
+            );
+            result.line_number_padding = (left_tab, right_tab);
+        }
+        Ok(())
+    }
+
+    pub fn ask_icons(result: &mut Self) -> Result<()> {
+        let yellow = Fg(Color::Ansi(220).to_color()?);
+        let blue = Fg(Color::Ansi(39).to_color()?);
+        let reset = Fg(Color::Transparent.to_color()?);
+        Self::reset()?;
+        println!("{blue}🖹 {yellow}🖉 {reset}");
+        println!("Ox has support for icons, which can enhance the UI, if you choose to enable them, ensure you install nerd fonts\n");
+        result.icons =
+            Self::confirmation("Would you like to enable icons, yes is recommended", false);
+        Ok(())
+    }
+
+    pub fn ask_plugins(result: &mut Self) -> Result<()> {
+        Self::reset()?;
+        let green = Fg(Color::Ansi(34).to_color()?);
+        let reset = Fg(Color::Transparent.to_color()?);
         println!("{PLUGIN_LIST}");
         let mut adding = String::new();
         while adding != "exit" {
-            println!("Enabled plug-ins: {:?}\n", result.plugins);
+            println!("{green}Enabled plug-ins:{reset} {:?}\n", result.plugins);
             adding = Self::options(
                 "Enter the name of a plug-in you'd like to enable / disable",
                 &[
@@ -390,6 +497,7 @@ impl Assistant {
                 result.plugins.push(plugin);
             }
         }
+        Ok(())
     }
 
     pub fn demonstrate_themes() -> Result<()> {
