@@ -101,18 +101,23 @@ impl Editor {
         // Mark as not saved on disk
         doc.info.modified = true;
         // Add document to documents
-        self.files.push(FileContainer {
+        let file = FileContainer {
             highlighter,
             file_type: Some(FileType::default()),
             doc,
-        });
+        };
+        if self.ptr + 1 >= self.files.len() {
+            self.files.push(file);
+        } else {
+            self.files.insert(self.ptr + 1, file);
+        }
         Ok(())
     }
 
     /// Create a new document and move to it
     pub fn new_document(&mut self) -> Result<()> {
         self.blank()?;
-        self.ptr = self.files.len().saturating_sub(1);
+        self.next();
         Ok(())
     }
 
@@ -144,11 +149,16 @@ impl Editor {
         });
         highlighter.run(&doc.lines);
         // Add in the file
-        self.files.push(FileContainer {
+        let file = FileContainer {
             doc,
             highlighter,
             file_type,
-        });
+        };
+        if self.ptr + 1 >= self.files.len() {
+            self.files.push(file);
+        } else {
+            self.files.insert(self.ptr + 1, file);
+        }
         Ok(())
     }
 
@@ -156,7 +166,7 @@ impl Editor {
     pub fn open_document(&mut self) -> Result<()> {
         let path = self.path_prompt()?;
         self.open(&path)?;
-        self.ptr = self.files.len().saturating_sub(1);
+        self.next();
         self.update_cwd();
         Ok(())
     }

@@ -111,7 +111,11 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             file.highlighter = highlighter;
             file.file_type = Some(file_type);
         }
+        // Move the pointer to the file we just created
+        editor.borrow_mut().next();
     }
+    // Reset the pointer back to the first document
+    editor.borrow_mut().ptr = 0;
 
     // Handle stdin if applicable
     if cli.flags.stdin {
