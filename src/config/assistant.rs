@@ -2,6 +2,7 @@ use crate::cli::VERSION;
 /// Code for the configuration set-up assistant
 use crate::config::{Color, Colors, Indentation, SyntaxHighlighting};
 use crate::error::Result;
+use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING};
 use crossterm::cursor::MoveTo;
 use crossterm::execute;
 use crossterm::style::{SetBackgroundColor as Bg, SetForegroundColor as Fg};
@@ -92,6 +93,13 @@ I hope you enjoy your Ox experience
 Ready? Press the enter key to start Ox
 ";
 
+const PLUGIN_INSTALL: &str = r#"
+if not plugin_manager:plugin_downloaded('{name}') then
+    print("Installing " .. '{name}')
+    plugin_manager:download_plugin('{name}')
+end
+"#;
+
 #[derive(PartialEq)]
 pub enum Theme {
     Tropical,
@@ -129,21 +137,23 @@ pub enum Plugin {
 
 impl Plugin {
     pub fn to_config(&self) -> String {
-        format!(
-            "load_plugin(\"{}\")\n",
-            match self {
-                Self::AutoIndent => "autoindent.lua",
-                Self::Pairs => "pairs.lua",
-                Self::DiscordRPC => "discord_rpc.lua",
-                Self::Emmet => "emmet.lua",
-                Self::Git => "git.lua",
-                Self::LiveHTML => "live_html.lua",
-                Self::Pomodoro => "pomodoro.lua",
-                Self::Todo => "todo.lua",
-                Self::TypingSpeed => "typing_speed.lua",
-                Self::UpdateNotification => "update_notification.lua",
-            }
-        )
+        let plugin_name = self.name();
+        format!("load_plugin(\"{plugin_name}.lua\")\n")
+    }
+    
+    pub fn name(&self) -> &str {
+        match self {
+            Self::AutoIndent => "autoindent",
+            Self::Pairs => "pairs",
+            Self::DiscordRPC => "discord_rpc",
+            Self::Emmet => "emmet",
+            Self::Git => "git",
+            Self::LiveHTML => "live_html",
+            Self::Pomodoro => "pomodoro",
+            Self::Todo => "todo",
+            Self::TypingSpeed => "typing_speed",
+            Self::UpdateNotification => "update_notification",
+        }
     }
 }
 
@@ -222,15 +232,15 @@ impl Assistant {
                 let reset = Fg(Color::Transparent.to_color()?);
                 println!("{yellow}WARNING{reset}: config file already exists, it will be backed-up to ~/.oxrc-backup if you write");
             }
-            let result = result.to_config();
+            let contents = result.to_config();
             if Self::confirmation(
                 "Would you like to write the configuration file?",
                 because_no_config,
             ) {
-                Self::write_config(&result, because_no_config)?;
+                Self::write_config(&result.plugins, &contents, because_no_config)?;
             } else {
                 println!("Below is your newly generated configuration file:\n\n");
-                println!("{result}");
+                println!("{contents}");
             }
             println!("{FINAL_WORDS}");
             let _ = gets!();
@@ -244,7 +254,7 @@ impl Assistant {
         Ok(())
     }
 
-    pub fn write_config(result: &str, because_no_config: bool) -> Result<()> {
+    pub fn write_config(plugins: &Vec<Plugin>, result: &str, because_no_config: bool) -> Result<()> {
         let config_path = format!("{}/.oxrc", shellexpand::tilde("~"));
         let backup_path = format!("{}/.oxrc-backup", shellexpand::tilde("~"));
         if !because_no_config {
@@ -256,6 +266,16 @@ impl Assistant {
             .truncate(true)
             .open(config_path)?;
         file.write_all(result.as_bytes())?;
+        // Install plug-ins
+        let lua = Lua::new();
+        lua.load("commands = {}").exec()?;
+        lua.load(PLUGIN_BOOTSTRAP).exec()?;
+        lua.load(PLUGIN_NETWORKING).exec()?;
+        lua.load(PLUGIN_MANAGER).exec()?;
+        for plugin in plugins {
+            let plugin_name = plugin.name();
+            lua.load(PLUGIN_INSTALL.replace("{name}", plugin_name)).exec()?;
+        }
         Ok(())
     }
 
