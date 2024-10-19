@@ -378,7 +378,7 @@ impl Editor {
         let max = self.dent();
         self.doc_mut().size.w = w.saturating_sub(u16::try_from(max).unwrap_or(u16::MAX)) as usize;
         self.doc_mut().size.h = h.saturating_sub(3) as usize;
-        let max = self.doc().offset.x + self.doc().size.h;
+        let max = self.doc().offset.y + self.doc().size.h;
         self.doc_mut().load_to(max + 1);
     }
 
@@ -387,6 +387,8 @@ impl Editor {
         for ch in text.chars() {
             self.character(ch)?;
         }
+        // Paste warrants a commit here really
+        self.doc_mut().commit();
         Ok(())
     }
 

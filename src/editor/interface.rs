@@ -80,11 +80,12 @@ impl Editor {
         // Render each line of the document
         for y in 0..u16::try_from(h).unwrap_or(0) {
             // Work out how long the line should be (accounting for help message if necessary)
-            let required_width = if self.config.help_message.borrow().enabled && (start..=end).contains(&y) {
-                w.saturating_sub(self.dent()).saturating_sub(max_width)
-            } else {
-                w.saturating_sub(self.dent())
-            };
+            let required_width =
+                if self.config.help_message.borrow().enabled && (start..=end).contains(&y) {
+                    w.saturating_sub(self.dent()).saturating_sub(max_width)
+                } else {
+                    w.saturating_sub(self.dent())
+                };
             // Go to the right location
             self.terminal.goto(0, y as usize + self.push_down)?;
             // Start colours
