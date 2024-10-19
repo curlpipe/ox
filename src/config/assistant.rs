@@ -140,7 +140,7 @@ impl Plugin {
         let plugin_name = self.name();
         format!("load_plugin(\"{plugin_name}.lua\")\n")
     }
-    
+
     pub fn name(&self) -> &str {
         match self {
             Self::AutoIndent => "autoindent",
@@ -254,7 +254,11 @@ impl Assistant {
         Ok(())
     }
 
-    pub fn write_config(plugins: &Vec<Plugin>, result: &str, because_no_config: bool) -> Result<()> {
+    pub fn write_config(
+        plugins: &Vec<Plugin>,
+        result: &str,
+        because_no_config: bool,
+    ) -> Result<()> {
         let config_path = format!("{}/.oxrc", shellexpand::tilde("~"));
         let backup_path = format!("{}/.oxrc-backup", shellexpand::tilde("~"));
         if !because_no_config {
@@ -274,7 +278,8 @@ impl Assistant {
         lua.load(PLUGIN_MANAGER).exec()?;
         for plugin in plugins {
             let plugin_name = plugin.name();
-            lua.load(PLUGIN_INSTALL.replace("{name}", plugin_name)).exec()?;
+            lua.load(PLUGIN_INSTALL.replace("{name}", plugin_name))
+                .exec()?;
         }
         Ok(())
     }
