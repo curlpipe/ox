@@ -290,6 +290,7 @@ impl Editor {
     }
 
     /// Prompt for selecting a file
+    #[allow(clippy::similar_names)]
     pub fn path_prompt(&mut self) -> Result<String> {
         let mut input = get_cwd().map(|s| s + "/").unwrap_or_default();
         let mut offset = 0;
@@ -328,12 +329,18 @@ impl Editor {
                 .skip(input.chars().count())
                 .collect::<String>();
             let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
+            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
+            let tab_width = self.config.document.borrow().tab_width;
+            let total_width = width(&input, tab_width) + width(&suggestion_text, tab_width);
+            let padding = " ".repeat(size()?.w.saturating_sub(total_width));
             display!(
                 self,
+                editor_bg,
                 "Path: ",
                 input.clone(),
                 Fg(Color::DarkGrey),
                 suggestion_text,
+                padding,
                 editor_fg
             );
             let tab_width = self.config.document.borrow_mut().tab_width;
