@@ -678,7 +678,9 @@ impl Document {
             .take(x)
             .collect::<String>();
         let mut matches = searcher.rfinds(&line);
-        matches.iter_mut().for_each(|m| m.loc.x += m.text.chars().count());
+        matches
+            .iter_mut()
+            .for_each(|m| m.loc.x += m.text.chars().count());
         // Find the most appropriate one to move to given the cursor position
         if let Some(mtch) = matches.first() {
             if mtch.loc.x == x {

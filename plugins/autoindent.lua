@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.9
+Auto Indent v0.10
 
 Helps you when programming by guessing where indentation should go
 and then automatically applying these guesses as you program
@@ -190,4 +190,10 @@ for i = 32, 126 do
             end
         end
     end
+end
+
+-- Shortcut to dedent a line
+event_mapping["shift_tab"] = function()
+    local level = autoindent:get_indent(editor.cursor.y)
+    autoindent:set_indent(editor.cursor.y, level - 1)
 end
