@@ -117,25 +117,27 @@ event_mapping = {
     end,
     ["alt_up"] = function()
         -- current line information
-        line = editor:get_line()
-        y = editor.cursor.y
+        local line = editor:get_line()
+        local cursor = editor.cursor
         -- insert a new line
-        editor:insert_line_at(line, y - 1)
+        editor:insert_line_at(line, cursor.y - 1)
         -- delete old copy and reposition cursor
-        editor:remove_line_at(y + 1)
-        editor:move_up()
+        editor:remove_line_at(cursor.y + 1)
+        -- restore cursor position
+        editor:move_to(cursor.x, cursor.y - 1)
         -- correct indentation level
         autoindent:fix_indent()
     end,
     ["alt_down"] = function()
         -- current line information
-        line = editor:get_line()
-        y = editor.cursor.y
+        local line = editor:get_line()
+        local cursor = editor.cursor
         -- insert a new line
-        editor:insert_line_at(line, y + 2)
+        editor:insert_line_at(line, cursor.y + 2)
         -- delete old copy and reposition cursor
-        editor:remove_line_at(y)
-        editor:move_down()
+        editor:remove_line_at(cursor.y)
+        -- restore cursor position
+        editor:move_to(cursor.x, cursor.y + 1)
         -- correct indentation level
         autoindent:fix_indent()
     end,
