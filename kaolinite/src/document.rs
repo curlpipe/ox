@@ -711,21 +711,10 @@ impl Document {
             WordState::AtEnd(0) | WordState::InCenter(0) | WordState::AtStart(0) => 0,
             // Cursor is at the middle / end of a word, move to previous end
             WordState::AtEnd(idx) | WordState::InCenter(idx) => {
-                if let Some(word) = words.get(idx.saturating_sub(1)) {
-                    word.1
-                } else {
-                    // No previous word exists, just go to start of line
-                    0
-                }
+                words[idx.saturating_sub(1)].1
             }
             WordState::AtStart(idx) => {
-                // Cursor is at the start of a word, move to previous start
-                if let Some(word) = words.get(idx.saturating_sub(1)) {
-                    word.0
-                } else {
-                    // No previous word exists, just go to start of line
-                    0
-                }
+                words[idx.saturating_sub(1)].0
             }
             WordState::Out => {
                 // Cursor is not touching any words, find previous end
@@ -765,9 +754,7 @@ impl Document {
         let new_x = match state {
             // Cursor is at the middle / end of a word, move to next end
             WordState::AtEnd(idx) | WordState::InCenter(idx) => {
-                if idx == words.len() {
-                    line.chars().count()
-                } else if let Some(word) = words.get(idx + 1) {
+                if let Some(word) = words.get(idx + 1) {
                     word.1
                 } else {
                     // No next word exists, just go to end of line
@@ -776,9 +763,7 @@ impl Document {
             }
             WordState::AtStart(idx) => {
                 // Cursor is at the start of a word, move to next start
-                if idx == words.len() {
-                    line.chars().count()
-                } else if let Some(word) = words.get(idx + 1) {
+                if let Some(word) = words.get(idx + 1) {
                     word.0
                 } else {
                     // No next word exists, just go to end of line
@@ -790,7 +775,7 @@ impl Document {
                 let mut shift_forward = x;
                 while let WordState::Out = self.cursor_word_state(&words, shift_forward) {
                     shift_forward += 1;
-                    if shift_forward == line.chars().count() {
+                    if shift_forward >= line.chars().count() {
                         break;
                     }
                 }
@@ -820,13 +805,10 @@ impl Document {
                 // Delete back to start of this word
                 words[idx].0
             }
+            WordState::AtStart(0) => 0,
             WordState::AtStart(idx) => {
                 // Delete back to end of the previous word
-                if let Some(word) = words.get(idx.saturating_sub(1)) {
-                    word.1
-                } else {
-                    0
-                }
+                words[idx.saturating_sub(1)].1
             }
             WordState::Out => {
                 // Delete back to the end of the previous word
