@@ -665,11 +665,12 @@ impl Document {
     /// Moves to the previous word in the document
     pub fn move_prev_word(&mut self) -> Status {
         let Loc { x, y } = self.char_loc();
+        // Handle case where we're at the beginning of the line
         if x == 0 && y != 0 {
             return Status::StartOfLine;
         }
-        let re = format!("(\t| {{{}}}|^|\\W|$| )", self.tab_width);
-        let mut searcher = Searcher::new(&re);
+        // Find where all the words are
+        let mut searcher = Searcher::new(r"(^|\s{2,}|[A-Za-z0-9_]+|\.)");
         let line = self
             .line(y)
             .unwrap_or_default()
@@ -677,6 +678,8 @@ impl Document {
             .take(x)
             .collect::<String>();
         let mut matches = searcher.rfinds(&line);
+        matches.iter_mut().for_each(|m| m.loc.x += m.text.chars().count());
+        // Find the most appropriate one to move to given the cursor position
         if let Some(mtch) = matches.first() {
             if mtch.loc.x == x {
                 matches.remove(0);
@@ -694,11 +697,12 @@ impl Document {
     pub fn move_next_word(&mut self) -> Status {
         let Loc { x, y } = self.char_loc();
         let line = self.line(y).unwrap_or_default();
+        // Handle case where we're at the end of the line
         if x == line.chars().count() && y != self.len_lines() {
             return Status::EndOfLine;
         }
-        let re = format!("(\t| {{{}}}|\\W|$|^ +| )", self.tab_width);
-        if let Some(mut mtch) = self.next_match(&re, 0) {
+        // Find and move to the next word
+        if let Some(mut mtch) = self.next_match(r"(\s{2,}|[A-Za-z0-9_]+|$|\.)", 0) {
             mtch.loc.x += mtch.text.chars().count();
             self.move_to(&mtch.loc);
         }

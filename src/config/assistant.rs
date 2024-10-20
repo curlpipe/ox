@@ -1,5 +1,5 @@
-use crate::cli::VERSION;
 /// Code for the configuration set-up assistant
+use crate::cli::VERSION;
 use crate::config::{Color, Colors, Indentation, SyntaxHighlighting};
 use crate::error::Result;
 use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING};
