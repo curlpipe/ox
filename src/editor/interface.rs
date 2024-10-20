@@ -11,7 +11,7 @@ use crossterm::{
 };
 use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, Loc, Size};
 use mlua::Lua;
-use synoptic::{trim, Highlighter, TokOpt};
+use synoptic::{trim_fit, Highlighter, TokOpt};
 
 use super::Editor;
 
@@ -117,7 +117,7 @@ impl Editor {
             let idx = y as usize + self.doc().offset.y;
             if let Some(line) = self.doc().line(idx) {
                 let tokens = self.highlighter().line(idx, &line);
-                let tokens = trim(&tokens, self.doc().offset.x, required_width, tab_width);
+                let tokens = trim_fit(&tokens, self.doc().offset.x, required_width, tab_width);
                 let mut x_pos = self.doc().offset.x;
                 for token in tokens {
                     // Find out the text (and colour of that text)
