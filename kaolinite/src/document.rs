@@ -710,12 +710,8 @@ impl Document {
             // Go to start of line if at beginning
             WordState::AtEnd(0) | WordState::InCenter(0) | WordState::AtStart(0) => 0,
             // Cursor is at the middle / end of a word, move to previous end
-            WordState::AtEnd(idx) | WordState::InCenter(idx) => {
-                words[idx.saturating_sub(1)].1
-            }
-            WordState::AtStart(idx) => {
-                words[idx.saturating_sub(1)].0
-            }
+            WordState::AtEnd(idx) | WordState::InCenter(idx) => words[idx.saturating_sub(1)].1,
+            WordState::AtStart(idx) => words[idx.saturating_sub(1)].0,
             WordState::Out => {
                 // Cursor is not touching any words, find previous end
                 let mut shift_back = x;

@@ -829,8 +829,14 @@ fn document_searching() {
     assert_eq!(
         searcher.rfinds("hello098hello765hello"),
         vec![
-            Match { loc: Loc { x: 13, y: 0 }, text: "765".to_string() },
-            Match { loc: Loc { x: 5, y: 0 }, text: "098".to_string() },
+            Match {
+                loc: Loc { x: 13, y: 0 },
+                text: "765".to_string()
+            },
+            Match {
+                loc: Loc { x: 5, y: 0 },
+                text: "098".to_string()
+            },
         ],
     );
 }
