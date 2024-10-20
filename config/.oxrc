@@ -142,24 +142,7 @@ event_mapping = {
         autoindent:fix_indent()
     end,
     ["ctrl_w"] = function()
-        y = editor.cursor.y
-        x = editor.cursor.x
-        if editor:get_character() == " " then 
-            start = 0 
-        else 
-            start = 1 
-        end
-        editor:move_previous_word()
-        new_x = editor.cursor.x
-        diff = x - new_x
-        if editor.cursor.y == y then
-            -- Cursor on the same line
-            for i = start, diff do
-                editor:remove_at(new_x, y)
-            end
-        else
-            -- Cursor has passed up onto the previous line
-        end
+        editor:remove_word()
     end,
 }
 
