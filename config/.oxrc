@@ -117,47 +117,32 @@ event_mapping = {
     end,
     ["alt_up"] = function()
         -- current line information
-        line = editor:get_line()
-        y = editor.cursor.y
+        local line = editor:get_line()
+        local cursor = editor.cursor
         -- insert a new line
-        editor:insert_line_at(line, y - 1)
+        editor:insert_line_at(line, cursor.y - 1)
         -- delete old copy and reposition cursor
-        editor:remove_line_at(y + 1)
-        editor:move_up()
+        editor:remove_line_at(cursor.y + 1)
+        -- restore cursor position
+        editor:move_to(cursor.x, cursor.y - 1)
         -- correct indentation level
         autoindent:fix_indent()
     end,
     ["alt_down"] = function()
         -- current line information
-        line = editor:get_line()
-        y = editor.cursor.y
+        local line = editor:get_line()
+        local cursor = editor.cursor
         -- insert a new line
-        editor:insert_line_at(line, y + 2)
+        editor:insert_line_at(line, cursor.y + 2)
         -- delete old copy and reposition cursor
-        editor:remove_line_at(y)
-        editor:move_down()
+        editor:remove_line_at(cursor.y)
+        -- restore cursor position
+        editor:move_to(cursor.x, cursor.y + 1)
         -- correct indentation level
         autoindent:fix_indent()
     end,
     ["ctrl_w"] = function()
-        y = editor.cursor.y
-        x = editor.cursor.x
-        if editor:get_character() == " " then 
-            start = 0 
-        else 
-            start = 1 
-        end
-        editor:move_previous_word()
-        new_x = editor.cursor.x
-        diff = x - new_x
-        if editor.cursor.y == y then
-            -- Cursor on the same line
-            for i = start, diff do
-                editor:remove_at(new_x, y)
-            end
-        else
-            -- Cursor has passed up onto the previous line
-        end
+        editor:remove_word()
     end,
 }
 
@@ -232,17 +217,18 @@ line_numbers.padding_right = 1
 
 -- Configure Mouse Behaviour --
 terminal.mouse_enabled = true
-terminal.scroll_amount = 1
+terminal.scroll_amount = 2
 
 -- Configure Tab Line --
 tab_line.enabled = true
 tab_line.format = "  {file_name}{modified}  "
 
 -- Configure Status Line --
-status_line:add_part("  {file_name}{modified}  │  {file_type}  │") -- The left side of the status line
-status_line:add_part("│  {cursor_y} / {line_count}  {cursor_x}  ")  -- The right side of the status line
-
-status_line.alignment = "between" -- This will put a space between the left and right sides
+status_line.parts = {
+    "  {file_name}{modified}  │  {file_type}  │", -- The left side of the status line
+    "│  {cursor_y} / {line_count}  {cursor_x}  ",  -- The right side of the status line
+}
+status_line.alignment = "between" -- This will put a space between the parts (left and right sides)
 
 -- Configure Greeting Message --
 greeting_message.enabled = true

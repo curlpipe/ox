@@ -386,18 +386,23 @@ impl StatusLine {
 }
 
 impl LuaUserData for StatusLine {
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method_mut("clear", |_, status_line, ()| {
-            status_line.parts.clear();
-            Ok(())
-        });
-        methods.add_method_mut("add_part", |_, status_line, part| {
-            status_line.parts.push(part);
-            Ok(())
-        });
-    }
-
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("parts", |lua, this| {
+            let parts = lua.create_table()?;
+            for (i, part) in this.parts.iter().enumerate() {
+                parts.set(i + 1, part.clone())?;
+            }
+            Ok(parts)
+        });
+        fields.add_field_method_set("parts", |_, this, value: LuaTable| {
+            let mut result = vec![];
+            for item in value.pairs::<usize, String>() {
+                let (_, part) = item?;
+                result.push(part);
+            }
+            this.parts = result;
+            Ok(())
+        });
         fields.add_field_method_get("alignment", |_, this| {
             let alignment: String = this.alignment.clone().into();
             Ok(alignment)

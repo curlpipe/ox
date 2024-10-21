@@ -135,6 +135,10 @@ impl LuaUserData for Editor {
             editor.plugin_active = false;
             Ok(())
         });
+        methods.add_method_mut("remove_word", |_, editor, ()| {
+            let _ = editor.doc_mut().delete_word();
+            Ok(())
+        });
         // Cursor moving
         methods.add_method_mut("move_to", |_, editor, (x, y): (usize, usize)| {
             let y = y.saturating_sub(1);

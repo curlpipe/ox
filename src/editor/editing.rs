@@ -18,7 +18,7 @@ impl Editor {
     /// Insert a character into the document, creating a new row if editing
     /// on the last line of the document
     pub fn character(&mut self, ch: char) -> Result<()> {
-        if !self.doc().is_selection_empty() {
+        if !self.doc().is_selection_empty() && !self.doc().info.read_only {
             self.doc_mut().remove_selection();
             self.reload_highlight();
         }
@@ -30,7 +30,9 @@ impl Editor {
             let loc = self.doc().char_loc();
             self.exe(Event::Insert(loc, ch.to_string()))?;
             let file = &mut self.files[self.ptr];
-            file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+            if !file.doc.info.read_only {
+                file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+            }
         }
         Ok(())
     }
@@ -46,17 +48,19 @@ impl Editor {
             let loc = self.doc().char_loc();
             self.exe(Event::SplitDown(loc))?;
             let file = &mut self.files[self.ptr];
-            let line = &file.doc.lines[loc.y + 1];
-            file.highlighter.insert_line(loc.y + 1, line);
-            let line = &file.doc.lines[loc.y];
-            file.highlighter.edit(loc.y, line);
+            if !file.doc.info.read_only {
+                let line = &file.doc.lines[loc.y + 1];
+                file.highlighter.insert_line(loc.y + 1, line);
+                let line = &file.doc.lines[loc.y];
+                file.highlighter.edit(loc.y, line);
+            }
         }
         Ok(())
     }
 
     /// Handle the backspace key
     pub fn backspace(&mut self) -> Result<()> {
-        if !self.doc().is_selection_empty() {
+        if !self.doc().is_selection_empty() && !self.doc().info.read_only {
             // Removing a selection is significant and worth an undo commit
             self.doc_mut().commit();
             self.doc_mut().undo_mgmt.set_dirty();
@@ -71,14 +75,19 @@ impl Editor {
             // Backspace was pressed on the start of the line, move line to the top
             self.new_row()?;
             let mut loc = self.doc().char_loc();
-            self.highlighter().remove_line(loc.y);
+            let file = &self.files[self.ptr];
+            if !file.doc.info.read_only {
+                self.highlighter().remove_line(loc.y);
+            }
             loc.y = loc.y.saturating_sub(1);
             let file = &mut self.files[self.ptr];
             loc.x = file.doc.line(loc.y).unwrap().chars().count();
             self.exe(Event::SpliceUp(loc))?;
             let file = &mut self.files[self.ptr];
             let line = &file.doc.lines[loc.y];
-            file.highlighter.edit(loc.y, line);
+            if !file.doc.info.read_only {
+                file.highlighter.edit(loc.y, line);
+            }
         } else if !(c == 0 && on_first_line) {
             // Backspace was pressed in the middle of the line, delete the character
             c = c.saturating_sub(1);
@@ -90,7 +99,9 @@ impl Editor {
                     };
                     self.exe(Event::Delete(loc, ch.to_string()))?;
                     let file = &mut self.files[self.ptr];
-                    file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+                    if !file.doc.info.read_only {
+                        file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+                    }
                 }
             }
         }
@@ -108,7 +119,9 @@ impl Editor {
                 };
                 self.exe(Event::Delete(loc, ch.to_string()))?;
                 let file = &mut self.files[self.ptr];
-                file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+                if !file.doc.info.read_only {
+                    file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+                }
             }
         }
         Ok(())
@@ -118,7 +131,9 @@ impl Editor {
     fn new_row(&mut self) -> Result<()> {
         if self.doc().loc().y == self.doc().len_lines() {
             self.exe(Event::InsertLine(self.doc().loc().y, String::new()))?;
-            self.highlighter().append(&String::new());
+            if !self.doc().info.read_only {
+                self.highlighter().append(&String::new());
+            }
         }
         Ok(())
     }
@@ -130,7 +145,9 @@ impl Editor {
             let y = self.doc().loc().y;
             let line = self.doc().line(y).unwrap();
             self.exe(Event::DeleteLine(y, line))?;
-            self.highlighter().remove_line(y);
+            if !self.doc().info.read_only {
+                self.highlighter().remove_line(y);
+            }
         }
         Ok(())
     }

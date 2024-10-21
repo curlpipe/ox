@@ -101,18 +101,23 @@ impl Editor {
         // Mark as not saved on disk
         doc.info.modified = true;
         // Add document to documents
-        self.files.push(FileContainer {
+        let file = FileContainer {
             highlighter,
             file_type: Some(FileType::default()),
             doc,
-        });
+        };
+        if self.ptr + 1 >= self.files.len() {
+            self.files.push(file);
+        } else {
+            self.files.insert(self.ptr + 1, file);
+        }
         Ok(())
     }
 
     /// Create a new document and move to it
     pub fn new_document(&mut self) -> Result<()> {
         self.blank()?;
-        self.ptr = self.files.len().saturating_sub(1);
+        self.next();
         Ok(())
     }
 
@@ -144,11 +149,16 @@ impl Editor {
         });
         highlighter.run(&doc.lines);
         // Add in the file
-        self.files.push(FileContainer {
+        let file = FileContainer {
             doc,
             highlighter,
             file_type,
-        });
+        };
+        if self.ptr + 1 >= self.files.len() {
+            self.files.push(file);
+        } else {
+            self.files.insert(self.ptr + 1, file);
+        }
         Ok(())
     }
 
@@ -156,7 +166,7 @@ impl Editor {
     pub fn open_document(&mut self) -> Result<()> {
         let path = self.path_prompt()?;
         self.open(&path)?;
-        self.ptr = self.files.len().saturating_sub(1);
+        self.next();
         self.update_cwd();
         Ok(())
     }
@@ -313,7 +323,7 @@ impl Editor {
     /// Load the configuration values
     pub fn load_config(&mut self, path: &str, lua: &Lua) -> Option<LuaError> {
         self.config_path = path.to_string();
-        let result = self.config.read(path, lua);
+        let result = Config::read(path, lua);
         // Display any warnings if the user configuration couldn't be found
         match result {
             Ok(()) => (),
@@ -378,7 +388,7 @@ impl Editor {
         let max = self.dent();
         self.doc_mut().size.w = w.saturating_sub(u16::try_from(max).unwrap_or(u16::MAX)) as usize;
         self.doc_mut().size.h = h.saturating_sub(3) as usize;
-        let max = self.doc().offset.x + self.doc().size.h;
+        let max = self.doc().offset.y + self.doc().size.h;
         self.doc_mut().load_to(max + 1);
     }
 
@@ -387,6 +397,8 @@ impl Editor {
         for ch in text.chars() {
             self.character(ch)?;
         }
+        // Paste warrants a commit here really
+        self.doc_mut().commit();
         Ok(())
     }
 

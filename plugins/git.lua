@@ -1,5 +1,5 @@
 --[[
-Git v0.2
+Git v0.3
 
 A plug-in for git integration that provides features to: 
  - Choose which files to add to a commit
@@ -12,7 +12,7 @@ A plug-in for git integration that provides features to:
 
 git = {
     status = {},
-    icons = false,
+    icons = (git or { icons = false }).icons,
     has_git = shell:output("git --version"):find("git version"),
 }
 
