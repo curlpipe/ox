@@ -75,7 +75,7 @@ Git - View and manage your git repository - requires git to be installed
 Pomodoro - A timer that helps you track your periods of work and breaks
 Todo - Makes .todo files interactive todo lists
 Typing Speed - Shows the rough speed that you're typing in the status line
-Update Notification - Warns you if there is a new version of Ox - requires curl to be installed on unix based systems\n
+Update Notification - Warns you if there is a new version of Ox - requires curl to be installed on unix based systems
 ";
 
 const FINAL_WORDS: &str = r"
@@ -106,7 +106,6 @@ pub enum Theme {
     Galaxy,
     Transparent,
     Default,
-    //Custom(HashMap<String, Color>),
 }
 
 impl Theme {
@@ -684,7 +683,7 @@ impl Assistant {
             }
         }
         // Configuration of line numbers
-        if sections.contains(&"line_number") {
+        if sections.contains(&"line_numbers") {
             result += "\n-- Line Number Configuration --\n";
             if fields.contains(&"line_numbers") {
                 result += &format!("line_numbers.enabled = {}\n", self.line_numbers);
