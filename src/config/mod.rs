@@ -184,7 +184,9 @@ impl Config {
         if user_provided_config {
             Ok(())
         } else {
-            Err(OxError::Config("Not Found".to_string()))
+            Err(OxError::Config {
+                msg: "Not Found".to_string(),
+            })
         }
     }
 

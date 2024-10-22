@@ -317,7 +317,7 @@ impl Editor {
         // Display any warnings if the user configuration couldn't be found
         match result {
             Ok(()) => (),
-            Err(OxError::Config(msg)) => {
+            Err(OxError::Config { msg }) => {
                 if msg == "Not Found" {
                     let warn =
                         "No configuration file found, using default configuration".to_string();
