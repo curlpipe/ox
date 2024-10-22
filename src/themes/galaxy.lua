@@ -32,7 +32,7 @@ colors.tab_active_bg = grey2
 colors.tab_active_fg = purple
 
 colors.info_bg = black
-colors.info_fg = lightblue
+colors.info_fg = darkblue
 colors.warning_bg = black
 colors.warning_fg = yellow
 colors.error_bg = black

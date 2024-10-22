@@ -803,8 +803,8 @@ impl Document {
             }
             WordState::AtStart(0) => 0,
             WordState::AtStart(idx) => {
-                // Delete back to end of the previous word
-                words[idx.saturating_sub(1)].1
+                // Delete back to start of the previous word
+                words[idx.saturating_sub(1)].0
             }
             WordState::Out => {
                 // Delete back to the end of the previous word
@@ -815,8 +815,11 @@ impl Document {
                         break;
                     }
                 }
-                match self.cursor_word_state(&words, shift_back) {
-                    WordState::AtEnd(idx) => words[idx].1,
+                match (line.chars().nth(shift_back), self.cursor_word_state(&words, shift_back)) {
+                    // Shift to start of previous word if there is a space
+                    (Some(' '), WordState::AtEnd(idx)) => words[idx].0,
+                    // Shift to end of previous word if there is not a space
+                    (_, WordState::AtEnd(idx)) => words[idx].1,
                     _ => 0,
                 }
             }
