@@ -815,7 +815,9 @@ impl Document {
                         break;
                     }
                 }
-                match (line.chars().nth(shift_back), self.cursor_word_state(&words, shift_back)) {
+                let char = line.chars().nth(shift_back);
+                let state = self.cursor_word_state(&words, shift_back);
+                match (char, state) {
                     // Shift to start of previous word if there is a space
                     (Some(' '), WordState::AtEnd(idx)) => words[idx].0,
                     // Shift to end of previous word if there is not a space

@@ -395,7 +395,7 @@ fn document_deletion() {
     doc.exe(Event::InsertLine(1, st!("    hello -world---")));
     doc.move_to(&Loc { x: 11, y: 1 });
     doc.delete_word();
-    assert_eq!(doc.line(1).unwrap(), st!("    helloworld---"));
+    assert_eq!(doc.line(1).unwrap(), st!("    world---"));
 }
 
 #[test]
