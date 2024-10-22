@@ -55,6 +55,7 @@ It is mainly used on linux systems, but macOS and Windows users (via WSL) are fr
 - :electric_plug: Plug-In system where you can write your own plug-ins or integrate other people's
 - :wrench: A wide number of options for configuration with everything from colours to the status line to syntax highlighting being open to customisation
 - :moon: Ox uses Lua as a configuration language for familiarity when scripting and configuring
+- 🤝 A configuration assistant to quickly get Ox set up for you from the get-go
 
 ### Out of the box features
 
