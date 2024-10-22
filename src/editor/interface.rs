@@ -75,7 +75,8 @@ impl Editor {
                 }
             })
             .collect::<Vec<_>>();
-        let start = u16::try_from(h / 4).unwrap_or(u16::MAX);
+        let first_line = (h / 2).saturating_sub(message.len() / 2) + 1;
+        let start = u16::try_from(first_line).unwrap_or(u16::MAX);
         let end = start + u16::try_from(message.len()).unwrap_or(u16::MAX);
         // Render each line of the document
         for y in 0..u16::try_from(h).unwrap_or(0) {
@@ -160,7 +161,10 @@ impl Editor {
             // Render help message if applicable (otherwise, just output padding to clear buffer)
             if self.config.help_message.borrow().enabled && (start..=end).contains(&y) {
                 let idx = y.saturating_sub(start);
-                display!(self, message.get(idx as usize).unwrap_or(&String::new()));
+                let line = message
+                    .get(idx as usize)
+                    .map_or(" ".repeat(max_width), |s| s.to_string());
+                display!(self, line, " ".repeat(max_width));
             }
         }
         Ok(())
