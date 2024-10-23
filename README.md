@@ -1,4 +1,4 @@
-﻿<!-- Heading -->
+<!-- Heading -->
 <br />
 <p align="center">
   <a href="https://github.com/curlpipe/ox/">
@@ -8,7 +8,7 @@
   <h1 align="center" style="font-size: 50px;">Ox editor</h1>
 
   <p align="center" style="font-size: 20px;">
-    Ox is a code editor that runs in your terminal.
+    The simple but flexible text editor
     <br><br>
     <div align="center" style="display:inline;">
       <img src="https://i.postimg.cc/zXB5y0r3/ox-blank.gif" width="49%">
@@ -28,7 +28,7 @@ Ox is an independent text editor that can be used to write everything from text 
 If you're looking for a text editor that...
 1. :feather: Is lightweight and efficient
 2. :wrench: Can be configured to your heart's content
-3. :package: Has features out of the box,  including 
+3. :package: Has features out of the box, including
     - syntax highlighting
     - undo and redo
     - search and replace
@@ -40,7 +40,7 @@ If you're looking for a text editor that...
 
 It runs in your terminal as a text-user-interface, just like vim, nano and micro, however, it is not based on any existing editors and has been built from the ground up.
 
-It is mainly used on linux systems, but macOS and Windows users (via WSL) are free to give it a go.
+It is mainly designed on linux systems, but macOS and Windows users (via WSL) are free to give it a go. Work is currently underway to get it working perfectly on all systems.
 
 ## Selling Points
 
@@ -55,7 +55,7 @@ It is mainly used on linux systems, but macOS and Windows users (via WSL) are fr
 - :electric_plug: Plug-In system where you can write your own plug-ins or integrate other people's
 - :wrench: A wide number of options for configuration with everything from colours to the status line to syntax highlighting being open to customisation
 - :moon: Ox uses Lua as a configuration language for familiarity when scripting and configuring
-- 🤝 A configuration assistant to quickly get Ox set up for you from the get-go
+- :handshake: A configuration assistant to quickly get Ox set up for you from the get-go
 
 ### Out of the box features
 
