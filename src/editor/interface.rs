@@ -163,7 +163,7 @@ impl Editor {
                 let idx = y.saturating_sub(start);
                 let line = message
                     .get(idx as usize)
-                    .map_or(" ".repeat(max_width), |s| s.to_string());
+                    .map_or(" ".repeat(max_width), std::string::ToString::to_string);
                 display!(self, line, " ".repeat(max_width));
             }
         }
