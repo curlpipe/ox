@@ -1297,17 +1297,21 @@ impl Document {
         self.file.slice(self.selection_range()).to_string()
     }
 
+    /// Commit a change to the undo management system
     pub fn commit(&mut self) {
         let s = self.take_snapshot();
+        self.undo_mgmt.backpatch_cursor(&self.cursor);
         self.undo_mgmt.commit(s);
     }
 
+    /// Completely reload the file
     pub fn reload_lines(&mut self) {
         let to = std::mem::take(&mut self.info.loaded_to);
         self.lines.clear();
         self.load_to(to);
     }
 
+    /// Delete the currently selected text
     pub fn remove_selection(&mut self) {
         self.file.remove(self.selection_range());
         self.reload_lines();
