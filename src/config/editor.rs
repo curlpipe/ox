@@ -461,11 +461,13 @@ impl LuaUserData for Editor {
         });
         methods.add_method_mut("move_next_match", |_, editor, query: String| {
             editor.next_match(&query);
+            editor.doc_mut().cancel_selection();
             editor.update_highlighter();
             Ok(())
         });
         methods.add_method_mut("move_previous_match", |_, editor, query: String| {
             editor.prev_match(&query);
+            editor.doc_mut().cancel_selection();
             editor.update_highlighter();
             Ok(())
         });

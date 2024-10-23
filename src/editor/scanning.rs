@@ -18,6 +18,7 @@ impl Editor {
         let target = self.prompt("Search")?;
         let mut done = false;
         let Size { w, h } = size()?;
+        let cache = self.doc().char_loc();
         // Jump to the next match after search term is provided
         self.next_match(&target);
         // Enter into search menu
@@ -29,7 +30,7 @@ impl Editor {
             self.terminal.goto(0, h)?;
             queue!(
                 self.terminal.stdout,
-                Print("[<-]: Search previous | [->]: Search next")
+                Print("[<-]: Search previous | [->]: Search next | [Enter] Finish | [Esc] Cancel")
             )?;
             // Move back to correct cursor position
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
@@ -44,7 +45,11 @@ impl Editor {
             if let CEvent::Key(key) = read()? {
                 match (key.modifiers, key.code) {
                     // On return or escape key, exit menu
-                    (KMod::NONE, KCode::Enter | KCode::Esc) => done = true,
+                    (KMod::NONE, KCode::Enter) => done = true,
+                    (KMod::NONE, KCode::Esc) => {
+                        self.doc_mut().move_to(&cache);
+                        done = true;
+                    }
                     // On left key, move to the previous match in the document
                     (KMod::NONE, KCode::Left) => std::mem::drop(self.prev_match(&target)),
                     // On right key, move to the next match in the document
@@ -54,13 +59,19 @@ impl Editor {
             }
             self.update_highlighter();
         }
+        self.doc_mut().cancel_selection();
         Ok(())
     }
 
     /// Move to the next match
     pub fn next_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().next_match(target, 1)?;
-        self.doc_mut().move_to(&mtch.loc);
+        // Select match
+        self.doc_mut().cancel_selection();
+        let mut move_to = mtch.loc;
+        move_to.x += mtch.text.chars().count();
+        self.doc_mut().move_to(&move_to);
+        self.doc_mut().select_to(&mtch.loc);
         // Update highlighting
         self.update_highlighter();
         Some(mtch.text)
@@ -70,6 +81,12 @@ impl Editor {
     pub fn prev_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().prev_match(target)?;
         self.doc_mut().move_to(&mtch.loc);
+        // Select match
+        self.doc_mut().cancel_selection();
+        let mut move_to = mtch.loc;
+        move_to.x += mtch.text.chars().count();
+        self.doc_mut().move_to(&move_to);
+        self.doc_mut().select_to(&mtch.loc);
         // Update highlighting
         self.update_highlighter();
         Some(mtch.text)
@@ -105,7 +122,7 @@ impl Editor {
             self.terminal.goto(0, h)?;
             queue!(
                 self.terminal.stdout,
-                Print("[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All")
+                Print("[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All | [Esc] Exit")
             )?;
             // Move back to correct cursor location
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
@@ -135,6 +152,7 @@ impl Editor {
             // Update syntax highlighter if necessary
             self.update_highlighter();
         }
+        self.doc_mut().cancel_selection();
         Ok(())
     }
 
