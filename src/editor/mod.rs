@@ -394,6 +394,7 @@ impl Editor {
 
     /// Handle paste
     pub fn handle_paste(&mut self, text: &str) -> Result<()> {
+        // Apply paste
         for ch in text.chars() {
             self.character(ch)?;
         }

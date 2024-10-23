@@ -8,8 +8,8 @@ mod ui;
 
 use cli::CommandLineInterface;
 use config::{
-    key_to_string, run_key, run_key_before, Assistant, Config, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER,
-    PLUGIN_NETWORKING, PLUGIN_RUN,
+    get_listeners, key_to_string, run_key, run_key_before, Assistant, Config, PLUGIN_BOOTSTRAP,
+    PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN,
 };
 use crossterm::event::Event as CEvent;
 use editor::{Editor, FileTypes};
@@ -178,9 +178,25 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             handle_lua_error(&editor, &key_str, result);
         }
 
+        // Handle paste event (before event)
+        if let CEvent::Paste(ref paste_text) = event {
+            let listeners = get_listeners("before:paste", &lua)?;
+            for listener in listeners {
+                handle_lua_error(&editor, "paste", listener.call(paste_text.clone()));
+            }
+        }
+
         // Actually handle editor event (errors included)
         if let Err(err) = editor.borrow_mut().handle_event(&lua, event.clone()) {
             editor.borrow_mut().feedback = Feedback::Error(format!("{err:?}"));
+        }
+
+        // Handle paste event (after event)
+        if let CEvent::Paste(ref paste_text) = event {
+            let listeners = get_listeners("paste", &lua)?;
+            for listener in listeners {
+                handle_lua_error(&editor, "paste", listener.call(paste_text.clone()));
+            }
         }
 
         // Handle plug-in after key press mappings (if no errors occured)

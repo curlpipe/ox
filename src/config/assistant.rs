@@ -11,7 +11,6 @@ use mlua::prelude::*;
 use std::cell::RefCell;
 use std::io::{stdout, Write};
 use std::rc::Rc;
-//use std::collections::HashMap;
 
 pub const TROPICAL: &str = include_str!("../themes/tropical.lua");
 pub const GALAXY: &str = include_str!("../themes/galaxy.lua");

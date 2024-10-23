@@ -22,7 +22,7 @@ pub use assistant::Assistant;
 pub use colors::{Color, Colors};
 pub use highlighting::SyntaxHighlighting;
 pub use interface::{GreetingMessage, HelpMessage, LineNumbers, StatusLine, TabLine, Terminal};
-pub use keys::{key_to_string, run_key, run_key_before};
+pub use keys::{get_listeners, key_to_string, run_key, run_key_before};
 pub use tasks::TaskManager;
 
 /// Issue a warning to the user

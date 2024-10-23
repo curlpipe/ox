@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.10
+Auto Indent v0.11
 
 Helps you when programming by guessing where indentation should go
 and then automatically applying these guesses as you program
@@ -196,4 +196,18 @@ end
 event_mapping["shift_tab"] = function()
     local level = autoindent:get_indent(editor.cursor.y)
     autoindent:set_indent(editor.cursor.y, level - 1)
+end
+
+-- Deal with pasting
+event_mapping["paste"] = function(paste_text)
+    -- Work out how many lines in the paste
+    local _, n_lines = string.gsub(paste_text, "\n", "")
+    -- Go to first line of the paste
+    local cursor_cache = editor.cursor
+    local first_line = editor.cursor.y - n_lines
+    editor:move_to(editor.cursor.x, first_line)
+    -- Fix indent of first line
+    editor:move_to(0, first_line)
+    autoindent:fix_indent()
+    editor:move_to(cursor_cache.x, first_line + n_lines)
 end
