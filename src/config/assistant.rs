@@ -124,6 +124,7 @@ impl Theme {
 pub enum Plugin {
     AutoIndent,
     Pairs,
+    QuickComment,
     DiscordRPC,
     Emmet,
     Git,
@@ -144,6 +145,7 @@ impl Plugin {
         match self {
             Self::AutoIndent => "autoindent",
             Self::Pairs => "pairs",
+            Self::QuickComment => "quickcomment",
             Self::DiscordRPC => "discord_rpc",
             Self::Emmet => "emmet",
             Self::Git => "git",
@@ -192,7 +194,7 @@ impl Default for Assistant {
             scroll_sensitivity: 2,
             cursor_wrap: true,
             // Plug-ins
-            plugins: vec![Plugin::AutoIndent, Plugin::Pairs],
+            plugins: vec![Plugin::AutoIndent, Plugin::Pairs, Plugin::QuickComment],
             // Misc
             icons: false,
         }
@@ -490,6 +492,7 @@ impl Assistant {
                 &[
                     "autoindent",
                     "pairs",
+                    "quickcomment",
                     "emmet",
                     "live_html",
                     "discord_rpc",
@@ -505,6 +508,7 @@ impl Assistant {
             let plugin = match adding.as_str() {
                 "autoindent" => Plugin::AutoIndent,
                 "pairs" => Plugin::Pairs,
+                "quickcomment" => Plugin::QuickComment,
                 "emmet" => Plugin::Emmet,
                 "live_html" => Plugin::LiveHTML,
                 "discord_rpc" => Plugin::DiscordRPC,
