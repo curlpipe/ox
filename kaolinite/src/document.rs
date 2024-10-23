@@ -440,7 +440,10 @@ impl Document {
         let line = self.line(cursor.y).ok_or(Error::OutOfRange)?;
         self.insert_line(cursor.y.saturating_sub(1), line)?;
         self.delete_line(cursor.y + 1)?;
-        self.move_to(&Loc { x: cursor.x, y: cursor.y.saturating_sub(1) });
+        self.move_to(&Loc {
+            x: cursor.x,
+            y: cursor.y.saturating_sub(1),
+        });
         Ok(())
     }
 
@@ -452,7 +455,10 @@ impl Document {
         let line = self.line(cursor.y).ok_or(Error::OutOfRange)?;
         self.insert_line(cursor.y + 2, line)?;
         self.delete_line(cursor.y)?;
-        self.move_to(&Loc { x: cursor.x, y: cursor.y + 1 });
+        self.move_to(&Loc {
+            x: cursor.x,
+            y: cursor.y + 1,
+        });
         Ok(())
     }
 
