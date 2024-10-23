@@ -4,7 +4,7 @@ use crate::utils::Loc;
 use regex::Regex;
 
 /// Stores information about a match in a document
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Match {
     pub loc: Loc,
     pub text: String,

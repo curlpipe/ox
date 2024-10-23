@@ -11,7 +11,7 @@ use crossterm::{
 };
 use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, Loc, Size};
 use mlua::Lua;
-use synoptic::{trim, Highlighter, TokOpt};
+use synoptic::{trim_fit, Highlighter, TokOpt};
 
 use super::Editor;
 
@@ -75,9 +75,19 @@ impl Editor {
                 }
             })
             .collect::<Vec<_>>();
-        let start = u16::try_from(h / 4).unwrap_or(u16::MAX);
+        let first_line = (h / 2).saturating_sub(message.len() / 2) + 1;
+        let start = u16::try_from(first_line).unwrap_or(u16::MAX);
         let end = start + u16::try_from(message.len()).unwrap_or(u16::MAX);
+        // Render each line of the document
         for y in 0..u16::try_from(h).unwrap_or(0) {
+            // Work out how long the line should be (accounting for help message if necessary)
+            let required_width =
+                if self.config.help_message.borrow().enabled && (start..=end).contains(&y) {
+                    w.saturating_sub(self.dent()).saturating_sub(max_width)
+                } else {
+                    w.saturating_sub(self.dent())
+                };
+            // Go to the right location
             self.terminal.goto(0, y as usize + self.push_down)?;
             // Start colours
             let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
@@ -106,10 +116,9 @@ impl Editor {
             }
             // Render line if it exists
             let idx = y as usize + self.doc().offset.y;
-            let pad_amount;
             if let Some(line) = self.doc().line(idx) {
                 let tokens = self.highlighter().line(idx, &line);
-                let tokens = trim(&tokens, self.doc().offset.x);
+                let tokens = trim_fit(&tokens, self.doc().offset.x, required_width, tab_width);
                 let mut x_pos = self.doc().offset.x;
                 for token in tokens {
                     // Find out the text (and colour of that text)
@@ -131,7 +140,7 @@ impl Editor {
                         // Highlighted text
                         TokOpt::None(text) => (text, editor_fg),
                     };
-                    // Do the rendering
+                    // Do the rendering (including selection where applicable)
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
@@ -144,22 +153,18 @@ impl Editor {
                         x_pos += 1;
                     }
                 }
-                // Pad out the line (to remove any junk left over from previous render)
                 display!(self, editor_fg, editor_bg);
-                let tab_width = self.config.document.borrow().tab_width;
-                let line_width = width(&line, tab_width);
-                pad_amount = w.saturating_sub(self.dent()).saturating_sub(line_width) + 1;
             } else {
-                // Render empty line
-                pad_amount = w.saturating_sub(self.dent()) + 1;
+                // Empty line, just pad out with spaces to prevent artefacts
+                display!(self, " ".repeat(required_width));
             }
             // Render help message if applicable (otherwise, just output padding to clear buffer)
             if self.config.help_message.borrow().enabled && (start..=end).contains(&y) {
                 let idx = y.saturating_sub(start);
-                display!(self, " ".repeat(pad_amount.saturating_sub(max_width)));
-                display!(self, message.get(idx as usize).unwrap_or(&String::new()));
-            } else {
-                display!(self, " ".repeat(pad_amount));
+                let line = message
+                    .get(idx as usize)
+                    .map_or(" ".repeat(max_width), |s| s.to_string());
+                display!(self, line, " ".repeat(max_width));
             }
         }
         Ok(())
@@ -290,6 +295,7 @@ impl Editor {
     }
 
     /// Prompt for selecting a file
+    #[allow(clippy::similar_names)]
     pub fn path_prompt(&mut self) -> Result<String> {
         let mut input = get_cwd().map(|s| s + "/").unwrap_or_default();
         let mut offset = 0;
@@ -328,12 +334,18 @@ impl Editor {
                 .skip(input.chars().count())
                 .collect::<String>();
             let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
+            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
+            let tab_width = self.config.document.borrow().tab_width;
+            let total_width = width(&input, tab_width) + width(&suggestion_text, tab_width);
+            let padding = " ".repeat(size()?.w.saturating_sub(total_width));
             display!(
                 self,
+                editor_bg,
                 "Path: ",
                 input.clone(),
                 Fg(Color::DarkGrey),
                 suggestion_text,
+                padding,
                 editor_fg
             );
             let tab_width = self.config.document.borrow_mut().tab_width;
