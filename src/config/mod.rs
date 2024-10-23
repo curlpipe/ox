@@ -36,6 +36,7 @@ const DEFAULT_CONFIG: &str = include_str!("../../config/.oxrc");
 /// Default plug-in code to use
 const PAIRS: &str = include_str!("../../plugins/pairs.lua");
 const AUTOINDENT: &str = include_str!("../../plugins/autoindent.lua");
+const QUICKCOMMENT: &str = include_str!("../../plugins/quickcomment.lua");
 
 /// This contains the code for setting up plug-in infrastructure
 pub const PLUGIN_BOOTSTRAP: &str = include_str!("../plugin/bootstrap.lua");
@@ -167,6 +168,7 @@ impl Config {
         let mut builtins: HashMap<&str, &str> = HashMap::default();
         builtins.insert("pairs.lua", PAIRS);
         builtins.insert("autoindent.lua", AUTOINDENT);
+        builtins.insert("quickcomment.lua", QUICKCOMMENT);
         for (name, code) in &builtins {
             if Self::load_bi(name, user_provided_config, lua) {
                 lua.load(*code).exec()?;

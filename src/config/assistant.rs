@@ -61,6 +61,7 @@ Ox has an ecosystem of plug-ins that you can make use of, they are as follows:
 ──────────────────── Code Helpers ────────────────────
 AutoIndent - A plug-in that will insert and remove code indentation automatically
 Pairs - A plug-in that will insert end brackets and end quotes automatically
+QuickComment - A plug-in that will help you quickly comment and uncomment lines of code
 
 ─────────────────── Web Development ──────────────────
 Emmet - A neat language to help you write HTML quickly - requires python and the py-emmet module

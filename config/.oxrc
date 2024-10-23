@@ -309,5 +309,4 @@ syntax:set("deletion", {255, 100, 100}) -- Lists in various markup languages e.g
 -- Import plugins (must be at the bottom of this file)
 load_plugin("pairs.lua")
 load_plugin("autoindent.lua")
---load_plugin("pomodoro.lua")
---load_plugin("update_notification.lua")
+load_plugin("quickcomment.lua")
