@@ -206,6 +206,10 @@ impl LuaUserData for Editor {
             editor.update_highlighter();
             Ok(())
         });
+        methods.add_method_mut("cursor_snap", |_, editor, ()| {
+            editor.doc_mut().old_cursor = editor.doc().loc().x;
+            Ok(())
+        });
         // Cursor selection and clipboard
         methods.add_method_mut("select_up", |_, editor, ()| {
             editor.select_up();

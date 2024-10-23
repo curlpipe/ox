@@ -72,4 +72,6 @@ event_mapping["alt_c"] = function()
     else
         quickcomment:comment(editor.cursor.y)
     end
+    -- Avoid weird behaviour with cursor moving up and down
+    editor:cursor_snap()
 end
