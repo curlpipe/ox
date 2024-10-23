@@ -49,6 +49,9 @@ event_mapping = {
     ["pagedown"] = function() 
         editor:move_page_down() 
     end,
+    ["esc"] = function()
+        editor:cancel_selection()
+    end,
     ["ctrl_g"] = function()
         local line = editor:prompt("Go to line")
         editor:move_to(0, tonumber(line))

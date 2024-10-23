@@ -769,7 +769,7 @@ impl Assistant {
         for plugin in &self.plugins {
             result += &plugin.to_config();
             if plugin == &Plugin::Git {
-                result += "git = { icons = true }";
+                result += "git = { icons = true }\n";
             }
         }
         // Ready to go

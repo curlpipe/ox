@@ -232,6 +232,10 @@ impl LuaUserData for Editor {
             editor.update_highlighter();
             Ok(())
         });
+        methods.add_method_mut("cancel_selection", |_, editor, ()| {
+            editor.doc_mut().cancel_selection();
+            Ok(())
+        });
         methods.add_method_mut("cut", |_, editor, ()| {
             editor.plugin_active = true;
             if let Err(err) = editor.cut() {
