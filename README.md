@@ -161,6 +161,8 @@ ox
 
 This will open up an empty document.
 
+However, if you've just downloaded Ox, the configuration assistant will automatically start up and help you configure the editor initially.
+
 If you wish to open a file straight from the command line, you can run
 ```sh
 ox /path/to/file
