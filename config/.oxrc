@@ -52,6 +52,9 @@ event_mapping = {
     ["esc"] = function()
         editor:cancel_selection()
     end,
+    ["alt_v"] = function()
+        editor:cursor_to_viewport()
+    end,
     ["ctrl_g"] = function()
         local line = editor:prompt("Go to line")
         editor:move_to(0, tonumber(line))

@@ -240,6 +240,10 @@ impl LuaUserData for Editor {
             editor.doc_mut().cancel_selection();
             Ok(())
         });
+        methods.add_method_mut("cursor_to_viewport", |_, editor, ()| {
+            editor.doc_mut().bring_cursor_in_viewport();
+            Ok(())
+        });
         methods.add_method_mut("cut", |_, editor, ()| {
             editor.plugin_active = true;
             if let Err(err) = editor.cut() {
