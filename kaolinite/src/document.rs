@@ -432,6 +432,30 @@ impl Document {
         Ok(())
     }
 
+    /// Swap a line upwards
+    /// # Errors
+    /// When out of bounds
+    pub fn swap_line_up(&mut self) -> Result<()> {
+        let cursor = self.char_loc();
+        let line = self.line(cursor.y).ok_or(Error::OutOfRange)?;
+        self.insert_line(cursor.y.saturating_sub(1), line)?;
+        self.delete_line(cursor.y + 1)?;
+        self.move_to(&Loc { x: cursor.x, y: cursor.y.saturating_sub(1) });
+        Ok(())
+    }
+
+    /// Swap a line downwards
+    /// # Errors
+    /// When out of bounds
+    pub fn swap_line_down(&mut self) -> Result<()> {
+        let cursor = self.char_loc();
+        let line = self.line(cursor.y).ok_or(Error::OutOfRange)?;
+        self.insert_line(cursor.y + 2, line)?;
+        self.delete_line(cursor.y)?;
+        self.move_to(&Loc { x: cursor.x, y: cursor.y + 1 });
+        Ok(())
+    }
+
     /// Cancels the current selection
     pub fn cancel_selection(&mut self) {
         self.cursor.selection_end = self.cursor.loc;

@@ -196,4 +196,5 @@ end
 event_mapping["shift_tab"] = function()
     local level = autoindent:get_indent(editor.cursor.y)
     autoindent:set_indent(editor.cursor.y, level - 1)
+    editor:cursor_snap()
 end

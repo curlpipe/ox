@@ -16,6 +16,13 @@ impl LuaUserData for Editor {
                 y: loc.y + 1,
             })
         });
+        fields.add_field_method_get("selection", |_, editor| {
+            let loc = editor.doc().cursor.selection_end;
+            Ok(LuaLoc {
+                x: editor.doc().character_idx(&loc),
+                y: loc.y + 1,
+            })
+        });
         fields.add_field_method_get("document_name", |_, editor| {
             let name = editor.doc().file_name.clone();
             Ok(name)
@@ -210,6 +217,20 @@ impl LuaUserData for Editor {
             editor.doc_mut().old_cursor = editor.doc().loc().x;
             Ok(())
         });
+        methods.add_method_mut("move_line_up", |_, editor, ()| {
+            let _ = editor.doc_mut().swap_line_up();
+            editor.hl_edit(editor.doc().loc().y);
+            editor.hl_edit(editor.doc().loc().y + 1);
+            editor.update_highlighter();
+            Ok(())
+        });
+        methods.add_method_mut("move_line_down", |_, editor, ()| {
+            let _ = editor.doc_mut().swap_line_down();
+            editor.hl_edit(editor.doc().loc().y.saturating_sub(1));
+            editor.hl_edit(editor.doc().loc().y);
+            editor.update_highlighter();
+            Ok(())
+        });
         // Cursor selection and clipboard
         methods.add_method_mut("select_up", |_, editor, ()| {
             editor.select_up();
@@ -233,6 +254,12 @@ impl LuaUserData for Editor {
         });
         methods.add_method_mut("select_all", |_, editor, ()| {
             editor.select_all();
+            editor.update_highlighter();
+            Ok(())
+        });
+        methods.add_method_mut("select_to", |_, editor, (x, y): (usize, usize)| {
+            let y = y.saturating_sub(1);
+            editor.doc_mut().select_to(&Loc { y, x });
             editor.update_highlighter();
             Ok(())
         });

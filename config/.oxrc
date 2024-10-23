@@ -122,30 +122,58 @@ event_mapping = {
         editor:open_command_line()
     end,
     ["alt_up"] = function()
-        -- current line information
-        local line = editor:get_line()
         local cursor = editor.cursor
-        -- insert a new line
-        editor:insert_line_at(line, cursor.y - 1)
-        -- delete old copy and reposition cursor
-        editor:remove_line_at(cursor.y + 1)
-        -- restore cursor position
-        editor:move_to(cursor.x, cursor.y - 1)
-        -- correct indentation level
-        autoindent:fix_indent()
+        local select = editor.selection
+        local single = select.x == cursor.x and select.y == cursor.y
+        if single then
+            -- move single line
+            editor:move_line_up()
+            autoindent:fix_indent()
+        else
+            -- move an entire selection
+            if cursor.y > select.y then
+                for line = select.y, cursor.y do
+                    editor:move_to(cursor.x, line)
+                    editor:move_line_up()
+                    autoindent:fix_indent()
+                end
+            else
+                for line = cursor.y, select.y do
+                    editor:move_to(cursor.x, line)
+                    editor:move_line_up()
+                    autoindent:fix_indent()
+                end
+            end
+            editor:move_to(cursor.x, cursor.y - 1)
+            editor:select_to(select.x, select.y - 1)
+        end
     end,
     ["alt_down"] = function()
-        -- current line information
-        local line = editor:get_line()
         local cursor = editor.cursor
-        -- insert a new line
-        editor:insert_line_at(line, cursor.y + 2)
-        -- delete old copy and reposition cursor
-        editor:remove_line_at(cursor.y)
-        -- restore cursor position
-        editor:move_to(cursor.x, cursor.y + 1)
-        -- correct indentation level
-        autoindent:fix_indent()
+        local select = editor.selection
+        local single = select.x == cursor.x and select.y == cursor.y
+        if single then
+            -- move single line
+            editor:move_line_down()
+            autoindent:fix_indent()
+        else
+            -- move an entire selection
+            if cursor.y > select.y then
+                for line = cursor.y, select.y, -1 do
+                    editor:move_to(cursor.x, line)
+                    editor:move_line_down()
+                    autoindent:fix_indent()
+                end
+            else
+                for line = select.y, cursor.y, -1 do
+                    editor:move_to(cursor.x, line)
+                    editor:move_line_down()
+                    autoindent:fix_indent()
+                end
+            end
+            editor:move_to(cursor.x, cursor.y + 1)
+            editor:select_to(select.x, select.y + 1)
+        end
     end,
     ["ctrl_w"] = function()
         editor:remove_word()
