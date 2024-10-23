@@ -61,9 +61,9 @@ impl SyntaxHighlighting {
         if let Some(col) = self.theme.get(name) {
             col.to_color()
         } else {
-            Err(OxError::Config(format!(
-                "{name} has not been given a colour in the theme",
-            )))
+            Err(OxError::Config {
+                msg: format!("{name} has not been given a colour in the theme",),
+            })
         }
     }
 }

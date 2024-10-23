@@ -1,39 +1,30 @@
 /// Error handling utilities
 use kaolinite::event::Error as KError;
-use quick_error::quick_error;
+use error_set::error_set;
 
-quick_error! {
-    /// Error type used throughout the editor
-    #[derive(Debug)]
-    pub enum OxError {
-        Render(err: std::io::Error) {
-            from()
-            display("Error in I/O: {}", err)
-        }
-        Kaolinite(err: KError) {
-            from()
-            display("{}", {
-                match err {
-                    KError::NoFileName => "This document has no file name, please use 'save as' instead".to_string(),
-                    KError::OutOfRange => "Requested operation is out of range".to_string(),
-                    KError::ReadOnlyFile => "This file is read only and can't be saved or edited".to_string(),
-                    KError::Rope(rerr) => format!("Backend had an issue processing text: {rerr}"),
-                    KError::Io(ioerr) => format!("I/O Error: {ioerr}"),
-                }
-            })
-        }
-        Config(msg: String) {
-            display("Error in config file: {}", msg)
-        }
-        Lua(err: mlua::prelude::LuaError) {
-            from()
-            display("Error in lua: {}", err)
-        }
-        Cancelled {
-            display("Operation Cancelled")
-        }
-        None
-    }
+error_set! {
+    OxError = {
+        #[display("Error in I/O: {0}")]
+        Render(std::io::Error),
+        #[display("{}",
+            match source {
+                KError::NoFileName => "This document has no file name, please use 'save as' instead".to_string(),
+                KError::OutOfRange => "Requested operation is out of range".to_string(),
+                KError::ReadOnlyFile => "This file is read only and can't be saved or edited".to_string(),
+                KError::Rope(rerr) => format!("Backend had an issue processing text: {rerr}"),
+                KError::Io(ioerr) => format!("I/O Error: {ioerr}"),
+            }
+        )]
+        Kaolinite(KError),
+        #[display("Error in config file: {}", msg)]
+        Config {
+            msg: String
+        },
+        #[display("Error in lua: {0}")]
+        Lua(mlua::prelude::LuaError),
+        #[display("Operation Cancelled")]
+        Cancelled
+    };
 }
 
 /// Easy syntax sugar to have functions return the custom error type
