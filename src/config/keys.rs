@@ -1,5 +1,7 @@
+use crate::error::OxError;
 /// For dealing with keys in the configuration file
 use crossterm::event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, ModifierKeyCode};
+use mlua::prelude::*;
 
 /// This contains the code for running code after a key binding is pressed
 pub fn run_key(key: &str) -> String {
@@ -31,6 +33,19 @@ pub fn run_key_before(key: &str) -> String {
         end
         "
     )
+}
+
+/// This contains code for getting event listeners
+pub fn get_listeners<'a>(name: &'a str, lua: &'a Lua) -> Result<Vec<LuaFunction<'a>>, OxError> {
+    let mut result = vec![];
+    let listeners: LuaTable = lua
+        .load(format!("(global_event_mapping[\"{name}\"] or {{}})"))
+        .eval()?;
+    for listener in listeners.pairs::<usize, LuaFunction>() {
+        let (_, lua_func) = listener?;
+        result.push(lua_func);
+    }
+    Ok(result)
 }
 
 /// Converts a key taken from a crossterm event into string format

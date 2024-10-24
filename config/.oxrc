@@ -49,6 +49,12 @@ event_mapping = {
     ["pagedown"] = function() 
         editor:move_page_down() 
     end,
+    ["esc"] = function()
+        editor:cancel_selection()
+    end,
+    ["alt_v"] = function()
+        editor:cursor_to_viewport()
+    end,
     ["ctrl_g"] = function()
         local line = editor:prompt("Go to line")
         editor:move_to(0, tonumber(line))
@@ -116,30 +122,54 @@ event_mapping = {
         editor:open_command_line()
     end,
     ["alt_up"] = function()
-        -- current line information
-        local line = editor:get_line()
         local cursor = editor.cursor
-        -- insert a new line
-        editor:insert_line_at(line, cursor.y - 1)
-        -- delete old copy and reposition cursor
-        editor:remove_line_at(cursor.y + 1)
-        -- restore cursor position
-        editor:move_to(cursor.x, cursor.y - 1)
-        -- correct indentation level
-        autoindent:fix_indent()
+        local select = editor.selection
+        local single = select.x == cursor.x and select.y == cursor.y
+        if single then
+            -- move single line
+            editor:move_line_up()
+            autoindent:fix_indent()
+        else
+            -- move an entire selection
+            if cursor.y > select.y then
+                for line = select.y, cursor.y do
+                    editor:move_to(cursor.x, line)
+                    editor:move_line_up()
+                end
+            else
+                for line = cursor.y, select.y do
+                    editor:move_to(cursor.x, line)
+                    editor:move_line_up()
+                end
+            end
+            editor:move_to(cursor.x, cursor.y - 1)
+            editor:select_to(select.x, select.y - 1)
+        end
     end,
     ["alt_down"] = function()
-        -- current line information
-        local line = editor:get_line()
         local cursor = editor.cursor
-        -- insert a new line
-        editor:insert_line_at(line, cursor.y + 2)
-        -- delete old copy and reposition cursor
-        editor:remove_line_at(cursor.y)
-        -- restore cursor position
-        editor:move_to(cursor.x, cursor.y + 1)
-        -- correct indentation level
-        autoindent:fix_indent()
+        local select = editor.selection
+        local single = select.x == cursor.x and select.y == cursor.y
+        if single then
+            -- move single line
+            editor:move_line_down()
+            autoindent:fix_indent()
+        else
+            -- move an entire selection
+            if cursor.y > select.y then
+                for line = cursor.y, select.y, -1 do
+                    editor:move_to(cursor.x, line)
+                    editor:move_line_down()
+                end
+            else
+                for line = select.y, cursor.y, -1 do
+                    editor:move_to(cursor.x, line)
+                    editor:move_line_down()
+                end
+            end
+            editor:move_to(cursor.x, cursor.y + 1)
+            editor:select_to(select.x, select.y + 1)
+        end
     end,
     ["ctrl_w"] = function()
         editor:remove_word()
@@ -309,5 +339,4 @@ syntax:set("deletion", {255, 100, 100}) -- Lists in various markup languages e.g
 -- Import plugins (must be at the bottom of this file)
 load_plugin("pairs.lua")
 load_plugin("autoindent.lua")
---load_plugin("pomodoro.lua")
---load_plugin("update_notification.lua")
+load_plugin("quickcomment.lua")

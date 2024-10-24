@@ -179,4 +179,10 @@ impl Editor {
         self.reload_highlight();
         Ok(())
     }
+
+    /// Shortcut to help rehighlight a line
+    pub fn hl_edit(&mut self, y: usize) {
+        let line = self.doc().line(y).unwrap_or_default();
+        self.highlighter().edit(y, &line);
+    }
 }

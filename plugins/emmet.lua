@@ -1,5 +1,5 @@
 --[[
-Emmet v0.2
+Emmet v0.3
 
 Implementation of Emmet for Ox for rapid web development
 ]]--
@@ -85,10 +85,11 @@ def place_cursor(expansion):
     img_match = find_cursor_index(r'<img[^>]*src="()"[^>]*>', 'src')
     input_match = find_cursor_index(r'<input[^>]*type="()"[^>]*>', 'type')
     label_match = find_cursor_index(r'<label[^>]*for="()"[^>]*>', 'for')
+    form_match = find_cursor_index(r'<form[^>]*action="()"[^>]*>', 'action')
     empty_tag_match = re.search(r"<([a-zA-Z0-9]+)([^>]*)></\1>", expansion)
     if empty_tag_match is not None:
         empty_tag_match = empty_tag_match.end(2) + 1
-    alone_tags = [a_match, img_match, input_match, label_match, empty_tag_match]
+    alone_tags = [a_match, img_match, input_match, label_match, form_match, empty_tag_match]
     try:
         best_alone = min(filter(lambda x: x is not None, alone_tags))
         return best_alone

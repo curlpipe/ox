@@ -300,6 +300,11 @@ impl Editor {
         }
     }
 
+    /// Try to get a document
+    pub fn try_doc(&self) -> Option<&Document> {
+        self.files.get(self.ptr).map(|file| &file.doc)
+    }
+
     /// Returns a document at a certain index
     pub fn get_doc(&mut self, idx: usize) -> &mut Document {
         &mut self.files.get_mut(idx).unwrap().doc
@@ -394,6 +399,7 @@ impl Editor {
 
     /// Handle paste
     pub fn handle_paste(&mut self, text: &str) -> Result<()> {
+        // Apply paste
         for ch in text.chars() {
             self.character(ch)?;
         }

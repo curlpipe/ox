@@ -8,8 +8,8 @@ mod ui;
 
 use cli::CommandLineInterface;
 use config::{
-    key_to_string, run_key, run_key_before, Assistant, Config, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER,
-    PLUGIN_NETWORKING, PLUGIN_RUN,
+    get_listeners, key_to_string, run_key, run_key_before, Assistant, Config, PLUGIN_BOOTSTRAP,
+    PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN,
 };
 use crossterm::event::Event as CEvent;
 use editor::{Editor, FileTypes};
@@ -64,18 +64,26 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     lua.globals().set("editor", editor.clone())?;
 
     // Inject the networking library for plug-ins to use
-    handle_lua_error(&editor, "", lua.load(PLUGIN_NETWORKING).exec());
+    handle_lua_error(
+        "",
+        lua.load(PLUGIN_NETWORKING).exec(),
+        &mut editor.borrow_mut().feedback,
+    );
 
     // Load config and initialise
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
     let result = editor.borrow_mut().load_config(&cli.config_path, &lua);
     if let Some(err) = result {
         // Handle error if available
-        handle_lua_error(&editor, "configuration", Err(err));
+        handle_lua_error("configuration", Err(err), &mut editor.borrow_mut().feedback);
     };
 
     // Run plug-ins
-    handle_lua_error(&editor, "", lua.load(PLUGIN_RUN).exec());
+    handle_lua_error(
+        "",
+        lua.load(PLUGIN_RUN).exec(),
+        &mut editor.borrow_mut().feedback,
+    );
 
     // Load in the file types
     let file_types = lua
@@ -86,7 +94,10 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     editor.borrow_mut().config.document.borrow_mut().file_types = file_types;
 
     // Open files user has asked to open
+    let cwd = std::env::current_dir()?;
     for (c, file) in cli.to_open.iter().enumerate() {
+        // Reset cwd
+        let _ = std::env::set_current_dir(&cwd);
         // Open the file
         editor.borrow_mut().open_or_new(file.to_string())?;
         // Set read only if applicable
@@ -138,7 +149,11 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     editor.borrow_mut().new_if_empty()?;
 
     // Add in the plugin manager
-    handle_lua_error(&editor, "", lua.load(PLUGIN_MANAGER).exec());
+    handle_lua_error(
+        "",
+        lua.load(PLUGIN_MANAGER).exec(),
+        &mut editor.borrow_mut().feedback,
+    );
 
     // Run the editor and handle errors if applicable
     editor.borrow().update_cwd();
@@ -159,7 +174,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             for task in exec {
                 if let Ok(target) = lua.globals().get::<_, mlua::Function>(task.clone()) {
                     // Run the code
-                    handle_lua_error(&editor, "task", target.call(()));
+                    handle_lua_error("task", target.call(()), &mut editor.borrow_mut().feedback);
                 } else {
                     editor.borrow_mut().feedback =
                         Feedback::Warning(format!("Function '{task}' was not found"));
@@ -175,7 +190,19 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             let key_str = key_to_string(key.modifiers, key.code);
             let code = run_key_before(&key_str);
             let result = lua.load(&code).exec();
-            handle_lua_error(&editor, &key_str, result);
+            handle_lua_error(&key_str, result, &mut editor.borrow_mut().feedback);
+        }
+
+        // Handle paste event (before event)
+        if let CEvent::Paste(ref paste_text) = event {
+            let listeners = get_listeners("before:paste", &lua)?;
+            for listener in listeners {
+                handle_lua_error(
+                    "paste",
+                    listener.call(paste_text.clone()),
+                    &mut editor.borrow_mut().feedback,
+                );
+            }
         }
 
         // Actually handle editor event (errors included)
@@ -183,12 +210,24 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             editor.borrow_mut().feedback = Feedback::Error(format!("{err:?}"));
         }
 
+        // Handle paste event (after event)
+        if let CEvent::Paste(ref paste_text) = event {
+            let listeners = get_listeners("paste", &lua)?;
+            for listener in listeners {
+                handle_lua_error(
+                    "paste",
+                    listener.call(paste_text.clone()),
+                    &mut editor.borrow_mut().feedback,
+                );
+            }
+        }
+
         // Handle plug-in after key press mappings (if no errors occured)
         if let CEvent::Key(key) = event {
             let key_str = key_to_string(key.modifiers, key.code);
             let code = run_key(&key_str);
             let result = lua.load(&code).exec();
-            handle_lua_error(&editor, &key_str, result);
+            handle_lua_error(&key_str, result, &mut editor.borrow_mut().feedback);
         }
 
         editor.borrow_mut().update_highlighter();
@@ -204,14 +243,14 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
 
     // Run any plugin cleanup operations
     let result = lua.load(run_key("exit")).exec();
-    handle_lua_error(&editor, "exit", result);
+    handle_lua_error("exit", result, &mut editor.borrow_mut().feedback);
 
     editor.borrow_mut().terminal.end()?;
     Ok(())
 }
 
 /// Handle a lua error, showing the user an informative error
-fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<(), mlua::Error>) {
+fn handle_lua_error(key_str: &str, error: RResult<(), mlua::Error>, feedback: &mut Feedback) {
     match error {
         // All good
         Ok(()) => (),
@@ -248,16 +287,14 @@ fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<
                 // Key was not bound, issue a warning would be helpful
                 let key_str = key_str.replace(' ', "space");
                 if key_str.contains('_') && key_str != "_" && !key_str.starts_with("shift") {
-                    editor.borrow_mut().feedback =
-                        Feedback::Warning(format!("The key {key_str} is not bound"));
+                    *feedback = Feedback::Warning(format!("The key {key_str} is not bound"));
                 }
             } else if msg.ends_with("command not found") {
                 // Command was not found, issue an error
-                editor.borrow_mut().feedback =
-                    Feedback::Error(format!("The command '{key_str}' is not defined"));
+                *feedback = Feedback::Error(format!("The command '{key_str}' is not defined"));
             } else {
                 // Some other runtime error
-                editor.borrow_mut().feedback = Feedback::Error(msg.to_string());
+                *feedback = Feedback::Error(msg.to_string());
             }
         }
         // Handle a syntax error
@@ -266,17 +303,15 @@ fn handle_lua_error(editor: &Rc<RefCell<Editor>>, key_str: &str, error: RResult<
                 let mut message = message.rsplit(':').take(2).collect::<Vec<&str>>();
                 message.reverse();
                 let message = message.join(":");
-                editor.borrow_mut().feedback =
+                *feedback =
                     Feedback::Error(format!("Syntax Error in config file on line {message}"));
             } else {
-                editor.borrow_mut().feedback =
-                    Feedback::Error(format!("Syntax Error: {message:?}"));
+                *feedback = Feedback::Error(format!("Syntax Error: {message:?}"));
             }
         }
         // Other miscellaneous error
         Err(err) => {
-            editor.borrow_mut().feedback =
-                Feedback::Error(format!("Failed to run Lua code: {err:?}"));
+            *feedback = Feedback::Error(format!("Failed to run Lua code: {err:?}"));
         }
     }
 }
@@ -288,6 +323,10 @@ fn run_editor_command(editor: &Rc<RefCell<Editor>>, cmd: &str, lua: &Lua) {
         let arguments = arguments.join("', '");
         let code =
             format!("(commands['{subcmd}'] or error('command not found'))({{'{arguments}'}})");
-        handle_lua_error(editor, subcmd, lua.load(code).exec());
+        handle_lua_error(
+            subcmd,
+            lua.load(code).exec(),
+            &mut editor.borrow_mut().feedback,
+        );
     }
 }
