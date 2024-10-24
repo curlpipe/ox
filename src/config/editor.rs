@@ -10,26 +10,40 @@ use mlua::prelude::*;
 impl LuaUserData for Editor {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("cursor", |_, editor| {
-            let loc = editor.doc().char_loc();
-            Ok(LuaLoc {
-                x: loc.x,
-                y: loc.y + 1,
-            })
+            if let Some(doc) = editor.try_doc() {
+                let loc = doc.char_loc();
+                Ok(Some(LuaLoc {
+                    x: loc.x,
+                    y: loc.y + 1,
+                }))
+            } else {
+                Ok(None)
+            }
         });
         fields.add_field_method_get("selection", |_, editor| {
-            let loc = editor.doc().cursor.selection_end;
-            Ok(LuaLoc {
-                x: editor.doc().character_idx(&loc),
-                y: loc.y + 1,
-            })
+            if let Some(doc) = editor.try_doc() {
+                let loc = doc.cursor.selection_end;
+                Ok(Some(LuaLoc {
+                    x: editor.doc().character_idx(&loc),
+                    y: loc.y + 1,
+                }))
+            } else {
+                Ok(None)
+            }
         });
         fields.add_field_method_get("document_name", |_, editor| {
-            let name = editor.doc().file_name.clone();
-            Ok(name)
+            if let Some(doc) = editor.try_doc() {
+                Ok(Some(doc.file_name.clone()))
+            } else {
+                Ok(None)
+            }
         });
         fields.add_field_method_get("document_length", |_, editor| {
-            let len = editor.doc().len_lines();
-            Ok(len)
+            if let Some(doc) = editor.try_doc() {
+                Ok(Some(doc.len_lines()))
+            } else {
+                Ok(None)
+            }
         });
         fields.add_field_method_get("version", |_, _| Ok(VERSION));
         fields.add_field_method_get("current_document_id", |_, editor| Ok(editor.ptr));
@@ -41,16 +55,25 @@ impl LuaUserData for Editor {
                 .map_or("Unknown".to_string(), |t| t.name))
         });
         fields.add_field_method_get("file_name", |_, editor| {
-            let name = get_file_name(&editor.doc().file_name.clone().unwrap_or_default());
-            Ok(name)
+            if let Some(doc) = editor.try_doc() {
+                Ok(Some(get_file_name(&doc.file_name.clone().unwrap_or_default())))
+            } else {
+                Ok(None)
+            }
         });
         fields.add_field_method_get("file_extension", |_, editor| {
-            let name = get_file_ext(&editor.doc().file_name.clone().unwrap_or_default());
-            Ok(name)
+            if let Some(doc) = editor.try_doc() {
+                Ok(Some(get_file_ext(&doc.file_name.clone().unwrap_or_default())))
+            } else {
+                Ok(None)
+            }
         });
         fields.add_field_method_get("file_path", |_, editor| {
-            let name = get_absolute_path(&editor.doc().file_name.clone().unwrap_or_default());
-            Ok(name)
+            if let Some(doc) = editor.try_doc() {
+                Ok(Some(get_absolute_path(&doc.file_name.clone().unwrap_or_default())))
+            } else {
+                Ok(None)
+            }
         });
     }
 
