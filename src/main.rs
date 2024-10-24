@@ -86,7 +86,10 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     editor.borrow_mut().config.document.borrow_mut().file_types = file_types;
 
     // Open files user has asked to open
+    let cwd = std::env::current_dir()?;
     for (c, file) in cli.to_open.iter().enumerate() {
+        // Reset cwd
+        let _ = std::env::set_current_dir(&cwd);
         // Open the file
         editor.borrow_mut().open_or_new(file.to_string())?;
         // Set read only if applicable

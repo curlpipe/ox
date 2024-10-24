@@ -203,7 +203,7 @@ function dedent_amount(y)
 end
 
 -- Shortcut to indent a selection
-event_mapping["alt_tab"] = function()
+event_mapping["ctrl_tab"] = function()
     local cursor = editor.cursor
     local select = editor.selection
     if cursor.y == select.y then
