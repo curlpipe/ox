@@ -202,6 +202,37 @@ function dedent_amount(y)
     end
 end
 
+-- Shortcut to indent a selection
+event_mapping["alt_tab"] = function()
+    local cursor = editor.cursor
+    local select = editor.selection
+    if cursor.y == select.y then
+        -- Single line is selected
+        local level = autoindent:get_indent(cursor.y)
+        autoindent:set_indent(cursor.y, level + 1)
+    else
+        -- Multiple lines selected
+        if cursor.y > select.y then
+            for line = select.y, cursor.y do
+                editor:move_to(0, line)
+                local indent = autoindent:get_indent(line)
+                autoindent:set_indent(line, indent + 1)
+            end
+        else
+            for line = cursor.y, select.y do
+                editor:move_to(0, line)
+                local indent = autoindent:get_indent(line)
+                autoindent:set_indent(line, indent + 1)
+            end
+        end
+        local cursor_tabs = dedent_amount(cursor.y)
+        local select_tabs = dedent_amount(select.y)
+        editor:move_to(cursor.x + cursor_tabs, cursor.y)
+        editor:select_to(select.x + select_tabs, select.y)
+    end
+    editor:cursor_snap()
+end
+
 -- Shortcut to dedent a line
 event_mapping["shift_tab"] = function()
     local cursor = editor.cursor
@@ -210,7 +241,6 @@ event_mapping["shift_tab"] = function()
         -- Dedent a single line
         local level = autoindent:get_indent(editor.cursor.y)
         autoindent:set_indent(editor.cursor.y, level - 1)
-        editor:cursor_snap()
     else
         -- Dedent a group of lines
         if cursor.y > select.y then
@@ -230,6 +260,6 @@ event_mapping["shift_tab"] = function()
         local select_tabs = dedent_amount(select.y)
         editor:move_to(cursor.x - cursor_tabs, cursor.y)
         editor:select_to(select.x - select_tabs, select.y)
-        editor:cursor_snap()
     end
+    editor:cursor_snap()
 end
