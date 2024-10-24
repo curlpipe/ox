@@ -135,13 +135,11 @@ event_mapping = {
                 for line = select.y, cursor.y do
                     editor:move_to(cursor.x, line)
                     editor:move_line_up()
-                    autoindent:fix_indent()
                 end
             else
                 for line = cursor.y, select.y do
                     editor:move_to(cursor.x, line)
                     editor:move_line_up()
-                    autoindent:fix_indent()
                 end
             end
             editor:move_to(cursor.x, cursor.y - 1)
@@ -162,13 +160,11 @@ event_mapping = {
                 for line = cursor.y, select.y, -1 do
                     editor:move_to(cursor.x, line)
                     editor:move_line_down()
-                    autoindent:fix_indent()
                 end
             else
                 for line = select.y, cursor.y, -1 do
                     editor:move_to(cursor.x, line)
                     editor:move_line_down()
-                    autoindent:fix_indent()
                 end
             end
             editor:move_to(cursor.x, cursor.y + 1)
