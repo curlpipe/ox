@@ -1,5 +1,5 @@
 /// Functions for rendering the UI
-use crate::display;
+use crate::{handle_lua_error, display};
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback};
 use crossterm::{
@@ -233,17 +233,33 @@ impl Editor {
         let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
         let status_bg = Bg(self.config.colors.borrow().status_bg.to_color()?);
         let status_fg = Fg(self.config.colors.borrow().status_fg.to_color()?);
-        let content = self.config.status_line.borrow().render(self, lua, w);
-        display!(
-            self,
-            status_bg,
-            status_fg,
-            SetAttribute(Attribute::Bold),
-            content,
-            SetAttribute(Attribute::Reset),
-            editor_fg,
-            editor_bg
-        );
+        match self.config.status_line.borrow().render(self, lua, w) {
+            Ok(content) => {
+                display!(
+                    self,
+                    status_bg,
+                    status_fg,
+                    SetAttribute(Attribute::Bold),
+                    content,
+                    SetAttribute(Attribute::Reset),
+                    editor_fg,
+                    editor_bg
+                );
+            }
+            Err(lua_error) => {
+                display!(
+                    self,
+                    status_bg,
+                    status_fg,
+                    SetAttribute(Attribute::Bold),
+                    " ".repeat(w),
+                    SetAttribute(Attribute::Reset),
+                    editor_fg,
+                    editor_bg
+                );
+                handle_lua_error("status_line", Err(lua_error), &mut self.feedback);
+            }
+        }
         Ok(())
     }
 

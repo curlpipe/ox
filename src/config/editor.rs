@@ -56,21 +56,27 @@ impl LuaUserData for Editor {
         });
         fields.add_field_method_get("file_name", |_, editor| {
             if let Some(doc) = editor.try_doc() {
-                Ok(Some(get_file_name(&doc.file_name.clone().unwrap_or_default())))
+                Ok(Some(get_file_name(
+                    &doc.file_name.clone().unwrap_or_default(),
+                )))
             } else {
                 Ok(None)
             }
         });
         fields.add_field_method_get("file_extension", |_, editor| {
             if let Some(doc) = editor.try_doc() {
-                Ok(Some(get_file_ext(&doc.file_name.clone().unwrap_or_default())))
+                Ok(Some(get_file_ext(
+                    &doc.file_name.clone().unwrap_or_default(),
+                )))
             } else {
                 Ok(None)
             }
         });
         fields.add_field_method_get("file_path", |_, editor| {
             if let Some(doc) = editor.try_doc() {
-                Ok(Some(get_absolute_path(&doc.file_name.clone().unwrap_or_default())))
+                Ok(Some(get_absolute_path(
+                    &doc.file_name.clone().unwrap_or_default(),
+                )))
             } else {
                 Ok(None)
             }

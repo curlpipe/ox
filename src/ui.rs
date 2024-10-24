@@ -41,6 +41,7 @@ pub fn size() -> Result<Size> {
 }
 
 /// Represents different status messages
+#[derive(Debug)]
 pub enum Feedback {
     Info(String),
     Warning(String),
