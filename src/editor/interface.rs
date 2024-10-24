@@ -170,6 +170,30 @@ impl Editor {
         Ok(())
     }
 
+    /// Get list of tabs
+    pub fn get_tab_parts(&mut self, lua: &Lua, w: usize) -> (Vec<String>, usize, usize) {
+        let mut headers: Vec<String> = vec![];
+        let mut idx = 0;
+        let mut length = 0;
+        let mut offset = 0;
+        let tab_line = self.config.tab_line.borrow();
+        for (c, file) in self.files.iter().enumerate() {
+            let render = tab_line.render(lua, file, &mut self.feedback);
+            length += width(&render, 4) + 1;
+            headers.push(render);
+            if c == self.ptr {
+                idx = headers.len().saturating_sub(1);
+            }
+            while c == self.ptr && length > w {
+                headers.remove(0);
+                length = length.saturating_sub(width(&headers[0], 4) + 1);
+                idx = headers.len().saturating_sub(1);
+                offset += 1;
+            }
+        }
+        (headers, idx, offset)
+    }
+
     /// Render the tab line at the top of the document
     #[allow(clippy::similar_names)]
     pub fn render_tab_line(&mut self, lua: &Lua, w: usize) -> Result<()> {
@@ -178,29 +202,23 @@ impl Editor {
         let tab_inactive_fg = Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?);
         let tab_active_bg = Bg(self.config.colors.borrow().tab_active_bg.to_color()?);
         let tab_active_fg = Fg(self.config.colors.borrow().tab_active_fg.to_color()?);
+        let (tabs, idx, _) = self.get_tab_parts(lua, w);
         display!(self, tab_inactive_fg, tab_inactive_bg);
-        for (c, file) in self.files.iter().enumerate() {
-            let document_header =
-                self.config
-                    .tab_line
-                    .borrow()
-                    .render(lua, file, &mut self.feedback);
-            if c == self.ptr {
-                // Representing the document we're currently looking at
+        for (c, header) in tabs.iter().enumerate() {
+            if c == idx {
                 display!(
                     self,
                     tab_active_bg,
                     tab_active_fg,
                     SetAttribute(Attribute::Bold),
-                    document_header,
+                    header,
                     SetAttribute(Attribute::Reset),
                     tab_inactive_fg,
                     tab_inactive_bg,
                     "│"
                 );
             } else {
-                // Other document that is currently open
-                display!(self, document_header, "│");
+                display!(self, header, "│");
             }
         }
         display!(self, " ".to_string().repeat(w));
