@@ -30,6 +30,7 @@ impl Editor {
                 editor_bg,
                 "Search: ",
                 target.clone(),
+                "│",
                 " ".to_string().repeat(w)
             );
             self.terminal.hide_cursor()?;
