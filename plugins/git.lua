@@ -1,5 +1,5 @@
 --[[
-Git v0.3
+Git v0.4
 
 A plug-in for git integration that provides features to: 
  - Choose which files to add to a commit
@@ -87,6 +87,7 @@ function git:diff_all()
 end
 
 function git_branch()
+    git:refresh_status()
     local branch = shell:output("git rev-parse --abbrev-ref HEAD")
     if branch == "" or branch:match("fatal") then
         return "N/A"
@@ -96,7 +97,6 @@ function git_branch()
 end
 
 function git_status(tab)
-    git:refresh_status()
     for file, state in pairs(git.status) do
         if file == tab then
             if state ~= nil then

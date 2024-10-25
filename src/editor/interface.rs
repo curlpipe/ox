@@ -1,7 +1,7 @@
-/// Functions for rendering the UI
-use crate::{handle_lua_error, display};
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback};
+/// Functions for rendering the UI
+use crate::{display, handle_lua_error};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
     queue,
