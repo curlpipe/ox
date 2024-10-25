@@ -262,7 +262,7 @@ impl Document {
         self.file.insert(idx, st);
         // Update cache
         let line: String = self.file.line(loc.y).chars().collect();
-        self.lines[loc.y] = line.trim_end_matches(&['\n', '\r']).to_string();
+        self.lines[loc.y] = line.trim_end_matches(['\n', '\r']).to_string();
         // Update unicode map
         let dbl_start = self.dbl_map.shift_insertion(loc, st, self.tab_width);
         let tab_start = self.tab_map.shift_insertion(loc, st, self.tab_width);
@@ -341,7 +341,7 @@ impl Document {
         self.file.remove(start..end);
         // Update cache
         let line: String = self.file.line(y).chars().collect();
-        self.lines[y] = line.trim_end_matches(&['\n', '\r']).to_string();
+        self.lines[y] = line.trim_end_matches(['\n', '\r']).to_string();
         self.old_cursor = self.loc().x;
         Ok(())
     }
@@ -1170,7 +1170,7 @@ impl Document {
                 self.tab_map.insert(i, tab_map);
                 // Cache this line
                 self.lines
-                    .push(line.trim_end_matches(&['\n', '\r']).to_string());
+                    .push(line.trim_end_matches(['\n', '\r']).to_string());
             }
             // Store new loaded point
             self.info.loaded_to = to;

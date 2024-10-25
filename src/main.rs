@@ -14,7 +14,8 @@ use config::{
 use crossterm::event::Event as CEvent;
 use editor::{Editor, FileTypes};
 use error::{OxError, Result};
-use kaolinite::event::Event;
+use kaolinite::utils::file_or_dir;
+use kaolinite::event::{Event, Error as KError};
 use kaolinite::searching::Searcher;
 use kaolinite::Loc;
 use mlua::Error::{RuntimeError, SyntaxError};
@@ -22,7 +23,8 @@ use mlua::{FromLua, Lua, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::result::Result as RResult;
-use ui::Feedback;
+use std::io::ErrorKind;
+use ui::{fatal_error, Feedback};
 
 /// Entry point - grabs command line arguments and runs the editor
 fn main() {
@@ -100,12 +102,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         let _ = std::env::set_current_dir(&cwd);
         // Open the file
         let result = editor.borrow_mut().open_or_new(file.to_string());
-        if let Err(OxError::AlreadyOpen(_)) = result {
-            let len = editor.borrow().files.len().saturating_sub(1);
-            editor.borrow_mut().ptr = len;
-        } else {
-            result?;
-        }
+        handle_file_opening(&editor, result, file);
         // Set read only if applicable
         if cli.flags.read_only {
             editor.borrow_mut().get_doc(c).info.read_only = true;
@@ -319,6 +316,45 @@ fn handle_lua_error(key_str: &str, error: RResult<(), mlua::Error>, feedback: &m
         Err(err) => {
             *feedback = Feedback::Error(format!("Failed to run Lua code: {err:?}"));
         }
+    }
+}
+
+/// Handle opening files
+fn handle_file_opening(editor: &Rc<RefCell<Editor>>, result: Result<()>, name: &str) {
+    // TEMPORARY WORK-AROUND: Delete after Rust 1.83
+    if file_or_dir(name) == "directory" {
+        fatal_error(&format!("'{name}' is a directory, not a file"));
+    }
+    match result {
+        Ok(()) => (),
+        Err(OxError::AlreadyOpen(_)) => {
+            let len = editor.borrow().files.len().saturating_sub(1);
+            editor.borrow_mut().ptr = len;
+        }
+        Err(OxError::Kaolinite(kerr)) => {
+            match kerr {
+                KError::Io(ioerr) => match ioerr.kind() {
+                    ErrorKind::NotFound =>
+                        fatal_error(&format!("File '{name}' not found")),
+                    ErrorKind::PermissionDenied =>
+                        fatal_error(&format!("Permission to read file '{name}' denied")),
+                    /*
+                    // NOTE: Uncomment when Rust 1.83 becomes stable (io_error_more will be stabilised)
+                    ErrorKind::IsADirectory =>
+                        fatal_error(&format!("'{name}' is a directory, not a file")),
+                    ErrorKind::ReadOnlyFilesystem =>
+                        fatal_error(&format!("You are on a read only file system")),
+                    ErrorKind::ResourceBusy =>
+                        fatal_error(&format!("The resource '{name}' is busy")),
+                    */
+                    ErrorKind::OutOfMemory =>
+                        fatal_error("You are out of memory"),
+                    kind => fatal_error(&format!("I/O error occured: {kind:?}"))
+                },
+                _ => fatal_error(&format!("Backend error opening '{name}': {kerr:?}")),
+            }
+        }
+        result => fatal_error(&format!("Error opening file '{name}': {result:?}")),
     }
 }
 
