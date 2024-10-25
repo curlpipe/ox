@@ -13,7 +13,7 @@ use config::{
 };
 use crossterm::event::Event as CEvent;
 use editor::{Editor, FileTypes};
-use error::Result;
+use error::{OxError, Result};
 use kaolinite::event::Event;
 use kaolinite::searching::Searcher;
 use kaolinite::Loc;
@@ -99,7 +99,13 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         // Reset cwd
         let _ = std::env::set_current_dir(&cwd);
         // Open the file
-        editor.borrow_mut().open_or_new(file.to_string())?;
+        let result = editor.borrow_mut().open_or_new(file.to_string());
+        if let Err(OxError::AlreadyOpen(_)) = result {
+            let len = editor.borrow().files.len().saturating_sub(1);
+            editor.borrow_mut().ptr = len;
+        } else {
+            result?;
+        }
         // Set read only if applicable
         if cli.flags.read_only {
             editor.borrow_mut().get_doc(c).info.read_only = true;

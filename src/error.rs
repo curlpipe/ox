@@ -32,6 +32,9 @@ quick_error! {
         Cancelled {
             display("Operation Cancelled")
         }
+        AlreadyOpen(file: String) {
+            display("File '{}' is already open", file)
+        }
         None
     }
 }
