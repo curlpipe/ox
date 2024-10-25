@@ -151,14 +151,14 @@ impl Config {
     pub fn read(path: &str, lua: &Lua) -> Result<()> {
         // Load the default config to start with
         lua.load(DEFAULT_CONFIG).exec()?;
-        // Reset plugin status based on built-in configuration file
-        lua.load("plugins = {}").exec()?;
-        lua.load("builtins = {}").exec()?;
 
         // Attempt to read config file from home directory
         let user_provided = Self::get_user_provided_config(path);
         let mut user_provided_config = false;
         if let Some(config) = user_provided {
+            // Reset plugin status based on built-in configuration file
+            lua.load("plugins = {}").exec()?;
+            lua.load("builtins = {}").exec()?;
             // Load in user-defined configuration file
             lua.load(config).exec()?;
             user_provided_config = true;
@@ -196,7 +196,7 @@ impl Config {
     /// Decide whether to load a built-in plugin
     pub fn load_bi(name: &str, user_provided_config: bool, lua: &Lua) -> bool {
         if user_provided_config {
-            // Get list of user-loaded plug-ins
+            // Get list of requested built-in plugins
             let plugins: Vec<String> = lua
                 .globals()
                 .get::<_, LuaTable>("builtins")
@@ -215,8 +215,13 @@ impl Config {
                 false
             }
         } else {
-            // Load when the user hasn't provided a configuration file
-            true
+            // User hasn't provided configuration file, check for local copy
+            !lua.globals()
+                .get::<_, LuaTable>("plugins")
+                .unwrap()
+                .sequence_values()
+                .filter_map(std::result::Result::ok)
+                .any(|p: String| p.ends_with(name))
         }
     }
 }
