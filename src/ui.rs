@@ -9,7 +9,7 @@ use crossterm::{
         KeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute, queue,
-    style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg, Color},
+    style::{Attribute, Color, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
     terminal::{
         self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen,
         LeaveAlternateScreen,

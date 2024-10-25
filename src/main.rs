@@ -14,16 +14,16 @@ use config::{
 use crossterm::event::Event as CEvent;
 use editor::{Editor, FileTypes};
 use error::{OxError, Result};
-use kaolinite::utils::file_or_dir;
-use kaolinite::event::{Event, Error as KError};
+use kaolinite::event::{Error as KError, Event};
 use kaolinite::searching::Searcher;
+use kaolinite::utils::file_or_dir;
 use kaolinite::Loc;
 use mlua::Error::{RuntimeError, SyntaxError};
 use mlua::{FromLua, Lua, Value};
 use std::cell::RefCell;
+use std::io::ErrorKind;
 use std::rc::Rc;
 use std::result::Result as RResult;
-use std::io::ErrorKind;
 use ui::{fatal_error, Feedback};
 
 /// Entry point - grabs command line arguments and runs the editor
@@ -334,10 +334,10 @@ fn handle_file_opening(editor: &Rc<RefCell<Editor>>, result: Result<()>, name: &
         Err(OxError::Kaolinite(kerr)) => {
             match kerr {
                 KError::Io(ioerr) => match ioerr.kind() {
-                    ErrorKind::NotFound =>
-                        fatal_error(&format!("File '{name}' not found")),
-                    ErrorKind::PermissionDenied =>
-                        fatal_error(&format!("Permission to read file '{name}' denied")),
+                    ErrorKind::NotFound => fatal_error(&format!("File '{name}' not found")),
+                    ErrorKind::PermissionDenied => {
+                        fatal_error(&format!("Permission to read file '{name}' denied"));
+                    }
                     /*
                     // NOTE: Uncomment when Rust 1.83 becomes stable (io_error_more will be stabilised)
                     ErrorKind::IsADirectory =>
@@ -347,9 +347,8 @@ fn handle_file_opening(editor: &Rc<RefCell<Editor>>, result: Result<()>, name: &
                     ErrorKind::ResourceBusy =>
                         fatal_error(&format!("The resource '{name}' is busy")),
                     */
-                    ErrorKind::OutOfMemory =>
-                        fatal_error("You are out of memory"),
-                    kind => fatal_error(&format!("I/O error occured: {kind:?}"))
+                    ErrorKind::OutOfMemory => fatal_error("You are out of memory"),
+                    kind => fatal_error(&format!("I/O error occured: {kind:?}")),
                 },
                 _ => fatal_error(&format!("Backend error opening '{name}': {kerr:?}")),
             }

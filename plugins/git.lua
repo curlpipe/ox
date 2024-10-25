@@ -111,6 +111,14 @@ function git_status(tab)
     end
 end
 
+function git_init()
+    git:refresh_status()
+    editor:rerender()
+end
+
+-- Initial status grab
+after(0, "git_init")
+
 -- Export the git command
 commands["git"] = function(args)
     -- Check if git is installed
@@ -185,5 +193,7 @@ commands["git"] = function(args)
                 editor:display_error("Failed to checkout branch '" .. branch .. "'")
             end
         end
+        -- Refresh state after a git command
+        git:refresh_status()
     end
 end
