@@ -60,7 +60,7 @@ This software uses the following open source crates:
 - [unicode-width](https://github.com/unicode-rs/unicode-width)
 - [regex](https://github.com/rust-lang/regex)
 - [ropey](https://github.com/cessen/ropey)
-- [quick_error](https://github.com/tailhook/quick-error)
+- [error_set](https://github.com/mcmah309/error_set)
 
 ## License
 

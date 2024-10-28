@@ -343,7 +343,9 @@ impl Color {
         // Ensure the hex code is exactly 6 characters long
         if hex.len() != 6 {
             let msg = "Invalid hex code used in configuration file - ensure they are of length 6";
-            return Err(OxError::Config(msg.to_string()));
+            return Err(OxError::Config {
+                msg: msg.to_string(),
+            });
         }
 
         // Parse the hex string into the RGB components
@@ -354,7 +356,9 @@ impl Color {
                 tri.push(val);
             } else {
                 let msg = "Invalid hex code used in configuration file - ensure all digits are between 0 and F";
-                return Err(OxError::Config(msg.to_string()));
+                return Err(OxError::Config {
+                    msg: msg.to_string(),
+                });
             }
         }
         Ok((tri[0], tri[1], tri[2]))

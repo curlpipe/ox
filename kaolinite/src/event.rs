@@ -1,6 +1,6 @@
 /// event.rs - manages editing events and provides tools for error handling
 use crate::{document::Cursor, utils::Loc, Document};
-use quick_error::quick_error;
+use error_set::error_set;
 use ropey::Rope;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,24 +75,17 @@ pub enum Status {
 /// Easy result type for unified error handling
 pub type Result<T> = std::result::Result<T, Error>;
 
-quick_error! {
+error_set! {
     /// Error enum for handling all possible errors
-    #[derive(Debug)]
-    pub enum Error {
-        Io(err: std::io::Error) {
-            from()
-            display("I/O error: {}", err)
-            source(err)
-        }
-        Rope(err: ropey::Error) {
-            from()
-            display("Rope error: {}", err)
-            source(err)
-        }
-        NoFileName
-        OutOfRange
+    Error = {
+        #[display("I/O error: {0}")]
+        Io(std::io::Error),
+        #[display("Rope error: {0}")]
+        Rope(ropey::Error),
+        NoFileName,
+        OutOfRange,
         ReadOnlyFile
-    }
+    };
 }
 
 /// For managing events for purposes of undo and redo

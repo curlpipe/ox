@@ -116,6 +116,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "document-features"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb6969eaabd2421f8a2775cfd2471a2b634372b4a25d41e3bd647b79912850a0"
+dependencies = [
+ "litrs",
+]
+
+[[package]]
+name = "dyn-fmt"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c992f591dfce792a9bc2d1880ab67ffd4acc04551f8e551ca3b6233efb322f00"
+dependencies = [
+ "document-features",
+]
+
+[[package]]
 name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -129,6 +147,28 @@ checksum = "534c5cf6194dfab3db3242765c03bbe257cf92f22b38f6bc0c58d59108a820ba"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "error_set"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a8a70e1c5e3557e22af5af1e78f546303c9953638e60aee2c547322076cfabf"
+dependencies = [
+ "error_set_impl",
+]
+
+[[package]]
+name = "error_set_impl"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33f8c9888cc6d3349076683c776fc48d3b0b8685aa2ca05107cfa1df72445157"
+dependencies = [
+ "dyn-fmt",
+ "indices",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -164,6 +204,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb56e1aa765b4b4f3aadfab769793b7087bb03a4ea4920644a6d238e2df5b9ed"
 
 [[package]]
+name = "indices"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e125c680c3871dc195cfd3ff94a877a78f31d5e9c1a3a62cce82689ece14bf7"
+
+[[package]]
 name = "jargon-args"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -173,7 +219,7 @@ checksum = "b9d38e5712e29fb0c2caeb33b1803c8feade6e3380c7a92788fb219999b2849e"
 name = "kaolinite"
 version = "0.9.5"
 dependencies = [
- "quick-error",
+ "error_set",
  "rand",
  "regex",
  "ropey",
@@ -202,6 +248,12 @@ name = "linux-raw-sys"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
+
+[[package]]
+name = "litrs"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
 
 [[package]]
 name = "lock_api"
@@ -311,10 +363,10 @@ dependencies = [
  "alinio",
  "base64",
  "crossterm",
+ "error_set",
  "jargon-args",
  "kaolinite",
  "mlua",
- "quick-error",
  "shellexpand",
  "synoptic",
 ]
@@ -365,12 +417,6 @@ checksum = "f139b0662de085916d1fb67d2b4169d1addddda1919e696f3252b740b629986e"
 dependencies = [
  "unicode-ident",
 ]
-
-[[package]]
-name = "quick-error"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "quote"
