@@ -135,9 +135,8 @@ impl Editor {
     pub fn open(&mut self, file_name: &str) -> Result<()> {
         if let Some(idx) = self.already_open(&get_absolute_path(file_name).unwrap_or_default()) {
             self.ptr = idx;
-            return Err(OxError::AlreadyOpen {
-                file: get_file_name(file_name).unwrap_or_default(),
-            });
+            let file = get_file_name(file_name).unwrap_or_default();
+            return Err(OxError::AlreadyOpen { file });
         }
         let mut size = size()?;
         size.h = size.h.saturating_sub(1 + self.push_down);
