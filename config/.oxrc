@@ -104,6 +104,38 @@ event_mapping = {
             editor:select_to(cache.x, cache.y)
         end
     end,
+    ["shift_pageup"] = function()
+        local no_select = editor.cursor.x == editor.selection.x and editor.cursor.y == editor.selection.y
+        if no_select then
+            local cache = editor.cursor
+            editor:move_page_up()
+            local after = editor.cursor
+            editor:move_to(cache.x, cache.y)
+            editor:select_to(after.x, after.y)
+        else
+            local start = editor.selection
+            editor:move_page_up()
+            local cache = editor.cursor
+            editor:move_to(start.x, start.y)
+            editor:select_to(cache.x, cache.y)
+        end
+    end,
+    ["shift_pagedown"] = function()
+        local no_select = editor.cursor.x == editor.selection.x and editor.cursor.y == editor.selection.y
+        if no_select then
+            local cache = editor.cursor
+            editor:move_page_down()
+            local after = editor.cursor
+            editor:move_to(cache.x, cache.y)
+            editor:select_to(after.x, after.y)
+        else
+            local start = editor.selection
+            editor:move_page_down()
+            local cache = editor.cursor
+            editor:move_to(start.x, start.y)
+            editor:select_to(cache.x, cache.y)
+        end
+    end,
     -- Searching & Replacing
     ["ctrl_f"] = function()
         editor:search()
