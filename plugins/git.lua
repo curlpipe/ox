@@ -1,5 +1,5 @@
 --[[
-Git v0.3
+Git v0.4
 
 A plug-in for git integration that provides features to: 
  - Choose which files to add to a commit
@@ -87,6 +87,7 @@ function git:diff_all()
 end
 
 function git_branch()
+    git:refresh_status()
     local branch = shell:output("git rev-parse --abbrev-ref HEAD")
     if branch == "" or branch:match("fatal") then
         return "N/A"
@@ -96,7 +97,6 @@ function git_branch()
 end
 
 function git_status(tab)
-    git:refresh_status()
     for file, state in pairs(git.status) do
         if file == tab then
             if state ~= nil then
@@ -110,6 +110,14 @@ function git_status(tab)
         return "U"
     end
 end
+
+function git_init()
+    git:refresh_status()
+    editor:rerender()
+end
+
+-- Initial status grab
+after(0, "git_init")
 
 -- Export the git command
 commands["git"] = function(args)
@@ -185,5 +193,7 @@ commands["git"] = function(args)
                 editor:display_error("Failed to checkout branch '" .. branch .. "'")
             end
         end
+        -- Refresh state after a git command
+        git:refresh_status()
     end
 end

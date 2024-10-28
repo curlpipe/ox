@@ -1,3 +1,4 @@
+use crate::ui::size;
 /// For handling mouse events
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use kaolinite::{utils::width, Loc};
@@ -22,17 +23,13 @@ impl Editor {
         let tab_enabled = self.config.tab_line.borrow().enabled;
         let tab = usize::from(tab_enabled);
         if event.row == 0 && tab_enabled {
+            let (tabs, _, offset) = self.get_tab_parts(lua, size().map_or(0, |s| s.w));
             let mut c = event.column + 2;
-            for (i, file) in self.files.iter().enumerate() {
-                let header = self
-                    .config
-                    .tab_line
-                    .borrow()
-                    .render(lua, file, &mut self.feedback);
-                let header_len = width(&header, self.config.document.borrow().tab_width) + 1;
+            for (i, header) in tabs.iter().enumerate() {
+                let header_len = width(header, 4) + 1;
                 c = c.saturating_sub(u16::try_from(header_len).unwrap_or(u16::MAX));
                 if c == 0 {
-                    return MouseLocation::Tabs(i);
+                    return MouseLocation::Tabs(i + offset);
                 }
             }
             MouseLocation::Out

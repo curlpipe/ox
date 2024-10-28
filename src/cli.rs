@@ -79,7 +79,7 @@ impl CommandLineInterface {
             config_path: j
                 .option_arg::<String, Key>(config.clone())
                 .unwrap_or_else(|| "~/.oxrc".to_string()),
-            to_open: j.finish(),
+            to_open: j.finish().into_iter().filter(|o| o != "--").collect(),
         }
     }
 

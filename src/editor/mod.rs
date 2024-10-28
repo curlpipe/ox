@@ -6,7 +6,7 @@ use crossterm::event::{
     Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEvent, MouseEventKind,
 };
 use kaolinite::event::Error as KError;
-use kaolinite::utils::get_absolute_path;
+use kaolinite::utils::{get_absolute_path, get_file_name};
 use kaolinite::Document;
 use mlua::{Error as LuaError, Lua};
 use std::env;
@@ -133,6 +133,12 @@ impl Editor {
 
     /// Function to open a document into the editor
     pub fn open(&mut self, file_name: &str) -> Result<()> {
+        if let Some(idx) = self.already_open(&get_absolute_path(file_name).unwrap_or_default()) {
+            self.ptr = idx;
+            return Err(OxError::AlreadyOpen(
+                get_file_name(file_name).unwrap_or_default(),
+            ));
+        }
         let mut size = size()?;
         size.h = size.h.saturating_sub(1 + self.push_down);
         let mut doc = Document::open(size, file_name)?;
@@ -205,6 +211,18 @@ impl Editor {
         } else {
             file
         }
+    }
+
+    /// Determine if a file is already open
+    pub fn already_open(&mut self, abs_path: &str) -> Option<usize> {
+        for (ptr, file) in self.files.iter().enumerate() {
+            let file_path = file.doc.file_name.as_ref();
+            let file_path = file_path.map(|f| get_absolute_path(f).unwrap_or_default());
+            if file_path == Some(abs_path.to_string()) {
+                return Some(ptr);
+            }
+        }
+        None
     }
 
     /// save the document to the disk
@@ -298,6 +316,11 @@ impl Editor {
                 let _ = env::set_current_dir(cwd);
             }
         }
+    }
+
+    /// Try to get a document
+    pub fn try_doc(&self) -> Option<&Document> {
+        self.files.get(self.ptr).map(|file| &file.doc)
     }
 
     /// Returns a document at a certain index
@@ -394,6 +417,7 @@ impl Editor {
 
     /// Handle paste
     pub fn handle_paste(&mut self, text: &str) -> Result<()> {
+        // Apply paste
         for ch in text.chars() {
             self.character(ch)?;
         }

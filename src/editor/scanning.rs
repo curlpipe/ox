@@ -1,10 +1,11 @@
+use crate::display;
 /// Functions for searching and replacing
-use crate::error::Result;
+use crate::error::{OxError, Result};
 use crate::ui::size;
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
     queue,
-    style::Print,
+    style::{Attribute, Print, SetAttribute, SetBackgroundColor as Bg},
 };
 use kaolinite::utils::{Loc, Size};
 use mlua::Lua;
@@ -14,12 +15,65 @@ use super::Editor;
 impl Editor {
     /// Use search feature
     pub fn search(&mut self, lua: &Lua) -> Result<()> {
+        let cache = self.doc().char_loc();
         // Prompt for a search term
-        let target = self.prompt("Search")?;
+        let mut target = String::new();
+        let mut done = false;
+        while !done {
+            let Size { w, h } = size()?;
+            // Render prompt message
+            self.terminal.prepare_line(h)?;
+            self.terminal.show_cursor()?;
+            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
+            display!(
+                self,
+                editor_bg,
+                "Search: ",
+                target.clone(),
+                "│",
+                " ".to_string().repeat(w)
+            );
+            self.terminal.hide_cursor()?;
+            self.render_document(lua, w, h.saturating_sub(2))?;
+            // Move back to correct cursor position
+            if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
+                let max = self.dent();
+                self.terminal.goto(x + max, y + 1)?;
+                self.terminal.show_cursor()?;
+            } else {
+                self.terminal.hide_cursor()?;
+            }
+            self.terminal.flush()?;
+            if let CEvent::Key(key) = read()? {
+                match (key.modifiers, key.code) {
+                    // Exit the menu when the enter key is pressed
+                    (KMod::NONE, KCode::Enter) => done = true,
+                    // Cancel operation
+                    (KMod::NONE, KCode::Esc) => {
+                        self.doc_mut().move_to(&cache);
+                        self.doc_mut().cancel_selection();
+                        return Err(OxError::Cancelled);
+                    }
+                    // Remove from the input string if the user presses backspace
+                    (KMod::NONE, KCode::Backspace) => {
+                        target.pop();
+                        self.doc_mut().move_to(&cache);
+                        self.next_match(&target);
+                    }
+                    // Add to the input string if the user presses a character
+                    (KMod::NONE | KMod::SHIFT, KCode::Char(c)) => {
+                        target.push(c);
+                        self.doc_mut().move_to(&cache);
+                        self.next_match(&target);
+                    }
+                    _ => (),
+                }
+            }
+        }
+
+        // Main body of the search feature
         let mut done = false;
         let Size { w, h } = size()?;
-        // Jump to the next match after search term is provided
-        self.next_match(&target);
         // Enter into search menu
         while !done {
             // Render just the document part
@@ -29,7 +83,7 @@ impl Editor {
             self.terminal.goto(0, h)?;
             queue!(
                 self.terminal.stdout,
-                Print("[<-]: Search previous | [->]: Search next")
+                Print("[<-]: Search previous | [->]: Search next | [Enter] Finish | [Esc] Cancel")
             )?;
             // Move back to correct cursor position
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
@@ -44,7 +98,11 @@ impl Editor {
             if let CEvent::Key(key) = read()? {
                 match (key.modifiers, key.code) {
                     // On return or escape key, exit menu
-                    (KMod::NONE, KCode::Enter | KCode::Esc) => done = true,
+                    (KMod::NONE, KCode::Enter) => done = true,
+                    (KMod::NONE, KCode::Esc) => {
+                        self.doc_mut().move_to(&cache);
+                        done = true;
+                    }
                     // On left key, move to the previous match in the document
                     (KMod::NONE, KCode::Left) => std::mem::drop(self.prev_match(&target)),
                     // On right key, move to the next match in the document
@@ -54,13 +112,19 @@ impl Editor {
             }
             self.update_highlighter();
         }
+        self.doc_mut().cancel_selection();
         Ok(())
     }
 
     /// Move to the next match
     pub fn next_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().next_match(target, 1)?;
-        self.doc_mut().move_to(&mtch.loc);
+        // Select match
+        self.doc_mut().cancel_selection();
+        let mut move_to = mtch.loc;
+        move_to.x += mtch.text.chars().count();
+        self.doc_mut().move_to(&move_to);
+        self.doc_mut().select_to(&mtch.loc);
         // Update highlighting
         self.update_highlighter();
         Some(mtch.text)
@@ -70,6 +134,12 @@ impl Editor {
     pub fn prev_match(&mut self, target: &str) -> Option<String> {
         let mtch = self.doc_mut().prev_match(target)?;
         self.doc_mut().move_to(&mtch.loc);
+        // Select match
+        self.doc_mut().cancel_selection();
+        let mut move_to = mtch.loc;
+        move_to.x += mtch.text.chars().count();
+        self.doc_mut().move_to(&move_to);
+        self.doc_mut().select_to(&mtch.loc);
         // Update highlighting
         self.update_highlighter();
         Some(mtch.text)
@@ -105,7 +175,9 @@ impl Editor {
             self.terminal.goto(0, h)?;
             queue!(
                 self.terminal.stdout,
-                Print("[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All")
+                Print(
+                    "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All | [Esc] Exit"
+                )
             )?;
             // Move back to correct cursor location
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
@@ -135,6 +207,7 @@ impl Editor {
             // Update syntax highlighter if necessary
             self.update_highlighter();
         }
+        self.doc_mut().cancel_selection();
         Ok(())
     }
 

@@ -22,7 +22,7 @@ pub use assistant::Assistant;
 pub use colors::{Color, Colors};
 pub use highlighting::SyntaxHighlighting;
 pub use interface::{GreetingMessage, HelpMessage, LineNumbers, StatusLine, TabLine, Terminal};
-pub use keys::{key_to_string, run_key, run_key_before};
+pub use keys::{get_listeners, key_to_string, run_key, run_key_before};
 pub use tasks::TaskManager;
 
 /// Issue a warning to the user
@@ -36,6 +36,7 @@ const DEFAULT_CONFIG: &str = include_str!("../../config/.oxrc");
 /// Default plug-in code to use
 const PAIRS: &str = include_str!("../../plugins/pairs.lua");
 const AUTOINDENT: &str = include_str!("../../plugins/autoindent.lua");
+const QUICKCOMMENT: &str = include_str!("../../plugins/quickcomment.lua");
 
 /// This contains the code for setting up plug-in infrastructure
 pub const PLUGIN_BOOTSTRAP: &str = include_str!("../plugin/bootstrap.lua");
@@ -150,14 +151,14 @@ impl Config {
     pub fn read(path: &str, lua: &Lua) -> Result<()> {
         // Load the default config to start with
         lua.load(DEFAULT_CONFIG).exec()?;
-        // Reset plugin status based on built-in configuration file
-        lua.load("plugins = {}").exec()?;
-        lua.load("builtins = {}").exec()?;
 
         // Attempt to read config file from home directory
         let user_provided = Self::get_user_provided_config(path);
         let mut user_provided_config = false;
         if let Some(config) = user_provided {
+            // Reset plugin status based on built-in configuration file
+            lua.load("plugins = {}").exec()?;
+            lua.load("builtins = {}").exec()?;
             // Load in user-defined configuration file
             lua.load(config).exec()?;
             user_provided_config = true;
@@ -167,6 +168,7 @@ impl Config {
         let mut builtins: HashMap<&str, &str> = HashMap::default();
         builtins.insert("pairs.lua", PAIRS);
         builtins.insert("autoindent.lua", AUTOINDENT);
+        builtins.insert("quickcomment.lua", QUICKCOMMENT);
         for (name, code) in &builtins {
             if Self::load_bi(name, user_provided_config, lua) {
                 lua.load(*code).exec()?;
@@ -194,7 +196,7 @@ impl Config {
     /// Decide whether to load a built-in plugin
     pub fn load_bi(name: &str, user_provided_config: bool, lua: &Lua) -> bool {
         if user_provided_config {
-            // Get list of user-loaded plug-ins
+            // Get list of requested built-in plugins
             let plugins: Vec<String> = lua
                 .globals()
                 .get::<_, LuaTable>("builtins")
@@ -213,8 +215,13 @@ impl Config {
                 false
             }
         } else {
-            // Load when the user hasn't provided a configuration file
-            true
+            // User hasn't provided configuration file, check for local copy
+            !lua.globals()
+                .get::<_, LuaTable>("plugins")
+                .unwrap()
+                .sequence_values()
+                .filter_map(std::result::Result::ok)
+                .any(|p: String| p.ends_with(name))
         }
     }
 }

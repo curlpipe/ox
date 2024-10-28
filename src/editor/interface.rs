@@ -1,7 +1,7 @@
-/// Functions for rendering the UI
-use crate::display;
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback};
+/// Functions for rendering the UI
+use crate::{display, handle_lua_error};
 use crossterm::{
     event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
     queue,
@@ -163,11 +163,35 @@ impl Editor {
                 let idx = y.saturating_sub(start);
                 let line = message
                     .get(idx as usize)
-                    .map_or(" ".repeat(max_width), |s| s.to_string());
+                    .map_or(" ".repeat(max_width), std::string::ToString::to_string);
                 display!(self, line, " ".repeat(max_width));
             }
         }
         Ok(())
+    }
+
+    /// Get list of tabs
+    pub fn get_tab_parts(&mut self, lua: &Lua, w: usize) -> (Vec<String>, usize, usize) {
+        let mut headers: Vec<String> = vec![];
+        let mut idx = 0;
+        let mut length = 0;
+        let mut offset = 0;
+        let tab_line = self.config.tab_line.borrow();
+        for (c, file) in self.files.iter().enumerate() {
+            let render = tab_line.render(lua, file, &mut self.feedback);
+            length += width(&render, 4) + 1;
+            headers.push(render);
+            if c == self.ptr {
+                idx = headers.len().saturating_sub(1);
+            }
+            while c == self.ptr && length > w {
+                headers.remove(0);
+                length = length.saturating_sub(width(&headers[0], 4) + 1);
+                idx = headers.len().saturating_sub(1);
+                offset += 1;
+            }
+        }
+        (headers, idx, offset)
     }
 
     /// Render the tab line at the top of the document
@@ -178,29 +202,23 @@ impl Editor {
         let tab_inactive_fg = Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?);
         let tab_active_bg = Bg(self.config.colors.borrow().tab_active_bg.to_color()?);
         let tab_active_fg = Fg(self.config.colors.borrow().tab_active_fg.to_color()?);
+        let (tabs, idx, _) = self.get_tab_parts(lua, w);
         display!(self, tab_inactive_fg, tab_inactive_bg);
-        for (c, file) in self.files.iter().enumerate() {
-            let document_header =
-                self.config
-                    .tab_line
-                    .borrow()
-                    .render(lua, file, &mut self.feedback);
-            if c == self.ptr {
-                // Representing the document we're currently looking at
+        for (c, header) in tabs.iter().enumerate() {
+            if c == idx {
                 display!(
                     self,
                     tab_active_bg,
                     tab_active_fg,
                     SetAttribute(Attribute::Bold),
-                    document_header,
+                    header,
                     SetAttribute(Attribute::Reset),
                     tab_inactive_fg,
                     tab_inactive_bg,
                     "│"
                 );
             } else {
-                // Other document that is currently open
-                display!(self, document_header, "│");
+                display!(self, header, "│");
             }
         }
         display!(self, " ".to_string().repeat(w));
@@ -215,17 +233,33 @@ impl Editor {
         let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
         let status_bg = Bg(self.config.colors.borrow().status_bg.to_color()?);
         let status_fg = Fg(self.config.colors.borrow().status_fg.to_color()?);
-        let content = self.config.status_line.borrow().render(self, lua, w);
-        display!(
-            self,
-            status_bg,
-            status_fg,
-            SetAttribute(Attribute::Bold),
-            content,
-            SetAttribute(Attribute::Reset),
-            editor_fg,
-            editor_bg
-        );
+        match self.config.status_line.borrow().render(self, lua, w) {
+            Ok(content) => {
+                display!(
+                    self,
+                    status_bg,
+                    status_fg,
+                    SetAttribute(Attribute::Bold),
+                    content,
+                    SetAttribute(Attribute::Reset),
+                    editor_fg,
+                    editor_bg
+                );
+            }
+            Err(lua_error) => {
+                display!(
+                    self,
+                    status_bg,
+                    status_fg,
+                    SetAttribute(Attribute::Bold),
+                    " ".repeat(w),
+                    SetAttribute(Attribute::Reset),
+                    editor_fg,
+                    editor_bg
+                );
+                handle_lua_error("status_line", Err(lua_error), &mut self.feedback);
+            }
+        }
         Ok(())
     }
 

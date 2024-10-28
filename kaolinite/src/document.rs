@@ -262,7 +262,7 @@ impl Document {
         self.file.insert(idx, st);
         // Update cache
         let line: String = self.file.line(loc.y).chars().collect();
-        self.lines[loc.y] = line.trim_end_matches(&['\n', '\r']).to_string();
+        self.lines[loc.y] = line.trim_end_matches(['\n', '\r']).to_string();
         // Update unicode map
         let dbl_start = self.dbl_map.shift_insertion(loc, st, self.tab_width);
         let tab_start = self.tab_map.shift_insertion(loc, st, self.tab_width);
@@ -341,7 +341,7 @@ impl Document {
         self.file.remove(start..end);
         // Update cache
         let line: String = self.file.line(y).chars().collect();
-        self.lines[y] = line.trim_end_matches(&['\n', '\r']).to_string();
+        self.lines[y] = line.trim_end_matches(['\n', '\r']).to_string();
         self.old_cursor = self.loc().x;
         Ok(())
     }
@@ -429,6 +429,36 @@ impl Document {
         self.insert(&Loc::at(length, y), &below)?;
         self.move_to(&Loc::at(length, y));
         self.old_cursor = self.loc().x;
+        Ok(())
+    }
+
+    /// Swap a line upwards
+    /// # Errors
+    /// When out of bounds
+    pub fn swap_line_up(&mut self) -> Result<()> {
+        let cursor = self.char_loc();
+        let line = self.line(cursor.y).ok_or(Error::OutOfRange)?;
+        self.insert_line(cursor.y.saturating_sub(1), line)?;
+        self.delete_line(cursor.y + 1)?;
+        self.move_to(&Loc {
+            x: cursor.x,
+            y: cursor.y.saturating_sub(1),
+        });
+        Ok(())
+    }
+
+    /// Swap a line downwards
+    /// # Errors
+    /// When out of bounds
+    pub fn swap_line_down(&mut self) -> Result<()> {
+        let cursor = self.char_loc();
+        let line = self.line(cursor.y).ok_or(Error::OutOfRange)?;
+        self.insert_line(cursor.y + 2, line)?;
+        self.delete_line(cursor.y)?;
+        self.move_to(&Loc {
+            x: cursor.x,
+            y: cursor.y + 1,
+        });
         Ok(())
     }
 
@@ -953,6 +983,8 @@ impl Document {
         // Bounds checking
         if self.loc().y != y && y <= self.len_lines() {
             self.cursor.loc.y = y;
+        } else if y > self.len_lines() {
+            self.cursor.loc.y = self.len_lines();
         }
         // Snap to end of line
         self.fix_dangling_cursor();
@@ -1140,7 +1172,7 @@ impl Document {
                 self.tab_map.insert(i, tab_map);
                 // Cache this line
                 self.lines
-                    .push(line.trim_end_matches(&['\n', '\r']).to_string());
+                    .push(line.trim_end_matches(['\n', '\r']).to_string());
             }
             // Store new loaded point
             self.info.loaded_to = to;
@@ -1297,17 +1329,21 @@ impl Document {
         self.file.slice(self.selection_range()).to_string()
     }
 
+    /// Commit a change to the undo management system
     pub fn commit(&mut self) {
         let s = self.take_snapshot();
+        self.undo_mgmt.backpatch_cursor(&self.cursor);
         self.undo_mgmt.commit(s);
     }
 
+    /// Completely reload the file
     pub fn reload_lines(&mut self) {
         let to = std::mem::take(&mut self.info.loaded_to);
         self.lines.clear();
         self.load_to(to);
     }
 
+    /// Delete the currently selected text
     pub fn remove_selection(&mut self) {
         self.file.remove(self.selection_range());
         self.reload_lines();

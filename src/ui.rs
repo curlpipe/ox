@@ -9,7 +9,7 @@ use crossterm::{
         KeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute, queue,
-    style::{Attribute, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
+    style::{Attribute, Color, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
     terminal::{
         self, Clear, ClearType as ClType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen,
         LeaveAlternateScreen,
@@ -40,7 +40,20 @@ pub fn size() -> Result<Size> {
     })
 }
 
+/// Fatal Error
+pub fn fatal_error(msg: &str) {
+    eprintln!(
+        "{}{}[Error]{}{} {msg}",
+        SetAttribute(Attribute::Bold),
+        Fg(Color::Red),
+        Fg(Color::Reset),
+        SetAttribute(Attribute::Reset)
+    );
+    std::process::exit(1);
+}
+
 /// Represents different status messages
+#[derive(Debug)]
 pub enum Feedback {
     Info(String),
     Warning(String),
