@@ -327,7 +327,7 @@ fn handle_file_opening(editor: &Rc<RefCell<Editor>>, result: Result<()>, name: &
     }
     match result {
         Ok(()) => (),
-        Err(OxError::AlreadyOpen(_)) => {
+        Err(OxError::AlreadyOpen { .. }) => {
             let len = editor.borrow().files.len().saturating_sub(1);
             editor.borrow_mut().ptr = len;
         }

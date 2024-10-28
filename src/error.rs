@@ -1,6 +1,6 @@
 /// Error handling utilities
-use kaolinite::event::Error as KError;
 use error_set::error_set;
+use kaolinite::event::Error as KError;
 
 error_set! {
     OxError = {
