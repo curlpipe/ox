@@ -7,7 +7,7 @@ exclude = ["cactus"]
 
 [package]
 name = "ox"
-version = "0.6.7"
+version = "0.6.9"
 edition = "2021"
 authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 description = "A Rust powered text editor."
@@ -41,4 +41,4 @@ kaolinite = { path = "./kaolinite" }
 mlua = { version = "0.9.9", features = ["lua54", "vendored"] }
 error_set = "0.6"
 shellexpand = "3.1.0"
-synoptic = "2"
+synoptic = "2.2.1"

@@ -262,7 +262,7 @@ impl Document {
         self.file.insert(idx, st);
         // Update cache
         let line: String = self.file.line(loc.y).chars().collect();
-        self.lines[loc.y] = line.trim_end_matches(&['\n', '\r']).to_string();
+        self.lines[loc.y] = line.trim_end_matches(['\n', '\r']).to_string();
         // Update unicode map
         let dbl_start = self.dbl_map.shift_insertion(loc, st, self.tab_width);
         let tab_start = self.tab_map.shift_insertion(loc, st, self.tab_width);
@@ -341,7 +341,7 @@ impl Document {
         self.file.remove(start..end);
         // Update cache
         let line: String = self.file.line(y).chars().collect();
-        self.lines[y] = line.trim_end_matches(&['\n', '\r']).to_string();
+        self.lines[y] = line.trim_end_matches(['\n', '\r']).to_string();
         self.old_cursor = self.loc().x;
         Ok(())
     }
@@ -429,6 +429,36 @@ impl Document {
         self.insert(&Loc::at(length, y), &below)?;
         self.move_to(&Loc::at(length, y));
         self.old_cursor = self.loc().x;
+        Ok(())
+    }
+
+    /// Swap a line upwards
+    /// # Errors
+    /// When out of bounds
+    pub fn swap_line_up(&mut self) -> Result<()> {
+        let cursor = self.char_loc();
+        let line = self.line(cursor.y).ok_or(Error::OutOfRange)?;
+        self.insert_line(cursor.y.saturating_sub(1), line)?;
+        self.delete_line(cursor.y + 1)?;
+        self.move_to(&Loc {
+            x: cursor.x,
+            y: cursor.y.saturating_sub(1),
+        });
+        Ok(())
+    }
+
+    /// Swap a line downwards
+    /// # Errors
+    /// When out of bounds
+    pub fn swap_line_down(&mut self) -> Result<()> {
+        let cursor = self.char_loc();
+        let line = self.line(cursor.y).ok_or(Error::OutOfRange)?;
+        self.insert_line(cursor.y + 2, line)?;
+        self.delete_line(cursor.y)?;
+        self.move_to(&Loc {
+            x: cursor.x,
+            y: cursor.y + 1,
+        });
         Ok(())
     }
 
@@ -662,30 +692,74 @@ impl Document {
         self.cancel_selection();
     }
 
+    /// Find the word boundaries
+    pub fn word_boundaries(&mut self, line: &str) -> Vec<(usize, usize)> {
+        let re = r"(\s{2,}|[A-Za-z0-9_]+|\.)";
+        let mut searcher = Searcher::new(re);
+        let starts: Vec<Match> = searcher.lfinds(line);
+        let mut ends: Vec<Match> = starts.clone();
+        ends.iter_mut()
+            .for_each(|m| m.loc.x += m.text.chars().count());
+        let starts: Vec<usize> = starts.iter().map(|m| m.loc.x).collect();
+        let ends: Vec<usize> = ends.iter().map(|m| m.loc.x).collect();
+        starts.into_iter().zip(ends).collect()
+    }
+
+    /// Find the current state of the cursor in relation to words
+    pub fn cursor_word_state(&mut self, words: &[(usize, usize)], x: usize) -> WordState {
+        let in_word = words
+            .iter()
+            .position(|(start, end)| *start <= x && x <= *end);
+        if let Some(idx) = in_word {
+            let (word_start, word_end) = words[idx];
+            if x == word_end {
+                WordState::AtEnd(idx)
+            } else if x == word_start {
+                WordState::AtStart(idx)
+            } else {
+                WordState::InCenter(idx)
+            }
+        } else {
+            WordState::Out
+        }
+    }
+
     /// Moves to the previous word in the document
     pub fn move_prev_word(&mut self) -> Status {
         let Loc { x, y } = self.char_loc();
+        // Handle case where we're at the beginning of the line
         if x == 0 && y != 0 {
             return Status::StartOfLine;
         }
-        let re = format!("(\t| {{{}}}|^|\\W|$| )", self.tab_width);
-        let mut searcher = Searcher::new(&re);
-        let line = self
-            .line(y)
-            .unwrap_or_default()
-            .chars()
-            .take(x)
-            .collect::<String>();
-        let mut matches = searcher.rfinds(&line);
-        if let Some(mtch) = matches.first() {
-            if mtch.loc.x == x {
-                matches.remove(0);
+        // Find where all the words are
+        let line = self.line(y).unwrap_or_default();
+        let words = self.word_boundaries(&line);
+        let state = self.cursor_word_state(&words, x);
+        // Work out where to move to
+        let new_x = match state {
+            // Go to start of line if at beginning
+            WordState::AtEnd(0) | WordState::InCenter(0) | WordState::AtStart(0) => 0,
+            // Cursor is at the middle / end of a word, move to previous end
+            WordState::AtEnd(idx) | WordState::InCenter(idx) => words[idx.saturating_sub(1)].1,
+            WordState::AtStart(idx) => words[idx.saturating_sub(1)].0,
+            WordState::Out => {
+                // Cursor is not touching any words, find previous end
+                let mut shift_back = x;
+                while let WordState::Out = self.cursor_word_state(&words, shift_back) {
+                    shift_back = shift_back.saturating_sub(1);
+                    if shift_back == 0 {
+                        break;
+                    }
+                }
+                match self.cursor_word_state(&words, shift_back) {
+                    WordState::AtEnd(idx) => words[idx].1,
+                    _ => 0,
+                }
             }
-        }
-        if let Some(mtch) = matches.first_mut() {
-            mtch.loc.y = self.loc().y;
-            self.move_to(&mtch.loc);
-        }
+        };
+        // Perform the move
+        self.move_to_x(new_x);
+        // Clean up
         self.old_cursor = self.loc().x;
         Status::None
     }
@@ -694,16 +768,95 @@ impl Document {
     pub fn move_next_word(&mut self) -> Status {
         let Loc { x, y } = self.char_loc();
         let line = self.line(y).unwrap_or_default();
+        // Handle case where we're at the end of the line
         if x == line.chars().count() && y != self.len_lines() {
             return Status::EndOfLine;
         }
-        let re = format!("(\t| {{{}}}|\\W|$|^ +| )", self.tab_width);
-        if let Some(mut mtch) = self.next_match(&re, 0) {
-            mtch.loc.x += mtch.text.chars().count();
-            self.move_to(&mtch.loc);
-        }
+        // Find and move to the next word
+        let line = self.line(y).unwrap_or_default();
+        let words = self.word_boundaries(&line);
+        let state = self.cursor_word_state(&words, x);
+        // Work out where to move to
+        let new_x = match state {
+            // Cursor is at the middle / end of a word, move to next end
+            WordState::AtEnd(idx) | WordState::InCenter(idx) => {
+                if let Some(word) = words.get(idx + 1) {
+                    word.1
+                } else {
+                    // No next word exists, just go to end of line
+                    line.chars().count()
+                }
+            }
+            WordState::AtStart(idx) => {
+                // Cursor is at the start of a word, move to next start
+                if let Some(word) = words.get(idx + 1) {
+                    word.0
+                } else {
+                    // No next word exists, just go to end of line
+                    line.chars().count()
+                }
+            }
+            WordState::Out => {
+                // Cursor is not touching any words, find next start
+                let mut shift_forward = x;
+                while let WordState::Out = self.cursor_word_state(&words, shift_forward) {
+                    shift_forward += 1;
+                    if shift_forward >= line.chars().count() {
+                        break;
+                    }
+                }
+                match self.cursor_word_state(&words, shift_forward) {
+                    WordState::AtStart(idx) => words[idx].0,
+                    _ => line.chars().count(),
+                }
+            }
+        };
+        // Perform the move
+        self.move_to_x(new_x);
+        // Clean up
         self.old_cursor = self.loc().x;
         Status::None
+    }
+
+    /// Function to delete a word at a certain location
+    /// # Errors
+    /// Errors if out of range
+    pub fn delete_word(&mut self) -> Result<()> {
+        let Loc { x, y } = self.char_loc();
+        let line = self.line(y).unwrap_or_default();
+        let words = self.word_boundaries(&line);
+        let state = self.cursor_word_state(&words, x);
+        let delete_upto = match state {
+            WordState::InCenter(idx) | WordState::AtEnd(idx) => {
+                // Delete back to start of this word
+                words[idx].0
+            }
+            WordState::AtStart(0) => 0,
+            WordState::AtStart(idx) => {
+                // Delete back to start of the previous word
+                words[idx.saturating_sub(1)].0
+            }
+            WordState::Out => {
+                // Delete back to the end of the previous word
+                let mut shift_back = x;
+                while let WordState::Out = self.cursor_word_state(&words, shift_back) {
+                    shift_back = shift_back.saturating_sub(1);
+                    if shift_back == 0 {
+                        break;
+                    }
+                }
+                let char = line.chars().nth(shift_back);
+                let state = self.cursor_word_state(&words, shift_back);
+                match (char, state) {
+                    // Shift to start of previous word if there is a space
+                    (Some(' '), WordState::AtEnd(idx)) => words[idx].0,
+                    // Shift to end of previous word if there is not a space
+                    (_, WordState::AtEnd(idx)) => words[idx].1,
+                    _ => 0,
+                }
+            }
+        };
+        self.delete(delete_upto..=x, y)
     }
 
     /// Function to search the document to find the next occurance of a regex
@@ -830,6 +983,8 @@ impl Document {
         // Bounds checking
         if self.loc().y != y && y <= self.len_lines() {
             self.cursor.loc.y = y;
+        } else if y > self.len_lines() {
+            self.cursor.loc.y = self.len_lines();
         }
         // Snap to end of line
         self.fix_dangling_cursor();
@@ -1017,7 +1172,7 @@ impl Document {
                 self.tab_map.insert(i, tab_map);
                 // Cache this line
                 self.lines
-                    .push(line.trim_end_matches(&['\n', '\r']).to_string());
+                    .push(line.trim_end_matches(['\n', '\r']).to_string());
             }
             // Store new loaded point
             self.info.loaded_to = to;
@@ -1174,17 +1329,21 @@ impl Document {
         self.file.slice(self.selection_range()).to_string()
     }
 
+    /// Commit a change to the undo management system
     pub fn commit(&mut self) {
         let s = self.take_snapshot();
+        self.undo_mgmt.backpatch_cursor(&self.cursor);
         self.undo_mgmt.commit(s);
     }
 
+    /// Completely reload the file
     pub fn reload_lines(&mut self) {
         let to = std::mem::take(&mut self.info.loaded_to);
         self.lines.clear();
         self.load_to(to);
     }
 
+    /// Delete the currently selected text
     pub fn remove_selection(&mut self) {
         self.file.remove(self.selection_range());
         self.reload_lines();
@@ -1203,4 +1362,12 @@ impl Document {
 pub struct Cursor {
     pub loc: Loc,
     pub selection_end: Loc,
+}
+
+/// State of a word
+pub enum WordState {
+    AtStart(usize),
+    AtEnd(usize),
+    InCenter(usize),
+    Out,
 }

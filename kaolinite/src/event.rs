@@ -182,4 +182,11 @@ impl UndoMgmt {
     pub fn at_file(&self) -> bool {
         self.undo.len() == self.on_disk
     }
+
+    /// Change the cursor position of the previous snapshot
+    pub fn backpatch_cursor(&mut self, cursor: &Cursor) {
+        if let Some(snapshot) = self.undo.last_mut() {
+            snapshot.cursor = *cursor;
+        }
+    }
 }

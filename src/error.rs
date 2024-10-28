@@ -23,7 +23,12 @@ error_set! {
         #[display("Error in lua: {0}")]
         Lua(mlua::prelude::LuaError),
         #[display("Operation Cancelled")]
-        Cancelled
+        Cancelled,
+        #[display("File '{}' is already open", file)]
+        AlreadyOpen {
+            file: String,
+        },
+        // None, <--- Needed???
     };
 }
 

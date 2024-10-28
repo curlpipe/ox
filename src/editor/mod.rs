@@ -6,7 +6,7 @@ use crossterm::event::{
     Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEvent, MouseEventKind,
 };
 use kaolinite::event::Error as KError;
-use kaolinite::utils::get_absolute_path;
+use kaolinite::utils::{get_absolute_path, get_file_name};
 use kaolinite::Document;
 use mlua::{Error as LuaError, Lua};
 use std::env;
@@ -101,18 +101,23 @@ impl Editor {
         // Mark as not saved on disk
         doc.info.modified = true;
         // Add document to documents
-        self.files.push(FileContainer {
+        let file = FileContainer {
             highlighter,
             file_type: Some(FileType::default()),
             doc,
-        });
+        };
+        if self.ptr + 1 >= self.files.len() {
+            self.files.push(file);
+        } else {
+            self.files.insert(self.ptr + 1, file);
+        }
         Ok(())
     }
 
     /// Create a new document and move to it
     pub fn new_document(&mut self) -> Result<()> {
         self.blank()?;
-        self.ptr = self.files.len().saturating_sub(1);
+        self.next();
         Ok(())
     }
 
@@ -128,6 +133,12 @@ impl Editor {
 
     /// Function to open a document into the editor
     pub fn open(&mut self, file_name: &str) -> Result<()> {
+        if let Some(idx) = self.already_open(&get_absolute_path(file_name).unwrap_or_default()) {
+            self.ptr = idx;
+            return Err(OxError::AlreadyOpen(
+                get_file_name(file_name).unwrap_or_default(),
+            ));
+        }
         let mut size = size()?;
         size.h = size.h.saturating_sub(1 + self.push_down);
         let mut doc = Document::open(size, file_name)?;
@@ -144,11 +155,16 @@ impl Editor {
         });
         highlighter.run(&doc.lines);
         // Add in the file
-        self.files.push(FileContainer {
+        let file = FileContainer {
             doc,
             highlighter,
             file_type,
-        });
+        };
+        if self.ptr + 1 >= self.files.len() {
+            self.files.push(file);
+        } else {
+            self.files.insert(self.ptr + 1, file);
+        }
         Ok(())
     }
 
@@ -156,7 +172,7 @@ impl Editor {
     pub fn open_document(&mut self) -> Result<()> {
         let path = self.path_prompt()?;
         self.open(&path)?;
-        self.ptr = self.files.len().saturating_sub(1);
+        self.next();
         self.update_cwd();
         Ok(())
     }
@@ -195,6 +211,18 @@ impl Editor {
         } else {
             file
         }
+    }
+
+    /// Determine if a file is already open
+    pub fn already_open(&mut self, abs_path: &str) -> Option<usize> {
+        for (ptr, file) in self.files.iter().enumerate() {
+            let file_path = file.doc.file_name.as_ref();
+            let file_path = file_path.map(|f| get_absolute_path(f).unwrap_or_default());
+            if file_path == Some(abs_path.to_string()) {
+                return Some(ptr);
+            }
+        }
+        None
     }
 
     /// save the document to the disk
@@ -290,6 +318,11 @@ impl Editor {
         }
     }
 
+    /// Try to get a document
+    pub fn try_doc(&self) -> Option<&Document> {
+        self.files.get(self.ptr).map(|file| &file.doc)
+    }
+
     /// Returns a document at a certain index
     pub fn get_doc(&mut self, idx: usize) -> &mut Document {
         &mut self.files.get_mut(idx).unwrap().doc
@@ -313,7 +346,7 @@ impl Editor {
     /// Load the configuration values
     pub fn load_config(&mut self, path: &str, lua: &Lua) -> Option<LuaError> {
         self.config_path = path.to_string();
-        let result = self.config.read(path, lua);
+        let result = Config::read(path, lua);
         // Display any warnings if the user configuration couldn't be found
         match result {
             Ok(()) => (),
@@ -378,15 +411,18 @@ impl Editor {
         let max = self.dent();
         self.doc_mut().size.w = w.saturating_sub(u16::try_from(max).unwrap_or(u16::MAX)) as usize;
         self.doc_mut().size.h = h.saturating_sub(3) as usize;
-        let max = self.doc().offset.x + self.doc().size.h;
+        let max = self.doc().offset.y + self.doc().size.h;
         self.doc_mut().load_to(max + 1);
     }
 
     /// Handle paste
     pub fn handle_paste(&mut self, text: &str) -> Result<()> {
+        // Apply paste
         for ch in text.chars() {
             self.character(ch)?;
         }
+        // Paste warrants a commit here really
+        self.doc_mut().commit();
         Ok(())
     }
 

@@ -369,6 +369,33 @@ fn document_deletion() {
     assert_eq!(doc.line(0), Some(st!("好")));
     doc.exe(Event::Delete(Loc { x: 10000, y: 0 }, st!(" ")));
     assert_eq!(doc.line(0), Some(st!("好")));
+    // Word deleting
+    doc.exe(Event::InsertLine(1, st!("    hello -world---")));
+    doc.move_to(&Loc { x: 0, y: 1 });
+    doc.delete_word();
+    assert_eq!(doc.line(1).unwrap(), st!("    hello -world---"));
+    doc.move_to(&Loc { x: 4, y: 1 });
+    doc.delete_word();
+    assert_eq!(doc.line(1).unwrap(), st!("hello -world---"));
+    doc.move_to(&Loc { x: 4, y: 1 });
+    doc.delete_word();
+    assert_eq!(doc.line(1).unwrap(), st!("o -world---"));
+    doc.move_to(&Loc { x: 1, y: 1 });
+    doc.delete_word();
+    assert_eq!(doc.line(1).unwrap(), st!(" -world---"));
+    doc.move_to(&Loc { x: 8, y: 1 });
+    doc.delete_word();
+    assert_eq!(doc.line(1).unwrap(), st!(" -world--"));
+    doc.move_to(&Loc { x: 1, y: 1 });
+    doc.delete_word();
+    assert_eq!(doc.line(1).unwrap(), st!("-world--"));
+    doc.move_to(&Loc { x: 1, y: 1 });
+    doc.delete_word();
+    assert_eq!(doc.line(1).unwrap(), st!("world--"));
+    doc.exe(Event::InsertLine(1, st!("    hello -world---")));
+    doc.move_to(&Loc { x: 11, y: 1 });
+    doc.delete_word();
+    assert_eq!(doc.line(1).unwrap(), st!("    world---"));
 }
 
 #[test]
@@ -551,20 +578,26 @@ fn document_moving() {
     doc.move_next_word();
     assert_eq!(doc.loc(), Loc { x: 16, y: 10 });
     doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 20, y: 10 });
+    doc.move_next_word();
     assert_eq!(doc.loc(), Loc { x: 21, y: 10 });
+    doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 23, y: 10 });
     doc.move_next_word();
     assert_eq!(doc.loc(), Loc { x: 24, y: 10 });
     doc.move_next_word();
-    assert_eq!(doc.loc(), Loc { x: 29, y: 10 });
+    assert_eq!(doc.loc(), Loc { x: 28, y: 10 });
     doc.move_next_word();
     assert_eq!(doc.loc(), Loc { x: 30, y: 10 });
     assert_eq!(doc.move_next_word(), Status::EndOfLine);
     doc.move_prev_word();
-    assert_eq!(doc.loc(), Loc { x: 29, y: 10 });
-    doc.move_prev_word();
     assert_eq!(doc.loc(), Loc { x: 28, y: 10 });
     doc.move_prev_word();
+    assert_eq!(doc.loc(), Loc { x: 24, y: 10 });
+    doc.move_prev_word();
     assert_eq!(doc.loc(), Loc { x: 23, y: 10 });
+    doc.move_prev_word();
+    assert_eq!(doc.loc(), Loc { x: 21, y: 10 });
     doc.move_prev_word();
     assert_eq!(doc.loc(), Loc { x: 20, y: 10 });
     doc.move_prev_word();
@@ -576,6 +609,10 @@ fn document_moving() {
     doc.move_prev_word();
     assert_eq!(doc.loc(), Loc { x: 0, y: 10 });
     assert_eq!(doc.move_prev_word(), Status::StartOfLine);
+    doc.exe(Event::InsertLine(11, st!("----test")));
+    doc.move_to(&Loc { x: 7, y: 11 });
+    doc.move_next_word();
+    assert_eq!(doc.loc(), Loc { x: 8, y: 11 });
 }
 
 #[test]
@@ -786,6 +823,21 @@ fn document_searching() {
             loc: Loc { x: 0, y: 2 },
             text: st!("    hello")
         })
+    );
+    // General searching stuff
+    let mut searcher = Searcher::new("[0-9]+");
+    assert_eq!(
+        searcher.rfinds("hello098hello765hello"),
+        vec![
+            Match {
+                loc: Loc { x: 13, y: 0 },
+                text: "765".to_string()
+            },
+            Match {
+                loc: Loc { x: 5, y: 0 },
+                text: "098".to_string()
+            },
+        ],
     );
 }
 

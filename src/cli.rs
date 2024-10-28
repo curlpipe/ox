@@ -19,6 +19,7 @@ OPTIONS:
   --readonly, -r               : Prevent opened files from writing
   --filetype [name], -f [name] : Set the file type of files opened
   --stdin                      : Reads file from the stdin
+  --config-assist              : Activate the configuration assistant
 
 EXAMPLES:
   ox
@@ -27,7 +28,8 @@ EXAMPLES:
   ox /home/user/docs/test.txt
   ox -c config.lua test.txt
   ox -r -c ~/.config/.oxrc -f Lua my_file.lua
-  tree | ox -r --stdin\
+  tree | ox -r --stdin
+  ox --config-assist\
 ";
 
 /// Read from the standard input
@@ -44,6 +46,7 @@ pub struct CommandLineInterfaceFlags {
     pub version: bool,
     pub read_only: bool,
     pub stdin: bool,
+    pub config_assist: bool,
 }
 
 /// Struct to help with starting ox
@@ -70,12 +73,13 @@ impl CommandLineInterface {
                 version: j.contains(["-v", "--version"]),
                 read_only: j.contains(["-r", "--readonly"]),
                 stdin: j.contains("--stdin"),
+                config_assist: j.contains("--config-assist"),
             },
             file_type: j.option_arg::<String, Key>(filetype.clone()),
             config_path: j
                 .option_arg::<String, Key>(config.clone())
                 .unwrap_or_else(|| "~/.oxrc".to_string()),
-            to_open: j.finish(),
+            to_open: j.finish().into_iter().filter(|o| o != "--").collect(),
         }
     }
 

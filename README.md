@@ -1,4 +1,4 @@
-﻿<!-- Heading -->
+<!-- Heading -->
 <br />
 <p align="center">
   <a href="https://github.com/curlpipe/ox/">
@@ -8,11 +8,11 @@
   <h1 align="center" style="font-size: 50px;">Ox editor</h1>
 
   <p align="center" style="font-size: 20px;">
-    Ox is a code editor that runs in your terminal.
+    The simple but flexible text editor
     <br><br>
     <div align="center" style="display:inline;">
-      <img src="https://i.postimg.cc/nrs9jksB/image.png" width="49%">
-      <img src="https://i.postimg.cc/KcQ0nv1Y/image.png" width="49%">
+      <img src="https://i.postimg.cc/zXB5y0r3/ox-blank.gif" width="49%">
+      <img src="https://i.postimg.cc/pVkRV33g/ox-code.gif" width="49%">
     </div>
     <br>
 </p>
@@ -28,7 +28,7 @@ Ox is an independent text editor that can be used to write everything from text 
 If you're looking for a text editor that...
 1. :feather: Is lightweight and efficient
 2. :wrench: Can be configured to your heart's content
-3. :package: Has features out of the box,  including 
+3. :package: Has features out of the box, including
     - syntax highlighting
     - undo and redo
     - search and replace
@@ -40,21 +40,22 @@ If you're looking for a text editor that...
 
 It runs in your terminal as a text-user-interface, just like vim, nano and micro, however, it is not based on any existing editors and has been built from the ground up.
 
-It is mainly used on linux systems, but macOS and Windows users (via WSL) are free to give it a go.
+It is mainly designed on linux systems, but macOS and Windows users (via WSL) are free to give it a go. Work is currently underway to get it working perfectly on all systems.
 
 ## Selling Points
 
 ### Lightweight and Efficient
 
-- :feather: Ox is lightweight, with the precompiled binary taking up roughly 4mb in storage space.
+- :feather: Ox is lightweight, with the precompiled binary taking up roughly 5mb in storage space.
 - :knot: It uses a `rope` data structure which allows incremental editing, file reading and file writing, which will speed up performance, particularly on huge files.
-- :crab: It was built in Rust, which is a quick lower level language that has a strong reputation in the performance department.
+- :crab: It was built in Rust, which is a quick lower-level language that has a strong reputation in the performance department.
 
 ### Strong configurability
 
 - :electric_plug: Plug-In system where you can write your own plug-ins or integrate other people's
 - :wrench: A wide number of options for configuration with everything from colours to the status line to syntax highlighting being open to customisation
 - :moon: Ox uses Lua as a configuration language for familiarity when scripting and configuring
+- :handshake: A configuration assistant to quickly get Ox set up for you from the get-go
 
 ### Out of the box features
 
@@ -160,6 +161,8 @@ ox
 
 This will open up an empty document.
 
+However, if you've just downloaded Ox, the configuration assistant will automatically start up and help you configure the editor initially.
+
 If you wish to open a file straight from the command line, you can run
 ```sh
 ox /path/to/file
@@ -227,6 +230,8 @@ We've covered most keyboard shortcuts, but there are some other features you mig
 
 Ox features a configuration system that allows the editor to be modified and personalised.
 
+By default, you will be greeted by a configuration assistant when first starting Ox, when no configuration file is in place. This will help you generate a configuration file.
+
 By default, Ox will look for a file here: `$XDG_CONFIG_HOME/.oxrc` or `~/.oxrc`.
 
 On Windows, Ox will try to look here `C:/Users/user/ox/.oxrc` (where `user` is the user name of your account)
@@ -235,18 +240,16 @@ Ox's configuration language is [Lua](https://lua.org).
 
 For reference, there is a default config in the `config` folder in the repository. You can either download it and place it in the default config directory or create your own using the example ones as a reference.
 
-If you don't have a config file or don't want to mess around with it, don't worry, Ox has default settings it will use.
-
 ## Documentation
 
 If you've been through the quick start guide above, but are looking for more detail, you can find in-depth documentation on the [wiki page](https://github.com/curlpipe/ox/wiki/)
 
-This will take you step-by-step in great detail through 5 different stages:
+This will take you step-by-step in great detail through 6 different stages:
 
 1. **Installation** - advice and how-tos on installation
-2. **Starting** - using the command line interface
-3. **Using** - editing a document and controlling the editor
-4. **Configuring** - writing plug-ins, changing the layout, adding to and changing the syntax highlighting
+2. **Configuring** - changing the layout, adding to and changing the syntax highlighting
+3. **General Editing** - editing a document and controlling the editor
+4. **Command Line** - using the command line interface
 5. **Plugins** - installing or uninstalling community plug-ins and writing or distributing your own plug-ins
 6. **Roadmap** - planned features
 

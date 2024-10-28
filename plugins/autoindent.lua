@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.9
+Auto Indent v0.11
 
 Helps you when programming by guessing where indentation should go
 and then automatically applying these guesses as you program
@@ -112,6 +112,7 @@ function autoindent:set_indent(y, new_indent)
     editor:insert_line_at(new_line, y)
     editor:remove_line_at(y + 1)
     -- Place the cursor at a sensible position
+    if x < 0 then x = 0 end
     editor:move_to(x, y)
 end
 
@@ -190,4 +191,75 @@ for i = 32, 126 do
             end
         end
     end
+end
+
+function dedent_amount(y)
+    local tabs = editor:get_line_at(y):match("^\t") ~= nil
+    if tabs then
+        return 1
+    else
+        return document.tab_width
+    end
+end
+
+-- Shortcut to indent a selection
+event_mapping["ctrl_tab"] = function()
+    local cursor = editor.cursor
+    local select = editor.selection
+    if cursor.y == select.y then
+        -- Single line is selected
+        local level = autoindent:get_indent(cursor.y)
+        autoindent:set_indent(cursor.y, level + 1)
+    else
+        -- Multiple lines selected
+        if cursor.y > select.y then
+            for line = select.y, cursor.y do
+                editor:move_to(0, line)
+                local indent = autoindent:get_indent(line)
+                autoindent:set_indent(line, indent + 1)
+            end
+        else
+            for line = cursor.y, select.y do
+                editor:move_to(0, line)
+                local indent = autoindent:get_indent(line)
+                autoindent:set_indent(line, indent + 1)
+            end
+        end
+        local cursor_tabs = dedent_amount(cursor.y)
+        local select_tabs = dedent_amount(select.y)
+        editor:move_to(cursor.x + cursor_tabs, cursor.y)
+        editor:select_to(select.x + select_tabs, select.y)
+    end
+    editor:cursor_snap()
+end
+
+-- Shortcut to dedent a line
+event_mapping["shift_tab"] = function()
+    local cursor = editor.cursor
+    local select = editor.selection
+    if cursor.x == select.x and cursor.y == select.y then
+        -- Dedent a single line
+        local level = autoindent:get_indent(editor.cursor.y)
+        autoindent:set_indent(editor.cursor.y, level - 1)
+    else
+        -- Dedent a group of lines
+        if cursor.y > select.y then
+            for line = select.y, cursor.y do
+                editor:move_to(0, line)
+                local indent = autoindent:get_indent(line)
+                autoindent:set_indent(line, indent - 1)
+            end
+        else
+            for line = cursor.y, select.y do
+                editor:move_to(0, line)
+                local indent = autoindent:get_indent(line)
+                autoindent:set_indent(line, indent - 1)
+            end
+        end
+        local cursor_tabs = dedent_amount(cursor.y)
+        local select_tabs = dedent_amount(select.y)
+        editor:move_to(cursor.x - cursor_tabs, cursor.y)
+        editor:select_to(select.x - select_tabs, select.y)
+    end
+    editor:cursor_snap()
 end

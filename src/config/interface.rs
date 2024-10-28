@@ -7,6 +7,7 @@ use crossterm::style::SetForegroundColor as Fg;
 use kaolinite::searching::Searcher;
 use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
 use mlua::prelude::*;
+use std::result::Result as RResult;
 
 use super::{issue_warning, Colors};
 
@@ -316,7 +317,7 @@ impl Default for StatusLine {
 
 impl StatusLine {
     /// Take the configuration information and render the status line
-    pub fn render(&self, editor: &Editor, lua: &Lua, w: usize) -> String {
+    pub fn render(&self, editor: &Editor, lua: &Lua, w: usize) -> RResult<String, LuaError> {
         let file = &editor.files[editor.ptr];
         let mut result = vec![];
         let path = editor
@@ -365,11 +366,8 @@ impl StatusLine {
                     .take(m.text.chars().count().saturating_sub(2))
                     .collect::<String>();
                 if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
-                    if let Ok(r) = func.call::<(), LuaString>(()) {
-                        part = part.replace(&m.text, r.to_str().unwrap_or(""));
-                    } else {
-                        break;
-                    }
+                    let r = func.call::<String, LuaString>(absolute_path.clone())?;
+                    part = part.replace(&m.text, r.to_str().unwrap_or(""));
                 } else {
                     break;
                 }
@@ -377,27 +375,32 @@ impl StatusLine {
             result.push(part);
         }
         let status: Vec<&str> = result.iter().map(String::as_str).collect();
-        match self.alignment {
+        Ok(match self.alignment {
             StatusAlign::Between => alinio::align::between(status.as_slice(), w),
             StatusAlign::Around => alinio::align::around(status.as_slice(), w),
         }
-        .unwrap_or_else(String::new)
+        .unwrap_or_else(String::new))
     }
 }
 
 impl LuaUserData for StatusLine {
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method_mut("clear", |_, status_line, ()| {
-            status_line.parts.clear();
-            Ok(())
-        });
-        methods.add_method_mut("add_part", |_, status_line, part| {
-            status_line.parts.push(part);
-            Ok(())
-        });
-    }
-
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("parts", |lua, this| {
+            let parts = lua.create_table()?;
+            for (i, part) in this.parts.iter().enumerate() {
+                parts.set(i + 1, part.clone())?;
+            }
+            Ok(parts)
+        });
+        fields.add_field_method_set("parts", |_, this, value: LuaTable| {
+            let mut result = vec![];
+            for item in value.pairs::<usize, String>() {
+                let (_, part) = item?;
+                result.push(part);
+            }
+            this.parts = result;
+            Ok(())
+        });
         fields.add_field_method_get("alignment", |_, this| {
             let alignment: String = this.alignment.clone().into();
             Ok(alignment)

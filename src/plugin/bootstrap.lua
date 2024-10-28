@@ -36,7 +36,8 @@ function load_plugin(base)
         -- Prevent warning if plug-in is built-in
         local is_autoindent = base:match("autoindent.lua$") ~= nil
         local is_pairs = base:match("pairs.lua$") ~= nil
-        if not is_pairs and not is_autoindent then 
+        local is_quickcomment = base:match("quickcomment.lua$") ~= nil
+        if not is_pairs and not is_autoindent and not is_quickcomment then
             -- Issue warning if plug-in is builtin
             print("[WARNING] Failed to load plugin " .. base)
             plugin_issues = true

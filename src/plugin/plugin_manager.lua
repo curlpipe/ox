@@ -108,7 +108,8 @@ function plugin_manager:plugin_is_builtin(plugin)
     local base = plugin .. ".lua"
     local is_autoindent = base == "autoindent.lua"
     local is_pairs = base == "pairs.lua"
-    return is_autoindent or is_pairs
+    local is_quickcomment = base == "quickcomment.lua"
+    return is_autoindent or is_pairs or is_quickcomment
 end
 
 -- Verify whether or not a plug-in is downloaded
