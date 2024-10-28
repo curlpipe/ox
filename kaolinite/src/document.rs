@@ -983,6 +983,8 @@ impl Document {
         // Bounds checking
         if self.loc().y != y && y <= self.len_lines() {
             self.cursor.loc.y = y;
+        } else if y > self.len_lines() {
+            self.cursor.loc.y = self.len_lines();
         }
         // Snap to end of line
         self.fix_dangling_cursor();
