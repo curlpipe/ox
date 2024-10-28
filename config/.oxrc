@@ -13,18 +13,6 @@ event_mapping = {
     ["right"] = function() 
         editor:move_right() 
     end,
-    ["shift_up"] = function() 
-        editor:select_up() 
-    end,
-    ["shift_down"] = function() 
-        editor:select_down() 
-    end,
-    ["shift_left"] = function() 
-        editor:select_left() 
-    end,
-    ["shift_right"] = function() 
-        editor:select_right() 
-    end,
     ["ctrl_up"] = function() 
         editor:move_top() 
     end,
@@ -49,15 +37,40 @@ event_mapping = {
     ["pagedown"] = function() 
         editor:move_page_down() 
     end,
-    ["esc"] = function()
-        editor:cancel_selection()
-    end,
     ["alt_v"] = function()
         editor:cursor_to_viewport()
     end,
     ["ctrl_g"] = function()
         local line = editor:prompt("Go to line")
         editor:move_to(0, tonumber(line))
+    end,
+    -- Selection
+    ["shift_up"] = function()
+        editor:select_up()
+    end,
+    ["shift_down"] = function()
+        editor:select_down()
+    end,
+    ["shift_left"] = function()
+        editor:select_left()
+    end,
+    ["shift_right"] = function()
+        editor:select_right()
+    end,
+    ["esc"] = function()
+        editor:cancel_selection()
+    end,
+    ["shift_home"] = function()
+        local n_moves = editor.cursor.x
+        for i = 1, n_moves do
+            editor:select_left()
+        end
+    end,
+    ["shift_end"] = function()
+        local n_moves = #editor:get_line() - editor.cursor.x
+        for i = 1, n_moves do
+            editor:select_right()
+        end
     end,
     -- Searching & Replacing
     ["ctrl_f"] = function()
