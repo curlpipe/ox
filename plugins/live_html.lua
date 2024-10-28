@@ -1,5 +1,5 @@
 --[[
-Live HTML v0.1
+Live HTML v0.2
 
 As you develop a website, you can view it in your browser without needing to refresh with every change
 ]]--
@@ -33,7 +33,6 @@ end
 function live_html_refresh()
     if editor.file_path == live_html.entry_point then
         local contents = editor:get():gsub('"', '\\"'):gsub("\n", "")
-        editor:rerender()
         http.post("localhost:5000/update", contents)
     end
 end
@@ -56,7 +55,9 @@ commands["html"] = function(args)
 end
 
 event_mapping["*"] = function()
-    after(1, "live_html_refresh")
+    if live_html.pid ~= nil then
+        after(1, "live_html_refresh")
+    end
 end
 
 event_mapping["exit"] = function()
