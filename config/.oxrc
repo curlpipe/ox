@@ -193,7 +193,25 @@ event_mapping = {
         help_message.enabled = not help_message.enabled
     end,
     ["ctrl_d"] = function()
-        editor:remove_line()
+        local cursor = editor.cursor
+        local select = editor.selection
+        local no_select = select.x == cursor.x and select.y == cursor.y
+        if no_select then
+            editor:remove_line()
+        else
+            -- delete a group of lines
+            if cursor.y > select.y then
+                editor:move_to(cursor.x, select.y)
+                for line = select.y, cursor.y do
+                    editor:remove_line()
+                end
+            else
+                editor:move_to(cursor.x, cursor.y)
+                for line = cursor.y, select.y do
+                    editor:remove_line()
+                end
+            end
+        end
     end,
     ["ctrl_k"] = function()
         editor:open_command_line()
