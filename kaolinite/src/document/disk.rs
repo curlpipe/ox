@@ -1,11 +1,11 @@
-use crate::{Size, Loc, Document};
-use crate::map::{form_map, CharMap};
-use crate::event::{UndoMgmt, Result, Error};
 use crate::document::Cursor;
-use ropey::Rope;
-use std::io::{BufWriter, BufReader};
-use std::fs::File;
+use crate::event::{Error, Result, UndoMgmt};
+use crate::map::{form_map, CharMap};
 use crate::utils::get_absolute_path;
+use crate::{Document, Loc, Size};
+use ropey::Rope;
+use std::fs::File;
+use std::io::{BufReader, BufWriter};
 
 /// A document info struct to store information about the file it represents
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -121,7 +121,7 @@ impl Document {
             Ok(())
         }
     }
-    
+
     /// Load lines in this document up to a specified index.
     /// This must be called before starting to edit the document as
     /// this is the function that actually load and processes the text.

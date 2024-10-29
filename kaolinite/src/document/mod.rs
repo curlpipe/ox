@@ -2,18 +2,15 @@
 use crate::event::{Error, Event, Result, UndoMgmt};
 use crate::map::CharMap;
 use crate::searching::{Match, Searcher};
-use crate::utils::{
-    modeline,
-    width, Loc, Size,
-};
+use crate::utils::{modeline, width, Loc, Size};
 use ropey::Rope;
 use std::path::Path;
 
 pub mod cursor;
 pub mod disk;
 pub mod editing;
-pub mod words;
 pub mod lines;
+pub mod words;
 
 pub use cursor::Cursor;
 pub use disk::DocumentInfo;

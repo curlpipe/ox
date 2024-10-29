@@ -1,6 +1,6 @@
-use crate::{Loc, Document};
-use crate::utils::{trim};
-use crate::event::{Result, Error};
+use crate::event::{Error, Result};
+use crate::utils::trim;
+use crate::{Document, Loc};
 
 impl Document {
     /// Get the line at a specified index

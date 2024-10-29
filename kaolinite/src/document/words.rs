@@ -1,7 +1,7 @@
-use crate::{Loc, Document};
-use crate::searching::Searcher;
 use crate::event::{Result, Status};
 use crate::searching::Match;
+use crate::searching::Searcher;
+use crate::{Document, Loc};
 
 /// State of a word
 pub enum WordState {

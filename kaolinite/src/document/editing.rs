@@ -1,7 +1,7 @@
-use crate::{Document, Loc};
+use crate::event::{Error, Event, Result};
 use crate::map::form_map;
-use crate::utils::{tab_boundaries_backward, get_range};
-use crate::event::{Result, Event, Error};
+use crate::utils::{get_range, tab_boundaries_backward};
+use crate::{Document, Loc};
 use std::ops::RangeBounds;
 
 impl Document {

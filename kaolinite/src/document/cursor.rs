@@ -1,6 +1,6 @@
-use crate::{Loc, Document};
-use crate::event::{Status};
-use crate::utils::{tab_boundaries_backward, width, tab_boundaries_forward};
+use crate::event::Status;
+use crate::utils::{tab_boundaries_backward, tab_boundaries_forward, width};
+use crate::{Document, Loc};
 use std::ops::Range;
 
 /// Defines a cursor's position and any selection it may be covering
@@ -395,7 +395,7 @@ impl Document {
         self.bring_cursor_in_viewport();
         self.info.modified = true;
     }
-    
+
     /// Cancels the current selection
     pub fn cancel_selection(&mut self) {
         self.cursor.selection_end = self.cursor.loc;
