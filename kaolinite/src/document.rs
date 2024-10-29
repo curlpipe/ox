@@ -693,7 +693,8 @@ impl Document {
     }
 
     /// Find the word boundaries
-    pub fn word_boundaries(&mut self, line: &str) -> Vec<(usize, usize)> {
+    #[must_use]
+    pub fn word_boundaries(&self, line: &str) -> Vec<(usize, usize)> {
         let re = r"(\s{2,}|[A-Za-z0-9_]+|\.)";
         let mut searcher = Searcher::new(re);
         let starts: Vec<Match> = searcher.lfinds(line);
@@ -706,7 +707,8 @@ impl Document {
     }
 
     /// Find the current state of the cursor in relation to words
-    pub fn cursor_word_state(&mut self, words: &[(usize, usize)], x: usize) -> WordState {
+    #[must_use]
+    pub fn cursor_word_state(&self, words: &[(usize, usize)], x: usize) -> WordState {
         let in_word = words
             .iter()
             .position(|(start, end)| *start <= x && x <= *end);
@@ -724,19 +726,44 @@ impl Document {
         }
     }
 
-    /// Moves to the previous word in the document
-    pub fn move_prev_word(&mut self) -> Status {
-        let Loc { x, y } = self.char_loc();
-        // Handle case where we're at the beginning of the line
-        if x == 0 && y != 0 {
-            return Status::StartOfLine;
-        }
-        // Find where all the words are
+    /// Find the index of the next word
+    #[must_use]
+    pub fn prev_word_close(&self, from: Loc) -> usize {
+        let Loc { x, y } = from;
         let line = self.line(y).unwrap_or_default();
         let words = self.word_boundaries(&line);
         let state = self.cursor_word_state(&words, x);
-        // Work out where to move to
-        let new_x = match state {
+        match state {
+            // Go to start of line if at beginning
+            WordState::AtEnd(0) | WordState::InCenter(0) | WordState::AtStart(0) => 0,
+            // Cursor is at the middle / end of a word, move to previous end
+            WordState::AtEnd(idx) | WordState::InCenter(idx) => words[idx.saturating_sub(1)].1,
+            WordState::AtStart(idx) => words[idx.saturating_sub(1)].0,
+            WordState::Out => {
+                // Cursor is not touching any words, find previous end
+                let mut shift_back = x;
+                while let WordState::Out = self.cursor_word_state(&words, shift_back) {
+                    shift_back = shift_back.saturating_sub(1);
+                    if shift_back == 0 {
+                        break;
+                    }
+                }
+                match self.cursor_word_state(&words, shift_back) {
+                    WordState::AtEnd(idx) => words[idx].0,
+                    _ => 0,
+                }
+            }
+        }
+    }
+
+    /// Find the index of the next word
+    #[must_use]
+    pub fn prev_word_index(&self, from: Loc) -> usize {
+        let Loc { x, y } = from;
+        let line = self.line(y).unwrap_or_default();
+        let words = self.word_boundaries(&line);
+        let state = self.cursor_word_state(&words, x);
+        match state {
             // Go to start of line if at beginning
             WordState::AtEnd(0) | WordState::InCenter(0) | WordState::AtStart(0) => 0,
             // Cursor is at the middle / end of a word, move to previous end
@@ -756,7 +783,18 @@ impl Document {
                     _ => 0,
                 }
             }
-        };
+        }
+    }
+
+    /// Moves to the previous word in the document
+    pub fn move_prev_word(&mut self) -> Status {
+        let Loc { x, y } = self.char_loc();
+        // Handle case where we're at the beginning of the line
+        if x == 0 && y != 0 {
+            return Status::StartOfLine;
+        }
+        // Work out where to move to
+        let new_x = self.prev_word_index(self.char_loc());
         // Perform the move
         self.move_to_x(new_x);
         // Clean up
@@ -764,20 +802,57 @@ impl Document {
         Status::None
     }
 
-    /// Moves to the next word in the document
-    pub fn move_next_word(&mut self) -> Status {
-        let Loc { x, y } = self.char_loc();
-        let line = self.line(y).unwrap_or_default();
-        // Handle case where we're at the end of the line
-        if x == line.chars().count() && y != self.len_lines() {
-            return Status::EndOfLine;
-        }
-        // Find and move to the next word
+    /// Find the index of the next word
+    #[must_use]
+    pub fn next_word_close(&self, from: Loc) -> usize {
+        let Loc { x, y } = from;
         let line = self.line(y).unwrap_or_default();
         let words = self.word_boundaries(&line);
         let state = self.cursor_word_state(&words, x);
-        // Work out where to move to
-        let new_x = match state {
+        match state {
+            // Cursor is at the middle / end of a word, move to next end
+            WordState::AtEnd(idx) | WordState::InCenter(idx) => {
+                if let Some(word) = words.get(idx) {
+                    word.1
+                } else {
+                    // No next word exists, just go to end of line
+                    line.chars().count()
+                }
+            }
+            WordState::AtStart(idx) => {
+                // Cursor is at the start of a word, move to next start
+                if let Some(word) = words.get(idx) {
+                    word.0
+                } else {
+                    // No next word exists, just go to end of line
+                    line.chars().count()
+                }
+            }
+            WordState::Out => {
+                // Cursor is not touching any words, find next start
+                let mut shift_forward = x;
+                while let WordState::Out = self.cursor_word_state(&words, shift_forward) {
+                    shift_forward += 1;
+                    if shift_forward >= line.chars().count() {
+                        break;
+                    }
+                }
+                match self.cursor_word_state(&words, shift_forward) {
+                    WordState::AtStart(idx) => words[idx].0,
+                    _ => line.chars().count(),
+                }
+            }
+        }
+    }
+
+    /// Find the index of the next word
+    #[must_use]
+    pub fn next_word_index(&self, from: Loc) -> usize {
+        let Loc { x, y } = from;
+        let line = self.line(y).unwrap_or_default();
+        let words = self.word_boundaries(&line);
+        let state = self.cursor_word_state(&words, x);
+        match state {
             // Cursor is at the middle / end of a word, move to next end
             WordState::AtEnd(idx) | WordState::InCenter(idx) => {
                 if let Some(word) = words.get(idx + 1) {
@@ -810,7 +885,19 @@ impl Document {
                     _ => line.chars().count(),
                 }
             }
-        };
+        }
+    }
+
+    /// Moves to the next word in the document
+    pub fn move_next_word(&mut self) -> Status {
+        let Loc { x, y } = self.char_loc();
+        let line = self.line(y).unwrap_or_default();
+        // Handle case where we're at the end of the line
+        if x == line.chars().count() && y != self.len_lines() {
+            return Status::EndOfLine;
+        }
+        // Work out where to move to
+        let new_x = self.next_word_index(self.char_loc());
         // Perform the move
         self.move_to_x(new_x);
         // Clean up

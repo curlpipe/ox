@@ -57,6 +57,8 @@ pub struct Editor {
     pub plugin_active: bool,
     /// Stores the last click the user made (in order to detect double-click)
     pub last_click: Option<(Instant, MouseEvent)>,
+    /// Stores whether or not we're in a double click
+    pub in_dbl_click: bool,
 }
 
 impl Editor {
@@ -78,6 +80,7 @@ impl Editor {
             config_path: "~/.oxrc".to_string(),
             plugin_active: false,
             last_click: None,
+            in_dbl_click: false,
         })
     }
 
