@@ -217,7 +217,7 @@ checksum = "b9d38e5712e29fb0c2caeb33b1803c8feade6e3380c7a92788fb219999b2849e"
 
 [[package]]
 name = "kaolinite"
-version = "0.9.5"
+version = "0.10.0"
 dependencies = [
  "error_set",
  "rand",

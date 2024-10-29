@@ -191,7 +191,7 @@ impl Default for Assistant {
             greeting_message: true,
             // Mouse and Cursor Behaviour
             mouse: true,
-            scroll_sensitivity: 2,
+            scroll_sensitivity: 4,
             cursor_wrap: true,
             // Plug-ins
             plugins: vec![Plugin::AutoIndent, Plugin::Pairs, Plugin::QuickComment],
@@ -405,8 +405,8 @@ impl Assistant {
         );
         println!("{red}🖰 ⭥ {reset}  {yellow}🖰 ⭥ {reset}  {green}🖰 ⭥ {reset}\n");
         result.scroll_sensitivity = Self::integer(
-            "How sensitive should scrolling be, 1 = least sensitive, 5 = very sensitive",
-            2,
+            "How sensitive should scrolling be, 1 = least sensitive, 7 = very sensitive",
+            4,
         );
         println!("    Cursor wraps{pink}|{reset}→ \n  ↳ {pink}|{reset}Onto new line\n");
         result.cursor_wrap = Self::confirmation(
