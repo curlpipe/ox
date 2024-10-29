@@ -12,9 +12,9 @@ use std::cell::RefCell;
 use std::io::{stdout, Write};
 use std::rc::Rc;
 
-pub const TROPICAL: &str = include_str!("../themes/tropical.lua");
-pub const GALAXY: &str = include_str!("../themes/galaxy.lua");
-pub const TRANSPARENT: &str = include_str!("../themes/transparent.lua");
+pub const TROPICAL: &str = include_str!("../../plugins/themes/tropical.lua");
+pub const GALAXY: &str = include_str!("../../plugins/themes/galaxy.lua");
+pub const TRANSPARENT: &str = include_str!("../../plugins/themes/transparent.lua");
 
 #[macro_export]
 macro_rules! gets {
