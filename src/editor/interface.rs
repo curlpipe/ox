@@ -53,7 +53,7 @@ impl Editor {
     }
 
     /// Render the lines of the document
-    #[allow(clippy::similar_names)]
+    #[allow(clippy::similar_names, clippy::too_many_lines)]
     pub fn render_document(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
         // Get some details about the help message
         let colors = self.config.colors.borrow().highlight.to_color()?;
@@ -117,6 +117,10 @@ impl Editor {
             // Render line if it exists
             let idx = y as usize + self.doc().offset.y;
             if let Some(line) = self.doc().line(idx) {
+                // Reset the cache
+                let mut cache_bg = editor_bg;
+                let mut cache_fg = editor_fg;
+                // Gather the tokens
                 let tokens = self.highlighter().line(idx, &line);
                 let tokens = trim_fit(&tokens, self.doc().offset.x, required_width, tab_width);
                 let mut x_pos = self.doc().offset.x;
@@ -144,10 +148,14 @@ impl Editor {
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
-                        if is_selected {
+                        if is_selected && (cache_bg != selection_bg || cache_fg != selection_fg) {
                             display!(self, selection_bg, selection_fg);
-                        } else {
+                            cache_bg = selection_bg;
+                            cache_fg = selection_fg;
+                        } else if !is_selected && (cache_bg != editor_bg || cache_fg != colour) {
                             display!(self, editor_bg, colour);
+                            cache_bg = editor_bg;
+                            cache_fg = colour;
                         }
                         display!(self, c);
                         x_pos += 1;
