@@ -402,21 +402,19 @@ fn document_deletion() {
 fn document_undo_redo() {
     let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
     doc.load_to(100);
-    assert!(doc.undo_mgmt.undo(doc.take_snapshot()).is_none());
+    assert!(doc.event_mgmt.undo(doc.take_snapshot()).is_none());
     assert!(doc.redo().is_ok());
-    assert!(!doc.info.modified);
+    assert!(doc.event_mgmt.with_disk(&doc.take_snapshot()));
     doc.exe(Event::InsertLine(0, st!("hello你bye好hello")));
     doc.exe(Event::Delete(Loc { x: 0, y: 2 }, st!("\t")));
     doc.exe(Event::Insert(Loc { x: 3, y: 2 }, st!("a")));
     doc.commit();
-    assert!(doc.info.modified);
+    assert!(!doc.event_mgmt.with_disk(&doc.take_snapshot()));
     assert!(doc.undo().is_ok());
-    assert!(!doc.info.modified);
     assert_eq!(doc.line(0), Some(st!("    你好")));
     assert_eq!(doc.line(1), Some(st!("\thello")));
     assert_eq!(doc.line(2), Some(st!("    hello")));
     assert!(doc.redo().is_ok());
-    assert!(doc.info.modified);
     assert_eq!(doc.line(0), Some(st!("hello你bye好hello")));
     assert_eq!(doc.line(2), Some(st!("helalo")));
 }
