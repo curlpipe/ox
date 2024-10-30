@@ -10,7 +10,8 @@ live_html = {
     entry_point = nil,
     tracking = {},
     pid = nil,
-    last_request = ""
+    last_request = "",
+    refresh_when = (live_html or { refresh_when = "save" }).refresh_when,
 }
 
 function live_html:ready()
@@ -71,7 +72,13 @@ commands["html"] = function(args)
 end
 
 event_mapping["*"] = function()
-    if live_html.pid ~= nil then
+    if live_html.pid ~= nil and live_html.refresh_when == "keypress" then
+        after(1, "live_html_refresh")
+    end
+end
+
+event_mapping["ctrl_s"] = function()
+    if live_html.pid ~= nil and live_html.refresh_when == "save" then
         after(1, "live_html_refresh")
     end
 end
