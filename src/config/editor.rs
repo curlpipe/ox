@@ -173,6 +173,8 @@ impl LuaUserData for Editor {
         });
         methods.add_method_mut("remove_word", |_, editor, ()| {
             let _ = editor.doc_mut().delete_word();
+            editor.update_highlighter();
+            editor.hl_edit(editor.doc().loc().y);
             Ok(())
         });
         // Cursor moving

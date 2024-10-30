@@ -220,6 +220,7 @@ event_mapping = {
         local cursor = editor.cursor
         local select = editor.selection
         local single = select.x == cursor.x and select.y == cursor.y
+        editor:commit()
         if single then
             -- move single line
             editor:move_line_up()
@@ -245,6 +246,7 @@ event_mapping = {
         local cursor = editor.cursor
         local select = editor.selection
         local single = select.x == cursor.x and select.y == cursor.y
+        editor:commit()
         if single then
             -- move single line
             editor:move_line_down()
