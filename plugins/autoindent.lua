@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.11
+Auto Indent v0.12
 
 Helps you when programming by guessing where indentation should go
 and then automatically applying these guesses as you program
@@ -114,6 +114,7 @@ function autoindent:set_indent(y, new_indent)
     -- Place the cursor at a sensible position
     if x < 0 then x = 0 end
     editor:move_to(x, y)
+    editor:cursor_snap()
 end
 
 -- Get how indented a line is at a certain y index
