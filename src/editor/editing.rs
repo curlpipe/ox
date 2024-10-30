@@ -8,8 +8,12 @@ use super::Editor;
 impl Editor {
     /// Execute an edit event
     pub fn exe(&mut self, ev: Event) -> Result<()> {
-        if !self.doc().undo_mgmt.last_event.same_type(&ev) && !self.plugin_active {
-            self.doc_mut().commit();
+        if !self.plugin_active {
+            let same_type = self.doc().event_mgmt.last_event.as_ref();
+            // As long as event isn't present and the same as this one, commit
+            if same_type.map(|e| e.same_type(&ev)) != Some(true) {
+                self.doc_mut().commit();
+            }
         }
         self.doc_mut().exe(ev)?;
         Ok(())
@@ -63,7 +67,6 @@ impl Editor {
         if !self.doc().is_selection_empty() && !self.doc().info.read_only {
             // Removing a selection is significant and worth an undo commit
             self.doc_mut().commit();
-            self.doc_mut().undo_mgmt.set_dirty();
             self.doc_mut().remove_selection();
             self.reload_highlight();
             return Ok(());

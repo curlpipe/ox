@@ -10,7 +10,6 @@ impl Document {
     /// Returns an error if location is out of range.
     pub fn insert(&mut self, loc: &Loc, st: &str) -> Result<()> {
         self.out_of_range(loc.x, loc.y)?;
-        self.info.modified = true;
         // Move cursor to location
         self.move_to(loc);
         // Update rope
@@ -75,7 +74,6 @@ impl Document {
         // Extract range information
         let (mut start, mut end) = get_range(&x, line_start, line_end);
         self.valid_range(start, end, y)?;
-        self.info.modified = true;
         self.move_to(&Loc::at(start, y));
         start += line_start;
         end += line_start;
@@ -109,7 +107,6 @@ impl Document {
         if !(self.lines.is_empty() || self.len_lines() == 0 && loc == 0) {
             self.out_of_range(0, loc.saturating_sub(1))?;
         }
-        self.info.modified = true;
         // Update unicode and tab map
         self.dbl_map.shift_down(loc);
         self.tab_map.shift_down(loc);
@@ -137,7 +134,6 @@ impl Document {
         // Update tab & unicode map
         self.dbl_map.delete(loc);
         self.tab_map.delete(loc);
-        self.info.modified = true;
         // Shift down other line numbers in the hashmap
         self.dbl_map.shift_up(loc);
         self.tab_map.shift_up(loc);
@@ -160,7 +156,6 @@ impl Document {
     /// Returns an error if location is out of range.
     pub fn split_down(&mut self, loc: &Loc) -> Result<()> {
         self.out_of_range(loc.x, loc.y)?;
-        self.info.modified = true;
         // Gather context
         let line = self.line(loc.y).ok_or(Error::OutOfRange)?;
         let rhs: String = line.chars().skip(loc.x).collect();
@@ -177,7 +172,6 @@ impl Document {
     /// Returns an error if location is out of range.
     pub fn splice_up(&mut self, y: usize) -> Result<()> {
         self.out_of_range(0, y + 1)?;
-        self.info.modified = true;
         // Gather context
         let length = self.line(y).ok_or(Error::OutOfRange)?.chars().count();
         let below = self.line(y + 1).ok_or(Error::OutOfRange)?;

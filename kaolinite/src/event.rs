@@ -3,10 +3,11 @@ use crate::{document::Cursor, utils::Loc, Document};
 use error_set::error_set;
 use ropey::Rope;
 
+/// A snapshot stores the state of a document at a certain time
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Snapshot {
-    content: Rope,
-    cursor: Cursor,
+    pub content: Rope,
+    pub cursor: Cursor,
 }
 
 /// Represents an editing event.
@@ -89,30 +90,16 @@ error_set! {
 }
 
 /// For managing events for purposes of undo and redo
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UndoMgmt {
-    /// Whether the file touched since the latest commit
-    pub is_dirty: bool,
-    /// Undo contains all the patches that have been applied
-    pub undo: Vec<Snapshot>,
-    /// Redo contains all the patches that have been undone
-    pub redo: Vec<Snapshot>,
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct EventMgmt {
+    /// Contains all the snapshots in the current timeline
+    pub history: Vec<Snapshot>,
+    /// Stores where the document currently is
+    pub ptr: Option<usize>,
     /// Store where the file on the disk is currently at
-    pub on_disk: usize,
+    pub on_disk: Option<usize>,
     /// Store the last event to occur (so that we can see if there is a change)
-    pub last_event: Event,
-}
-
-impl Default for UndoMgmt {
-    fn default() -> Self {
-        Self {
-            is_dirty: false,
-            undo: vec![],
-            redo: vec![],
-            on_disk: 0,
-            last_event: Event::Insert(Loc { x: 0, y: 0 }, " ".to_string()),
-        }
-    }
+    pub last_event: Option<Event>,
 }
 
 impl Document {
@@ -133,60 +120,77 @@ impl Document {
     }
 }
 
-impl UndoMgmt {
-    /// Register that an event has occurred and the last snapshot is not update
-    pub fn set_dirty(&mut self) {
-        self.redo.clear();
-        self.is_dirty = true;
-    }
-
-    /// This will commit take a snapshot and add it to the undo stack, ready to be undone.
-    /// You can call this after every space character, for example, which would
-    /// make it so that every undo action would remove the previous word the user typed.
-    pub fn commit(&mut self, current_snapshot: Snapshot) {
-        if self.is_dirty {
-            self.is_dirty = false;
-            self.undo.push(current_snapshot);
+impl EventMgmt {
+    /// In the event of some changes, redo should be cleared
+    pub fn clear_redo(&mut self) {
+        if let Some(ptr) = self.ptr {
+            self.history.drain(ptr + 1..);
         }
     }
 
-    /// Provide a snapshot of the desired state of the document for purposes
-    /// of undoing
-    pub fn undo(&mut self, current_snapshot: Snapshot) -> Option<Snapshot> {
-        self.commit(current_snapshot);
-        if self.undo.len() < 2 {
-            return None;
+    /// To be called when a snapshot needs to be registered
+    pub fn commit(&mut self, snapshot: Snapshot) {
+        // Only commit when previous snapshot differs
+        let ptr = self.ptr.unwrap_or(0);
+        if self.history.get(ptr).map(|s| &s.content) != Some(&snapshot.content) {
+            self.clear_redo();
+            self.history.push(snapshot);
+            self.ptr = Some(self.history.len().saturating_sub(1));
         }
-        let snapshot_to_remove = self.undo.pop()?;
-        let snapshot_to_apply = self.undo.last()?.clone();
-        self.redo.push(snapshot_to_remove);
-
-        Some(snapshot_to_apply)
     }
 
-    /// Provide a snapshot of the desired state of the document for purposes of
-    /// redoing
-    pub fn redo(&mut self) -> Option<Snapshot> {
-        let ev = self.redo.pop()?;
-        self.undo.push(ev.clone());
-        Some(ev)
+    /// To be called when writing to disk
+    pub fn disk_write(&mut self, snapshot: &Snapshot) {
+        self.commit(snapshot.clone());
+        self.on_disk = self.ptr;
     }
 
-    /// On file save, mark where the document is to match it on the disk
-    pub fn saved(&mut self) {
-        self.on_disk = self.undo.len();
-    }
-
-    /// Determine if the state of the document is currently that of what is on the disk
+    /// A way to query whether we're currently up to date with the disk
     #[must_use]
-    pub fn at_file(&self) -> bool {
-        self.undo.len() == self.on_disk
+    pub fn with_disk(&self, snapshot: &Snapshot) -> bool {
+        if let Some(disk) = self.on_disk {
+            self.history.get(disk).map(|s| &s.content) == Some(&snapshot.content)
+        } else if self.history.is_empty() {
+            true
+        } else {
+            self.history.first().map(|s| &s.content) == Some(&snapshot.content)
+        }
     }
 
-    /// Change the cursor position of the previous snapshot
-    pub fn backpatch_cursor(&mut self, cursor: &Cursor) {
-        if let Some(snapshot) = self.undo.last_mut() {
-            snapshot.cursor = *cursor;
+    /// Get previous snapshot to restore to
+    pub fn undo(&mut self, snapshot: Snapshot) -> Option<Snapshot> {
+        // Push cursor back by 1
+        self.commit(snapshot);
+        if let Some(ptr) = self.ptr {
+            if ptr != 0 {
+                let new_ptr = ptr.saturating_sub(1);
+                self.ptr = Some(new_ptr);
+                self.history.get(new_ptr).cloned()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Get snapshot that used to be in place
+    pub fn redo(&mut self, snapshot: &Snapshot) -> Option<Snapshot> {
+        if let Some(ptr) = self.ptr {
+            // If the user has edited since the undo, wipe the redo stack
+            if self.history.get(ptr).map(|s| &s.content) != Some(&snapshot.content) {
+                self.clear_redo();
+            }
+            // Perform the redo
+            let new_ptr = if ptr + 1 < self.history.len() {
+                ptr + 1
+            } else {
+                return None;
+            };
+            self.ptr = Some(new_ptr);
+            self.history.get(new_ptr).cloned()
+        } else {
+            None
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::document::Cursor;
-use crate::event::{Error, Result, UndoMgmt};
+use crate::event::{Error, EventMgmt, Result};
 use crate::map::{form_map, CharMap};
 use crate::utils::get_absolute_path;
 use crate::{Document, Loc, Size};
@@ -14,8 +14,6 @@ pub struct DocumentInfo {
     pub read_only: bool,
     /// Flag for an EOL
     pub eol: bool,
-    /// true if the file has been modified since saving, false otherwise
-    pub modified: bool,
     /// Contains the number of lines buffered into the document
     pub loaded_to: usize,
 }
@@ -25,7 +23,7 @@ impl Document {
     #[cfg(not(tarpaulin_include))]
     #[must_use]
     pub fn new(size: Size) -> Self {
-        let mut this = Self {
+        Self {
             file: Rope::from_str("\n"),
             lines: vec![String::new()],
             dbl_map: CharMap::default(),
@@ -35,7 +33,7 @@ impl Document {
             offset: Loc::default(),
             size,
             char_ptr: 0,
-            undo_mgmt: UndoMgmt::default(),
+            event_mgmt: EventMgmt::default(),
             tab_width: 4,
             old_cursor: 0,
             in_redo: false,
@@ -43,12 +41,8 @@ impl Document {
                 loaded_to: 1,
                 eol: false,
                 read_only: false,
-                modified: false,
             },
-        };
-        this.undo_mgmt.undo.push(this.take_snapshot());
-        this.undo_mgmt.saved();
-        this
+        }
     }
 
     /// Open a document from a file name.
@@ -61,7 +55,7 @@ impl Document {
         let file_name = file_name.into();
         let file = Rope::from_reader(BufReader::new(File::open(&file_name)?))?;
         let file_name = get_absolute_path(&file_name);
-        let mut this = Self {
+        Ok(Self {
             info: DocumentInfo {
                 loaded_to: 0,
                 eol: !file
@@ -69,7 +63,6 @@ impl Document {
                     .to_string()
                     .is_empty(),
                 read_only: false,
-                modified: false,
             },
             file,
             lines: vec![],
@@ -80,14 +73,11 @@ impl Document {
             offset: Loc::default(),
             size,
             char_ptr: 0,
-            undo_mgmt: UndoMgmt::default(),
+            event_mgmt: EventMgmt::default(),
             tab_width: 4,
             old_cursor: 0,
             in_redo: false,
-        };
-        this.undo_mgmt.undo.push(this.take_snapshot());
-        this.undo_mgmt.saved();
-        Ok(this)
+        })
     }
 
     /// Save back to the file the document was opened from.
@@ -100,8 +90,7 @@ impl Document {
         } else if let Some(file_name) = &self.file_name {
             self.file
                 .write_to(BufWriter::new(File::create(file_name)?))?;
-            self.undo_mgmt.saved();
-            self.info.modified = false;
+            self.event_mgmt.disk_write(&self.take_snapshot());
             Ok(())
         } else {
             Err(Error::NoFileName)

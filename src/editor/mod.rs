@@ -101,8 +101,6 @@ impl Editor {
         // Update in the syntax highlighter
         let mut highlighter = Highlighter::new(4);
         highlighter.run(&doc.lines);
-        // Mark as not saved on disk
-        doc.info.modified = true;
         // Add document to documents
         let file = FileContainer {
             highlighter,
@@ -150,7 +148,6 @@ impl Editor {
         // Set up the document
         doc.set_tab_width(tab_width);
         doc.load_to(size.h);
-        doc.undo_mgmt.saved();
         // Update in the syntax highlighter
         let mut highlighter = file_type.as_ref().map_or(Highlighter::new(tab_width), |t| {
             t.get_highlighter(&self.config, tab_width)
@@ -197,7 +194,6 @@ impl Editor {
                     .file_types
                     .identify(&mut file.doc);
                 // Set up the document
-                file.doc.info.modified = true;
                 file.doc.set_tab_width(tab_width);
                 // Attach the correct highlighter
                 let highlighter = file_type.clone().map_or(Highlighter::new(tab_width), |t| {
@@ -229,8 +225,6 @@ impl Editor {
 
     /// save the document to the disk
     pub fn save(&mut self) -> Result<()> {
-        // Commit events to event manager (for undo / redo)
-        self.doc_mut().commit();
         // Perform the save
         self.doc_mut().save()?;
         // All done
@@ -259,7 +253,6 @@ impl Editor {
             file.highlighter = highlighter;
             file.highlighter.run(&file.doc.lines);
             file.doc.file_name = Some(file_name.clone());
-            file.doc.info.modified = false;
         }
         // Commit events to event manager (for undo / redo)
         self.doc_mut().commit();
@@ -285,7 +278,7 @@ impl Editor {
         // If there are still documents open, only close the requested document
         if self.active {
             let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
-            if !self.doc().info.modified || self.confirm(msg)? {
+            if !self.doc().event_mgmt.with_disk(&self.doc().take_snapshot()) || self.confirm(msg)? {
                 self.files.remove(self.ptr);
                 self.prev();
             }

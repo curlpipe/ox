@@ -1,5 +1,5 @@
 /// document.rs - has Document, for opening, editing and saving documents
-use crate::event::{Error, Event, Result, UndoMgmt};
+use crate::event::{Error, Event, EventMgmt, Result};
 use crate::map::CharMap;
 use crate::searching::{Match, Searcher};
 use crate::utils::{modeline, width, Loc, Size};
@@ -43,7 +43,7 @@ pub struct Document {
     /// Keeps track of where the character pointer is
     pub char_ptr: usize,
     /// Manages events, for the purpose of undo and redo
-    pub undo_mgmt: UndoMgmt,
+    pub event_mgmt: EventMgmt,
     /// Storage of the old cursor x position (to snap back to)
     pub old_cursor: usize,
     /// Flag for if the editor is currently in a redo action
@@ -82,8 +82,7 @@ impl Document {
     /// Will return an error if the event was unable to be completed.
     pub fn exe(&mut self, ev: Event) -> Result<()> {
         if !self.info.read_only {
-            self.undo_mgmt.last_event = ev.clone();
-            self.undo_mgmt.set_dirty();
+            self.event_mgmt.last_event = Some(ev.clone());
             self.forth(ev)?;
         }
         self.cancel_selection();
@@ -94,12 +93,8 @@ impl Document {
     /// # Errors
     /// Will return an error if any of the events failed to be reversed.
     pub fn undo(&mut self) -> Result<()> {
-        if let Some(s) = self.undo_mgmt.undo(self.take_snapshot()) {
+        if let Some(s) = self.event_mgmt.undo(self.take_snapshot()) {
             self.apply_snapshot(s);
-            self.info.modified = true;
-        }
-        if self.undo_mgmt.at_file() {
-            self.info.modified = false;
         }
         Ok(())
     }
@@ -108,12 +103,8 @@ impl Document {
     /// # Errors
     /// Will return an error if any of the events failed to be re-executed.
     pub fn redo(&mut self) -> Result<()> {
-        if let Some(s) = self.undo_mgmt.redo() {
+        if let Some(s) = self.event_mgmt.redo(&self.take_snapshot()) {
             self.apply_snapshot(s);
-            self.info.modified = true;
-        }
-        if self.undo_mgmt.at_file() {
-            self.info.modified = false;
         }
         Ok(())
     }
@@ -369,8 +360,7 @@ impl Document {
     /// Commit a change to the undo management system
     pub fn commit(&mut self) {
         let s = self.take_snapshot();
-        self.undo_mgmt.backpatch_cursor(&self.cursor);
-        self.undo_mgmt.commit(s);
+        self.event_mgmt.commit(s);
     }
 
     /// Completely reload the file

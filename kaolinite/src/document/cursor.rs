@@ -393,7 +393,6 @@ impl Document {
         self.char_ptr = self.character_idx(&self.cursor.loc);
         self.cancel_selection();
         self.bring_cursor_in_viewport();
-        self.info.modified = true;
     }
 
     /// Cancels the current selection
