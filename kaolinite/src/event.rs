@@ -100,6 +100,8 @@ pub struct EventMgmt {
     pub on_disk: Option<usize>,
     /// Store the last event to occur (so that we can see if there is a change)
     pub last_event: Option<Event>,
+    /// Flag to force the file not to be with disk (i.e. file only exists in memory)
+    pub force_not_with_disk: bool,
 }
 
 impl Document {
@@ -141,6 +143,7 @@ impl EventMgmt {
 
     /// To be called when writing to disk
     pub fn disk_write(&mut self, snapshot: &Snapshot) {
+        self.force_not_with_disk = false;
         self.commit(snapshot.clone());
         self.on_disk = self.ptr;
     }
@@ -148,7 +151,9 @@ impl EventMgmt {
     /// A way to query whether we're currently up to date with the disk
     #[must_use]
     pub fn with_disk(&self, snapshot: &Snapshot) -> bool {
-        if let Some(disk) = self.on_disk {
+        if self.force_not_with_disk {
+            false
+        } else if let Some(disk) = self.on_disk {
             self.history.get(disk).map(|s| &s.content) == Some(&snapshot.content)
         } else if self.history.is_empty() {
             true

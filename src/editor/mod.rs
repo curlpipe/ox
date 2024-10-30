@@ -96,6 +96,7 @@ impl Editor {
         size.h = size.h.saturating_sub(1 + self.push_down);
         let mut doc = Document::new(size);
         doc.set_tab_width(self.config.document.borrow().tab_width);
+        doc.event_mgmt.force_not_with_disk = true;
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
         // Update in the syntax highlighter
@@ -278,7 +279,7 @@ impl Editor {
         // If there are still documents open, only close the requested document
         if self.active {
             let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
-            if !self.doc().event_mgmt.with_disk(&self.doc().take_snapshot()) || self.confirm(msg)? {
+            if self.doc().event_mgmt.with_disk(&self.doc().take_snapshot()) || self.confirm(msg)? {
                 self.files.remove(self.ptr);
                 self.prev();
             }
