@@ -218,6 +218,47 @@ function plugin_manager:remove_from_config(plugin)
     return nil
 end
 
+-- Find the local version of a plug-in that is installed
+function plugin_manager:local_version(plugin)
+    -- Open the file
+    local file = io.open(plugin_path .. "/" .. plugin .. ".lua", "r")
+    if not file then return nil end
+    -- Attempt to find a version indicator in the first 10 lines of the file
+    local version = nil
+    for i = 1, 10 do
+        -- Read the line
+        local line = file:read("*line")
+        if not line then break end
+        -- See if there is a match
+        local match = line:match("(v%d+%.%d+)")
+        if match then
+            version = match
+            break
+        end
+    end
+    file:close()
+    return version
+end
+
+-- Find the latest online version of a plug-in
+function plugin_manager:latest_version(plugin)
+    -- Download the plug-in's source
+    local url = "https://raw.githubusercontent.com/curlpipe/ox/refs/heads/master/plugins/" .. plugin .. ".lua"
+    local resp = http.get(url)
+    if resp == "404: Not Found" then return nil end
+    -- Attempt to find a version indicator in the first 10 lines of the file
+    local version = nil
+    for line in resp:gmatch("[^\r\n]+") do
+        -- See if there is a match
+        local match = line:match("(v%d+%.%d+)")
+        if match then
+            version = match
+            break
+        end
+    end
+    return version
+end
+
 commands["plugin"] = function(arguments)
     if arguments[1] == "install" then
         local result = plugin_manager:install(arguments[2])
@@ -228,5 +269,41 @@ commands["plugin"] = function(arguments)
         plugin_manager:uninstall(arguments[2])
     elseif arguments[1] == "status" then
         plugin_manager:status()
+    elseif arguments[1] == "update" then
+        -- editor:display_info(tostring(local_copy) .. " locally vs " .. tostring(latest_copy) .. " latest")
+        editor:display_info("Please wait whilst versions are checked...")
+        editor:rerender_feedback_line()
+        local outdated = {}
+        for _, plugin in ipairs(plugins) do
+            local name = plugin:match("([^/]+)%.lua$")
+            local local_copy = plugin_manager:local_version(name)
+            local latest_copy = plugin_manager:latest_version(name)
+            if local_copy ~= latest_copy then
+                table.insert(outdated, {name, local_copy, latest_copy})
+            end
+        end
+        for _, data in ipairs(outdated) do
+            local name = data[1]
+            local local_copy = data[2]
+            local latest_copy = data[3]
+            local response = editor:prompt(
+                string.format(
+                    "%s needs an update: you have %s, latest is %s, update plugin? (y/n)",
+                    name,
+                    local_copy,
+                    latest_copy
+                )
+            )
+            if response == "y" then
+                editor:display_info("Updating " .. name .. ", please wait...")
+                editor:rerender_feedback_line()
+                local result = plugin_manager:download_plugin(name)
+                if result ~= nil then
+                    editor:display_error("Failed to download plug-in: " .. result)
+                    return
+                end
+            end
+        end
+        editor:display_info("Update check-up completed, you're all set")
     end
 end
