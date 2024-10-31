@@ -768,7 +768,7 @@ impl Assistant {
         result += "\n-- Load Plug-Ins --\n";
         for plugin in &self.plugins {
             result += &plugin.to_config();
-            if plugin == &Plugin::Git {
+            if plugin == &Plugin::Git && self.icons {
                 result += "git = { icons = true }\n";
             }
         }
