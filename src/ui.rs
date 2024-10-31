@@ -141,10 +141,12 @@ impl Terminal {
             execute!(self.stdout, EnableMouseCapture)?;
         }
         terminal::enable_raw_mode()?;
-        execute!(
-            self.stdout,
-            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
-        )?;
+        if cfg!(not(target_os = "windows")) {
+            execute!(
+                self.stdout,
+                PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+            )?;
+        }
         Ok(())
     }
 

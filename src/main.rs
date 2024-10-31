@@ -11,7 +11,7 @@ use config::{
     get_listeners, key_to_string, run_key, run_key_before, Assistant, Config, PLUGIN_BOOTSTRAP,
     PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN,
 };
-use crossterm::event::Event as CEvent;
+use crossterm::event::{Event as CEvent, KeyEvent, KeyEventKind};
 use editor::{Editor, FileTypes};
 use error::{OxError, Result};
 use kaolinite::event::{Error as KError, Event};
@@ -161,31 +161,44 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     // Run the editor and handle errors if applicable
     editor.borrow().update_cwd();
     editor.borrow_mut().init()?;
+    let mut event;
     while editor.borrow().active {
         // Render and wait for event
         editor.borrow_mut().render(&lua)?;
-
-        // While waiting for an event to come along, service the task manager
-        while let Ok(false) = crossterm::event::poll(std::time::Duration::from_millis(100)) {
-            let exec = editor
-                .borrow_mut()
-                .config
-                .task_manager
-                .lock()
-                .unwrap()
-                .execution_list();
-            for task in exec {
-                if let Ok(target) = lua.globals().get::<_, mlua::Function>(task.clone()) {
-                    // Run the code
-                    handle_lua_error("task", target.call(()), &mut editor.borrow_mut().feedback);
-                } else {
-                    editor.borrow_mut().feedback =
-                        Feedback::Warning(format!("Function '{task}' was not found"));
+        // Keep requesting events until a valid one is found
+        loop {
+            // While waiting for an event to come along, service the task manager
+            while let Ok(false) = crossterm::event::poll(std::time::Duration::from_millis(100)) {
+                let exec = editor
+                    .borrow_mut()
+                    .config
+                    .task_manager
+                    .lock()
+                    .unwrap()
+                    .execution_list();
+                for task in exec {
+                    if let Ok(target) = lua.globals().get::<_, mlua::Function>(task.clone()) {
+                        // Run the code
+                        handle_lua_error("task", target.call(()), &mut editor.borrow_mut().feedback);
+                    } else {
+                        editor.borrow_mut().feedback =
+                            Feedback::Warning(format!("Function '{task}' was not found"));
+                    }
                 }
+            }
+
+            // Read the event
+            event = crossterm::event::read()?;
+
+            // Block certain events from passing through
+            match event {
+                // Key release events cause duplicate and initial key press events which should be ignored
+                CEvent::Key(KeyEvent { kind: KeyEventKind::Release, .. }) => (),
+                _ => break,
             }
         }
 
-        let event = crossterm::event::read()?;
+        // Clear feedback
         editor.borrow_mut().feedback = Feedback::None;
 
         // Handle plug-in before key press mappings
