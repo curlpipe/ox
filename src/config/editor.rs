@@ -3,7 +3,7 @@ use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
 use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
-use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name, get_cwd};
+use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
 use kaolinite::{Loc, Size};
 use mlua::prelude::*;
 
@@ -81,9 +81,7 @@ impl LuaUserData for Editor {
                 Ok(None)
             }
         });
-        fields.add_field_method_get("cwd", |_, _| {
-            Ok(get_cwd())
-        });
+        fields.add_field_method_get("cwd", |_, _| Ok(get_cwd()));
     }
 
     #[allow(clippy::too_many_lines)]
