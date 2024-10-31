@@ -584,8 +584,10 @@ impl LuaUserData for Editor {
             let _ = editor.render_feedback_line(w, h);
             // Apply render and restore cursor
             let max = editor.dent();
-            if let Some(Loc { x, y }) = editor.doc().cursor_loc_in_screen() {
-                let _ = editor.terminal.goto(x + max, y + editor.push_down);
+            if let Some(doc) = editor.try_doc() {
+                if let Some(Loc { x, y }) = doc.cursor_loc_in_screen() {
+                    let _ = editor.terminal.goto(x + max, y + editor.push_down);
+                }
             }
             let _ = editor.terminal.show_cursor();
             let _ = editor.terminal.flush();
