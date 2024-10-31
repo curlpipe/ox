@@ -167,7 +167,10 @@ pub fn get_file_ext(path: &str) -> Option<String> {
 #[must_use]
 #[cfg(not(tarpaulin_include))]
 pub fn get_cwd() -> Option<String> {
-    Some(std::env::current_dir().ok()?.display().to_string())
+    let mut cwd = std::env::current_dir().ok()?;
+    // Really hacky solution to clean up messy path
+    cwd.push("");
+    Some(cwd.display().to_string())
 }
 
 /// Will list a directory

@@ -16,7 +16,7 @@ use editor::{Editor, FileTypes};
 use error::{OxError, Result};
 use kaolinite::event::{Error as KError, Event};
 use kaolinite::searching::Searcher;
-use kaolinite::utils::file_or_dir;
+use kaolinite::utils::{file_or_dir, get_cwd};
 use kaolinite::Loc;
 use mlua::Error::{RuntimeError, SyntaxError};
 use mlua::{FromLua, Lua, Value};
@@ -96,7 +96,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     editor.borrow_mut().config.document.borrow_mut().file_types = file_types;
 
     // Open files user has asked to open
-    let cwd = std::env::current_dir()?;
+    let cwd = get_cwd().unwrap_or(".".to_string());
     for (c, file) in cli.to_open.iter().enumerate() {
         // Reset cwd
         let _ = std::env::set_current_dir(&cwd);
