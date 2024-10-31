@@ -319,6 +319,11 @@ impl Editor {
         self.files.get(self.ptr).map(|file| &file.doc)
     }
 
+    /// Try to get a document
+    pub fn try_doc_mut(&mut self) -> Option<&mut Document> {
+        self.files.get_mut(self.ptr).map(|file| &mut file.doc)
+    }
+
     /// Returns a document at a certain index
     pub fn get_doc(&mut self, idx: usize) -> &mut Document {
         &mut self.files.get_mut(idx).unwrap().doc

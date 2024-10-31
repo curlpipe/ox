@@ -3,7 +3,7 @@ use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
 use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
-use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name, get_cwd};
+use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
 use kaolinite::{Loc, Size};
 use mlua::prelude::*;
 
@@ -81,9 +81,7 @@ impl LuaUserData for Editor {
                 Ok(None)
             }
         });
-        fields.add_field_method_get("cwd", |_, _| {
-            Ok(get_cwd())
-        });
+        fields.add_field_method_get("cwd", |_, _| Ok(get_cwd()));
     }
 
     #[allow(clippy::too_many_lines)]
@@ -396,47 +394,65 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("get", |_, editor, ()| {
-            let lines = editor.doc().len_lines();
-            editor.doc_mut().load_to(lines);
-            let contents = editor.doc().lines.join("\n");
-            Ok(contents)
+            if let Some(doc) = editor.try_doc_mut() {
+                let lines = doc.len_lines();
+                doc.load_to(lines);
+                let contents = doc.lines.join("\n");
+                Ok(Some(contents))
+            } else {
+                Ok(None)
+            }
         });
         methods.add_method("get_character", |_, editor, ()| {
-            let loc = editor.doc().char_loc();
-            let ch = editor
-                .doc()
-                .line(loc.y)
-                .unwrap_or_default()
-                .chars()
-                .nth(loc.x)
-                .map(|ch| ch.to_string())
-                .unwrap_or_default();
-            Ok(ch)
+            if let Some(doc) = editor.try_doc() {
+                let loc = doc.char_loc();
+                let ch = doc
+                    .line(loc.y)
+                    .unwrap_or_default()
+                    .chars()
+                    .nth(loc.x)
+                    .map(|ch| ch.to_string())
+                    .unwrap_or_default();
+                Ok(Some(ch))
+            } else {
+                Ok(None)
+            }
         });
         methods.add_method_mut("get_character_at", |_, editor, (x, y): (usize, usize)| {
-            editor.doc_mut().load_to(y);
-            let y = y.saturating_sub(1);
-            let ch = editor
-                .doc()
-                .line(y)
-                .unwrap_or_default()
-                .chars()
-                .nth(x)
-                .map_or_else(String::new, |ch| ch.to_string());
-            editor.update_highlighter();
-            Ok(ch)
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.load_to(y);
+                let y = y.saturating_sub(1);
+                let ch = doc
+                    .line(y)
+                    .unwrap_or_default()
+                    .chars()
+                    .nth(x)
+                    .map_or_else(String::new, |ch| ch.to_string());
+                editor.update_highlighter();
+                Ok(Some(ch))
+            } else {
+                Ok(None)
+            }
         });
         methods.add_method("get_line", |_, editor, ()| {
-            let loc = editor.doc().char_loc();
-            let line = editor.doc().line(loc.y).unwrap_or_default();
-            Ok(line)
+            if let Some(doc) = editor.try_doc() {
+                let loc = doc.char_loc();
+                let line = doc.line(loc.y).unwrap_or_default();
+                Ok(Some(line))
+            } else {
+                Ok(None)
+            }
         });
         methods.add_method_mut("get_line_at", |_, editor, y: usize| {
-            editor.doc_mut().load_to(y);
-            let y = y.saturating_sub(1);
-            let line = editor.doc().line(y).unwrap_or_default();
-            editor.update_highlighter();
-            Ok(line)
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.load_to(y);
+                let y = y.saturating_sub(1);
+                let line = doc.line(y).unwrap_or_default();
+                editor.update_highlighter();
+                Ok(Some(line))
+            } else {
+                Ok(None)
+            }
         });
         // Document management
         methods.add_method_mut("previous_tab", |_, editor, ()| {
@@ -502,7 +518,9 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("commit", |_, editor, ()| {
-            editor.doc_mut().commit();
+            if let Some(doc) = editor.try_doc_mut() {
+                editor.doc_mut().commit();
+            }
             Ok(())
         });
         // Searching and replacing
