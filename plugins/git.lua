@@ -22,11 +22,20 @@ end
 
 function git:repo_path()
     local repo_path_output = shell:output("git rev-parse --show-toplevel")
-    return repo_path_output:gsub("[\r\n]+", ""):gsub("/", path_sep)
+    repo_path_output = repo_path_output:gsub("[\r\n]+", ""):gsub("/", path_sep)
+    if repo_path_output:match("fatal: not a git repository") ~= nil then
+        return nil
+    else
+        return repo_path_output
+    end
 end
 
 function git:refresh_status()
     local repo_path = self:repo_path()
+    if repo_path == nil then
+        self.status = {}
+        return
+    end
     local status_output = shell:output("git status --porcelain")
     local status = {}
     for line in status_output:gmatch("[^\r\n]+") do
