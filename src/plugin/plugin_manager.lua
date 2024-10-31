@@ -119,7 +119,7 @@ function plugin_manager:plugin_downloaded(plugin)
     local base = plugin .. ".lua"
     local path_cross = base
     local path_unix = home .. "/.config/ox/" .. base
-    local path_win = home .. "\\ox\\" .. base
+    local path_win = home .. "/ox/" .. base
     local installed = file_exists(path_cross) or file_exists(path_unix) or file_exists(path_win)
     -- Return true if plug-ins are built in
     local builtin = self:plugin_is_builtin(plugin)
@@ -135,7 +135,7 @@ function plugin_manager:download_plugin(plugin)
         return "Plug-in not found in repository"
     end
     -- Find the path to download it to
-    local path = plugin_path .. path_sep .. plugin .. ".lua"
+    local path = plugin_path .. "/" .. plugin .. ".lua"
     -- Create the plug-in directory if it doesn't already exist
     if not dir_exists(plugin_path) then
         if shell:run("mkdir " .. plugin_path) ~= 0 then
@@ -155,8 +155,8 @@ end
 -- Remove a plug-in from the configuration directory
 function plugin_manager:remove_plugin(plugin)
     -- Obtain the path
-    local path = path_sep == '\\' and home .. "\\ox" or home .. "/.config/ox"
-    path = path .. path_sep .. plugin .. ".lua"
+    local path = package.config:sub(1,1) == '\\' and home .. "/ox" or home .. "/.config/ox"
+    path = path .. "/" .. plugin .. ".lua"
     -- Remove the file
     local success, err = os.remove(path)
     if not success then
@@ -169,7 +169,7 @@ end
 -- Verify whether the plug-in is being imported in the configuration file
 function plugin_manager:plugin_in_config(plugin)
     -- Find the configuration file path
-    local path = home .. path_sep .. ".oxrc"
+    local path = home .. "/.oxrc"
     -- Open the document
     local file = io.open(path, "r")
     if not file then return false end
@@ -188,7 +188,7 @@ end
 
 -- Append the plug-in import code to the configuration file so it is loaded
 function plugin_manager:append_to_config(plugin)
-    local path = home .. path_sep .. ".oxrc"
+    local path = home .. "/.oxrc"
     local file = io.open(path, "a")
     if not file then
         return "Failed to open configuration file"
@@ -201,7 +201,7 @@ end
 -- Remove plug-in import code from the configuration file
 function plugin_manager:remove_from_config(plugin)
     -- Find the configuration file path
-    local path = home .. path_sep .. ".oxrc"
+    local path = home .. "/.oxrc"
     -- Open the configuration file
     local file = io.open(path, "r")
     if not file then
@@ -282,7 +282,7 @@ commands["plugin"] = function(arguments)
         editor:rerender_feedback_line()
         local outdated = {}
         for _, plugin in ipairs(plugins) do
-            local name = plugin:match("([^/]+)%.lua$")
+            local name = plugin:match("([^/\\]+)%.lua$")
             local local_copy = plugin_manager:local_version(name)
             local latest_copy = plugin_manager:latest_version(name)
             if local_copy ~= latest_copy then
