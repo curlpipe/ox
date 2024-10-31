@@ -254,7 +254,9 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         }
 
         editor.borrow_mut().update_highlighter();
-        editor.borrow_mut().greet = false;
+        if !matches!(event, CEvent::Resize(_, _)) {
+            editor.borrow_mut().greet = false;
+        }
 
         // Check for any commands to run
         let command = editor.borrow().command.clone();
