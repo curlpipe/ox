@@ -120,13 +120,6 @@ function shell:spawn(cmd)
     -- Spawns a command (silently), and have it run in the background
     -- Returns PID so process can be killed later
     if self.is_windows then
-        local command = cmd .. " > /dev/null 2>&1 & echo $!"
-        local pid = shell:output(command)
-        pid = pid:gsub("%s+", "")
-        pid = pid:gsub("\\n", "")
-        pid = pid:gsub("\\t", "")
-        return pid
-    else
         -- Write the command to a batch file
         local temp = os.tmpname() .. ".bat"
         local handle = io.open(temp, "w")
@@ -149,12 +142,23 @@ function shell:spawn(cmd)
         end
         -- Return the PID
         return lastPID
+    else
+        local command = cmd .. " > /dev/null 2>&1 & echo $!"
+        local pid = shell:output(command)
+        pid = pid:gsub("%s+", "")
+        pid = pid:gsub("\\n", "")
+        pid = pid:gsub("\\t", "")
+        return pid
     end
 end
 
 function shell:kill(pid)
     if pid ~= nil then
-        shell:run("kill " .. tostring(pid))
+        if self.is_windows then
+            shell:run("kill " .. tostring(pid))
+        else
+            shell:run("taskkill /PID " .. tostring(pid) .. " /F")
+        end
     end
 end
 
