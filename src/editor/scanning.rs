@@ -1,9 +1,9 @@
 use crate::display;
 /// Functions for searching and replacing
 use crate::error::{OxError, Result};
-use crate::ui::size;
+use crate::ui::{key_event, size};
 use crossterm::{
-    event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
+    event::{read, KeyCode as KCode, KeyModifiers as KMod},
     queue,
     style::{Attribute, Print, SetAttribute, SetBackgroundColor as Bg},
 };
@@ -44,8 +44,8 @@ impl Editor {
                 self.terminal.hide_cursor()?;
             }
             self.terminal.flush()?;
-            if let CEvent::Key(key) = read()? {
-                match (key.modifiers, key.code) {
+            if let Some((modifiers, code)) = key_event(&read()?) {
+                match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
                     // Cancel operation
@@ -95,8 +95,8 @@ impl Editor {
             }
             self.terminal.flush()?;
             // Handle events
-            if let CEvent::Key(key) = read()? {
-                match (key.modifiers, key.code) {
+            if let Some((modifiers, code)) = key_event(&read()?) {
+                match (modifiers, code) {
                     // On return or escape key, exit menu
                     (KMod::NONE, KCode::Enter) => done = true,
                     (KMod::NONE, KCode::Esc) => {
@@ -189,8 +189,8 @@ impl Editor {
             }
             self.terminal.flush()?;
             // Handle events
-            if let CEvent::Key(key) = read()? {
-                match (key.modifiers, key.code) {
+            if let Some((modifiers, code)) = key_event(&read()?) {
+                match (modifiers, code) {
                     // On escape key, exit
                     (KMod::NONE, KCode::Esc) => done = true,
                     // On right key, move to the previous match, keeping note of what that match is

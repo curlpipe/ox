@@ -1,9 +1,9 @@
 use crate::error::{OxError, Result};
-use crate::ui::{size, Feedback};
+use crate::ui::{key_event, size, Feedback};
 /// Functions for rendering the UI
 use crate::{display, handle_lua_error};
 use crossterm::{
-    event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
+    event::{read, KeyCode as KCode, KeyModifiers as KMod},
     queue,
     style::{
         Attribute, Color, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg,
@@ -316,8 +316,8 @@ impl Editor {
             self.terminal.goto(prompt.len() + input.len() + 2, h)?;
             self.terminal.flush()?;
             // Handle events
-            if let CEvent::Key(key) = read()? {
-                match (key.modifiers, key.code) {
+            if let Some((modifiers, code)) = key_event(&read()?) {
+                match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
                     // Cancel operation
@@ -394,8 +394,8 @@ impl Editor {
             self.terminal.goto(6 + width(&input, tab_width), h)?;
             self.terminal.flush()?;
             // Handle events
-            if let CEvent::Key(key) = read()? {
-                match (key.modifiers, key.code) {
+            if let Some((modifiers, code)) = key_event(&read()?) {
+                match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
                     // Cancel when escape key is pressed
@@ -443,8 +443,8 @@ impl Editor {
             self.render_feedback_line(w, h)?;
             self.terminal.flush()?;
             // Handle events
-            if let CEvent::Key(key) = read()? {
-                match (key.modifiers, key.code) {
+            if let Some((modifiers, code)) = key_event(&read()?) {
+                match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Esc) => {
                         done = true;

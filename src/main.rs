@@ -179,7 +179,11 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
                 for task in exec {
                     if let Ok(target) = lua.globals().get::<_, mlua::Function>(task.clone()) {
                         // Run the code
-                        handle_lua_error("task", target.call(()), &mut editor.borrow_mut().feedback);
+                        handle_lua_error(
+                            "task",
+                            target.call(()),
+                            &mut editor.borrow_mut().feedback,
+                        );
                     } else {
                         editor.borrow_mut().feedback =
                             Feedback::Warning(format!("Function '{task}' was not found"));
@@ -193,7 +197,10 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             // Block certain events from passing through
             match event {
                 // Key release events cause duplicate and initial key press events which should be ignored
-                CEvent::Key(KeyEvent { kind: KeyEventKind::Release, .. }) => (),
+                CEvent::Key(KeyEvent {
+                    kind: KeyEventKind::Release,
+                    ..
+                }) => (),
                 _ => break,
             }
         }

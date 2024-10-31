@@ -6,6 +6,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
         DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        Event as CEvent, KeyCode as KCode, KeyEvent, KeyEventKind, KeyModifiers as KMod,
         KeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute, queue,
@@ -50,6 +51,21 @@ pub fn fatal_error(msg: &str) {
         SetAttribute(Attribute::Reset)
     );
     std::process::exit(1);
+}
+
+/// Shorthand to read key events
+pub fn key_event(kev: &CEvent) -> Option<(KMod, KCode)> {
+    if let CEvent::Key(KeyEvent {
+        modifiers,
+        code,
+        kind: KeyEventKind::Press,
+        ..
+    }) = kev
+    {
+        Some((*modifiers, *code))
+    } else {
+        None
+    }
 }
 
 /// Represents different status messages
