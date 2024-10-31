@@ -133,8 +133,13 @@ function plugin_manager:download_plugin(plugin)
         return "Plug-in not found in repository"
     end
     -- Find the path to download it to
-    local path = package.config:sub(1,1) == '\\' and home .. "/ox" or home .. "/.config/ox"
-    path = path .. "/" .. plugin .. ".lua"
+    local path = plugin_path .. "/" .. plugin .. ".lua"
+    -- Create the plug-in directory if it doesn't already exist
+    if not dir_exists(plugin_path) then
+        if shell:run("mkdir " .. plugin_path) ~= 0 then
+            return "Failed to make directory at " .. plugin_path
+        end
+    end
     -- Write it to a file
     file = io.open(path, "w")
     if not file then

@@ -17,6 +17,20 @@ function file_exists(file_path)
     end
 end
 
+function dir_exists(dir_path)
+    -- Check if the directory exists using the appropriate command
+    local is_windows = package.config:sub(1, 1) == '\\'  -- Check if Windows
+    local command
+    if is_windows then
+        command = "if exist \"" .. dir_path .. "\" (exit 0) else (exit 1)"
+    else
+        command = "if [ -d \"" .. dir_path .. "\" ]; then exit 0; else exit 1; fi"
+    end
+    -- Execute the command
+    local result = shell:run(command)
+    return result == 0
+end
+
 plugins = {}
 builtins = {}
 plugin_issues = false
