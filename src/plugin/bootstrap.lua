@@ -94,11 +94,17 @@ function python_interop:has_module(module_name)
 end
 
 -- Command line interaction
-shell = {}
+shell = {
+    is_windows = os.getenv("OS") and os.getenv("OS"):find("Windows") ~= nil,
+}
 
 function shell:run(cmd)
     -- Runs a command (silently) and return the exit code
-    return select(3, os.execute(cmd .. " > /dev/null 2>&1"))
+    if self.is_windows then
+        return select(3, os.execute(cmd .. " > NUL 2>&1"))
+    else
+        return select(3, os.execute(cmd .. " > /dev/null 2>&1"))
+    end
 end
 
 function shell:output(cmd)
@@ -113,7 +119,12 @@ end
 function shell:spawn(cmd)
     -- Spawns a command (silently), and have it run in the background
     -- Returns PID so process can be killed later
-    local command = cmd .. " > /dev/null 2>&1 & echo $!"
+    local command
+    if self.is_windows then
+        command = cmd .. " > NUL 2>&1 & echo $!"
+    else
+        command = cmd .. " > /dev/null 2>&1 & echo $!"
+    end
     local pid = shell:output(command)
     pid = pid:gsub("%s+", "")
     pid = pid:gsub("\\n", "")
