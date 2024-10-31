@@ -45,7 +45,7 @@ function load_plugin(base)
     elseif file_exists(path_unix) then
         path = path_unix
     elseif file_exists(path_win) then
-        path = file_win
+        path = path_win
     else
         path = nil
         -- Prevent warning if plug-in is built-in
