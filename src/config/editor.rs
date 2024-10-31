@@ -579,7 +579,6 @@ impl LuaUserData for Editor {
         methods.add_method_mut("rerender_feedback_line", |_, editor, ()| {
             // If you can't render the editor, you're pretty much done for anyway
             let Size { w, mut h } = crate::ui::size().unwrap_or(Size { w: 0, h: 0 });
-            let max = editor.dent();
             h = h.saturating_sub(1 + editor.push_down);
             let _ = editor.terminal.hide_cursor();
             // Apply render and restore cursor
@@ -587,6 +586,7 @@ impl LuaUserData for Editor {
                 let _ = editor.render_feedback_line(w, h);
             }
             if let Some(doc) = editor.try_doc() {
+                let max = editor.dent();
                 if let Some(Loc { x, y }) = doc.cursor_loc_in_screen() {
                     let _ = editor.terminal.goto(x + max, y + editor.push_down);
                 }
