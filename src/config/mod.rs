@@ -2,7 +2,6 @@
 use crate::editor::{FileType, FileTypes};
 use crate::error::{OxError, Result};
 use mlua::prelude::*;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::{
     cell::RefCell,
@@ -165,10 +164,11 @@ impl Config {
         }
 
         // Determine whether or not to load built-in plugins
-        let mut builtins: HashMap<&str, &str> = HashMap::default();
-        builtins.insert("pairs.lua", PAIRS);
-        builtins.insert("autoindent.lua", AUTOINDENT);
-        builtins.insert("quickcomment.lua", QUICKCOMMENT);
+        let builtins: Vec<(&str, &str)> = vec![
+            ("autoindent.lua", AUTOINDENT),
+            ("quickcomment.lua", QUICKCOMMENT),
+            ("pairs.lua", PAIRS),
+        ];
         for (name, code) in &builtins {
             if Self::load_bi(name, user_provided_config, lua) {
                 lua.load(*code).exec()?;
