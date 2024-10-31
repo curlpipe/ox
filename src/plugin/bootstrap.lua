@@ -119,17 +119,37 @@ end
 function shell:spawn(cmd)
     -- Spawns a command (silently), and have it run in the background
     -- Returns PID so process can be killed later
-    local command
     if self.is_windows then
-        command = cmd .. " > NUL 2>&1 & echo $!"
+        local command = cmd .. " > /dev/null 2>&1 & echo $!"
+        local pid = shell:output(command)
+        pid = pid:gsub("%s+", "")
+        pid = pid:gsub("\\n", "")
+        pid = pid:gsub("\\t", "")
+        return pid
     else
-        command = cmd .. " > /dev/null 2>&1 & echo $!"
+        -- Write the command to a batch file
+        local temp = os.tmpname() .. ".bat"
+        local handle = io.open(temp, "w")
+        if not handle then return nil end
+        handle:write(cmd .. " > NUL 2>&1")
+        handle:close()
+        -- Run the process
+        self:run("start /B cmd /C \"" .. temp .. "\"")
+        -- Find the PID of the latest program to be run
+        local tasks = self:output("tasklist /fo csv /nh")
+        local lastPID = nil
+        for line in tasks:gmatch("[^\r\n]+") do
+            local columns = {}
+            for column in line:gmatch('("[^"]*"|%S+)') do
+                table.insert(columns, column:gsub('"', ''))
+            end
+            if #columns > 1 and line:match('"tasklist%.exe"') == nil then
+                lastPID = columns[2]
+            end
+        end
+        -- Return the PID
+        return lastPID
     end
-    local pid = shell:output(command)
-    pid = pid:gsub("%s+", "")
-    pid = pid:gsub("\\n", "")
-    pid = pid:gsub("\\t", "")
-    return pid
 end
 
 function shell:kill(pid)
