@@ -55,6 +55,7 @@ function plugin_manager:install(plugin)
     end
     -- Reload configuration file and plugins just to be safe
     editor:reload_plugins()
+    editor:reset_terminal()
     editor:display_info("Plugin was installed successfully")
     return true
 end
@@ -85,6 +86,7 @@ function plugin_manager:uninstall(plugin)
     end
     -- Reload configuration file and plugins just to be safe
     editor:reload_plugins()
+    editor:reset_terminal()
     editor:display_info("Plugin was uninstalled successfully")
 end
 
