@@ -205,8 +205,11 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             }
         }
 
-        // Clear feedback
-        editor.borrow_mut().feedback = Feedback::None;
+        // Clear screen of temporary items (expect on resize event)
+        if !matches!(event, CEvent::Resize(_, _)) {
+            editor.borrow_mut().greet = false;
+            editor.borrow_mut().feedback = Feedback::None;
+        }
 
         // Handle plug-in before key press mappings
         if let CEvent::Key(key) = event {
@@ -254,9 +257,6 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         }
 
         editor.borrow_mut().update_highlighter();
-        if !matches!(event, CEvent::Resize(_, _)) {
-            editor.borrow_mut().greet = false;
-        }
 
         // Check for any commands to run
         let command = editor.borrow().command.clone();
