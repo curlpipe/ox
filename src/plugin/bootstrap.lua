@@ -120,28 +120,9 @@ function shell:spawn(cmd)
     -- Spawns a command (silently), and have it run in the background
     -- Returns PID so process can be killed later
     if self.is_windows then
-        -- Write the command to a batch file
-        local temp = os.tmpname() .. ".bat"
-        local handle = io.open(temp, "w")
-        if not handle then return nil end
-        handle:write(cmd .. " > NUL 2>&1")
-        handle:close()
-        -- Run the process
-        self:run("start /B cmd /C \"" .. temp .. "\"")
-        -- Find the PID of the latest program to be run
-        local tasks = self:output("tasklist /fo csv /nh")
-        local lastPID = nil
-        for line in tasks:gmatch("[^\r\n]+") do
-            local columns = {}
-            for column in line:gmatch('("[^"]*"|%S+)') do
-                table.insert(columns, column:gsub('"', ''))
-            end
-            if #columns > 1 and line:match('"tasklist%.exe"') == nil then
-                lastPID = columns[2]
-            end
-        end
-        -- Return the PID
-        return lastPID
+        editor:display_error("Shell spawning is unavailable on Windows")
+        editor:rerender_feedback_line()
+        return nil
     else
         local command = cmd .. " > /dev/null 2>&1 & echo $!"
         local pid = shell:output(command)
@@ -153,12 +134,12 @@ function shell:spawn(cmd)
 end
 
 function shell:kill(pid)
-    if pid ~= nil then
-        if self.is_windows then
-            shell:run("kill " .. tostring(pid))
-        else
-            shell:run("taskkill /PID " .. tostring(pid) .. " /F")
-        end
+    if self.is_windows then
+        editor:display_error("Shell spawning is unavailable on Windows")
+        editor:rerender_feedback_line()
+        return nil
+    elseif pid ~= nil then
+        shell:run("kill " .. tostring(pid))
     end
 end
 
