@@ -48,6 +48,14 @@ pub fn get_listeners<'a>(name: &'a str, lua: &'a Lua) -> Result<Vec<LuaFunction<
     Ok(result)
 }
 
+/// Normalises key presses (across windows and unix based systems)
+pub fn key_normalise(code: &mut String) {
+    let punctuation: Vec<char> = "!\"£$%^&*(){}:@~<>?~|¬".chars().collect();
+    for c in punctuation {
+        *code = code.replace(&format!("shift_{c}"), &c.to_string());
+    }
+}
+
 /// Converts a key taken from a crossterm event into string format
 pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
     let mut result = String::new();
@@ -123,5 +131,7 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
         }
         .to_string(),
     };
+    // Ensure consistent key codes across platforms
+    key_normalise(&mut result);
     result
 }
