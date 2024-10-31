@@ -1,8 +1,8 @@
 -- Networking library (for plug-ins to use)
--- Uses curl on unix based systems and powershell on windows
+-- Uses curl
 
 http = {
-    backend = package.config:sub(1,1) == '\\' and 'powershell' or 'curl',
+    backend = "curl",
 }
 
 local function execute(cmd)
@@ -13,56 +13,21 @@ local function execute(cmd)
 end
 
 function http.get(url)
-    -- Using curl for the request
-    local cmd
-    if http.backend == 'curl' then
-        cmd = "curl -s -X GET '" .. url .. "'"
-    else
-        cmd = table.concat({
-            'powershell -Command "Invoke-WebRequest -Uri \'', url,
-            '\' -UseBasicParsing | Select-Object -ExpandProperty Content"'
-        })
-    end
+	local cmd = "curl -s -X GET '" .. url .. "'"
     return execute(cmd)
 end
 
 function http.post(url, data)
-    local cmd
-    if http.backend == 'curl' then
-        cmd = "curl -s -X POST -d \"" .. data .. "\" '" .. url .. "'"
-    else
-        cmd = table.concat({
-            'powershell -Command "Invoke-WebRequest -Uri \'', url,
-            '\' -Method POST -Body \'', data,
-            '\' -UseBasicParsing | Select-Object -ExpandProperty Content"'
-        })
-    end
+    local cmd = "curl -s -X POST -d \"" .. data .. "\" '" .. url .. "'"
     return execute(cmd)
 end
 
 function http.put(url, data)
-    local cmd
-    if http.backend == 'curl' then
-        cmd = "curl -s -X PUT -d '" .. data .. "' '" .. url .. "'"
-    else
-        cmd = table.concat({
-            'powershell -Command "Invoke-WebRequest -Uri \'', url,
-            '\' -Method PUT -Body \'', data,
-            '\' -UseBasicParsing | Select-Object -ExpandProperty Content"'
-        })
-    end
+    local cmd = "curl -s -X PUT -d '" .. data .. "' '" .. url .. "'"
     return execute(cmd)
 end
 
 function http.delete(url)
-    local cmd
-    if http.backend == 'curl' then
-        cmd = "curl -s -X DELETE '" .. url .. "'"
-    else
-        cmd = table.concat({
-            'powershell -Command "Invoke-WebRequest -Uri \'', url,
-            '\' -Method DELETE -UseBasicParsing | Select-Object -ExpandProperty Content"'
-        })
-    end
+    local cmd = "curl -s -X DELETE '" .. url .. "'"
     return execute(cmd)
 end
