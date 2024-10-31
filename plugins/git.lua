@@ -1,5 +1,5 @@
 --[[
-Git v0.4
+Git v0.5
 
 A plug-in for git integration that provides features to: 
  - Choose which files to add to a commit
@@ -22,7 +22,7 @@ end
 
 function git:repo_path()
     local repo_path_output = shell:output("git rev-parse --show-toplevel")
-    return repo_path_output:gsub("[\r\n]+", "")
+    return repo_path_output:gsub("[\r\n]+", ""):gsub("/", path_sep)
 end
 
 function git:refresh_status()
@@ -32,7 +32,7 @@ function git:refresh_status()
     for line in status_output:gmatch("[^\r\n]+") do
         local staged_status = line:sub(1, 1)
         local unstaged_status = line:sub(2, 2)
-        local file_name = repo_path .. "/" .. line:sub(4)
+        local file_name = repo_path .. path_sep .. line:sub(4)
         local staged
         local modified
         if self.icons then
@@ -166,7 +166,7 @@ commands["git"] = function(args)
         elseif args[1] == "stat" then
             local stats = git:get_stats()
             for _, t in ipairs(stats.files) do
-                if repo_path .. "/" .. t.file == editor.file_path then
+                if repo_path .. path_sep .. t.file == editor.file_path then
                     editor:display_info(string.format(
                         "%s: %s insertions, %s deletions",
                         t.file, t.insertions, t.deletions
