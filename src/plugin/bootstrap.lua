@@ -1,7 +1,8 @@
 -- Bootstrap code provides plug-ins and configuration with APIs and other utilities
 home = os.getenv("HOME") or os.getenv("USERPROFILE")
+path_sep = package.config:sub(1,1)
 
-if package.config:sub(1,1) == "\\" then
+if path_sep == "\\" then
     plugin_path = home .. "\\ox"
 else
     plugin_path = home .. "/.config/ox"
