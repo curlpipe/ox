@@ -2,7 +2,7 @@
 home = os.getenv("HOME") or os.getenv("USERPROFILE")
 
 if package.config:sub(1,1) == "\\" then
-    plugin_path = home .. "/ox"
+    plugin_path = home .. "\\ox"
 else
     plugin_path = home .. "/.config/ox"
 end
@@ -24,7 +24,7 @@ plugin_issues = false
 function load_plugin(base)
     path_cross = base
     path_unix = home .. "/.config/ox/" .. base
-    path_win = home .. "/ox/" .. base
+    path_win = home .. "\\ox\\" .. base
     if file_exists(path_cross) then
         path = path_cross
     elseif file_exists(path_unix) then

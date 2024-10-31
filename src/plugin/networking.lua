@@ -13,21 +13,21 @@ local function execute(cmd)
 end
 
 function http.get(url)
-	local cmd = "curl -s -X GET '" .. url .. "'"
+	local cmd = 'curl -s -X GET "' .. url .. '"'
     return execute(cmd)
 end
 
 function http.post(url, data)
-    local cmd = "curl -s -X POST -d \"" .. data .. "\" '" .. url .. "'"
+    local cmd = 'curl -s -X POST -d "' .. data .. '"' .. url .. '"'
     return execute(cmd)
 end
 
 function http.put(url, data)
-    local cmd = "curl -s -X PUT -d '" .. data .. "' '" .. url .. "'"
+    local cmd = 'curl -s -X PUT -d "' .. data .. '"  "' .. url .. '"'
     return execute(cmd)
 end
 
 function http.delete(url)
-    local cmd = "curl -s -X DELETE '" .. url .. "'"
+    local cmd = 'curl -s -X DELETE "' .. url .. '"'
     return execute(cmd)
 end
