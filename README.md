@@ -40,7 +40,7 @@ If you're looking for a text editor that...
 
 It runs in your terminal as a text-user-interface, just like vim, nano and micro, however, it is not based on any existing editors and has been built from the ground up.
 
-It is mainly designed on linux systems, but macOS and Windows users (via WSL) are free to give it a go. Work is currently underway to get it working perfectly on all systems.
+It works best on linux, but macOS and Windows are also supported.
 
 ## Selling Points
 
