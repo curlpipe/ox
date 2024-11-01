@@ -14,7 +14,6 @@ git = {
     status = {},
     icons = (git or { icons = false }).icons,
     has_git = shell:output("git --version"):find("git version"),
-    is_supported = path_sep ~= "\\",
 }
 
 function git:ready()
@@ -27,7 +26,6 @@ function git:repo_path()
 end
 
 function git:refresh_status()
-    if not self.is_supported then return end
     local repo_path = self:repo_path()
     local status_output = shell:output("git status --porcelain")
     local status = {}
@@ -89,16 +87,12 @@ function git:diff_all()
 end
 
 function git_branch()
-    if git.is_supported then
-        git:refresh_status()
-        local branch = shell:output("git rev-parse --abbrev-ref HEAD")
-        if branch == "" or branch:match("fatal") then
-            return "N/A"
-        else
-            return branch:gsub("[\r\n]+", "")
-        end
+    git:refresh_status()
+    local branch = shell:output("git rev-parse --abbrev-ref HEAD")
+    if branch == "" or branch:match("fatal") then
+        return "N/A"
     else
-        return "Unsupported"
+        return branch:gsub("[\r\n]+", "")
     end
 end
 
@@ -130,8 +124,6 @@ commands["git"] = function(args)
     -- Check if git is installed
     if not git:ready() then
         editor:display_error("Git: git installation not found")
-    elseif not git.is_supported then
-        editor:display_error("Git plug-in is not supported on Windows")
     else
         local repo_path = git:repo_path()
         if args[1] == "commit" then

@@ -142,7 +142,11 @@ pub fn tab_boundaries_backward(line: &str, tab_width: usize) -> Vec<usize> {
 #[must_use]
 pub fn get_absolute_path(path: &str) -> Option<String> {
     let abs = std::fs::canonicalize(path).ok()?;
-    Some(abs.to_string_lossy().to_string())
+    let mut abs = abs.to_string_lossy().to_string();
+    if abs.starts_with("\\\\?\\") {
+        abs = abs[4..].to_string();
+    }
+    Some(abs)
 }
 
 /// Will get the file name from a file
@@ -167,10 +171,13 @@ pub fn get_file_ext(path: &str) -> Option<String> {
 #[must_use]
 #[cfg(not(tarpaulin_include))]
 pub fn get_cwd() -> Option<String> {
-    let mut cwd = std::env::current_dir().ok()?;
-    // Really hacky solution to clean up messy path
-    cwd.push("");
-    Some(cwd.display().to_string())
+    let cwd = std::env::current_dir().ok()?;
+    let mut cwd = cwd.display().to_string();
+    // Strip away annoying verbatim component
+    if cwd.starts_with("\\\\?\\") {
+        cwd = cwd[4..].to_string();
+    }
+    Some(cwd)
 }
 
 /// Will list a directory
