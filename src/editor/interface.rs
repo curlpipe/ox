@@ -339,14 +339,14 @@ impl Editor {
     /// Prompt for selecting a file
     #[allow(clippy::similar_names)]
     pub fn path_prompt(&mut self) -> Result<String> {
-        let mut input = get_cwd().map(|s| s + "/").unwrap_or_default();
+        let mut input = get_cwd().unwrap_or_default();
         let mut offset = 0;
         let mut done = false;
         let mut old_suggestions = vec![];
         // Enter into a menu that asks for a prompt
         while !done {
             // Find the suggested files and folders
-            let parent = if input.ends_with('/') {
+            let parent = if input.ends_with('/') || input.ends_with('\\') {
                 input.to_string()
             } else {
                 get_parent(&input).unwrap_or_default()
@@ -409,7 +409,7 @@ impl Editor {
                     // Autocomplete path
                     (KMod::NONE, KCode::Right) => {
                         if file_or_dir(&suggestion) == "directory" {
-                            suggestion += "/";
+                            suggestion.push(std::path::MAIN_SEPARATOR);
                         }
                         input = suggestion;
                         offset = 0;
