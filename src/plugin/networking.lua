@@ -18,7 +18,7 @@ function http.get(url)
 end
 
 function http.post(url, data)
-    local cmd = 'curl -s -X POST -d "' .. data .. '"' .. url .. '"'
+    local cmd = 'curl -s -X POST -d "' .. data .. '" "' .. url .. '"'
     return execute(cmd)
 end
 

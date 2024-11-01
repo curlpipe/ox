@@ -339,7 +339,15 @@ impl Editor {
     /// Prompt for selecting a file
     #[allow(clippy::similar_names)]
     pub fn path_prompt(&mut self) -> Result<String> {
-        let mut input = get_cwd().unwrap_or_default();
+        let mut input = get_cwd()
+            .map(|p| {
+                if p.ends_with(std::path::MAIN_SEPARATOR) {
+                    p
+                } else {
+                    p + std::path::MAIN_SEPARATOR_STR
+                }
+            })
+            .unwrap_or_default();
         let mut offset = 0;
         let mut done = false;
         let mut old_suggestions = vec![];

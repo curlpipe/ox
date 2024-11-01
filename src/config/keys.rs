@@ -59,7 +59,7 @@ pub fn key_normalise(code: &mut String) {
     let punctuation: Vec<char> = "!\"£$%^&*(){}:@~<>?~|¬".chars().collect();
     for c in punctuation {
         if c == '"' {
-            *code = code.replace(&format!("shift_\\\""), &c.to_string());
+            *code = code.replace("shift_\\\"", &c.to_string());
         } else {
             *code = code.replace(&format!("shift_{c}"), &c.to_string());
         }
