@@ -71,6 +71,7 @@ It works best on linux, but macOS and Windows are also supported.
 
 - :globe_with_meridians: Handles double-width unicode characters like a charm, including those of the Chinese, Korean and Japanese languages and emojis
 - :boxing_glove: Backend has been thoroughly tested via automated unit tests
+- :rainbow: Automatically adapts your colour schemes to work on terminals with limited colours
 
 ## Installation
 
