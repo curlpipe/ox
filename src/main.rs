@@ -101,10 +101,12 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         .get("file_types")
         .unwrap_or(Value::Table(lua.create_table()?));
     let file_types = FileTypes::from_lua(file_types, &lua).unwrap_or_default();
-    let config = &mut ged!(mut &editor).config;
-    let mut document = config.document.borrow_mut::<config::Document>().unwrap();
-    document.file_types = file_types;
-
+    ged!(mut &editor)
+        .config
+        .document
+        .borrow_mut::<config::Document>()
+        .unwrap()
+        .file_types = file_types;
     // Open files user has asked to open
     let cwd = get_cwd().unwrap_or(".".to_string());
     for (c, file) in cli.to_open.iter().enumerate() {
