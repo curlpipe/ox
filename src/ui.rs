@@ -17,11 +17,10 @@ use crossterm::{
     },
 };
 use kaolinite::utils::Size;
-use std::cell::RefCell;
+use mlua::AnyUserData;
 use std::collections::HashMap;
 use std::env;
 use std::io::{stdout, Stdout, Write};
-use std::rc::Rc;
 
 /// Printing macro
 #[macro_export]
@@ -123,11 +122,11 @@ impl Feedback {
 
 pub struct Terminal {
     pub stdout: Stdout,
-    pub config: Rc<RefCell<TerminalConfig>>,
+    pub config: AnyUserData,
 }
 
 impl Terminal {
-    pub fn new(config: Rc<RefCell<TerminalConfig>>) -> Self {
+    pub fn new(config: AnyUserData) -> Self {
         Terminal {
             stdout: stdout(),
             config,
@@ -155,7 +154,8 @@ impl Terminal {
             DisableLineWrap,
             EnableBracketedPaste,
         )?;
-        if self.config.borrow().mouse_enabled {
+        let cfg = self.config.borrow::<TerminalConfig>().unwrap();
+        if cfg.mouse_enabled {
             execute!(self.stdout, EnableMouseCapture)?;
         }
         terminal::enable_raw_mode()?;
@@ -178,7 +178,8 @@ impl Terminal {
             EnableLineWrap,
             DisableBracketedPaste
         )?;
-        if self.config.borrow().mouse_enabled {
+        let cfg = self.config.borrow::<TerminalConfig>().unwrap();
+        if cfg.mouse_enabled {
             execute!(self.stdout, DisableMouseCapture)?;
         }
         Ok(())

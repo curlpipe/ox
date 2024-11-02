@@ -1,7 +1,7 @@
-use crate::display;
 /// Functions for searching and replacing
 use crate::error::{OxError, Result};
 use crate::ui::{key_event, size};
+use crate::{config, display};
 use crossterm::{
     event::{read, KeyCode as KCode, KeyModifiers as KMod},
     queue,
@@ -24,7 +24,7 @@ impl Editor {
             // Render prompt message
             self.terminal.prepare_line(h)?;
             self.terminal.show_cursor()?;
-            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
+            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             display!(
                 self,
                 editor_bg,

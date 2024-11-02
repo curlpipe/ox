@@ -1,5 +1,6 @@
-use crate::ui::size;
+use crate::config;
 /// For handling mouse events
+use crate::ui::size;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use kaolinite::{utils::width, Loc};
 use mlua::Lua;
@@ -20,7 +21,7 @@ enum MouseLocation {
 impl Editor {
     /// Finds the position of the mouse within the viewport
     fn find_mouse_location(&mut self, lua: &Lua, event: MouseEvent) -> MouseLocation {
-        let tab_enabled = self.config.tab_line.borrow().enabled;
+        let tab_enabled = config!(self.config, tab_line).enabled;
         let tab = usize::from(tab_enabled);
         if event.row == 0 && tab_enabled {
             let (tabs, _, offset) = self.get_tab_parts(lua, size().map_or(0, |s| s.w));
@@ -120,7 +121,7 @@ impl Editor {
             // Mouse scroll behaviour
             MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
                 if let MouseLocation::File(_) = self.find_mouse_location(lua, event) {
-                    let scroll_amount = self.config.terminal.borrow().scroll_amount;
+                    let scroll_amount = config!(self.config, terminal).scroll_amount;
                     for _ in 0..scroll_amount {
                         if event.kind == MouseEventKind::ScrollDown {
                             self.doc_mut().scroll_down();

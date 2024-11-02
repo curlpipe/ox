@@ -19,12 +19,20 @@ use kaolinite::searching::Searcher;
 use kaolinite::utils::{file_or_dir, get_cwd};
 use kaolinite::Loc;
 use mlua::Error::{RuntimeError, SyntaxError};
-use mlua::{FromLua, Lua, Value};
-use std::cell::RefCell;
+use mlua::{AnyUserData, FromLua, Lua, Value};
 use std::io::ErrorKind;
-use std::rc::Rc;
 use std::result::Result as RResult;
 use ui::{fatal_error, Feedback};
+
+/// Get editor helper macro
+macro_rules! ged {
+    ($editor:expr) => {
+        $editor.borrow::<Editor>().unwrap()
+    };
+    (mut $editor:expr) => {
+        $editor.borrow_mut::<Editor>().unwrap()
+    };
+}
 
 /// Entry point - grabs command line arguments and runs the editor
 fn main() {
@@ -62,29 +70,29 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     };
 
     // Push editor into lua
-    let editor = Rc::new(RefCell::new(editor));
+    let editor = lua.create_userdata(editor)?;
     lua.globals().set("editor", editor.clone())?;
 
     // Inject the networking library for plug-ins to use
     handle_lua_error(
         "",
         lua.load(PLUGIN_NETWORKING).exec(),
-        &mut editor.borrow_mut().feedback,
+        &mut ged!(mut &editor).feedback,
     );
 
     // Load config and initialise
     lua.load(PLUGIN_BOOTSTRAP).exec()?;
-    let result = editor.borrow_mut().load_config(&cli.config_path, &lua);
+    let result = ged!(mut &editor).load_config(&cli.config_path, &lua);
     if let Some(err) = result {
         // Handle error if available
-        handle_lua_error("configuration", Err(err), &mut editor.borrow_mut().feedback);
+        handle_lua_error("configuration", Err(err), &mut ged!(mut &editor).feedback);
     };
 
     // Run plug-ins
     handle_lua_error(
         "",
         lua.load(PLUGIN_RUN).exec(),
-        &mut editor.borrow_mut().feedback,
+        &mut ged!(mut &editor).feedback,
     );
 
     // Load in the file types
@@ -93,7 +101,9 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         .get("file_types")
         .unwrap_or(Value::Table(lua.create_table()?));
     let file_types = FileTypes::from_lua(file_types, &lua).unwrap_or_default();
-    editor.borrow_mut().config.document.borrow_mut().file_types = file_types;
+    let config = ged!(mut &editor).config;
+    let document = config.document.borrow_mut::<config::Document>().unwrap();
+    document.file_types = file_types;
 
     // Open files user has asked to open
     let cwd = get_cwd().unwrap_or(".".to_string());
@@ -101,42 +111,38 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         // Reset cwd
         let _ = std::env::set_current_dir(&cwd);
         // Open the file
-        let result = editor.borrow_mut().open_or_new(file.to_string());
+        let result = ged!(mut &editor).open_or_new(file.to_string());
         handle_file_opening(&editor, result, file);
         // Set read only if applicable
         if cli.flags.read_only {
-            editor.borrow_mut().get_doc(c).info.read_only = true;
+            ged!(mut &editor).get_doc(c).info.read_only = true;
         }
         // Set highlighter if applicable
         if let Some(ref file_type) = cli.file_type {
-            let tab_width = editor.borrow().config.document.borrow().tab_width;
-            let file_type = editor
-                .borrow_mut()
-                .config
-                .document
-                .borrow()
+            let tab_width = config!(ged!(&editor).config, document).tab_width;
+            let file_type = config!(ged!(mut &editor).config, document)
                 .file_types
                 .get_name(file_type)
                 .unwrap_or_default();
-            let mut highlighter = file_type.get_highlighter(&editor.borrow().config, tab_width);
-            highlighter.run(&editor.borrow_mut().get_doc(c).lines);
-            let mut editor = editor.borrow_mut();
+            let mut highlighter = file_type.get_highlighter(&ged!(&editor).config, tab_width);
+            highlighter.run(&ged!(mut &editor).get_doc(c).lines);
+            let mut editor = ged!(mut &editor);
             let file = editor.files.get_mut(c).unwrap();
             file.highlighter = highlighter;
             file.file_type = Some(file_type);
         }
         // Move the pointer to the file we just created
-        editor.borrow_mut().next();
+        ged!(mut &editor).next();
     }
     // Reset the pointer back to the first document
-    editor.borrow_mut().ptr = 0;
+    ged!(mut &editor).ptr = 0;
 
     // Handle stdin if applicable
     if cli.flags.stdin {
         let stdin = cli::get_stdin();
-        editor.borrow_mut().blank()?;
-        let this_doc = editor.borrow_mut().doc_len().saturating_sub(1);
-        let mut holder = editor.borrow_mut();
+        let mut holder = ged!(mut &editor);
+        holder.blank()?;
+        let this_doc = holder.doc_len().saturating_sub(1);
         let doc = holder.get_doc(this_doc);
         doc.exe(Event::Insert(Loc { x: 0, y: 0 }, stdin))?;
         doc.load_to(doc.size.h);
@@ -149,43 +155,38 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     }
 
     // Create a blank document if none are opened
-    editor.borrow_mut().new_if_empty()?;
+    ged!(mut &editor).new_if_empty()?;
 
     // Add in the plugin manager
     handle_lua_error(
         "",
         lua.load(PLUGIN_MANAGER).exec(),
-        &mut editor.borrow_mut().feedback,
+        &mut ged!(mut &editor).feedback,
     );
 
     // Run the editor and handle errors if applicable
-    editor.borrow().update_cwd();
-    editor.borrow_mut().init()?;
+    ged!(&editor).update_cwd();
+    ged!(mut &editor).init()?;
     let mut event;
-    while editor.borrow().active {
+    while ged!(&editor).active {
         // Render and wait for event
-        editor.borrow_mut().render(&lua)?;
+        ged!(mut &editor).render(&lua)?;
         // Keep requesting events until a valid one is found
         loop {
             // While waiting for an event to come along, service the task manager
             while let Ok(false) = crossterm::event::poll(std::time::Duration::from_millis(100)) {
-                let exec = editor
-                    .borrow_mut()
+                let exec = ged!(mut &editor)
                     .config
                     .task_manager
                     .lock()
                     .unwrap()
                     .execution_list();
                 for task in exec {
-                    if let Ok(target) = lua.globals().get::<_, mlua::Function>(task.clone()) {
+                    if let Ok(target) = lua.globals().get::<mlua::Function>(task.clone()) {
                         // Run the code
-                        handle_lua_error(
-                            "task",
-                            target.call(()),
-                            &mut editor.borrow_mut().feedback,
-                        );
+                        handle_lua_error("task", target.call(()), &mut ged!(mut &editor).feedback);
                     } else {
-                        editor.borrow_mut().feedback =
+                        ged!(mut &editor).feedback =
                             Feedback::Warning(format!("Function '{task}' was not found"));
                     }
                 }
@@ -207,8 +208,8 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
 
         // Clear screen of temporary items (expect on resize event)
         if !matches!(event, CEvent::Resize(_, _)) {
-            editor.borrow_mut().greet = false;
-            editor.borrow_mut().feedback = Feedback::None;
+            ged!(mut &editor).greet = false;
+            ged!(mut &editor).feedback = Feedback::None;
         }
 
         // Handle plug-in before key press mappings
@@ -216,7 +217,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             let key_str = key_to_string(key.modifiers, key.code);
             let code = run_key_before(&key_str);
             let result = lua.load(&code).exec();
-            handle_lua_error(&key_str, result, &mut editor.borrow_mut().feedback);
+            handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
         }
 
         // Handle paste event (before event)
@@ -226,14 +227,14 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
                 handle_lua_error(
                     "paste",
                     listener.call(paste_text.clone()),
-                    &mut editor.borrow_mut().feedback,
+                    &mut ged!(mut &editor).feedback,
                 );
             }
         }
 
         // Actually handle editor event (errors included)
-        if let Err(err) = editor.borrow_mut().handle_event(&lua, event.clone()) {
-            editor.borrow_mut().feedback = Feedback::Error(format!("{err:?}"));
+        if let Err(err) = ged!(mut &editor).handle_event(&lua, event.clone()) {
+            ged!(mut &editor).feedback = Feedback::Error(format!("{err:?}"));
         }
 
         // Handle paste event (after event)
@@ -243,7 +244,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
                 handle_lua_error(
                     "paste",
                     listener.call(paste_text.clone()),
-                    &mut editor.borrow_mut().feedback,
+                    &mut ged!(mut &editor).feedback,
                 );
             }
         }
@@ -253,24 +254,24 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             let key_str = key_to_string(key.modifiers, key.code);
             let code = run_key(&key_str);
             let result = lua.load(&code).exec();
-            handle_lua_error(&key_str, result, &mut editor.borrow_mut().feedback);
+            handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
         }
 
-        editor.borrow_mut().update_highlighter();
+        ged!(mut &editor).update_highlighter();
 
         // Check for any commands to run
-        let command = editor.borrow().command.clone();
+        let command = ged!(&editor).command.clone();
         if let Some(command) = command {
             run_editor_command(&editor, &command, &lua);
         }
-        editor.borrow_mut().command = None;
+        ged!(mut &editor).command = None;
     }
 
     // Run any plugin cleanup operations
     let result = lua.load(run_key("exit")).exec();
-    handle_lua_error("exit", result, &mut editor.borrow_mut().feedback);
+    handle_lua_error("exit", result, &mut ged!(mut &editor).feedback);
 
-    editor.borrow_mut().terminal.end()?;
+    ged!(mut &editor).terminal.end()?;
     Ok(())
 }
 
@@ -342,7 +343,7 @@ fn handle_lua_error(key_str: &str, error: RResult<(), mlua::Error>, feedback: &m
 }
 
 /// Handle opening files
-fn handle_file_opening(editor: &Rc<RefCell<Editor>>, result: Result<()>, name: &str) {
+fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
     // TEMPORARY WORK-AROUND: Delete after Rust 1.83
     if file_or_dir(name) == "directory" {
         fatal_error(&format!("'{name}' is a directory, not a file"));
@@ -350,8 +351,8 @@ fn handle_file_opening(editor: &Rc<RefCell<Editor>>, result: Result<()>, name: &
     match result {
         Ok(()) => (),
         Err(OxError::AlreadyOpen { .. }) => {
-            let len = editor.borrow().files.len().saturating_sub(1);
-            editor.borrow_mut().ptr = len;
+            let len = ged!(&editor).files.len().saturating_sub(1);
+            ged!(mut &editor).ptr = len;
         }
         Err(OxError::Kaolinite(kerr)) => {
             match kerr {
@@ -380,7 +381,7 @@ fn handle_file_opening(editor: &Rc<RefCell<Editor>>, result: Result<()>, name: &
 }
 
 /// Run a command in the editor
-fn run_editor_command(editor: &Rc<RefCell<Editor>>, cmd: &str, lua: &Lua) {
+fn run_editor_command(editor: &AnyUserData, cmd: &str, lua: &Lua) {
     let cmd = cmd.replace('\'', "\\'").to_string();
     if let [subcmd, arguments @ ..] = cmd.split(' ').collect::<Vec<&str>>().as_slice() {
         let arguments = arguments.join("', '");
@@ -389,7 +390,7 @@ fn run_editor_command(editor: &Rc<RefCell<Editor>>, cmd: &str, lua: &Lua) {
         handle_lua_error(
             subcmd,
             lua.load(code).exec(),
-            &mut editor.borrow_mut().feedback,
+            &mut ged!(mut &editor).feedback,
         );
     }
 }

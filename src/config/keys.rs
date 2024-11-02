@@ -42,7 +42,7 @@ pub fn run_key_before(mut key: &str) -> String {
 }
 
 /// This contains code for getting event listeners
-pub fn get_listeners<'a>(name: &'a str, lua: &'a Lua) -> Result<Vec<LuaFunction<'a>>, OxError> {
+pub fn get_listeners(name: &str, lua: &Lua) -> Result<Vec<LuaFunction>, OxError> {
     let mut result = vec![];
     let listeners: LuaTable = lua
         .load(format!("(global_event_mapping[\"{name}\"] or {{}})"))

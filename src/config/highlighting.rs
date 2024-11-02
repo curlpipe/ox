@@ -68,7 +68,7 @@ impl SyntaxHighlighting {
 }
 
 impl LuaUserData for SyntaxHighlighting {
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_method_mut(
             "keywords",
             |lua, _, (name, pattern): (String, Vec<String>)| {
@@ -120,7 +120,7 @@ impl LuaUserData for SyntaxHighlighting {
                 // Add rules one by one
                 for rule_idx in 1..=(rules.len()?) {
                     // Get rule
-                    let rule = rules.get::<i64, HashMap<String, String>>(rule_idx)?;
+                    let rule = rules.get::<HashMap<String, String>>(rule_idx)?;
                     // Find type of rule and attatch it to the highlighter
                     match rule["kind"].as_str() {
                         "keyword" => {
