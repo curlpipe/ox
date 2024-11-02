@@ -16,7 +16,7 @@ cargo deb
 cp target/debian/*.deb target/pkgs/
 
 # Build for macOS (binary)
-export SDKROOT=../../make/MacOSX13.3.sdk/
+export SDKROOT=/home/luke/dev/make/MacOSX13.3.sdk/
 export PATH=$PATH:~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/
 export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=rust-lld
 cargo zigbuild --release --target x86_64-apple-darwin

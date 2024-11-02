@@ -148,6 +148,25 @@ impl Editor {
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
+                        if is_selected {
+                            if cache_bg != selection_bg {
+                                display!(self, selection_bg);
+                                cache_bg = selection_bg;
+                            }
+                            if cache_fg != selection_fg {
+                                display!(self, selection_fg);
+                                cache_fg = selection_fg;
+                            }
+                        } else {
+                            if cache_bg != editor_bg {
+                                display!(self, editor_bg);
+                                cache_bg = editor_bg;
+                            }
+                            if cache_fg != colour {
+                                display!(self, colour);
+                                cache_fg = colour;
+                            }
+                        }
                         if is_selected && (cache_bg != selection_bg || cache_fg != selection_fg) {
                             display!(self, selection_bg, selection_fg);
                             cache_bg = selection_bg;
