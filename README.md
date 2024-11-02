@@ -75,61 +75,62 @@ It works best on linux, but macOS and Windows are also supported.
 
 ## Installation
 
-> :warning: Huge Warning: A lot of these (except manual, AUR and homebrew) are quite out of date, it is quite a huge task having to push to all these sources each time I update and I'd rather focus on creating high-quality updates
+To get started, please click on your operating system
 
-### Prerequisites
+- :penguin: [Linux](#linux)
+- :window: [Windows](#windows)
+- :apple: [MacOS](#macos)
 
-Because Ox is written in Rust, you must have a modern and working version of `rustc` and `cargo`.
+### Linux
 
-On Arch Linux, you can run this command:
-```sh
-sudo pacman -S rustup
-rustup toolchain install stable
-```
-
-If you are not using Arch, you can easily set it up on other distros by running the distro-neutral command:
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-/usr/bin/rustup toolchain install stable
-```
-You must have `curl` installed to run this command.
-
-### Installation Routes
-
-#### Manual
-
-The absolute best way to install Ox, it will ensure you always have the latest version
-
-It should only really take at most 1 minute on most modern hardware.
-
-```sh
-cargo install --git https://github.com/curlpipe/ox ox
-```
+Here are the list of available methods for installing on Linux:
+- [Manually](#manual)
+- [Binary](#binaries)
+- [Arch Linux](#arch-linux)
+- [Fedora](#fedora)
+- [Debian / Ubuntu](#debian)
 
 #### Arch Linux
 
-Install `ox-bin` or `ox-git` from the Arch User Repository.
+Install one of the following from the AUR:
+- `ox-bin` - install the pre-compiled binary (fastest)
+- `ox-git` - compile from source (best)
 
-That's all there is to it!
+#### Fedora
 
-#### Fedora/CentOS
+You can find an RPM in the [releases page](https://github.com/curlpipe/ox/releases)
 
-Install `ox` from the [COPR Repository](https://copr.fedorainfracloud.org/coprs/atim/ox/): 
+Install using the following command:
 
+```sh
+sudo dnf install /path/to/rpm/file
 ```
-sudo dnf copr enable atim/ox -y
-sudo dnf install ox
-```
-
-You can also find an RPM file in the releases page
 
 #### Debian
 
-You can find a deb file on the releases page, which can be installed via dpkg:
+You can find a deb file in the [releases page](https://github.com/curlpipe/ox/releases)
+
+Install using the following command:
 
 ```sh
-dpkg -i ox_version.deb
+sudo dpkg -i /path/to/deb/file
 ```
+
+### Windows
+
+Here are the list of available methods for installing on Windows:
+- [Manually (best)](#manual)
+- [Binary](#binaries)
+
+
+
+### MacOS
+
+Here are the list of available methods for installing on macOS:
+- [Manually](#manual)
+- [Binary](#binaries)
+- [Homebrew](#homebrew)
+- [MacPorts](#macports)
 
 #### Homebrew
 
@@ -147,6 +148,30 @@ On macOS, you can install `ox` via [MacPorts](https://www.macports.org)
 sudo port selfupdate
 sudo port install ox
 ```
+
+### Binaries
+
+There are precompiled binaries available for all platforms in the [releases page](https://github.com/curlpipe/ox/releases).
+
+- For Linux: download the `ox` executable and copy it to `/usr/bin/ox`, then run `sudo chmod +x /usr/bin/ox`
+- For MacOS: download the `ox-macos` executable and copy it to `/usr/local/bin/ox`, then run `sudo chmod +x /usr/local/bin/ox`
+- For Windows: download the `ox.exe` executable and copy it into a location in `PATH` see [this guide](https://zwbetz.com/how-to-add-a-binary-to-your-path-on-macos-linux-windows/#windows-cli) for how to do it
+
+### Manual
+
+This is the absolute best way to install Ox, it will ensure you always have the latest version and everything works for your system.
+
+You must have a working installation of the Rust compiler to use this method. Visit the website for [rustup](https://rustup.rs/) and follow the instructions there for your operating system.
+
+Now with a working version of rust, you can run the command:
+
+```sh
+cargo install --git https://github.com/curlpipe/ox
+```
+
+This will take at worst around 2 minutes. On some more modern systems, it will take around 30 seconds.
+
+Please note that you should add `.cargo/bin` to your path, which is where the `ox` executable will live, although `rustup` will likely do that for you, so no need to worry too much.
 
 ## Quick Start Guide
 
