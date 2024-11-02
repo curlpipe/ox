@@ -57,6 +57,8 @@ pub struct Editor {
     pub plugin_active: bool,
     /// Stores the last click the user made (in order to detect double-click)
     pub last_click: Option<(Instant, MouseEvent)>,
+    /// Stores whether or not we're in a double click
+    pub in_dbl_click: bool,
 }
 
 impl Editor {
@@ -78,6 +80,7 @@ impl Editor {
             config_path: "~/.oxrc".to_string(),
             plugin_active: false,
             last_click: None,
+            in_dbl_click: false,
         })
     }
 
@@ -93,13 +96,12 @@ impl Editor {
         size.h = size.h.saturating_sub(1 + self.push_down);
         let mut doc = Document::new(size);
         doc.set_tab_width(self.config.document.borrow().tab_width);
+        doc.event_mgmt.force_not_with_disk = true;
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
         // Update in the syntax highlighter
         let mut highlighter = Highlighter::new(4);
         highlighter.run(&doc.lines);
-        // Mark as not saved on disk
-        doc.info.modified = true;
         // Add document to documents
         let file = FileContainer {
             highlighter,
@@ -135,9 +137,8 @@ impl Editor {
     pub fn open(&mut self, file_name: &str) -> Result<()> {
         if let Some(idx) = self.already_open(&get_absolute_path(file_name).unwrap_or_default()) {
             self.ptr = idx;
-            return Err(OxError::AlreadyOpen(
-                get_file_name(file_name).unwrap_or_default(),
-            ));
+            let file = get_file_name(file_name).unwrap_or_default();
+            return Err(OxError::AlreadyOpen { file });
         }
         let mut size = size()?;
         size.h = size.h.saturating_sub(1 + self.push_down);
@@ -148,7 +149,6 @@ impl Editor {
         // Set up the document
         doc.set_tab_width(tab_width);
         doc.load_to(size.h);
-        doc.undo_mgmt.saved();
         // Update in the syntax highlighter
         let mut highlighter = file_type.as_ref().map_or(Highlighter::new(tab_width), |t| {
             t.get_highlighter(&self.config, tab_width)
@@ -195,7 +195,6 @@ impl Editor {
                     .file_types
                     .identify(&mut file.doc);
                 // Set up the document
-                file.doc.info.modified = true;
                 file.doc.set_tab_width(tab_width);
                 // Attach the correct highlighter
                 let highlighter = file_type.clone().map_or(Highlighter::new(tab_width), |t| {
@@ -227,8 +226,6 @@ impl Editor {
 
     /// save the document to the disk
     pub fn save(&mut self) -> Result<()> {
-        // Commit events to event manager (for undo / redo)
-        self.doc_mut().commit();
         // Perform the save
         self.doc_mut().save()?;
         // All done
@@ -257,7 +254,6 @@ impl Editor {
             file.highlighter = highlighter;
             file.highlighter.run(&file.doc.lines);
             file.doc.file_name = Some(file_name.clone());
-            file.doc.info.modified = false;
         }
         // Commit events to event manager (for undo / redo)
         self.doc_mut().commit();
@@ -283,7 +279,7 @@ impl Editor {
         // If there are still documents open, only close the requested document
         if self.active {
             let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
-            if !self.doc().info.modified || self.confirm(msg)? {
+            if self.doc().event_mgmt.with_disk(&self.doc().take_snapshot()) || self.confirm(msg)? {
                 self.files.remove(self.ptr);
                 self.prev();
             }
@@ -323,6 +319,11 @@ impl Editor {
         self.files.get(self.ptr).map(|file| &file.doc)
     }
 
+    /// Try to get a document
+    pub fn try_doc_mut(&mut self) -> Option<&mut Document> {
+        self.files.get_mut(self.ptr).map(|file| &mut file.doc)
+    }
+
     /// Returns a document at a certain index
     pub fn get_doc(&mut self, idx: usize) -> &mut Document {
         &mut self.files.get_mut(idx).unwrap().doc
@@ -350,7 +351,7 @@ impl Editor {
         // Display any warnings if the user configuration couldn't be found
         match result {
             Ok(()) => (),
-            Err(OxError::Config(msg)) => {
+            Err(OxError::Config { msg }) => {
                 if msg == "Not Found" {
                     let warn =
                         "No configuration file found, using default configuration".to_string();

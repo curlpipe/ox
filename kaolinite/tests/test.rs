@@ -396,29 +396,48 @@ fn document_deletion() {
     doc.move_to(&Loc { x: 11, y: 1 });
     doc.delete_word();
     assert_eq!(doc.line(1).unwrap(), st!("    world---"));
+    doc.exe(Event::InsertLine(1, st!("match => this")));
+    doc.move_to(&Loc { x: 8, y: 1 });
+    doc.delete_word();
+    assert_eq!(doc.line(1).unwrap(), st!(" this"));
 }
 
 #[test]
 fn document_undo_redo() {
     let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
     doc.load_to(100);
-    assert!(doc.undo_mgmt.undo(doc.take_snapshot()).is_none());
+    assert!(doc.event_mgmt.undo(doc.take_snapshot()).is_none());
+    assert!(doc.event_mgmt.with_disk(&doc.take_snapshot()));
+    doc.event_mgmt.force_not_with_disk = true;
+    assert!(!doc.event_mgmt.with_disk(&doc.take_snapshot()));
+    doc.event_mgmt.force_not_with_disk = false;
+    assert!(doc.event_mgmt.with_disk(&doc.take_snapshot()));
+    assert!(doc.event_mgmt.undo(doc.take_snapshot()).is_none());
     assert!(doc.redo().is_ok());
-    assert!(!doc.info.modified);
+    assert!(doc.event_mgmt.with_disk(&doc.take_snapshot()));
     doc.exe(Event::InsertLine(0, st!("hello你bye好hello")));
     doc.exe(Event::Delete(Loc { x: 0, y: 2 }, st!("\t")));
     doc.exe(Event::Insert(Loc { x: 3, y: 2 }, st!("a")));
+    assert!(!doc.event_mgmt.with_disk(&doc.take_snapshot()));
     doc.commit();
-    assert!(doc.info.modified);
+    assert!(!doc.event_mgmt.with_disk(&doc.take_snapshot()));
     assert!(doc.undo().is_ok());
-    assert!(!doc.info.modified);
+    assert!(doc.event_mgmt.with_disk(&doc.take_snapshot()));
     assert_eq!(doc.line(0), Some(st!("    你好")));
     assert_eq!(doc.line(1), Some(st!("\thello")));
     assert_eq!(doc.line(2), Some(st!("    hello")));
     assert!(doc.redo().is_ok());
-    assert!(doc.info.modified);
+    assert!(!doc.event_mgmt.with_disk(&doc.take_snapshot()));
     assert_eq!(doc.line(0), Some(st!("hello你bye好hello")));
     assert_eq!(doc.line(2), Some(st!("helalo")));
+    assert!(!doc.event_mgmt.with_disk(&doc.take_snapshot()));
+    doc.event_mgmt.disk_write(&doc.take_snapshot());
+    assert!(doc.event_mgmt.with_disk(&doc.take_snapshot()));
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(100);
+    assert!(doc.event_mgmt.with_disk(&doc.take_snapshot()));
+    doc.exe(Event::InsertLine(0, st!("hello你bye好hello")));
+    assert!(doc.event_mgmt.with_disk(&doc.take_snapshot()));
 }
 
 #[test]
@@ -609,10 +628,38 @@ fn document_moving() {
     doc.move_prev_word();
     assert_eq!(doc.loc(), Loc { x: 0, y: 10 });
     assert_eq!(doc.move_prev_word(), Status::StartOfLine);
-    doc.exe(Event::InsertLine(11, st!("----test")));
+    doc.exe(Event::InsertLine(11, st!("----test hello there----")));
     doc.move_to(&Loc { x: 7, y: 11 });
     doc.move_next_word();
-    assert_eq!(doc.loc(), Loc { x: 8, y: 11 });
+    assert_eq!(doc.loc(), Loc { x: 14, y: 11 });
+    doc.move_to(&Loc { x: 0, y: 11 });
+    assert_eq!(doc.prev_word_close(Loc { x: 0, y: 11 }), 0);
+    assert_eq!(doc.prev_word_close(Loc { x: 2, y: 11 }), 0);
+    assert_eq!(doc.prev_word_close(Loc { x: 9, y: 11 }), 4);
+    assert_eq!(doc.prev_word_close(Loc { x: 8, y: 11 }), 0);
+    assert_eq!(doc.prev_word_close(Loc { x: 14, y: 11 }), 8);
+    assert_eq!(doc.prev_word_close(Loc { x: 20, y: 11 }), 14);
+    assert_eq!(doc.prev_word_close(Loc { x: 24, y: 11 }), 15);
+    assert_eq!(doc.prev_word_close(Loc { x: 22, y: 11 }), 15);
+    assert_eq!(doc.next_word_close(Loc { x: 4, y: 11 }), 4);
+    assert_eq!(doc.next_word_close(Loc { x: 1, y: 11 }), 4);
+    assert_eq!(doc.next_word_close(Loc { x: 8, y: 11 }), 8);
+    assert_eq!(doc.next_word_close(Loc { x: 9, y: 11 }), 9);
+    assert_eq!(doc.next_word_close(Loc { x: 14, y: 11 }), 14);
+    assert_eq!(doc.next_word_close(Loc { x: 20, y: 11 }), 20);
+    assert_eq!(doc.next_word_close(Loc { x: 24, y: 11 }), 24);
+    assert_eq!(doc.next_word_close(Loc { x: 22, y: 11 }), 24);
+    doc.move_to(&Loc {
+        x: 0,
+        y: 10000000000,
+    });
+    assert_eq!(
+        doc.loc(),
+        Loc {
+            x: 0,
+            y: doc.len_lines()
+        }
+    );
 }
 
 #[test]
@@ -663,6 +710,11 @@ fn document_selection() {
     doc.remove_selection();
     doc.move_to(&Loc { x: 0, y: 2 });
     doc.select_word_at(&Loc { x: 0, y: 2 });
+    assert_eq!(
+        doc.selection_loc_bound(),
+        (Loc { x: 0, y: 2 }, Loc { x: 5, y: 2 })
+    );
+    doc.select_word_at(&Loc { x: 5, y: 2 });
     assert_eq!(
         doc.selection_loc_bound(),
         (Loc { x: 0, y: 2 }, Loc { x: 5, y: 2 })
@@ -757,6 +809,15 @@ fn document_line_editing() {
     assert_eq!(doc.line(5), Some(st!("forever")));
     doc.exe(Event::DeleteLine(5, st!("forever")));
     assert_eq!(doc.line(5), Some(st!("")));
+    // Line swapping
+    let mut doc = Document::open(Size::is(100, 10), "tests/data/unicode.txt").unwrap();
+    doc.load_to(1000);
+    doc.swap_line_down().unwrap();
+    assert_eq!(doc.line(0), Some(st!("\thello")));
+    assert_eq!(doc.line(1), Some(st!("    你好")));
+    doc.swap_line_up().unwrap();
+    assert_eq!(doc.line(0), Some(st!("    你好")));
+    assert_eq!(doc.line(1), Some(st!("\thello")));
 }
 
 #[test]

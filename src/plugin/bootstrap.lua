@@ -1,8 +1,9 @@
 -- Bootstrap code provides plug-ins and configuration with APIs and other utilities
 home = os.getenv("HOME") or os.getenv("USERPROFILE")
+path_sep = package.config:sub(1,1)
 
-if package.config:sub(1,1) == "\\" then
-    plugin_path = home .. "/ox"
+if path_sep == "\\" then
+    plugin_path = home .. "\\ox"
 else
     plugin_path = home .. "/.config/ox"
 end
@@ -17,6 +18,20 @@ function file_exists(file_path)
     end
 end
 
+function dir_exists(dir_path)
+    -- Check if the directory exists using the appropriate command
+    local is_windows = package.config:sub(1, 1) == '\\'  -- Check if Windows
+    local command
+    if is_windows then
+        command = "if exist \"" .. dir_path .. "\" (exit 0) else (exit 1)"
+    else
+        command = "if [ -d \"" .. dir_path .. "\" ]; then exit 0; else exit 1; fi"
+    end
+    -- Execute the command
+    local result = shell:run(command)
+    return result == 0
+end
+
 plugins = {}
 builtins = {}
 plugin_issues = false
@@ -24,13 +39,13 @@ plugin_issues = false
 function load_plugin(base)
     path_cross = base
     path_unix = home .. "/.config/ox/" .. base
-    path_win = home .. "/ox/" .. base
+    path_win = home .. "\\ox\\" .. base
     if file_exists(path_cross) then
         path = path_cross
     elseif file_exists(path_unix) then
         path = path_unix
     elseif file_exists(path_win) then
-        path = file_win
+        path = path_win
     else
         path = nil
         -- Prevent warning if plug-in is built-in
@@ -94,11 +109,17 @@ function python_interop:has_module(module_name)
 end
 
 -- Command line interaction
-shell = {}
+shell = {
+    is_windows = os.getenv("OS") and os.getenv("OS"):find("Windows") ~= nil,
+}
 
 function shell:run(cmd)
     -- Runs a command (silently) and return the exit code
-    return select(3, os.execute(cmd .. " > /dev/null 2>&1"))
+    if self.is_windows then
+        return select(3, os.execute(cmd .. " > NUL 2>&1"))
+    else
+        return select(3, os.execute(cmd .. " > /dev/null 2>&1"))
+    end
 end
 
 function shell:output(cmd)
@@ -113,16 +134,26 @@ end
 function shell:spawn(cmd)
     -- Spawns a command (silently), and have it run in the background
     -- Returns PID so process can be killed later
-    local command = cmd .. " > /dev/null 2>&1 & echo $!"
-    local pid = shell:output(command)
-    pid = pid:gsub("%s+", "")
-    pid = pid:gsub("\\n", "")
-    pid = pid:gsub("\\t", "")
-    return pid
+    if self.is_windows then
+        editor:display_error("Shell spawning is unavailable on Windows")
+        editor:rerender_feedback_line()
+        return nil
+    else
+        local command = cmd .. " > /dev/null 2>&1 & echo $!"
+        local pid = shell:output(command)
+        pid = pid:gsub("%s+", "")
+        pid = pid:gsub("\\n", "")
+        pid = pid:gsub("\\t", "")
+        return pid
+    end
 end
 
 function shell:kill(pid)
-    if pid ~= nil then
+    if self.is_windows then
+        editor:display_error("Shell spawning is unavailable on Windows")
+        editor:rerender_feedback_line()
+        return nil
+    elseif pid ~= nil then
         shell:run("kill " .. tostring(pid))
     end
 end

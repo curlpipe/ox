@@ -4,7 +4,10 @@ use crossterm::event::{KeyCode as KCode, KeyModifiers as KMod, MediaKeyCode, Mod
 use mlua::prelude::*;
 
 /// This contains the code for running code after a key binding is pressed
-pub fn run_key(key: &str) -> String {
+pub fn run_key(mut key: &str) -> String {
+    if key == "\"" {
+        key = "\\\"";
+    }
     format!(
         "
         globalevent = (global_event_mapping[\"*\"] or {{}})
@@ -20,7 +23,10 @@ pub fn run_key(key: &str) -> String {
 }
 
 /// This contains the code for running code before a key binding is fully processed
-pub fn run_key_before(key: &str) -> String {
+pub fn run_key_before(mut key: &str) -> String {
+    if key == "\"" {
+        key = "\\\"";
+    }
     format!(
         "
         globalevent = (global_event_mapping[\"before:*\"] or {{}})
@@ -46,6 +52,18 @@ pub fn get_listeners<'a>(name: &'a str, lua: &'a Lua) -> Result<Vec<LuaFunction<
         result.push(lua_func);
     }
     Ok(result)
+}
+
+/// Normalises key presses (across windows and unix based systems)
+pub fn key_normalise(code: &mut String) {
+    let punctuation: Vec<char> = "!\"£$%^&*(){}:@~<>?~|¬".chars().collect();
+    for c in punctuation {
+        if c == '"' {
+            *code = code.replace("shift_\\\"", &c.to_string());
+        } else {
+            *code = code.replace(&format!("shift_{c}"), &c.to_string());
+        }
+    }
 }
 
 /// Converts a key taken from a crossterm event into string format
@@ -123,5 +141,7 @@ pub fn key_to_string(modifiers: KMod, key: KCode) -> String {
         }
         .to_string(),
     };
+    // Ensure consistent key codes across platforms
+    key_normalise(&mut result);
     result
 }

@@ -1,6 +1,6 @@
 [package]
 name = "kaolinite"
-version = "0.9.5"
+version = "0.10.0"
 authors = ["curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 edition = "2021"
 license = "MIT"
@@ -12,7 +12,7 @@ keywords = ["unicode", "text-processing"]
 categories = ["text-processing"]
 
 [dependencies]
-quick-error = "2.0.1"
+error_set = "0.6"
 regex = "1.10.6"
 ropey = "1.6.1"
 unicode-width = "0.2"
@@ -23,9 +23,3 @@ sugars = "3.0.1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
-
-[[example]]
-name = "open"
-
-[[example]]
-name = "trim"

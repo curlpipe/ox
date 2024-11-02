@@ -12,9 +12,9 @@ use std::cell::RefCell;
 use std::io::{stdout, Write};
 use std::rc::Rc;
 
-pub const TROPICAL: &str = include_str!("../themes/tropical.lua");
-pub const GALAXY: &str = include_str!("../themes/galaxy.lua");
-pub const TRANSPARENT: &str = include_str!("../themes/transparent.lua");
+pub const TROPICAL: &str = include_str!("../../plugins/themes/tropical.lua");
+pub const GALAXY: &str = include_str!("../../plugins/themes/galaxy.lua");
+pub const TRANSPARENT: &str = include_str!("../../plugins/themes/transparent.lua");
 
 #[macro_export]
 macro_rules! gets {
@@ -191,7 +191,7 @@ impl Default for Assistant {
             greeting_message: true,
             // Mouse and Cursor Behaviour
             mouse: true,
-            scroll_sensitivity: 2,
+            scroll_sensitivity: 4,
             cursor_wrap: true,
             // Plug-ins
             plugins: vec![Plugin::AutoIndent, Plugin::Pairs, Plugin::QuickComment],
@@ -405,8 +405,8 @@ impl Assistant {
         );
         println!("{red}🖰 ⭥ {reset}  {yellow}🖰 ⭥ {reset}  {green}🖰 ⭥ {reset}\n");
         result.scroll_sensitivity = Self::integer(
-            "How sensitive should scrolling be, 1 = least sensitive, 5 = very sensitive",
-            2,
+            "How sensitive should scrolling be, 1 = least sensitive, 7 = very sensitive",
+            4,
         );
         println!("    Cursor wraps{pink}|{reset}→ \n  ↳ {pink}|{reset}Onto new line\n");
         result.cursor_wrap = Self::confirmation(
@@ -768,7 +768,7 @@ impl Assistant {
         result += "\n-- Load Plug-Ins --\n";
         for plugin in &self.plugins {
             result += &plugin.to_config();
-            if plugin == &Plugin::Git {
+            if plugin == &Plugin::Git && self.icons {
                 result += "git = { icons = true }\n";
             }
         }

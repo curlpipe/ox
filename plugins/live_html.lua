@@ -1,5 +1,5 @@
 --[[
-Live HTML v0.1
+Live HTML v0.2
 
 As you develop a website, you can view it in your browser without needing to refresh with every change
 ]]--
@@ -8,7 +8,10 @@ live_html = {
     has_python = python_interop:installation() ~= nil,
     has_flask_module = python_interop:has_module("flask"),
     entry_point = nil,
+    tracking = {},
     pid = nil,
+    last_request = "",
+    refresh_when = (live_html or { refresh_when = "save" }).refresh_when,
 }
 
 function live_html:ready()
@@ -31,10 +34,19 @@ function live_html:stop()
 end
 
 function live_html_refresh()
+    local tracked_file_changed = false
+    for _, v in ipairs(live_html.tracking) do
+        if v == editor.file_name then
+            tracked_file_changed = true
+            break
+        end
+    end
     if editor.file_path == live_html.entry_point then
-        local contents = editor:get():gsub('"', '\\"'):gsub("\n", "")
-        editor:rerender()
+        local contents = editor:get():gsub('"', '\\"'):gsub("\n", ""):gsub("`", "\\`")
+        live_html.last_request = contents
         http.post("localhost:5000/update", contents)
+    elseif tracked_file_changed then
+        http.post("localhost:5000/forceupdate", live_html.last_request)
     end
 end
 
@@ -49,6 +61,10 @@ commands["html"] = function(args)
             after(5, "live_html_refresh")
         elseif args[1] == "stop" then
             live_html:stop()
+        elseif args[1] == "track" then
+            local file = args[2]
+            table.insert(live_html.tracking, file)
+            editor:display_info("Now tracking file " .. file)
         end
     else
         editor:display_error("Live HTML: python or flask module not found")
@@ -56,7 +72,15 @@ commands["html"] = function(args)
 end
 
 event_mapping["*"] = function()
-    after(1, "live_html_refresh")
+    if live_html.pid ~= nil and live_html.refresh_when == "keypress" then
+        after(1, "live_html_refresh")
+    end
+end
+
+event_mapping["ctrl_s"] = function()
+    if live_html.pid ~= nil and live_html.refresh_when == "save" then
+        after(1, "live_html_refresh")
+    end
 end
 
 event_mapping["exit"] = function()
@@ -162,6 +186,17 @@ def update_html():
         # Update the HTML content with the new code
         html_content = new_code
         notify_clients()  # Notify all clients to reload
+    # Return a 200 status on successful update
+    return "Update successful", 200
+
+@app.route('/forceupdate', methods=['POST'])
+def force_update_html():
+    global html_content
+    # Get the new HTML content from the POST request
+    new_code = request.get_data().decode('utf-8')
+    # Update the HTML content with the new code
+    html_content = new_code
+    notify_clients()  # Notify all clients to reload
     # Return a 200 status on successful update
     return "Update successful", 200
 

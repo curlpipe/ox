@@ -2,8 +2,8 @@
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
-use crate::{PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
-use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
+use crate::{fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
+use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
 use kaolinite::{Loc, Size};
 use mlua::prelude::*;
 
@@ -81,10 +81,16 @@ impl LuaUserData for Editor {
                 Ok(None)
             }
         });
+        fields.add_field_method_get("cwd", |_, _| Ok(get_cwd()));
     }
 
     #[allow(clippy::too_many_lines)]
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        // Debugging methods
+        methods.add_method_mut("panic", |_, _, msg: String| {
+            fatal_error(&msg);
+            Ok(())
+        });
         // Reload the configuration file
         methods.add_method_mut("reset_terminal", |_, editor, ()| {
             let _ = editor.terminal.start();
@@ -173,6 +179,8 @@ impl LuaUserData for Editor {
         });
         methods.add_method_mut("remove_word", |_, editor, ()| {
             let _ = editor.doc_mut().delete_word();
+            editor.update_highlighter();
+            editor.hl_edit(editor.doc().loc().y);
             Ok(())
         });
         // Cursor moving
@@ -391,47 +399,65 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("get", |_, editor, ()| {
-            let lines = editor.doc().len_lines();
-            editor.doc_mut().load_to(lines);
-            let contents = editor.doc().lines.join("\n");
-            Ok(contents)
+            if let Some(doc) = editor.try_doc_mut() {
+                let lines = doc.len_lines();
+                doc.load_to(lines);
+                let contents = doc.lines.join("\n");
+                Ok(Some(contents))
+            } else {
+                Ok(None)
+            }
         });
         methods.add_method("get_character", |_, editor, ()| {
-            let loc = editor.doc().char_loc();
-            let ch = editor
-                .doc()
-                .line(loc.y)
-                .unwrap_or_default()
-                .chars()
-                .nth(loc.x)
-                .map(|ch| ch.to_string())
-                .unwrap_or_default();
-            Ok(ch)
+            if let Some(doc) = editor.try_doc() {
+                let loc = doc.char_loc();
+                let ch = doc
+                    .line(loc.y)
+                    .unwrap_or_default()
+                    .chars()
+                    .nth(loc.x)
+                    .map(|ch| ch.to_string())
+                    .unwrap_or_default();
+                Ok(Some(ch))
+            } else {
+                Ok(None)
+            }
         });
         methods.add_method_mut("get_character_at", |_, editor, (x, y): (usize, usize)| {
-            editor.doc_mut().load_to(y);
-            let y = y.saturating_sub(1);
-            let ch = editor
-                .doc()
-                .line(y)
-                .unwrap_or_default()
-                .chars()
-                .nth(x)
-                .map_or_else(String::new, |ch| ch.to_string());
-            editor.update_highlighter();
-            Ok(ch)
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.load_to(y);
+                let y = y.saturating_sub(1);
+                let ch = doc
+                    .line(y)
+                    .unwrap_or_default()
+                    .chars()
+                    .nth(x)
+                    .map_or_else(String::new, |ch| ch.to_string());
+                editor.update_highlighter();
+                Ok(Some(ch))
+            } else {
+                Ok(None)
+            }
         });
         methods.add_method("get_line", |_, editor, ()| {
-            let loc = editor.doc().char_loc();
-            let line = editor.doc().line(loc.y).unwrap_or_default();
-            Ok(line)
+            if let Some(doc) = editor.try_doc() {
+                let loc = doc.char_loc();
+                let line = doc.line(loc.y).unwrap_or_default();
+                Ok(Some(line))
+            } else {
+                Ok(None)
+            }
         });
         methods.add_method_mut("get_line_at", |_, editor, y: usize| {
-            editor.doc_mut().load_to(y);
-            let y = y.saturating_sub(1);
-            let line = editor.doc().line(y).unwrap_or_default();
-            editor.update_highlighter();
-            Ok(line)
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.load_to(y);
+                let y = y.saturating_sub(1);
+                let line = doc.line(y).unwrap_or_default();
+                editor.update_highlighter();
+                Ok(Some(line))
+            } else {
+                Ok(None)
+            }
         });
         // Document management
         methods.add_method_mut("previous_tab", |_, editor, ()| {
@@ -497,7 +523,9 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("commit", |_, editor, ()| {
-            editor.doc_mut().commit();
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.commit();
+            }
             Ok(())
         });
         // Searching and replacing
@@ -556,11 +584,15 @@ impl LuaUserData for Editor {
             let Size { w, mut h } = crate::ui::size().unwrap_or(Size { w: 0, h: 0 });
             h = h.saturating_sub(1 + editor.push_down);
             let _ = editor.terminal.hide_cursor();
-            let _ = editor.render_feedback_line(w, h);
             // Apply render and restore cursor
-            let max = editor.dent();
-            if let Some(Loc { x, y }) = editor.doc().cursor_loc_in_screen() {
-                let _ = editor.terminal.goto(x + max, y + editor.push_down);
+            if editor.try_doc().is_some() {
+                let _ = editor.render_feedback_line(w, h);
+            }
+            if let Some(doc) = editor.try_doc() {
+                let max = editor.dent();
+                if let Some(Loc { x, y }) = doc.cursor_loc_in_screen() {
+                    let _ = editor.terminal.goto(x + max, y + editor.push_down);
+                }
             }
             let _ = editor.terminal.show_cursor();
             let _ = editor.terminal.flush();

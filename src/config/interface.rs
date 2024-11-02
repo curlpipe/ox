@@ -245,7 +245,11 @@ impl TabLine {
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
         let icon = file.file_type.clone().map_or("󰈙 ".to_string(), |t| t.icon);
-        let modified = if file.doc.info.modified { "[+]" } else { "" };
+        let modified = if file.doc.event_mgmt.with_disk(&file.doc.take_snapshot()) {
+            ""
+        } else {
+            "[+]"
+        };
         let mut result = self.format.clone();
         result = result
             .replace("{file_extension}", &file_extension)
@@ -333,10 +337,14 @@ impl StatusLine {
             .clone()
             .map_or("Unknown".to_string(), |t| t.name);
         let icon = file.file_type.clone().map_or("󰈙 ".to_string(), |t| t.icon);
-        let modified = if editor.doc().info.modified {
-            "[+]"
-        } else {
+        let modified = if editor
+            .doc()
+            .event_mgmt
+            .with_disk(&editor.doc().take_snapshot())
+        {
             ""
+        } else {
+            "[+]"
         };
         let cursor_y = (editor.doc().loc().y + 1).to_string();
         let cursor_x = editor.doc().char_ptr.to_string();

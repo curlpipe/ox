@@ -1,5 +1,5 @@
 --[[
-Emmet v0.3
+Emmet v0.4
 
 Implementation of Emmet for Ox for rapid web development
 ]]--
@@ -17,9 +17,10 @@ end
 function emmet:expand()
     -- Get the emmet code
     local unexpanded = editor:get_line()
-    unexpanded = unexpanded:gsub("%s+", "")
+    unexpanded = unexpanded:gsub("^%s+", "")
+    unexpanded = unexpanded:gsub("%s+$", "")
     -- Request the expanded equivalent
-    local command = string.format("python %s/oxemmet.py '%s'", plugin_path, unexpanded)
+    local command = string.format("python %s/oxemmet.py \"%s\"", plugin_path, unexpanded)
     local expanded = shell:output(command)
     expanded = expanded:gsub("\n$", "")
     -- Keep track of the level of indentation

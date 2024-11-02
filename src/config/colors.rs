@@ -1,5 +1,6 @@
-/// For dealing with colours in the configuration file
 use crate::error::{OxError, Result};
+/// For dealing with colours in the configuration file
+use crate::ui::{rgb_to_xterm256, supports_true_color};
 use crossterm::style::Color as CColor;
 use mlua::prelude::*;
 
@@ -304,16 +305,28 @@ impl Color {
 
     /// Returns a colour as a crossterm colour, ready to turn into ANSI codes
     pub fn to_color(&self) -> Result<CColor> {
+        let true_color = supports_true_color();
+        // Perform conversion
         Ok(match self {
             Color::Hex(hex) => {
                 let (r, g, b) = Self::hex_to_rgb(hex)?;
-                CColor::Rgb { r, g, b }
+                if true_color {
+                    CColor::Rgb { r, g, b }
+                } else {
+                    CColor::AnsiValue(rgb_to_xterm256(r, g, b))
+                }
             }
-            Color::Rgb(r, g, b) => CColor::Rgb {
-                r: *r,
-                g: *g,
-                b: *b,
-            },
+            Color::Rgb(r, g, b) => {
+                if true_color {
+                    CColor::Rgb {
+                        r: *r,
+                        g: *g,
+                        b: *b,
+                    }
+                } else {
+                    CColor::AnsiValue(rgb_to_xterm256(*r, *g, *b))
+                }
+            }
             Color::Ansi(code) => CColor::AnsiValue(*code),
             Color::Black => CColor::Black,
             Color::DarkGrey => CColor::DarkGrey,
@@ -342,8 +355,9 @@ impl Color {
 
         // Ensure the hex code is exactly 6 characters long
         if hex.len() != 6 {
-            let msg = "Invalid hex code used in configuration file - ensure they are of length 6";
-            return Err(OxError::Config(msg.to_string()));
+            let msg = "Invalid hex code used in configuration file - ensure they are of length 6"
+                .to_string();
+            return Err(OxError::Config { msg });
         }
 
         // Parse the hex string into the RGB components
@@ -353,8 +367,8 @@ impl Color {
             if let Ok(val) = u8::from_str_radix(section, 16) {
                 tri.push(val);
             } else {
-                let msg = "Invalid hex code used in configuration file - ensure all digits are between 0 and F";
-                return Err(OxError::Config(msg.to_string()));
+                let msg = "Invalid hex code used in configuration file - ensure all digits are between 0 and F".to_string();
+                return Err(OxError::Config { msg });
             }
         }
         Ok((tri[0], tri[1], tri[2]))

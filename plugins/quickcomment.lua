@@ -67,6 +67,7 @@ function quickcomment:comment_start()
 end
 
 event_mapping["alt_c"] = function()
+    editor:commit()
     if quickcomment:is_commented(editor.cursor.y) then
         quickcomment:uncomment(editor.cursor.y)
     else

@@ -1,9 +1,9 @@
 use crate::error::{OxError, Result};
-use crate::ui::{size, Feedback};
+use crate::ui::{key_event, size, Feedback};
 /// Functions for rendering the UI
 use crate::{display, handle_lua_error};
 use crossterm::{
-    event::{read, Event as CEvent, KeyCode as KCode, KeyModifiers as KMod},
+    event::{read, KeyCode as KCode, KeyModifiers as KMod},
     queue,
     style::{
         Attribute, Color, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg,
@@ -53,7 +53,7 @@ impl Editor {
     }
 
     /// Render the lines of the document
-    #[allow(clippy::similar_names)]
+    #[allow(clippy::similar_names, clippy::too_many_lines)]
     pub fn render_document(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
         // Get some details about the help message
         let colors = self.config.colors.borrow().highlight.to_color()?;
@@ -117,6 +117,10 @@ impl Editor {
             // Render line if it exists
             let idx = y as usize + self.doc().offset.y;
             if let Some(line) = self.doc().line(idx) {
+                // Reset the cache
+                let mut cache_bg = editor_bg;
+                let mut cache_fg = editor_fg;
+                // Gather the tokens
                 let tokens = self.highlighter().line(idx, &line);
                 let tokens = trim_fit(&tokens, self.doc().offset.x, required_width, tab_width);
                 let mut x_pos = self.doc().offset.x;
@@ -144,10 +148,14 @@ impl Editor {
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
-                        if is_selected {
+                        if is_selected && (cache_bg != selection_bg || cache_fg != selection_fg) {
                             display!(self, selection_bg, selection_fg);
-                        } else {
+                            cache_bg = selection_bg;
+                            cache_fg = selection_fg;
+                        } else if !is_selected && (cache_bg != editor_bg || cache_fg != colour) {
                             display!(self, editor_bg, colour);
+                            cache_bg = editor_bg;
+                            cache_fg = colour;
                         }
                         display!(self, c);
                         x_pos += 1;
@@ -308,8 +316,8 @@ impl Editor {
             self.terminal.goto(prompt.len() + input.len() + 2, h)?;
             self.terminal.flush()?;
             // Handle events
-            if let CEvent::Key(key) = read()? {
-                match (key.modifiers, key.code) {
+            if let Some((modifiers, code)) = key_event(&read()?) {
+                match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
                     // Cancel operation
@@ -331,14 +339,22 @@ impl Editor {
     /// Prompt for selecting a file
     #[allow(clippy::similar_names)]
     pub fn path_prompt(&mut self) -> Result<String> {
-        let mut input = get_cwd().map(|s| s + "/").unwrap_or_default();
+        let mut input = get_cwd()
+            .map(|p| {
+                if p.ends_with(std::path::MAIN_SEPARATOR) {
+                    p
+                } else {
+                    p + std::path::MAIN_SEPARATOR_STR
+                }
+            })
+            .unwrap_or_default();
         let mut offset = 0;
         let mut done = false;
         let mut old_suggestions = vec![];
         // Enter into a menu that asks for a prompt
         while !done {
             // Find the suggested files and folders
-            let parent = if input.ends_with('/') {
+            let parent = if input.ends_with('/') || input.ends_with('\\') {
                 input.to_string()
             } else {
                 get_parent(&input).unwrap_or_default()
@@ -386,8 +402,8 @@ impl Editor {
             self.terminal.goto(6 + width(&input, tab_width), h)?;
             self.terminal.flush()?;
             // Handle events
-            if let CEvent::Key(key) = read()? {
-                match (key.modifiers, key.code) {
+            if let Some((modifiers, code)) = key_event(&read()?) {
+                match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
                     // Cancel when escape key is pressed
@@ -401,7 +417,7 @@ impl Editor {
                     // Autocomplete path
                     (KMod::NONE, KCode::Right) => {
                         if file_or_dir(&suggestion) == "directory" {
-                            suggestion += "/";
+                            suggestion.push(std::path::MAIN_SEPARATOR);
                         }
                         input = suggestion;
                         offset = 0;
@@ -435,8 +451,8 @@ impl Editor {
             self.render_feedback_line(w, h)?;
             self.terminal.flush()?;
             // Handle events
-            if let CEvent::Key(key) = read()? {
-                match (key.modifiers, key.code) {
+            if let Some((modifiers, code)) = key_event(&read()?) {
+                match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Esc) => {
                         done = true;
