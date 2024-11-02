@@ -1,5 +1,5 @@
 --[[
-Git v0.5
+Git v0.4
 
 A plug-in for git integration that provides features to: 
  - Choose which files to add to a commit
