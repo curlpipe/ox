@@ -1,9 +1,8 @@
 /// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
-use crate::config::Document;
 use crate::editor::Editor;
 use crate::ui::Feedback;
-use crate::{fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
+use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
 use kaolinite::{Loc, Size};
 use mlua::prelude::*;
