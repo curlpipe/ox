@@ -138,7 +138,13 @@ function plugin_manager:download_plugin(plugin)
     local path = plugin_path .. "/" .. plugin .. ".lua"
     -- Create the plug-in directory if it doesn't already exist
     if not dir_exists(plugin_path) then
-        if shell:run("mkdir " .. plugin_path) ~= 0 then
+        local command
+        if package.config.sub(1,1) == '\\' then
+            command = "mkdir " .. plugin_path
+        else
+            command = "mkdir -p " .. plugin_path
+        end
+        if shell:run(command) ~= 0 then
             return "Failed to make directory at " .. plugin_path
         end
     end
