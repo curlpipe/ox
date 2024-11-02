@@ -245,19 +245,14 @@ pub fn supports_true_color() -> bool {
     let term = env::var("TERM").unwrap_or_default();
     let colorterm = env::var("COLORTERM").unwrap_or_default();
     // Check for common true color indicators
-    if term.contains("truecolor") || term.contains("xterm") || term.contains("screen") {
+    if term.contains("truecolor") || term.contains("screen") {
         return true;
     }
     // Some terminals use COLORTERM to indicate support for true color
     if colorterm.contains("truecolor") || colorterm.contains("24bit") {
         return true;
     }
-    // Check for specific terminal types that support true color
-    match term.as_str() {
-        "xterm-256color" | "screen-256color" | "tmux-256color" => true,
-        // No indicators found
-        _ => false,
-    }
+    false
 }
 
 /// Converts rgb to the closest xterm equivalent
