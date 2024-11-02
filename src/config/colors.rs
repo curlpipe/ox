@@ -1,5 +1,6 @@
-/// For dealing with colours in the configuration file
 use crate::error::{OxError, Result};
+/// For dealing with colours in the configuration file
+use crate::ui::{rgb_to_xterm256, supports_true_color};
 use crossterm::style::Color as CColor;
 use mlua::prelude::*;
 
@@ -304,16 +305,28 @@ impl Color {
 
     /// Returns a colour as a crossterm colour, ready to turn into ANSI codes
     pub fn to_color(&self) -> Result<CColor> {
+        let true_color = supports_true_color();
+        // Perform conversion
         Ok(match self {
             Color::Hex(hex) => {
                 let (r, g, b) = Self::hex_to_rgb(hex)?;
-                CColor::Rgb { r, g, b }
+                if true_color {
+                    CColor::Rgb { r, g, b }
+                } else {
+                    CColor::AnsiValue(rgb_to_xterm256(r, g, b))
+                }
             }
-            Color::Rgb(r, g, b) => CColor::Rgb {
-                r: *r,
-                g: *g,
-                b: *b,
-            },
+            Color::Rgb(r, g, b) => {
+                if true_color {
+                    CColor::Rgb {
+                        r: *r,
+                        g: *g,
+                        b: *b,
+                    }
+                } else {
+                    CColor::AnsiValue(rgb_to_xterm256(*r, *g, *b))
+                }
+            }
             Color::Ansi(code) => CColor::AnsiValue(*code),
             Color::Black => CColor::Black,
             Color::DarkGrey => CColor::DarkGrey,
