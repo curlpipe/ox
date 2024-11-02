@@ -649,8 +649,17 @@ fn document_moving() {
     assert_eq!(doc.next_word_close(Loc { x: 20, y: 11 }), 20);
     assert_eq!(doc.next_word_close(Loc { x: 24, y: 11 }), 24);
     assert_eq!(doc.next_word_close(Loc { x: 22, y: 11 }), 24);
-    doc.move_to(&Loc { x: 0, y: 10000000000 });
-    assert_eq!(doc.loc(), Loc { x: 0, y: doc.len_lines() });
+    doc.move_to(&Loc {
+        x: 0,
+        y: 10000000000,
+    });
+    assert_eq!(
+        doc.loc(),
+        Loc {
+            x: 0,
+            y: doc.len_lines()
+        }
+    );
 }
 
 #[test]
