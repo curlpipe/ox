@@ -15,6 +15,13 @@ cp target/generate-rpm/*.rpm target/pkgs/
 cargo deb
 cp target/debian/*.deb target/pkgs/
 
+# Build for macOS (binary)
+export SDKROOT=../../make/MacOSX13.3.sdk/
+export PATH=$PATH:~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/
+export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=rust-lld
+cargo zigbuild --release --target x86_64-apple-darwin
+cp target/x86_64-apple-darwin/release/ox target/pkgs/ox-macos
+
 # Build for Windows (binary)
 cargo build --release --target x86_64-pc-windows-gnu
 strip -s target/x86_64-pc-windows-gnu/release/ox.exe
