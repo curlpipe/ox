@@ -168,15 +168,6 @@ impl Editor {
                                 cache_fg = colour;
                             }
                         }
-                        if is_selected && (cache_bg != selection_bg || cache_fg != selection_fg) {
-                            display!(self, selection_bg, selection_fg);
-                            cache_bg = selection_bg;
-                            cache_fg = selection_fg;
-                        } else if !is_selected && (cache_bg != editor_bg || cache_fg != colour) {
-                            display!(self, editor_bg, colour);
-                            cache_bg = editor_bg;
-                            cache_fg = colour;
-                        }
                         display!(self, c);
                         x_pos += 1;
                     }

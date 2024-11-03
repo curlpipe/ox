@@ -8,7 +8,7 @@ pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
         let mm_active = ged!(mut &editor).macro_man.playing;
         // While waiting for an event to come along, service the task manager
         if !mm_active {
-            while let (false, Ok(false)) = (mm_active, poll(Duration::from_millis(100))) {
+            while let (false, Ok(false)) = (mm_active, poll(Duration::from_millis(50))) {
                 let exec = ged!(mut &editor)
                     .config
                     .task_manager
