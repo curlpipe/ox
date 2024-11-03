@@ -65,6 +65,7 @@ impl Editor {
                     }
                     match self.find_mouse_location(lua, event) {
                         MouseLocation::File(mut loc) => {
+                            self.doc_mut().clear_cursors();
                             loc.x = self.doc_mut().character_idx(&loc);
                             self.doc_mut().move_to(&loc);
                             self.doc_mut().old_cursor = self.doc().loc().x;
