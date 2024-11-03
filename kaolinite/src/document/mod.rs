@@ -113,6 +113,7 @@ impl Document {
     /// # Errors
     /// Returns an error if there is a problem with the specified operation.
     pub fn forth(&mut self, ev: Event) -> Result<()> {
+        // Perform the event
         match ev {
             Event::Insert(loc, ch) => self.insert(&loc, &ch),
             Event::Delete(loc, st) => self.delete_with_tab(&loc, &st),

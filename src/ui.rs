@@ -1,6 +1,7 @@
 /// Utilities for rendering the user interface
 use crate::config::{Colors, Terminal as TerminalConfig};
 use crate::error::Result;
+use crate::editor::MacroMan;
 use base64::prelude::*;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
@@ -55,7 +56,8 @@ pub fn fatal_error(msg: &str) {
 }
 
 /// Shorthand to read key events
-pub fn key_event(kev: &CEvent) -> Option<(KMod, KCode)> {
+pub fn key_event(kev: &CEvent, mm: &mut MacroMan) -> Option<(KMod, KCode)> {
+    mm.register(kev.clone());
     if let CEvent::Key(KeyEvent {
         modifiers,
         code,

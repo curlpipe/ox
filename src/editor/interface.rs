@@ -1,10 +1,12 @@
+/// Functions for rendering the UI
+
 use crate::config;
 use crate::error::{OxError, Result};
 use crate::ui::{key_event, size, Feedback};
-/// Functions for rendering the UI
 use crate::{display, handle_lua_error};
+use crate::events::wait_for_event_hog;
 use crossterm::{
-    event::{read, KeyCode as KCode, KeyModifiers as KMod},
+    event::{KeyCode as KCode, KeyModifiers as KMod},
     queue,
     style::{
         Attribute, Color, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg,
@@ -335,7 +337,7 @@ impl Editor {
             self.terminal.goto(prompt.len() + input.len() + 2, h)?;
             self.terminal.flush()?;
             // Handle events
-            if let Some((modifiers, code)) = key_event(&read()?) {
+            if let Some((modifiers, code)) = key_event(&wait_for_event_hog(self), &mut self.macro_man) {
                 match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
@@ -421,7 +423,7 @@ impl Editor {
             self.terminal.goto(6 + width(&input, tab_width), h)?;
             self.terminal.flush()?;
             // Handle events
-            if let Some((modifiers, code)) = key_event(&read()?) {
+            if let Some((modifiers, code)) = key_event(&wait_for_event_hog(self), &mut self.macro_man) {
                 match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
@@ -470,7 +472,7 @@ impl Editor {
             self.render_feedback_line(w, h)?;
             self.terminal.flush()?;
             // Handle events
-            if let Some((modifiers, code)) = key_event(&read()?) {
+            if let Some((modifiers, code)) = key_event(&wait_for_event_hog(self), &mut self.macro_man) {
                 match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Esc) => {

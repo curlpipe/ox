@@ -82,6 +82,8 @@ impl LuaUserData for Editor {
             }
         });
         fields.add_field_method_get("cwd", |_, _| Ok(get_cwd()));
+        fields.add_field_method_get("macro_recording", |_, editor| Ok(editor.macro_man.recording));
+        fields.add_field_method_get("macro_playing", |_, editor| Ok(editor.macro_man.playing));
     }
 
     #[allow(clippy::too_many_lines)]
@@ -624,6 +626,19 @@ impl LuaUserData for Editor {
                     editor.feedback = Feedback::Error(err.to_string());
                 }
             }
+            Ok(())
+        });
+        methods.add_method_mut("macro_record_start", |_, editor, ()| {
+            editor.macro_man.record();
+            Ok(())
+        });
+        methods.add_method_mut("macro_record_stop", |_, editor, ()| {
+            editor.macro_man.finish();
+            Ok(())
+        });
+        methods.add_method_mut("macro_play", |_, editor, times: usize| {
+            editor.macro_man.finish();
+            editor.macro_man.play(times);
             Ok(())
         });
     }

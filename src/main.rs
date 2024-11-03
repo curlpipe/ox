@@ -4,6 +4,7 @@ mod cli;
 mod config;
 mod editor;
 mod error;
+mod events;
 mod ui;
 
 use cli::CommandLineInterface;
@@ -14,6 +15,7 @@ use config::{
 use crossterm::event::{Event as CEvent, KeyEvent, KeyEventKind};
 use editor::{Editor, FileTypes};
 use error::{OxError, Result};
+use events::wait_for_event;
 use kaolinite::event::{Error as KError, Event};
 use kaolinite::searching::Searcher;
 use kaolinite::utils::{file_or_dir, get_cwd};
@@ -25,6 +27,7 @@ use std::result::Result as RResult;
 use ui::{fatal_error, Feedback};
 
 /// Get editor helper macro
+#[macro_export]
 macro_rules! ged {
     ($editor:expr) => {
         $editor.borrow::<Editor>().unwrap()
@@ -169,44 +172,14 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     // Run the editor and handle errors if applicable
     ged!(&editor).update_cwd();
     ged!(mut &editor).init()?;
-    let mut event;
     while ged!(&editor).active {
-        // Render and wait for event
-        ged!(mut &editor).render(&lua)?;
-        // Keep requesting events until a valid one is found
-        loop {
-            // While waiting for an event to come along, service the task manager
-            while let Ok(false) = crossterm::event::poll(std::time::Duration::from_millis(100)) {
-                let exec = ged!(mut &editor)
-                    .config
-                    .task_manager
-                    .lock()
-                    .unwrap()
-                    .execution_list();
-                for task in exec {
-                    if let Ok(target) = lua.globals().get::<mlua::Function>(task.clone()) {
-                        // Run the code
-                        handle_lua_error("task", target.call(()), &mut ged!(mut &editor).feedback);
-                    } else {
-                        ged!(mut &editor).feedback =
-                            Feedback::Warning(format!("Function '{task}' was not found"));
-                    }
-                }
-            }
-
-            // Read the event
-            event = crossterm::event::read()?;
-
-            // Block certain events from passing through
-            match event {
-                // Key release events cause duplicate and initial key press events which should be ignored
-                CEvent::Key(KeyEvent {
-                    kind: KeyEventKind::Release,
-                    ..
-                }) => (),
-                _ => break,
-            }
+        // Render (unless a macro is being played, in which case, don't bother)
+        if !ged!(&editor).macro_man.playing || ged!(&editor).macro_man.just_completed {
+            ged!(mut &editor).render(&lua)?;
         }
+        
+        // Wait for an event
+        let event = wait_for_event(&editor, &lua)?;
 
         // Clear screen of temporary items (expect on resize event)
         if !matches!(event, CEvent::Resize(_, _)) {

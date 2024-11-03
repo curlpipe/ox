@@ -23,9 +23,11 @@ mod filetypes;
 mod interface;
 mod mouse;
 mod scanning;
+mod macros;
 
 pub use documents::FileContainer;
 pub use filetypes::{FileType, FileTypes};
+pub use macros::MacroMan;
 
 /// For managing all editing and rendering of cactus
 #[allow(clippy::struct_excessive_bools)]
@@ -60,6 +62,8 @@ pub struct Editor {
     pub last_click: Option<(Instant, MouseEvent)>,
     /// Stores whether or not we're in a double click
     pub in_dbl_click: bool,
+    /// Macro manager
+    pub macro_man: MacroMan,
 }
 
 impl Editor {
@@ -82,6 +86,7 @@ impl Editor {
             plugin_active: false,
             last_click: None,
             in_dbl_click: false,
+            macro_man: MacroMan::default(),
         })
     }
 
@@ -363,10 +368,14 @@ impl Editor {
 
     /// Handle event
     pub fn handle_event(&mut self, lua: &Lua, event: CEvent) -> Result<()> {
+        // Register this event for macro purposes
+        self.macro_man.register(event.clone());
+        // Determine if a rerender is needed
         self.needs_rerender = match event {
             CEvent::Mouse(event) => event.kind != MouseEventKind::Moved,
             _ => true,
         };
+        // Pass event down to special handlers
         match event {
             CEvent::Key(key) => self.handle_key_event(key.modifiers, key.code)?,
             CEvent::Resize(w, h) => self.handle_resize(w, h),
