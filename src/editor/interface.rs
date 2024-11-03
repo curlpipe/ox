@@ -149,6 +149,7 @@ impl Editor {
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
+                        // Render the correct colour
                         if is_selected {
                             if cache_bg != selection_bg {
                                 display!(self, selection_bg);
@@ -168,7 +169,28 @@ impl Editor {
                                 cache_fg = colour;
                             }
                         }
+                        // Render multi-cursors
+                        let multi_cursor_here =
+                            self.doc().has_cursor(Loc { y: idx, x: at_x }).is_some();
+                        if multi_cursor_here {
+                            display!(
+                                self,
+                                SetAttribute(Attribute::Underlined),
+                                Bg(Color::White),
+                                Fg(Color::Black)
+                            );
+                        }
+                        // Render the character
                         display!(self, c);
+                        // Reset any multi-cursor display
+                        if multi_cursor_here {
+                            display!(
+                                self,
+                                SetAttribute(Attribute::NoUnderline),
+                                cache_bg,
+                                cache_fg
+                            );
+                        }
                         x_pos += 1;
                     }
                 }

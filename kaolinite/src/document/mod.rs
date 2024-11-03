@@ -50,6 +50,8 @@ pub struct Document {
     pub in_redo: bool,
     /// The number of spaces a tab should be rendered as
     pub tab_width: usize,
+    /// Secondary cursor (for multi-cursors)
+    pub secondary_cursors: Vec<Loc>,
 }
 
 impl Document {

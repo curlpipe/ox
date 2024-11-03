@@ -42,6 +42,7 @@ impl Document {
                 eol: false,
                 read_only: false,
             },
+            secondary_cursors: vec![],
         }
     }
 
@@ -77,6 +78,7 @@ impl Document {
             tab_width: 4,
             old_cursor: 0,
             in_redo: false,
+            secondary_cursors: vec![],
         })
     }
 
