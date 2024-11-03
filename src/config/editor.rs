@@ -82,7 +82,9 @@ impl LuaUserData for Editor {
             }
         });
         fields.add_field_method_get("cwd", |_, _| Ok(get_cwd()));
-        fields.add_field_method_get("macro_recording", |_, editor| Ok(editor.macro_man.recording));
+        fields.add_field_method_get("macro_recording", |_, editor| {
+            Ok(editor.macro_man.recording)
+        });
         fields.add_field_method_get("macro_playing", |_, editor| Ok(editor.macro_man.playing));
     }
 

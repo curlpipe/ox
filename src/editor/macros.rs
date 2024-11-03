@@ -1,8 +1,5 @@
 /// Tools for recording and playing back macros for bulk editing
-
-use crossterm::event::{
-    Event as CEvent, KeyCode, KeyEvent, KeyModifiers,
-};
+use crossterm::event::{Event as CEvent, KeyCode, KeyEvent, KeyModifiers};
 
 /// Macro manager struct
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -24,7 +21,7 @@ impl MacroMan {
             self.sequence.push(ev);
         }
     }
-    
+
     /// Activate recording
     pub fn record(&mut self) {
         self.just_completed = false;
@@ -38,7 +35,7 @@ impl MacroMan {
         self.recording = false;
         self.remove_macro_calls();
     }
-    
+
     /// Activate macro
     pub fn play(&mut self, reps: usize) {
         self.reps = reps;
@@ -46,7 +43,7 @@ impl MacroMan {
         self.playing = true;
         self.ptr = 0;
     }
-    
+
     /// Get next event from macro man
     pub fn next(&mut self) -> Option<CEvent> {
         if self.playing {
@@ -64,10 +61,15 @@ impl MacroMan {
             None
         }
     }
-    
+
     /// Remove the stop key binding from being included
     pub fn remove_macro_calls(&mut self) {
-        if let Some(CEvent::Key(KeyEvent { modifiers: KeyModifiers::CONTROL, code: KeyCode::Esc, .. })) = self.sequence.last() {
+        if let Some(CEvent::Key(KeyEvent {
+            modifiers: KeyModifiers::CONTROL,
+            code: KeyCode::Esc,
+            ..
+        })) = self.sequence.last()
+        {
             self.sequence.pop();
         }
     }

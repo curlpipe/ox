@@ -21,9 +21,9 @@ mod documents;
 mod editing;
 mod filetypes;
 mod interface;
+mod macros;
 mod mouse;
 mod scanning;
-mod macros;
 
 pub use documents::FileContainer;
 pub use filetypes::{FileType, FileTypes};

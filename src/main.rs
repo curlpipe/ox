@@ -177,7 +177,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         if !ged!(&editor).macro_man.playing || ged!(&editor).macro_man.just_completed {
             ged!(mut &editor).render(&lua)?;
         }
-        
+
         // Wait for an event
         let event = wait_for_event(&editor, &lua)?;
 

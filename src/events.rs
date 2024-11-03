@@ -1,6 +1,6 @@
-use crate::{ged, Editor, handle_lua_error, Feedback, CEvent, KeyEvent, KeyEventKind, Result};
-use mlua::{AnyUserData, Lua};
+use crate::{ged, handle_lua_error, CEvent, Editor, Feedback, KeyEvent, KeyEventKind, Result};
 use crossterm::event::{poll, read};
+use mlua::{AnyUserData, Lua};
 use std::time::Duration;
 
 pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
@@ -30,12 +30,18 @@ pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
         // Attempt to get an event
         let Some(event) = get_event(&mut ged!(mut &editor)) else {
             // No event available, back to the beginning
-            continue
+            continue;
         };
 
         // Block certain events from passing through
-        if !matches!(event, CEvent::Key(KeyEvent { kind: KeyEventKind::Release, .. })) {
-            return Ok(event)
+        if !matches!(
+            event,
+            CEvent::Key(KeyEvent {
+                kind: KeyEventKind::Release,
+                ..
+            })
+        ) {
+            return Ok(event);
         }
     }
 }
@@ -46,12 +52,18 @@ pub fn wait_for_event_hog(editor: &mut Editor) -> CEvent {
         // Attempt to get an event
         let Some(event) = get_event(editor) else {
             // No event available, back to the beginning
-            continue
+            continue;
         };
 
         // Block certain events from passing through
-        if !matches!(event, CEvent::Key(KeyEvent { kind: KeyEventKind::Release, .. })) {
-            return event
+        if !matches!(
+            event,
+            CEvent::Key(KeyEvent {
+                kind: KeyEventKind::Release,
+                ..
+            })
+        ) {
+            return event;
         }
     }
 }
