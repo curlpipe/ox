@@ -25,6 +25,7 @@ mod macros;
 mod mouse;
 mod scanning;
 
+pub use cursor::{allowed_by_multi_cursor, handle_multiple_cursors};
 pub use documents::FileContainer;
 pub use filetypes::{FileType, FileTypes};
 pub use macros::MacroMan;

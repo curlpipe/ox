@@ -1,6 +1,8 @@
 /// Functions for moving the cursor around
-use crate::config;
+use crate::{config, ged, handle_event, CEvent, Result};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use kaolinite::event::Status;
+use mlua::{AnyUserData, Lua};
 
 use super::Editor;
 
@@ -94,4 +96,44 @@ impl Editor {
             self.doc_mut().move_home();
         }
     }
+}
+
+/// Handle multiple cursors (replay a key event for each of them)
+pub fn handle_multiple_cursors(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
+    // Cache the state of the document
+    let cursor = ged!(&editor).doc().cursor;
+    let char_ptr = ged!(&editor).doc().char_ptr;
+    let old_cursor = ged!(&editor).doc().old_cursor;
+    // For each secondary cursor, replay the key event
+    ged!(mut &editor).macro_man.playing = true;
+    let secondary_cursors = ged!(&editor).doc().secondary_cursors.clone();
+    for (id, cursor) in secondary_cursors.iter().enumerate() {
+        ged!(mut &editor).doc_mut().move_to(cursor);
+        handle_event(editor, event, lua)?;
+        let char_loc = ged!(&editor).doc().char_loc();
+        *ged!(mut &editor)
+            .doc_mut()
+            .secondary_cursors
+            .get_mut(id)
+            .unwrap() = char_loc;
+    }
+    ged!(mut &editor).macro_man.playing = false;
+    // Restore back to the state of the document beforehand
+    ged!(mut &editor).doc_mut().cursor = cursor;
+    ged!(mut &editor).doc_mut().char_ptr = char_ptr;
+    ged!(mut &editor).doc_mut().old_cursor = old_cursor;
+    Ok(())
+}
+
+// Determine whether an event should be acted on by the multi cursor
+#[allow(clippy::module_name_repetitions)]
+pub fn allowed_by_multi_cursor(event: &CEvent) -> bool {
+    matches!(
+        event,
+        CEvent::Key(KeyEvent {
+            code: KeyCode::Char(_) | KeyCode::Tab | KeyCode::Backspace | KeyCode::Enter,
+            modifiers: KeyModifiers::NONE,
+            ..
+        })
+    )
 }

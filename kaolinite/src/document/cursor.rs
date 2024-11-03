@@ -246,7 +246,6 @@ impl Document {
 
     /// Function to select to a specific x position
     pub fn select_to_x(&mut self, x: usize) {
-        self.clear_cursors();
         let line = self.line(self.loc().y).unwrap_or_default();
         // If the move position is out of bounds, move to the end of the line
         if line.chars().count() < x {
@@ -272,7 +271,6 @@ impl Document {
 
     /// Function to select to a specific y position
     pub fn select_to_y(&mut self, y: usize) {
-        self.clear_cursors();
         // Bounds checking
         if self.loc().y != y && y <= self.len_lines() {
             self.cursor.loc.y = y;

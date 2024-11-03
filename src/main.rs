@@ -13,7 +13,7 @@ use config::{
     PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN,
 };
 use crossterm::event::{Event as CEvent, KeyEvent, KeyEventKind};
-use editor::{Editor, FileTypes};
+use editor::{allowed_by_multi_cursor, handle_multiple_cursors, Editor, FileTypes};
 use error::{OxError, Result};
 use events::wait_for_event;
 use kaolinite::event::{Error as KError, Event};
@@ -181,55 +181,14 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         // Wait for an event
         let event = wait_for_event(&editor, &lua)?;
 
-        // Clear screen of temporary items (expect on resize event)
-        if !matches!(event, CEvent::Resize(_, _)) {
-            ged!(mut &editor).greet = false;
-            ged!(mut &editor).feedback = Feedback::None;
-        }
+        // Handle the event
+        handle_event(&editor, &event, &lua)?;
 
-        // Handle plug-in before key press mappings
-        if let CEvent::Key(key) = event {
-            let key_str = key_to_string(key.modifiers, key.code);
-            let code = run_key_before(&key_str);
-            let result = lua.load(&code).exec();
-            handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
-        }
-
-        // Handle paste event (before event)
-        if let CEvent::Paste(ref paste_text) = event {
-            let listeners = get_listeners("before:paste", &lua)?;
-            for listener in listeners {
-                handle_lua_error(
-                    "paste",
-                    listener.call(paste_text.clone()),
-                    &mut ged!(mut &editor).feedback,
-                );
+        // Handle multi cursors
+        if let CEvent::Key(_) = event {
+            if ged!(&editor).active && allowed_by_multi_cursor(&event) {
+                handle_multiple_cursors(&editor, &event, &lua)?;
             }
-        }
-
-        // Actually handle editor event (errors included)
-        if let Err(err) = ged!(mut &editor).handle_event(&lua, event.clone()) {
-            ged!(mut &editor).feedback = Feedback::Error(format!("{err:?}"));
-        }
-
-        // Handle paste event (after event)
-        if let CEvent::Paste(ref paste_text) = event {
-            let listeners = get_listeners("paste", &lua)?;
-            for listener in listeners {
-                handle_lua_error(
-                    "paste",
-                    listener.call(paste_text.clone()),
-                    &mut ged!(mut &editor).feedback,
-                );
-            }
-        }
-
-        // Handle plug-in after key press mappings (if no errors occured)
-        if let CEvent::Key(key) = event {
-            let key_str = key_to_string(key.modifiers, key.code);
-            let code = run_key(&key_str);
-            let result = lua.load(&code).exec();
-            handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
         }
 
         ged!(mut &editor).update_highlighter();
@@ -247,6 +206,61 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     handle_lua_error("exit", result, &mut ged!(mut &editor).feedback);
 
     ged!(mut &editor).terminal.end()?;
+    Ok(())
+}
+
+fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
+    // Clear screen of temporary items (expect on resize event)
+    if !matches!(event, CEvent::Resize(_, _)) {
+        ged!(mut &editor).greet = false;
+        ged!(mut &editor).feedback = Feedback::None;
+    }
+
+    // Handle plug-in before key press mappings
+    if let CEvent::Key(key) = event {
+        let key_str = key_to_string(key.modifiers, key.code);
+        let code = run_key_before(&key_str);
+        let result = lua.load(&code).exec();
+        handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
+    }
+
+    // Handle paste event (before event)
+    if let CEvent::Paste(ref paste_text) = event {
+        let listeners = get_listeners("before:paste", lua)?;
+        for listener in listeners {
+            handle_lua_error(
+                "paste",
+                listener.call(paste_text.clone()),
+                &mut ged!(mut &editor).feedback,
+            );
+        }
+    }
+
+    // Actually handle editor event (errors included)
+    if let Err(err) = ged!(mut &editor).handle_event(lua, event.clone()) {
+        ged!(mut &editor).feedback = Feedback::Error(format!("{err:?}"));
+    }
+
+    // Handle paste event (after event)
+    if let CEvent::Paste(ref paste_text) = event {
+        let listeners = get_listeners("paste", lua)?;
+        for listener in listeners {
+            handle_lua_error(
+                "paste",
+                listener.call(paste_text.clone()),
+                &mut ged!(mut &editor).feedback,
+            );
+        }
+    }
+
+    // Handle plug-in after key press mappings (if no errors occured)
+    if let CEvent::Key(key) = event {
+        let key_str = key_to_string(key.modifiers, key.code);
+        let code = run_key(&key_str);
+        let result = lua.load(&code).exec();
+        handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
+    }
+
     Ok(())
 }
 
