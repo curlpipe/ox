@@ -1,5 +1,5 @@
 /// Functions for moving the cursor around
-use crate::{config, ged, handle_event, CEvent, Result};
+use crate::{config, ged, handle_event, CEvent, Loc, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use kaolinite::event::Status;
 use mlua::{AnyUserData, Lua};
@@ -99,30 +99,90 @@ impl Editor {
 }
 
 /// Handle multiple cursors (replay a key event for each of them)
-pub fn handle_multiple_cursors(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
+pub fn handle_multiple_cursors(
+    editor: &AnyUserData,
+    event: &CEvent,
+    lua: &Lua,
+    original_loc: &Loc,
+) -> Result<()> {
+    let mut original_loc = *original_loc;
     // Cache the state of the document
-    let cursor = ged!(&editor).doc().cursor;
-    let char_ptr = ged!(&editor).doc().char_ptr;
-    let old_cursor = ged!(&editor).doc().old_cursor;
+    let mut cursor = ged!(&editor).doc().cursor;
     // For each secondary cursor, replay the key event
     ged!(mut &editor).macro_man.playing = true;
-    let secondary_cursors = ged!(&editor).doc().secondary_cursors.clone();
-    for (id, cursor) in secondary_cursors.iter().enumerate() {
-        ged!(mut &editor).doc_mut().move_to(cursor);
-        handle_event(editor, event, lua)?;
+    let mut secondary_cursors = ged!(&editor).doc().secondary_cursors.clone();
+    // Prevent interference
+    adjust_other_cursors(
+        &mut secondary_cursors,
+        &original_loc.clone(),
+        event,
+        &mut original_loc,
+    );
+    // Update each secondary cursor
+    let mut ptr = 0;
+    while ptr < secondary_cursors.len() {
+        // Move to the secondary cursor position
+        let sec_cursor = secondary_cursors[ptr];
+        ged!(mut &editor).doc_mut().move_to(&sec_cursor);
+        // Replay the event
         let char_loc = ged!(&editor).doc().char_loc();
-        *ged!(mut &editor)
-            .doc_mut()
-            .secondary_cursors
-            .get_mut(id)
-            .unwrap() = char_loc;
+        handle_event(editor, event, lua)?;
+        // Prevent any interference
+        cursor.loc =
+            adjust_other_cursors(&mut secondary_cursors, &char_loc, event, &mut cursor.loc);
+        // Update the secondary cursor
+        let char_loc = ged!(&editor).doc().char_loc();
+        *secondary_cursors.get_mut(ptr).unwrap() = char_loc;
+        // Move to the next secondary cursor
+        ptr += 1;
     }
+    ged!(mut &editor).doc_mut().secondary_cursors = secondary_cursors;
     ged!(mut &editor).macro_man.playing = false;
     // Restore back to the state of the document beforehand
+    // TODO: calculate char_ptr and old_cursor too
     ged!(mut &editor).doc_mut().cursor = cursor;
+    let char_ptr = ged!(&editor).doc().character_idx(&cursor.loc);
     ged!(mut &editor).doc_mut().char_ptr = char_ptr;
-    ged!(mut &editor).doc_mut().old_cursor = old_cursor;
+    ged!(mut &editor).doc_mut().old_cursor = cursor.loc.x;
+    ged!(mut &editor).doc_mut().cancel_selection();
     Ok(())
+}
+
+/// Adjust other secondary cursors based of a change in one
+fn adjust_other_cursors(
+    cursors: &mut Vec<Loc>,
+    moved: &Loc,
+    event: &CEvent,
+    primary: &mut Loc,
+) -> Loc {
+    cursors.push(*primary);
+    match event {
+        CEvent::Key(KeyEvent {
+            code: KeyCode::Enter,
+            ..
+        }) => {
+            // Enter key, push all cursors below this line downwards
+            for c in cursors.iter_mut() {
+                if c == moved {
+                    continue;
+                }
+                let mut new_loc = *c;
+                // Adjust x position
+                if moved.y == c.y && moved.x < c.x {
+                    new_loc.x -= moved.x;
+                }
+                // If this cursor is after the currently moved cursor, shift down
+                if c.y > moved.y || (c.y == moved.y && c.x > moved.x) {
+                    new_loc.y += 1;
+                }
+                // Update the secondary cursor
+                *c = new_loc;
+            }
+        }
+        // TODO: Handle backspace
+        _ => (),
+    }
+    cursors.pop().unwrap()
 }
 
 // Determine whether an event should be acted on by the multi cursor
@@ -130,10 +190,23 @@ pub fn handle_multiple_cursors(editor: &AnyUserData, event: &CEvent, lua: &Lua) 
 pub fn allowed_by_multi_cursor(event: &CEvent) -> bool {
     matches!(
         event,
-        CEvent::Key(KeyEvent {
-            code: KeyCode::Char(_) | KeyCode::Tab | KeyCode::Backspace | KeyCode::Enter,
-            modifiers: KeyModifiers::NONE,
-            ..
-        })
+        CEvent::Key(
+            KeyEvent {
+                code: KeyCode::Char(_)
+                    | KeyCode::Tab
+                    | KeyCode::Backspace
+                    | KeyCode::Enter
+                    | KeyCode::Up
+                    | KeyCode::Down
+                    | KeyCode::Left
+                    | KeyCode::Right,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } | KeyEvent {
+                code: KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right,
+                modifiers: KeyModifiers::CONTROL,
+                ..
+            }
+        )
     )
 }

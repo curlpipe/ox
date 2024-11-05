@@ -182,12 +182,13 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         let event = wait_for_event(&editor, &lua)?;
 
         // Handle the event
+        let original_loc = ged!(&editor).doc().char_loc();
         handle_event(&editor, &event, &lua)?;
 
         // Handle multi cursors
         if let CEvent::Key(_) = event {
             if ged!(&editor).active && allowed_by_multi_cursor(&event) {
-                handle_multiple_cursors(&editor, &event, &lua)?;
+                handle_multiple_cursors(&editor, &event, &lua, &original_loc)?;
             }
         }
 
