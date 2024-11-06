@@ -115,6 +115,7 @@ pub fn handle_multiple_cursors(
     adjust_other_cursors(
         &mut secondary_cursors,
         &original_loc.clone(),
+        &cursor.loc,
         event,
         &mut original_loc,
     );
@@ -125,13 +126,18 @@ pub fn handle_multiple_cursors(
         let sec_cursor = secondary_cursors[ptr];
         ged!(mut &editor).doc_mut().move_to(&sec_cursor);
         // Replay the event
-        let char_loc = ged!(&editor).doc().char_loc();
+        let old_loc = ged!(&editor).doc().char_loc();
         handle_event(editor, event, lua)?;
         // Prevent any interference
-        cursor.loc =
-            adjust_other_cursors(&mut secondary_cursors, &char_loc, event, &mut cursor.loc);
-        // Update the secondary cursor
         let char_loc = ged!(&editor).doc().char_loc();
+        cursor.loc = adjust_other_cursors(
+            &mut secondary_cursors,
+            &old_loc,
+            &char_loc,
+            event,
+            &mut cursor.loc,
+        );
+        // Update the secondary cursor
         *secondary_cursors.get_mut(ptr).unwrap() = char_loc;
         // Move to the next secondary cursor
         ptr += 1;
@@ -151,7 +157,8 @@ pub fn handle_multiple_cursors(
 /// Adjust other secondary cursors based of a change in one
 fn adjust_other_cursors(
     cursors: &mut Vec<Loc>,
-    moved: &Loc,
+    old_pos: &Loc,
+    new_pos: &Loc,
     event: &CEvent,
     primary: &mut Loc,
 ) -> Loc {
@@ -163,23 +170,44 @@ fn adjust_other_cursors(
         }) => {
             // Enter key, push all cursors below this line downwards
             for c in cursors.iter_mut() {
-                if c == moved {
+                if c == old_pos {
                     continue;
                 }
                 let mut new_loc = *c;
                 // Adjust x position
-                if moved.y == c.y && moved.x < c.x {
-                    new_loc.x -= moved.x;
+                if old_pos.y == c.y && old_pos.x < c.x {
+                    new_loc.x -= old_pos.x;
                 }
                 // If this cursor is after the currently moved cursor, shift down
-                if c.y > moved.y || (c.y == moved.y && c.x > moved.x) {
+                if c.y > old_pos.y || (c.y == old_pos.y && c.x > old_pos.x) {
                     new_loc.y += 1;
                 }
                 // Update the secondary cursor
                 *c = new_loc;
             }
         }
-        // TODO: Handle backspace
+        CEvent::Key(KeyEvent {
+            code: KeyCode::Backspace,
+            ..
+        }) => {
+            // Backspace key, push all cursors below this line upwards
+            for c in cursors.iter_mut() {
+                if c == old_pos {
+                    continue;
+                }
+                let mut new_loc = *c;
+                // Adjust x position
+                if old_pos.y == c.y && old_pos.x < c.x && old_pos.x == 0 {
+                    new_loc.x += new_pos.x;
+                }
+                // If this cursor is after the currently moved cursor, shift up
+                if c.y > old_pos.y || (c.y == old_pos.y && c.x > old_pos.x) {
+                    new_loc.y -= 1;
+                }
+                // Update the secondary cursor
+                *c = new_loc;
+            }
+        }
         _ => (),
     }
     cursors.pop().unwrap()
