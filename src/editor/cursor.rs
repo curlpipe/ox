@@ -201,7 +201,7 @@ fn adjust_other_cursors(
                     new_loc.x += new_pos.x;
                 }
                 // If this cursor is after the currently moved cursor, shift up
-                if c.y > old_pos.y || (c.y == old_pos.y && c.x > old_pos.x) {
+                if (c.y > old_pos.y || (c.y == old_pos.y && c.x > old_pos.x)) && old_pos.x == 0 {
                     new_loc.y -= 1;
                 }
                 // Update the secondary cursor
@@ -220,8 +220,7 @@ pub fn allowed_by_multi_cursor(event: &CEvent) -> bool {
         event,
         CEvent::Key(
             KeyEvent {
-                code: KeyCode::Char(_)
-                    | KeyCode::Tab
+                code: KeyCode::Tab
                     | KeyCode::Backspace
                     | KeyCode::Enter
                     | KeyCode::Up
@@ -229,6 +228,10 @@ pub fn allowed_by_multi_cursor(event: &CEvent) -> bool {
                     | KeyCode::Left
                     | KeyCode::Right,
                 modifiers: KeyModifiers::NONE,
+                ..
+            } | KeyEvent {
+                code: KeyCode::Char(_),
+                modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
                 ..
             } | KeyEvent {
                 code: KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right,
