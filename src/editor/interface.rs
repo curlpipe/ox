@@ -170,26 +170,18 @@ impl Editor {
                             }
                         }
                         // Render multi-cursors
-                        let multi_cursor_here =
-                            self.doc().has_cursor(Loc { y: idx, x: at_x }).is_some();
+                        let underline = SetAttribute(Attribute::Underlined);
+                        let no_underline = SetAttribute(Attribute::NoUnderline);
+                        let at_loc = Loc { y: idx, x: at_x };
+                        let multi_cursor_here = self.doc().has_cursor(at_loc).is_some();
                         if multi_cursor_here {
-                            display!(
-                                self,
-                                SetAttribute(Attribute::Underlined),
-                                Bg(Color::White),
-                                Fg(Color::Black)
-                            );
+                            display!(self, underline, Bg(Color::White), Fg(Color::Black));
                         }
                         // Render the character
                         display!(self, c);
                         // Reset any multi-cursor display
                         if multi_cursor_here {
-                            display!(
-                                self,
-                                SetAttribute(Attribute::NoUnderline),
-                                cache_bg,
-                                cache_fg
-                            );
+                            display!(self, no_underline, cache_bg, cache_fg);
                         }
                         x_pos += 1;
                     }

@@ -168,7 +168,7 @@ impl CharMap {
         Some(ctr)
     }
 
-    /// If all character maps are of size n, then determine if x would be within one, 
+    /// If all character maps are of size n, then determine if x would be within one,
     /// and return their index inside the mapped char
     #[must_use]
     pub fn inside(&self, n: usize, x: usize, y: usize) -> Option<usize> {
