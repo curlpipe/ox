@@ -187,7 +187,10 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
 
         // Handle multi cursors
         if let CEvent::Key(_) = event {
-            if ged!(&editor).active && allowed_by_multi_cursor(&event) {
+            let has_multicursors = !ged!(&editor)
+                .try_doc()
+                .map_or(true, |doc| doc.secondary_cursors.is_empty());
+            if ged!(&editor).active && allowed_by_multi_cursor(&event) && has_multicursors {
                 handle_multiple_cursors(&editor, &event, &lua, &original_loc)?;
             }
         }
