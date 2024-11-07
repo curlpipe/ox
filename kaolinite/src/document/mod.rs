@@ -259,9 +259,13 @@ impl Document {
         // Account for double width characters
         idx = idx.saturating_sub(self.dbl_map.count(loc, true).unwrap_or(0));
         // Account for tab characters
-        idx = idx.saturating_sub(
-            self.tab_map.count(loc, true).unwrap_or(0) * self.tab_width.saturating_sub(1),
-        );
+        let tabs_behind = self.tab_map.count(loc, true).unwrap_or(0);
+        idx = if let Some(inner_idx) = self.tab_map.inside(self.tab_width, loc.x, loc.y) {
+            let existing_tabs = tabs_behind.saturating_sub(1) * self.tab_width.saturating_sub(1);
+            idx.saturating_sub(existing_tabs + inner_idx)
+        } else {
+            idx.saturating_sub(tabs_behind * self.tab_width.saturating_sub(1))
+        };
         idx
     }
 
