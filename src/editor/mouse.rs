@@ -106,7 +106,6 @@ impl Editor {
                                     self.doc_mut().select_to(&Loc { x: next, y: loc.y });
                                 }
                             } else {
-                                loc.x = self.doc_mut().character_idx(&loc);
                                 self.doc_mut().select_to(&loc);
                             }
                         }
