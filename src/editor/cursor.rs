@@ -196,12 +196,13 @@ fn adjust_other_cursors(
                     continue;
                 }
                 let mut new_loc = *c;
+                let at_line_start = old_pos.x == 0 && old_pos.y != 0;
                 // Adjust x position
-                if old_pos.y == c.y && old_pos.x < c.x && old_pos.x == 0 {
+                if old_pos.y == c.y && old_pos.x < c.x && at_line_start {
                     new_loc.x += new_pos.x;
                 }
                 // If this cursor is after the currently moved cursor, shift up
-                if (c.y > old_pos.y || (c.y == old_pos.y && c.x > old_pos.x)) && old_pos.x == 0 {
+                if (c.y > old_pos.y || (c.y == old_pos.y && c.x > old_pos.x)) && at_line_start {
                     new_loc.y -= 1;
                 }
                 // Update the secondary cursor
