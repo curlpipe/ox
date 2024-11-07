@@ -135,7 +135,7 @@ impl Editor {
         if self.doc().loc().y == self.doc().len_lines() {
             self.exe(Event::InsertLine(self.doc().loc().y, String::new()))?;
             if !self.doc().info.read_only {
-                self.highlighter().append(&String::new());
+                self.highlighter().append("");
             }
         }
         Ok(())
