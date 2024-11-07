@@ -168,11 +168,12 @@ impl CharMap {
         Some(ctr)
     }
 
-    /// If all character maps are of size n, then determine if x would be within one, and return their index inside the char
+    /// If all character maps are of size n, then determine if x would be within one, 
+    /// and return their index inside the mapped char
     #[must_use]
     pub fn inside(&self, n: usize, x: usize, y: usize) -> Option<usize> {
         for (disp, _) in self.get(y)? {
-            if ((disp + 1)..(disp + n)).contains(&&x) {
+            if ((disp + 1)..(disp + n)).contains(&x) {
                 return Some(x.saturating_sub(*disp));
             }
         }

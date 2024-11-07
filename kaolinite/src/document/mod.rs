@@ -261,9 +261,11 @@ impl Document {
         // Account for tab characters
         let tabs_behind = self.tab_map.count(loc, true).unwrap_or(0);
         idx = if let Some(inner_idx) = self.tab_map.inside(self.tab_width, loc.x, loc.y) {
+            // Display index is within a tab, account for it properly
             let existing_tabs = tabs_behind.saturating_sub(1) * self.tab_width.saturating_sub(1);
             idx.saturating_sub(existing_tabs + inner_idx)
         } else {
+            // Display index isn't in a tab
             idx.saturating_sub(tabs_behind * self.tab_width.saturating_sub(1))
         };
         idx
