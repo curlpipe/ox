@@ -2,13 +2,13 @@
 use crate::cli::VERSION;
 use crate::editor::Editor;
 use crate::ui::Feedback;
-use crate::{fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
+use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
 use kaolinite::{Loc, Size};
 use mlua::prelude::*;
 
 impl LuaUserData for Editor {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("cursor", |_, editor| {
             if let Some(doc) = editor.try_doc() {
                 let loc = doc.char_loc();
@@ -82,10 +82,14 @@ impl LuaUserData for Editor {
             }
         });
         fields.add_field_method_get("cwd", |_, _| Ok(get_cwd()));
+        fields.add_field_method_get("macro_recording", |_, editor| {
+            Ok(editor.macro_man.recording)
+        });
+        fields.add_field_method_get("macro_playing", |_, editor| Ok(editor.macro_man.playing));
     }
 
     #[allow(clippy::too_many_lines)]
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         // Debugging methods
         methods.add_method_mut("panic", |_, _, msg: String| {
             fatal_error(&msg);
@@ -561,7 +565,8 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("set_file_type", |_, editor, name: String| {
-            if let Some(file_type) = editor.config.document.borrow().file_types.get_name(&name) {
+            let doc = config!(editor.config, document);
+            if let Some(file_type) = doc.file_types.get_name(&name) {
                 let mut highlighter = file_type.get_highlighter(&editor.config, 4);
                 highlighter.run(&editor.doc().lines);
                 editor.files[editor.ptr].highlighter = highlighter;
@@ -625,6 +630,19 @@ impl LuaUserData for Editor {
             }
             Ok(())
         });
+        methods.add_method_mut("macro_record_start", |_, editor, ()| {
+            editor.macro_man.record();
+            Ok(())
+        });
+        methods.add_method_mut("macro_record_stop", |_, editor, ()| {
+            editor.macro_man.finish();
+            Ok(())
+        });
+        methods.add_method_mut("macro_play", |_, editor, times: usize| {
+            editor.macro_man.finish();
+            editor.macro_man.play(times);
+            Ok(())
+        });
     }
 }
 
@@ -634,9 +652,9 @@ pub struct LuaLoc {
     y: usize,
 }
 
-impl IntoLua<'_> for LuaLoc {
+impl IntoLua for LuaLoc {
     /// Convert this rust struct so the plug-in and configuration system can use it
-    fn into_lua(self, lua: &Lua) -> std::result::Result<LuaValue<'_>, LuaError> {
+    fn into_lua(self, lua: &Lua) -> std::result::Result<LuaValue, LuaError> {
         let table = lua.create_table()?;
         table.set("x", self.x)?;
         table.set("y", self.y)?;

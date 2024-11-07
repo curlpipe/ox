@@ -1,5 +1,5 @@
-use crate::error::{OxError, Result};
 /// For dealing with colours in the configuration file
+use crate::error::{OxError, Result};
 use crate::ui::{rgb_to_xterm256, supports_true_color};
 use crossterm::style::Color as CColor;
 use mlua::prelude::*;
@@ -69,7 +69,7 @@ impl Default for Colors {
 
 impl LuaUserData for Colors {
     #[allow(clippy::too_many_lines)]
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("editor_bg", |env, this| Ok(this.editor_bg.to_lua(env)));
         fields.add_field_method_get("editor_fg", |env, this| Ok(this.editor_fg.to_lua(env)));
         fields.add_field_method_get("status_bg", |env, this| Ok(this.status_bg.to_lua(env)));
@@ -210,9 +210,9 @@ pub enum Color {
 
 impl Color {
     /// Converts from a lua value into a colour
-    pub fn from_lua(value: LuaValue<'_>) -> Self {
+    pub fn from_lua(value: LuaValue) -> Self {
         match value {
-            LuaValue::String(string) => match string.to_str().unwrap_or("transparent") {
+            LuaValue::String(string) => match string.to_string_lossy().as_str() {
                 "black" => Self::Black,
                 "darkgrey" => Self::DarkGrey,
                 "red" => Self::Red,
@@ -267,7 +267,7 @@ impl Color {
     }
 
     /// Converts from a colour into a lua value
-    pub fn to_lua<'a>(&self, env: &'a Lua) -> LuaValue<'a> {
+    pub fn to_lua(&self, env: &Lua) -> LuaValue {
         let msg = "Failed to create lua string";
         match self {
             Color::Hex(hex) => {

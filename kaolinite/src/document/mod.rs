@@ -50,6 +50,8 @@ pub struct Document {
     pub in_redo: bool,
     /// The number of spaces a tab should be rendered as
     pub tab_width: usize,
+    /// Secondary cursor (for multi-cursors)
+    pub secondary_cursors: Vec<Loc>,
 }
 
 impl Document {
@@ -113,6 +115,7 @@ impl Document {
     /// # Errors
     /// Returns an error if there is a problem with the specified operation.
     pub fn forth(&mut self, ev: Event) -> Result<()> {
+        // Perform the event
         match ev {
             Event::Insert(loc, ch) => self.insert(&loc, &ch),
             Event::Delete(loc, st) => self.delete_with_tab(&loc, &st),
@@ -256,9 +259,15 @@ impl Document {
         // Account for double width characters
         idx = idx.saturating_sub(self.dbl_map.count(loc, true).unwrap_or(0));
         // Account for tab characters
-        idx = idx.saturating_sub(
-            self.tab_map.count(loc, true).unwrap_or(0) * self.tab_width.saturating_sub(1),
-        );
+        let tabs_behind = self.tab_map.count(loc, true).unwrap_or(0);
+        idx = if let Some(inner_idx) = self.tab_map.inside(self.tab_width, loc.x, loc.y) {
+            // Display index is within a tab, account for it properly
+            let existing_tabs = tabs_behind.saturating_sub(1) * self.tab_width.saturating_sub(1);
+            idx.saturating_sub(existing_tabs + inner_idx)
+        } else {
+            // Display index isn't in a tab
+            idx.saturating_sub(tabs_behind * self.tab_width.saturating_sub(1))
+        };
         idx
     }
 

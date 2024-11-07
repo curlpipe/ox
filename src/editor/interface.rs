@@ -1,9 +1,11 @@
-use crate::error::{OxError, Result};
-use crate::ui::{key_event, size, Feedback};
 /// Functions for rendering the UI
+use crate::config;
+use crate::error::{OxError, Result};
+use crate::events::wait_for_event_hog;
+use crate::ui::{key_event, size, Feedback};
 use crate::{display, handle_lua_error};
 use crossterm::{
-    event::{read, KeyCode as KCode, KeyModifiers as KMod},
+    event::{KeyCode as KCode, KeyModifiers as KMod},
     queue,
     style::{
         Attribute, Color, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg,
@@ -29,8 +31,7 @@ impl Editor {
         let max = self.dent();
         self.doc_mut().size.w = w.saturating_sub(max);
         // Render the tab line
-        let tab_enabled = self.config.tab_line.borrow().enabled;
-        if tab_enabled {
+        if config!(self.config, tab_line).enabled {
             self.render_tab_line(lua, w)?;
         }
         // Run through each line of the terminal, rendering the correct line
@@ -56,9 +57,9 @@ impl Editor {
     #[allow(clippy::similar_names, clippy::too_many_lines)]
     pub fn render_document(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
         // Get some details about the help message
-        let colors = self.config.colors.borrow().highlight.to_color()?;
-        let tab_width = self.config.document.borrow().tab_width;
-        let message = self.config.help_message.borrow().render(lua);
+        let colors = config!(self.config, colors).highlight.to_color()?;
+        let tab_width = config!(self.config, document).tab_width;
+        let message = config!(self.config, help_message).render(lua);
         let max_width = message
             .iter()
             .map(|(_, line)| width(line, tab_width))
@@ -82,7 +83,7 @@ impl Editor {
         for y in 0..u16::try_from(h).unwrap_or(0) {
             // Work out how long the line should be (accounting for help message if necessary)
             let required_width =
-                if self.config.help_message.borrow().enabled && (start..=end).contains(&y) {
+                if config!(self.config, help_message).enabled && (start..=end).contains(&y) {
                     w.saturating_sub(self.dent()).saturating_sub(max_width)
                 } else {
                     w.saturating_sub(self.dent())
@@ -90,18 +91,18 @@ impl Editor {
             // Go to the right location
             self.terminal.goto(0, y as usize + self.push_down)?;
             // Start colours
-            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
-            let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
-            let line_number_bg = Bg(self.config.colors.borrow().line_number_bg.to_color()?);
-            let line_number_fg = Fg(self.config.colors.borrow().line_number_fg.to_color()?);
-            let selection_bg = Bg(self.config.colors.borrow().selection_bg.to_color()?);
-            let selection_fg = Fg(self.config.colors.borrow().selection_fg.to_color()?);
+            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
+            let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+            let line_number_bg = Bg(config!(self.config, colors).line_number_bg.to_color()?);
+            let line_number_fg = Fg(config!(self.config, colors).line_number_fg.to_color()?);
+            let selection_bg = Bg(config!(self.config, colors).selection_bg.to_color()?);
+            let selection_fg = Fg(config!(self.config, colors).selection_fg.to_color()?);
             display!(self, editor_bg, editor_fg);
             // Write line number of document
-            if self.config.line_numbers.borrow().enabled {
+            if config!(self.config, line_numbers).enabled {
                 let num = self.doc().line_number(y as usize + self.doc().offset.y);
-                let padding_left = " ".repeat(self.config.line_numbers.borrow().padding_left);
-                let padding_right = " ".repeat(self.config.line_numbers.borrow().padding_right);
+                let padding_left = " ".repeat(config!(self.config, line_numbers).padding_left);
+                let padding_right = " ".repeat(config!(self.config, line_numbers).padding_right);
                 display!(
                     self,
                     line_number_bg,
@@ -129,7 +130,7 @@ impl Editor {
                     let (text, colour) = match token {
                         // Non-highlighted text
                         TokOpt::Some(text, kind) => {
-                            let colour = self.config.syntax_highlighting.borrow().get_theme(&kind);
+                            let colour = config!(self.config, syntax).get_theme(&kind);
                             let colour = match colour {
                                 // Success, write token
                                 Ok(col) => Fg(col),
@@ -148,16 +149,40 @@ impl Editor {
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
-                        if is_selected && (cache_bg != selection_bg || cache_fg != selection_fg) {
-                            display!(self, selection_bg, selection_fg);
-                            cache_bg = selection_bg;
-                            cache_fg = selection_fg;
-                        } else if !is_selected && (cache_bg != editor_bg || cache_fg != colour) {
-                            display!(self, editor_bg, colour);
-                            cache_bg = editor_bg;
-                            cache_fg = colour;
+                        // Render the correct colour
+                        if is_selected {
+                            if cache_bg != selection_bg {
+                                display!(self, selection_bg);
+                                cache_bg = selection_bg;
+                            }
+                            if cache_fg != selection_fg {
+                                display!(self, selection_fg);
+                                cache_fg = selection_fg;
+                            }
+                        } else {
+                            if cache_bg != editor_bg {
+                                display!(self, editor_bg);
+                                cache_bg = editor_bg;
+                            }
+                            if cache_fg != colour {
+                                display!(self, colour);
+                                cache_fg = colour;
+                            }
                         }
+                        // Render multi-cursors
+                        let underline = SetAttribute(Attribute::Underlined);
+                        let no_underline = SetAttribute(Attribute::NoUnderline);
+                        let at_loc = Loc { y: idx, x: at_x };
+                        let multi_cursor_here = self.doc().has_cursor(at_loc).is_some();
+                        if multi_cursor_here {
+                            display!(self, underline, Bg(Color::White), Fg(Color::Black));
+                        }
+                        // Render the character
                         display!(self, c);
+                        // Reset any multi-cursor display
+                        if multi_cursor_here {
+                            display!(self, no_underline, cache_bg, cache_fg);
+                        }
                         x_pos += 1;
                     }
                 }
@@ -167,7 +192,7 @@ impl Editor {
                 display!(self, " ".repeat(required_width));
             }
             // Render help message if applicable (otherwise, just output padding to clear buffer)
-            if self.config.help_message.borrow().enabled && (start..=end).contains(&y) {
+            if config!(self.config, help_message).enabled && (start..=end).contains(&y) {
                 let idx = y.saturating_sub(start);
                 let line = message
                     .get(idx as usize)
@@ -184,7 +209,7 @@ impl Editor {
         let mut idx = 0;
         let mut length = 0;
         let mut offset = 0;
-        let tab_line = self.config.tab_line.borrow();
+        let tab_line = config!(self.config, tab_line);
         for (c, file) in self.files.iter().enumerate() {
             let render = tab_line.render(lua, file, &mut self.feedback);
             length += width(&render, 4) + 1;
@@ -206,10 +231,10 @@ impl Editor {
     #[allow(clippy::similar_names)]
     pub fn render_tab_line(&mut self, lua: &Lua, w: usize) -> Result<()> {
         self.terminal.goto(0_usize, 0_usize)?;
-        let tab_inactive_bg = Bg(self.config.colors.borrow().tab_inactive_bg.to_color()?);
-        let tab_inactive_fg = Fg(self.config.colors.borrow().tab_inactive_fg.to_color()?);
-        let tab_active_bg = Bg(self.config.colors.borrow().tab_active_bg.to_color()?);
-        let tab_active_fg = Fg(self.config.colors.borrow().tab_active_fg.to_color()?);
+        let tab_inactive_bg = Bg(config!(self.config, colors).tab_inactive_bg.to_color()?);
+        let tab_inactive_fg = Fg(config!(self.config, colors).tab_inactive_fg.to_color()?);
+        let tab_active_bg = Bg(config!(self.config, colors).tab_active_bg.to_color()?);
+        let tab_active_fg = Fg(config!(self.config, colors).tab_active_fg.to_color()?);
         let (tabs, idx, _) = self.get_tab_parts(lua, w);
         display!(self, tab_inactive_fg, tab_inactive_bg);
         for (c, header) in tabs.iter().enumerate() {
@@ -237,11 +262,11 @@ impl Editor {
     #[allow(clippy::similar_names)]
     pub fn render_status_line(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
         self.terminal.goto(0, h + self.push_down)?;
-        let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
-        let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
-        let status_bg = Bg(self.config.colors.borrow().status_bg.to_color()?);
-        let status_fg = Fg(self.config.colors.borrow().status_fg.to_color()?);
-        match self.config.status_line.borrow().render(self, lua, w) {
+        let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
+        let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+        let status_bg = Bg(config!(self.config, colors).status_bg.to_color()?);
+        let status_fg = Fg(config!(self.config, colors).status_fg.to_color()?);
+        match config!(self.config, status_line).render(self, lua, w) {
             Ok(content) => {
                 display!(
                     self,
@@ -274,15 +299,15 @@ impl Editor {
     /// Render the feedback line
     pub fn render_feedback_line(&mut self, w: usize, h: usize) -> Result<()> {
         self.terminal.goto(0, h + 2)?;
-        let content = self.feedback.render(&self.config.colors.borrow(), w)?;
+        let content = self.feedback.render(&config!(self.config, colors), w)?;
         display!(self, content);
         Ok(())
     }
 
     /// Render the help message
     fn render_greeting(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
-        let colors = self.config.colors.borrow();
-        let greeting = self.config.greeting_message.borrow().render(lua, &colors)?;
+        let colors = config!(self.config, colors);
+        let greeting = config!(self.config, greeting_message).render(lua, &colors)?;
         let message: Vec<&str> = greeting.split('\n').collect();
         for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
             self.terminal.goto(4, h / 4 + c + 1)?;
@@ -304,7 +329,7 @@ impl Editor {
             // Render prompt message
             self.terminal.prepare_line(h)?;
             self.terminal.show_cursor()?;
-            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
+            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             display!(
                 self,
                 editor_bg,
@@ -316,7 +341,9 @@ impl Editor {
             self.terminal.goto(prompt.len() + input.len() + 2, h)?;
             self.terminal.flush()?;
             // Handle events
-            if let Some((modifiers, code)) = key_event(&read()?) {
+            if let Some((modifiers, code)) =
+                key_event(&wait_for_event_hog(self), &mut self.macro_man)
+            {
                 match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
@@ -383,9 +410,9 @@ impl Editor {
                 .chars()
                 .skip(input.chars().count())
                 .collect::<String>();
-            let editor_fg = Fg(self.config.colors.borrow().editor_fg.to_color()?);
-            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
-            let tab_width = self.config.document.borrow().tab_width;
+            let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
+            let tab_width = config!(self.config, document).tab_width;
             let total_width = width(&input, tab_width) + width(&suggestion_text, tab_width);
             let padding = " ".repeat(size()?.w.saturating_sub(total_width));
             display!(
@@ -398,11 +425,13 @@ impl Editor {
                 padding,
                 editor_fg
             );
-            let tab_width = self.config.document.borrow_mut().tab_width;
+            let tab_width = config!(self.config, document).tab_width;
             self.terminal.goto(6 + width(&input, tab_width), h)?;
             self.terminal.flush()?;
             // Handle events
-            if let Some((modifiers, code)) = key_event(&read()?) {
+            if let Some((modifiers, code)) =
+                key_event(&wait_for_event_hog(self), &mut self.macro_man)
+            {
                 match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
@@ -451,7 +480,9 @@ impl Editor {
             self.render_feedback_line(w, h)?;
             self.terminal.flush()?;
             // Handle events
-            if let Some((modifiers, code)) = key_event(&read()?) {
+            if let Some((modifiers, code)) =
+                key_event(&wait_for_event_hog(self), &mut self.macro_man)
+            {
                 match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Esc) => {
@@ -506,9 +537,9 @@ impl Editor {
 
     /// Work out how much to push the document to the right (to make way for line numbers)
     pub fn dent(&self) -> usize {
-        if self.config.line_numbers.borrow().enabled {
-            let padding_left = self.config.line_numbers.borrow().padding_left;
-            let padding_right = self.config.line_numbers.borrow().padding_right;
+        if config!(self.config, line_numbers).enabled {
+            let padding_left = config!(self.config, line_numbers).padding_left;
+            let padding_right = config!(self.config, line_numbers).padding_right;
             self.doc().len_lines().to_string().len() + 1 + padding_left + padding_right
         } else {
             0

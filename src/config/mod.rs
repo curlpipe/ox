@@ -2,12 +2,8 @@
 use crate::editor::{FileType, FileTypes};
 use crate::error::{OxError, Result};
 use mlua::prelude::*;
+use std::fmt::{Display, Error, Formatter};
 use std::sync::{Arc, Mutex};
-use std::{
-    cell::RefCell,
-    fmt::{Display, Error, Formatter},
-    rc::Rc,
-};
 
 mod assistant;
 mod colors;
@@ -49,18 +45,60 @@ pub const PLUGIN_NETWORKING: &str = include_str!("../plugin/networking.lua");
 /// This contains the code for running the plugins
 pub const PLUGIN_MANAGER: &str = include_str!("../plugin/plugin_manager.lua");
 
+/// A nice macro to quickly interpret configuration
+#[macro_export]
+macro_rules! config {
+    ($cfg:expr, document) => {
+        $cfg.document.borrow::<$crate::config::Document>().unwrap()
+    };
+    ($cfg:expr, colors) => {
+        $cfg.colors.borrow::<$crate::config::Colors>().unwrap()
+    };
+    ($cfg:expr, syntax) => {
+        $cfg.syntax_highlighting
+            .borrow::<$crate::config::SyntaxHighlighting>()
+            .unwrap()
+    };
+    ($cfg:expr, line_numbers) => {
+        $cfg.line_numbers
+            .borrow::<$crate::config::LineNumbers>()
+            .unwrap()
+    };
+    ($cfg:expr, status_line) => {
+        $cfg.status_line
+            .borrow::<$crate::config::StatusLine>()
+            .unwrap()
+    };
+    ($cfg:expr, tab_line) => {
+        $cfg.tab_line.borrow::<$crate::config::TabLine>().unwrap()
+    };
+    ($cfg:expr, greeting_message) => {
+        $cfg.greeting_message
+            .borrow::<$crate::config::GreetingMessage>()
+            .unwrap()
+    };
+    ($cfg:expr, help_message) => {
+        $cfg.help_message
+            .borrow::<$crate::config::HelpMessage>()
+            .unwrap()
+    };
+    ($cfg:expr, terminal) => {
+        $cfg.terminal.borrow::<$crate::config::Terminal>().unwrap()
+    };
+}
+
 /// The struct that holds all the configuration information
 #[derive(Debug)]
 pub struct Config {
-    pub syntax_highlighting: Rc<RefCell<SyntaxHighlighting>>,
-    pub line_numbers: Rc<RefCell<LineNumbers>>,
-    pub colors: Rc<RefCell<Colors>>,
-    pub status_line: Rc<RefCell<StatusLine>>,
-    pub tab_line: Rc<RefCell<TabLine>>,
-    pub greeting_message: Rc<RefCell<GreetingMessage>>,
-    pub help_message: Rc<RefCell<HelpMessage>>,
-    pub terminal: Rc<RefCell<Terminal>>,
-    pub document: Rc<RefCell<Document>>,
+    pub syntax_highlighting: LuaAnyUserData,
+    pub line_numbers: LuaAnyUserData,
+    pub colors: LuaAnyUserData,
+    pub status_line: LuaAnyUserData,
+    pub tab_line: LuaAnyUserData,
+    pub greeting_message: LuaAnyUserData,
+    pub help_message: LuaAnyUserData,
+    pub terminal: LuaAnyUserData,
+    pub document: LuaAnyUserData,
     pub task_manager: Arc<Mutex<TaskManager>>,
 }
 
@@ -68,15 +106,15 @@ impl Config {
     /// Take a lua instance, inject all the configuration tables and return a default config struct
     pub fn new(lua: &Lua) -> Result<Self> {
         // Set up structs to populate (the default values will be thrown away)
-        let syntax_highlighting = Rc::new(RefCell::new(SyntaxHighlighting::default()));
-        let line_numbers = Rc::new(RefCell::new(LineNumbers::default()));
-        let greeting_message = Rc::new(RefCell::new(GreetingMessage::default()));
-        let help_message = Rc::new(RefCell::new(HelpMessage::default()));
-        let colors = Rc::new(RefCell::new(Colors::default()));
-        let status_line = Rc::new(RefCell::new(StatusLine::default()));
-        let tab_line = Rc::new(RefCell::new(TabLine::default()));
-        let terminal = Rc::new(RefCell::new(Terminal::default()));
-        let document = Rc::new(RefCell::new(Document::default()));
+        let syntax_highlighting = lua.create_userdata(SyntaxHighlighting::default())?;
+        let line_numbers = lua.create_userdata(LineNumbers::default())?;
+        let greeting_message = lua.create_userdata(GreetingMessage::default())?;
+        let help_message = lua.create_userdata(HelpMessage::default())?;
+        let colors = lua.create_userdata(Colors::default())?;
+        let status_line = lua.create_userdata(StatusLine::default())?;
+        let tab_line = lua.create_userdata(TabLine::default())?;
+        let terminal = lua.create_userdata(Terminal::default())?;
+        let document = lua.create_userdata(Document::default())?;
 
         // Set up the task manager
         let task_manager = Arc::new(Mutex::new(TaskManager::default()));
@@ -200,7 +238,7 @@ impl Config {
             // Get list of requested built-in plugins
             let plugins: Vec<String> = lua
                 .globals()
-                .get::<_, LuaTable>("builtins")
+                .get::<LuaTable>("builtins")
                 .unwrap()
                 .sequence_values()
                 .filter_map(std::result::Result::ok)
@@ -218,7 +256,7 @@ impl Config {
         } else {
             // User hasn't provided configuration file, check for local copy
             !lua.globals()
-                .get::<_, LuaTable>("plugins")
+                .get::<LuaTable>("plugins")
                 .unwrap()
                 .sequence_values()
                 .filter_map(std::result::Result::ok)
@@ -278,7 +316,7 @@ impl Default for Document {
 }
 
 impl LuaUserData for Document {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("tab_width", |_, document| Ok(document.tab_width));
         fields.add_field_method_set("tab_width", |_, this, value| {
             this.tab_width = value;
@@ -304,27 +342,27 @@ impl LuaUserData for Document {
     }
 }
 
-impl FromLua<'_> for FileTypes {
-    fn from_lua(value: LuaValue<'_>, lua: &Lua) -> std::result::Result<Self, LuaError> {
+impl FromLua for FileTypes {
+    fn from_lua(value: LuaValue, lua: &Lua) -> std::result::Result<Self, LuaError> {
         let mut result = vec![];
         if let LuaValue::Table(table) = value {
             for i in table.pairs::<String, LuaTable>() {
                 let (name, info) = i?;
-                let icon = info.get::<_, String>("icon")?;
+                let icon = info.get::<String>("icon")?;
                 let extensions = info
-                    .get::<_, LuaTable>("extensions")
+                    .get::<LuaTable>("extensions")
                     .unwrap_or(lua.create_table()?)
                     .pairs::<usize, String>()
                     .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
                     .collect::<Vec<String>>();
                 let files = info
-                    .get::<_, LuaTable>("files")
+                    .get::<LuaTable>("files")
                     .unwrap_or(lua.create_table()?)
                     .pairs::<usize, String>()
                     .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
                     .collect::<Vec<String>>();
                 let modelines = info
-                    .get::<_, LuaTable>("modelines")
+                    .get::<LuaTable>("modelines")
                     .unwrap_or(lua.create_table()?)
                     .pairs::<usize, String>()
                     .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })

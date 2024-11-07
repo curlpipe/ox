@@ -271,6 +271,11 @@ event_mapping = {
     ["ctrl_w"] = function()
         editor:remove_word()
     end,
+    -- Macros
+    ["ctrl_esc"] = function()
+        editor:macro_record_stop()
+        editor:display_info("Macro recorded")
+    end,
 }
 
 -- Define user-defined commands
@@ -302,6 +307,22 @@ commands = {
     ["reload"] = function(arguments)
         editor:reload_config()
         editor:display_info("Configuration file reloaded")
+    end,
+    ["macro"] = function(arguments)
+        if arguments[1] == "record" then
+            editor:macro_record_start()
+            editor:display_info("Recording macro, press ctrl+esc to stop")
+        elseif arguments[1] == "play" then
+            local reps
+            if arguments[2] == nil then
+                reps = 1
+            else
+                reps = tonumber(arguments[2])
+            end
+            editor:macro_play(reps)
+        else
+            editor:display_error(tostring(arguments[1]) .. " is not a valid macro command")
+        end
     end,
 }
 

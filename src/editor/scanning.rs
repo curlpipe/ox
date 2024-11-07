@@ -1,9 +1,10 @@
-use crate::display;
 /// Functions for searching and replacing
 use crate::error::{OxError, Result};
+use crate::events::wait_for_event_hog;
 use crate::ui::{key_event, size};
+use crate::{config, display};
 use crossterm::{
-    event::{read, KeyCode as KCode, KeyModifiers as KMod},
+    event::{KeyCode as KCode, KeyModifiers as KMod},
     queue,
     style::{Attribute, Print, SetAttribute, SetBackgroundColor as Bg},
 };
@@ -24,7 +25,7 @@ impl Editor {
             // Render prompt message
             self.terminal.prepare_line(h)?;
             self.terminal.show_cursor()?;
-            let editor_bg = Bg(self.config.colors.borrow().editor_bg.to_color()?);
+            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             display!(
                 self,
                 editor_bg,
@@ -44,7 +45,9 @@ impl Editor {
                 self.terminal.hide_cursor()?;
             }
             self.terminal.flush()?;
-            if let Some((modifiers, code)) = key_event(&read()?) {
+            if let Some((modifiers, code)) =
+                key_event(&wait_for_event_hog(self), &mut self.macro_man)
+            {
                 match (modifiers, code) {
                     // Exit the menu when the enter key is pressed
                     (KMod::NONE, KCode::Enter) => done = true,
@@ -95,7 +98,9 @@ impl Editor {
             }
             self.terminal.flush()?;
             // Handle events
-            if let Some((modifiers, code)) = key_event(&read()?) {
+            if let Some((modifiers, code)) =
+                key_event(&wait_for_event_hog(self), &mut self.macro_man)
+            {
                 match (modifiers, code) {
                     // On return or escape key, exit menu
                     (KMod::NONE, KCode::Enter) => done = true,
@@ -189,7 +194,9 @@ impl Editor {
             }
             self.terminal.flush()?;
             // Handle events
-            if let Some((modifiers, code)) = key_event(&read()?) {
+            if let Some((modifiers, code)) =
+                key_event(&wait_for_event_hog(self), &mut self.macro_man)
+            {
                 match (modifiers, code) {
                     // On escape key, exit
                     (KMod::NONE, KCode::Esc) => done = true,

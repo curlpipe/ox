@@ -28,7 +28,7 @@ impl Default for Terminal {
 }
 
 impl LuaUserData for Terminal {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("mouse_enabled", |_, this| Ok(this.mouse_enabled));
         fields.add_field_method_set("mouse_enabled", |_, this, value| {
             this.mouse_enabled = value;
@@ -61,7 +61,7 @@ impl Default for LineNumbers {
 }
 
 impl LuaUserData for LineNumbers {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
         fields.add_field_method_set("enabled", |_, this, value| {
             this.enabled = value;
@@ -114,9 +114,9 @@ impl GreetingMessage {
                 .skip(1)
                 .take(m.text.chars().count().saturating_sub(2))
                 .collect::<String>();
-            if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
-                if let Ok(r) = func.call::<(), LuaString>(()) {
-                    result = result.replace(&m.text, r.to_str().unwrap_or(""));
+            if let Ok(func) = lua.globals().get::<LuaFunction>(name) {
+                if let Ok(r) = func.call::<LuaString>(()) {
+                    result = result.replace(&m.text, r.to_string_lossy().as_str());
                 } else {
                     break;
                 }
@@ -129,7 +129,7 @@ impl GreetingMessage {
 }
 
 impl LuaUserData for GreetingMessage {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
         fields.add_field_method_set("enabled", |_, this, value| {
             this.enabled = value;
@@ -175,9 +175,9 @@ impl HelpMessage {
                 .skip(1)
                 .take(m.text.chars().count().saturating_sub(2))
                 .collect::<String>();
-            if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
-                if let Ok(r) = func.call::<(), LuaString>(()) {
-                    message = message.replace(&m.text, r.to_str().unwrap_or(""));
+            if let Ok(func) = lua.globals().get::<LuaFunction>(name) {
+                if let Ok(r) = func.call::<LuaString>(()) {
+                    message = message.replace(&m.text, r.to_string_lossy().as_str());
                 } else {
                     break;
                 }
@@ -203,7 +203,7 @@ impl HelpMessage {
 }
 
 impl LuaUserData for HelpMessage {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
         fields.add_field_method_set("enabled", |_, this, value| {
             this.enabled = value;
@@ -270,10 +270,10 @@ impl TabLine {
                 .skip(1)
                 .take(m.text.chars().count().saturating_sub(2))
                 .collect::<String>();
-            if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
-                match func.call::<String, LuaString>(absolute_path.clone()) {
+            if let Ok(func) = lua.globals().get::<LuaFunction>(name) {
+                match func.call::<LuaString>(absolute_path.clone()) {
                     Ok(r) => {
-                        result = result.replace(&m.text, r.to_str().unwrap_or(""));
+                        result = result.replace(&m.text, r.to_string_lossy().as_str());
                     }
                     Err(e) => {
                         *feedback = Feedback::Error(format!("Error occured in tab line: {e:?}"));
@@ -289,7 +289,7 @@ impl TabLine {
 }
 
 impl LuaUserData for TabLine {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("enabled", |_, this| Ok(this.enabled));
         fields.add_field_method_set("enabled", |_, this, value| {
             this.enabled = value;
@@ -373,9 +373,9 @@ impl StatusLine {
                     .skip(1)
                     .take(m.text.chars().count().saturating_sub(2))
                     .collect::<String>();
-                if let Ok(func) = lua.globals().get::<String, LuaFunction>(name) {
-                    let r = func.call::<String, LuaString>(absolute_path.clone())?;
-                    part = part.replace(&m.text, r.to_str().unwrap_or(""));
+                if let Ok(func) = lua.globals().get::<LuaFunction>(name) {
+                    let r = func.call::<LuaString>(absolute_path.clone())?;
+                    part = part.replace(&m.text, r.to_string_lossy().as_str());
                 } else {
                     break;
                 }
@@ -392,7 +392,7 @@ impl StatusLine {
 }
 
 impl LuaUserData for StatusLine {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("parts", |lua, this| {
             let parts = lua.create_table()?;
             for (i, part) in this.parts.iter().enumerate() {

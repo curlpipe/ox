@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use unicode_width::UnicodeWidthChar;
 
 /// This is a type for making a note of the location of different characters
+/// `HashMap`<`y_pos`, Vec<(display, character)>>
 type CharHashMap = HashMap<usize, Vec<(usize, usize)>>;
 
 /// Keeps notes of specific characters within a document for the purposes of double width and
@@ -165,6 +166,18 @@ impl CharMap {
             ctr += 1;
         }
         Some(ctr)
+    }
+
+    /// If all character maps are of size n, then determine if x would be within one,
+    /// and return their index inside the mapped char
+    #[must_use]
+    pub fn inside(&self, n: usize, x: usize, y: usize) -> Option<usize> {
+        for (disp, _) in self.get(y)? {
+            if ((disp + 1)..(disp + n)).contains(&x) {
+                return Some(x.saturating_sub(*disp));
+            }
+        }
+        None
     }
 }
 

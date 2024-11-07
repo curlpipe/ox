@@ -1,3 +1,4 @@
+use crate::config;
 /// Main functionality of the editor
 use crate::config::{Config, Indentation};
 use crate::error::{OxError, Result};
@@ -20,11 +21,14 @@ mod documents;
 mod editing;
 mod filetypes;
 mod interface;
+mod macros;
 mod mouse;
 mod scanning;
 
+pub use cursor::{allowed_by_multi_cursor, handle_multiple_cursors};
 pub use documents::FileContainer;
 pub use filetypes::{FileType, FileTypes};
+pub use macros::MacroMan;
 
 /// For managing all editing and rendering of cactus
 #[allow(clippy::struct_excessive_bools)]
@@ -59,6 +63,8 @@ pub struct Editor {
     pub last_click: Option<(Instant, MouseEvent)>,
     /// Stores whether or not we're in a double click
     pub in_dbl_click: bool,
+    /// Macro manager
+    pub macro_man: MacroMan,
 }
 
 impl Editor {
@@ -81,6 +87,7 @@ impl Editor {
             plugin_active: false,
             last_click: None,
             in_dbl_click: false,
+            macro_man: MacroMan::default(),
         })
     }
 
@@ -95,7 +102,7 @@ impl Editor {
         let mut size = size()?;
         size.h = size.h.saturating_sub(1 + self.push_down);
         let mut doc = Document::new(size);
-        doc.set_tab_width(self.config.document.borrow().tab_width);
+        doc.set_tab_width(config!(self.config, document).tab_width);
         doc.event_mgmt.force_not_with_disk = true;
         // Load all the lines within viewport into the document
         doc.load_to(size.h);
@@ -128,7 +135,7 @@ impl Editor {
         // If no documents were provided, create a new empty document
         if self.files.is_empty() {
             self.blank()?;
-            self.greet = self.config.greeting_message.borrow().enabled;
+            self.greet = config!(self.config, greeting_message).enabled;
         }
         Ok(())
     }
@@ -144,8 +151,8 @@ impl Editor {
         size.h = size.h.saturating_sub(1 + self.push_down);
         let mut doc = Document::open(size, file_name)?;
         // Collect various data from the document
-        let tab_width = self.config.document.borrow().tab_width;
-        let file_type = self.config.document.borrow().file_types.identify(&mut doc);
+        let tab_width = config!(self.config, document).tab_width;
+        let file_type = config!(self.config, document).file_types.identify(&mut doc);
         // Set up the document
         doc.set_tab_width(tab_width);
         doc.load_to(size.h);
@@ -187,11 +194,8 @@ impl Editor {
                 let file = self.files.last_mut().unwrap();
                 file.doc.file_name = Some(file_name);
                 // Work out information for the document
-                let tab_width = self.config.document.borrow().tab_width;
-                let file_type = self
-                    .config
-                    .document
-                    .borrow()
+                let tab_width = config!(self.config, document).tab_width;
+                let file_type = config!(self.config, document)
                     .file_types
                     .identify(&mut file.doc);
                 // Set up the document
@@ -240,11 +244,8 @@ impl Editor {
         if self.doc().file_name.is_none() {
             // Get information about the document
             let file = self.files.last_mut().unwrap();
-            let tab_width = self.config.document.borrow().tab_width;
-            let file_type = self
-                .config
-                .document
-                .borrow()
+            let tab_width = config!(self.config, document).tab_width;
+            let file_type = config!(self.config, document)
                 .file_types
                 .identify(&mut file.doc);
             // Reattach an appropriate highlighter
@@ -362,16 +363,20 @@ impl Editor {
             _ => unreachable!(),
         }
         // Calculate the correct push down based on config
-        self.push_down = usize::from(self.config.tab_line.borrow().enabled);
+        self.push_down = usize::from(config!(self.config, tab_line).enabled);
         None
     }
 
     /// Handle event
     pub fn handle_event(&mut self, lua: &Lua, event: CEvent) -> Result<()> {
+        // Register this event for macro purposes
+        self.macro_man.register(event.clone());
+        // Determine if a rerender is needed
         self.needs_rerender = match event {
             CEvent::Mouse(event) => event.kind != MouseEventKind::Moved,
             _ => true,
         };
+        // Pass event down to special handlers
         match event {
             CEvent::Key(key) => self.handle_key_event(key.modifiers, key.code)?,
             CEvent::Resize(w, h) => self.handle_resize(w, h),
@@ -388,7 +393,7 @@ impl Editor {
         let end = Instant::now();
         let inactivity = end.duration_since(self.last_active).as_millis() as usize;
         // Commit if over user-defined period of inactivity
-        if inactivity > self.config.document.borrow().undo_period * 1000 {
+        if inactivity > config!(self.config, document).undo_period * 1000 {
             self.doc_mut().commit();
         }
         // Register this activity
@@ -429,10 +434,10 @@ impl Editor {
 
     /// Handle tab character being inserted
     pub fn handle_tab(&mut self) -> Result<()> {
-        if self.config.document.borrow().indentation == Indentation::Tabs {
+        if config!(self.config, document).indentation == Indentation::Tabs {
             self.character('\t')?;
         } else {
-            let tab_width = self.config.document.borrow().tab_width;
+            let tab_width = config!(self.config, document).tab_width;
             for _ in 0..tab_width {
                 self.character(' ')?;
             }

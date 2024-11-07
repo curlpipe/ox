@@ -8,9 +8,7 @@ use crossterm::execute;
 use crossterm::style::{SetBackgroundColor as Bg, SetForegroundColor as Fg};
 use crossterm::terminal::{Clear, ClearType};
 use mlua::prelude::*;
-use std::cell::RefCell;
 use std::io::{stdout, Write};
-use std::rc::Rc;
 
 pub const TROPICAL: &str = include_str!("../../plugins/themes/tropical.lua");
 pub const GALAXY: &str = include_str!("../../plugins/themes/galaxy.lua");
@@ -571,14 +569,14 @@ impl Assistant {
     pub fn demonstrate_theme(name: &str, code: &str) -> Result<String> {
         // Create an environment to capture all the values
         let lua = Lua::new();
-        let colors = Rc::new(RefCell::new(Colors::default()));
-        let syntax_highlighting = Rc::new(RefCell::new(SyntaxHighlighting::default()));
+        let colors = lua.create_userdata(Colors::default())?;
+        let syntax_highlighting = lua.create_userdata(SyntaxHighlighting::default())?;
         lua.globals().set("syntax", syntax_highlighting.clone())?;
         lua.globals().set("colors", colors.clone())?;
         // Access all the values
         lua.load(code).exec()?;
         // Gather the editor colours
-        let col = colors.borrow();
+        let col: LuaUserDataRef<Colors> = colors.borrow()?;
         let editor = format!(
             "{}{}",
             Fg(col.editor_fg.to_color()?),
@@ -625,28 +623,29 @@ impl Assistant {
             Bg(col.info_bg.to_color()?)
         );
         // Gather syntax highlighting colours
-        let string = Fg(syntax_highlighting.borrow().get_theme("string")?);
-        let comment = Fg(syntax_highlighting.borrow().get_theme("comment")?);
-        let digit = Fg(syntax_highlighting.borrow().get_theme("digit")?);
-        let keyword = Fg(syntax_highlighting.borrow().get_theme("keyword")?);
-        let character = Fg(syntax_highlighting.borrow().get_theme("character")?);
-        let type_syn = Fg(syntax_highlighting.borrow().get_theme("type")?);
-        let function = Fg(syntax_highlighting.borrow().get_theme("function")?);
-        let macro_syn = Fg(syntax_highlighting.borrow().get_theme("macro")?);
-        let block = Fg(syntax_highlighting.borrow().get_theme("block")?);
-        let namespace = Fg(syntax_highlighting.borrow().get_theme("namespace")?);
-        let header = Fg(syntax_highlighting.borrow().get_theme("header")?);
-        let struct_syn = Fg(syntax_highlighting.borrow().get_theme("struct")?);
-        let operator = Fg(syntax_highlighting.borrow().get_theme("operator")?);
-        let boolean = Fg(syntax_highlighting.borrow().get_theme("boolean")?);
-        let reference = Fg(syntax_highlighting.borrow().get_theme("reference")?);
-        let tag = Fg(syntax_highlighting.borrow().get_theme("tag")?);
-        let heading = Fg(syntax_highlighting.borrow().get_theme("heading")?);
-        let link = Fg(syntax_highlighting.borrow().get_theme("link")?);
-        let bold = Fg(syntax_highlighting.borrow().get_theme("bold")?);
-        let italic = Fg(syntax_highlighting.borrow().get_theme("italic")?);
-        let insertion = Fg(syntax_highlighting.borrow().get_theme("insertion")?);
-        let deletion = Fg(syntax_highlighting.borrow().get_theme("deletion")?);
+        let syn: LuaUserDataRef<SyntaxHighlighting> = syntax_highlighting.borrow()?;
+        let string = Fg(syn.get_theme("string")?);
+        let comment = Fg(syn.get_theme("comment")?);
+        let digit = Fg(syn.get_theme("digit")?);
+        let keyword = Fg(syn.get_theme("keyword")?);
+        let character = Fg(syn.get_theme("character")?);
+        let type_syn = Fg(syn.get_theme("type")?);
+        let function = Fg(syn.get_theme("function")?);
+        let macro_syn = Fg(syn.get_theme("macro")?);
+        let block = Fg(syn.get_theme("block")?);
+        let namespace = Fg(syn.get_theme("namespace")?);
+        let header = Fg(syn.get_theme("header")?);
+        let struct_syn = Fg(syn.get_theme("struct")?);
+        let operator = Fg(syn.get_theme("operator")?);
+        let boolean = Fg(syn.get_theme("boolean")?);
+        let reference = Fg(syn.get_theme("reference")?);
+        let tag = Fg(syn.get_theme("tag")?);
+        let heading = Fg(syn.get_theme("heading")?);
+        let link = Fg(syn.get_theme("link")?);
+        let bold = Fg(syn.get_theme("bold")?);
+        let italic = Fg(syn.get_theme("italic")?);
+        let insertion = Fg(syn.get_theme("insertion")?);
+        let deletion = Fg(syn.get_theme("deletion")?);
         // Render the preview
         let name = format!("  {name}  ");
         Ok(format!("{name:─^47}

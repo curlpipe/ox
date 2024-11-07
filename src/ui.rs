@@ -1,5 +1,6 @@
 /// Utilities for rendering the user interface
 use crate::config::{Colors, Terminal as TerminalConfig};
+use crate::editor::MacroMan;
 use crate::error::Result;
 use base64::prelude::*;
 use crossterm::{
@@ -17,11 +18,10 @@ use crossterm::{
     },
 };
 use kaolinite::utils::Size;
-use std::cell::RefCell;
+use mlua::AnyUserData;
 use std::collections::HashMap;
 use std::env;
 use std::io::{stdout, Stdout, Write};
-use std::rc::Rc;
 
 /// Printing macro
 #[macro_export]
@@ -56,7 +56,8 @@ pub fn fatal_error(msg: &str) {
 }
 
 /// Shorthand to read key events
-pub fn key_event(kev: &CEvent) -> Option<(KMod, KCode)> {
+pub fn key_event(kev: &CEvent, mm: &mut MacroMan) -> Option<(KMod, KCode)> {
+    mm.register(kev.clone());
     if let CEvent::Key(KeyEvent {
         modifiers,
         code,
@@ -123,11 +124,11 @@ impl Feedback {
 
 pub struct Terminal {
     pub stdout: Stdout,
-    pub config: Rc<RefCell<TerminalConfig>>,
+    pub config: AnyUserData,
 }
 
 impl Terminal {
-    pub fn new(config: Rc<RefCell<TerminalConfig>>) -> Self {
+    pub fn new(config: AnyUserData) -> Self {
         Terminal {
             stdout: stdout(),
             config,
@@ -155,7 +156,8 @@ impl Terminal {
             DisableLineWrap,
             EnableBracketedPaste,
         )?;
-        if self.config.borrow().mouse_enabled {
+        let cfg = self.config.borrow::<TerminalConfig>().unwrap();
+        if cfg.mouse_enabled {
             execute!(self.stdout, EnableMouseCapture)?;
         }
         terminal::enable_raw_mode()?;
@@ -178,7 +180,8 @@ impl Terminal {
             EnableLineWrap,
             DisableBracketedPaste
         )?;
-        if self.config.borrow().mouse_enabled {
+        let cfg = self.config.borrow::<TerminalConfig>().unwrap();
+        if cfg.mouse_enabled {
             execute!(self.stdout, DisableMouseCapture)?;
         }
         Ok(())

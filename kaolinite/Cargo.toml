@@ -12,8 +12,8 @@ keywords = ["unicode", "text-processing"]
 categories = ["text-processing"]
 
 [dependencies]
-error_set = "0.6"
-regex = "1.10.6"
+error_set = "0.7"
+regex = "1"
 ropey = "1.6.1"
 unicode-width = "0.2"
 

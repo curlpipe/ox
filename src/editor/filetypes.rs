@@ -1,3 +1,4 @@
+use crate::config;
 /// Tools for managing and identifying file types
 use crate::editor::Config;
 use kaolinite::utils::get_file_name;
@@ -81,12 +82,7 @@ impl FileType {
 
     /// Identify the correct highlighter to use
     pub fn get_highlighter(&self, config: &Config, tab_width: usize) -> Highlighter {
-        if let Some(highlighter) = config
-            .syntax_highlighting
-            .borrow()
-            .user_rules
-            .get(&self.name)
-        {
+        if let Some(highlighter) = config!(config, syntax).user_rules.get(&self.name) {
             // The user has defined their own syntax highlighter for this file type
             highlighter.clone()
         } else {

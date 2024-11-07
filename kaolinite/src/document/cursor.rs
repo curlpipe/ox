@@ -186,6 +186,7 @@ impl Document {
 
     /// Move up by 1 page
     pub fn move_page_up(&mut self) {
+        self.clear_cursors();
         // Set x to 0
         self.cursor.loc.x = 0;
         self.char_ptr = 0;
@@ -201,6 +202,7 @@ impl Document {
 
     /// Move down by 1 page
     pub fn move_page_down(&mut self) {
+        self.clear_cursors();
         // Set x to 0
         self.cursor.loc.x = 0;
         self.char_ptr = 0;
@@ -398,5 +400,25 @@ impl Document {
     /// Cancels the current selection
     pub fn cancel_selection(&mut self) {
         self.cursor.selection_end = self.cursor.loc;
+    }
+
+    /// Create a new alternative cursor
+    pub fn new_cursor(&mut self, loc: Loc) {
+        if let Some(idx) = self.has_cursor(loc) {
+            self.secondary_cursors.remove(idx);
+        } else if self.out_of_range(loc.x, loc.y).is_ok() {
+            self.secondary_cursors.push(loc);
+        }
+    }
+
+    /// Clear all secondary cursors
+    pub fn clear_cursors(&mut self) {
+        self.secondary_cursors.clear();
+    }
+
+    /// Determine if there is a secondary cursor at a certain position
+    #[must_use]
+    pub fn has_cursor(&self, loc: Loc) -> Option<usize> {
+        self.secondary_cursors.iter().position(|c| *c == loc)
     }
 }
