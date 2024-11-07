@@ -3,19 +3,17 @@ resolver = "2"
 members = [
   "kaolinite",
 ]
-exclude = ["cactus"]
 
 [package]
 name = "ox"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
-description = "A Rust powered text editor."
+description = "A simple but flexible text editor."
 homepage = "https://github.com/curlpipe/ox"
 repository = "https://github.com/curlpipe/ox"
 readme = "README.md"
 include = ["src/*.rs", "Cargo.toml", "config/.oxrc"]
-exclude = ["kaolinite/examples/cactus"]
 categories = ["text-editors"]
 keywords = ["text-editor", "editor", "terminal", "tui"]
 license = "GPL-2.0"
