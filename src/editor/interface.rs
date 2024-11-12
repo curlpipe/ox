@@ -79,6 +79,8 @@ impl Editor {
         let first_line = (h / 2).saturating_sub(message.len() / 2) + 1;
         let start = u16::try_from(first_line).unwrap_or(u16::MAX);
         let end = start + u16::try_from(message.len()).unwrap_or(u16::MAX);
+        // Get other information
+        let selection = self.doc().selection_loc_bound();
         // Render each line of the document
         for y in 0..u16::try_from(h).unwrap_or(0) {
             // Work out how long the line should be (accounting for help message if necessary)
@@ -148,7 +150,9 @@ impl Editor {
                     // Do the rendering (including selection where applicable)
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
-                        let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
+                        let is_selected = self
+                            .doc()
+                            .is_this_loc_selected(Loc { y: idx, x: at_x }, selection);
                         // Render the correct colour
                         if is_selected {
                             if cache_bg != selection_bg {

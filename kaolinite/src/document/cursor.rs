@@ -360,7 +360,13 @@ impl Document {
     /// Returns true if the provided location is within the current active selection
     #[must_use]
     pub fn is_loc_selected(&self, loc: Loc) -> bool {
-        let (left, right) = self.selection_loc_bound();
+        self.is_this_loc_selected(loc, self.selection_loc_bound())
+    }
+
+    /// Returns true if the provided location is within the provided selection argument
+    #[must_use]
+    pub fn is_this_loc_selected(&self, loc: Loc, selection_bound: (Loc, Loc)) -> bool {
+        let (left, right) = selection_bound;
         left <= loc && loc < right
     }
 
