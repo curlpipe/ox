@@ -67,6 +67,20 @@ impl Searcher {
         result
     }
 
+    /// Finds all the matches to the left from a certain point onwards
+    pub fn lfinds_raw(&mut self, st: &str) -> Vec<Match> {
+        let mut result = vec![];
+        for cap in self.re.captures_iter(st) {
+            if let Some(c) = cap.get(cap.len().saturating_sub(1)) {
+                result.push(Match {
+                    loc: Loc::at(c.start(), 0),
+                    text: c.as_str().to_string(),
+                });
+            }
+        }
+        result
+    }
+
     /// Finds all the matches to the right
     pub fn rfinds(&mut self, st: &str) -> Vec<Match> {
         let mut result = vec![];
@@ -87,13 +101,17 @@ impl Searcher {
     /// Converts a raw index into a character index, so that matches are in character indices
     #[must_use]
     pub fn raw_to_char(x: usize, st: &str) -> usize {
-        let mut raw = 0;
-        for (c, ch) in st.chars().enumerate() {
-            if raw == x {
-                return c;
+        for (acc_char, (acc_byte, _)) in st.char_indices().enumerate() {
+            if acc_byte == x {
+                return acc_char;
             }
-            raw += ch.len_utf8();
         }
         st.chars().count()
+    }
+
+    /// Converts a raw index into a character index, so that matches are in character indices
+    #[must_use]
+    pub fn char_to_raw(x: usize, st: &str) -> usize {
+        st.char_indices().nth(x).map_or(st.len(), |(byte, _)| byte)
     }
 }

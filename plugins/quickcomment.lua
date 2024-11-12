@@ -56,6 +56,8 @@ function quickcomment:comment_start()
         comment_start = "#"
 	elseif editor.document_type == "Ruby" then
         comment_start = "#"
+	elseif editor.document_type == "TOML" then
+        comment_start = "#"
 	elseif editor.document_type == "Lua" then
         comment_start = "--"
 	elseif editor.document_type == "Haskell" then

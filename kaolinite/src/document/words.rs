@@ -17,7 +17,7 @@ impl Document {
     pub fn word_boundaries(&self, line: &str) -> Vec<(usize, usize)> {
         let re = r"(\s{2,}|[A-Za-z0-9_]+|\.)";
         let mut searcher = Searcher::new(re);
-        let starts: Vec<Match> = searcher.lfinds(line);
+        let starts: Vec<Match> = searcher.lfinds_raw(line);
         let mut ends: Vec<Match> = starts.clone();
         ends.iter_mut()
             .for_each(|m| m.loc.x += m.text.chars().count());
@@ -28,15 +28,16 @@ impl Document {
 
     /// Find the current state of the cursor in relation to words
     #[must_use]
-    pub fn cursor_word_state(&self, words: &[(usize, usize)], x: usize) -> WordState {
+    pub fn cursor_word_state(&self, line: &str, words: &[(usize, usize)], x: usize) -> WordState {
+        let byte_x = Searcher::char_to_raw(x, line);
         let in_word = words
             .iter()
-            .position(|(start, end)| *start <= x && x <= *end);
+            .position(|(start, end)| *start <= byte_x && byte_x <= *end);
         if let Some(idx) = in_word {
             let (word_start, word_end) = words[idx];
-            if x == word_end {
+            if byte_x == word_end {
                 WordState::AtEnd(idx)
-            } else if x == word_start {
+            } else if byte_x == word_start {
                 WordState::AtStart(idx)
             } else {
                 WordState::InCenter(idx)
@@ -52,24 +53,26 @@ impl Document {
         let Loc { x, y } = from;
         let line = self.line(y).unwrap_or_default();
         let words = self.word_boundaries(&line);
-        let state = self.cursor_word_state(&words, x);
+        let state = self.cursor_word_state(&line, &words, x);
         match state {
             // Go to start of line if at beginning
             WordState::AtEnd(0) | WordState::InCenter(0) | WordState::AtStart(0) => 0,
             // Cursor is at the middle / end of a word, move to previous end
-            WordState::AtEnd(idx) | WordState::InCenter(idx) => words[idx.saturating_sub(1)].1,
-            WordState::AtStart(idx) => words[idx.saturating_sub(1)].0,
+            WordState::AtEnd(idx) | WordState::InCenter(idx) => {
+                Searcher::raw_to_char(words[idx.saturating_sub(1)].1, &line)
+            }
+            WordState::AtStart(idx) => Searcher::raw_to_char(words[idx.saturating_sub(1)].0, &line),
             WordState::Out => {
                 // Cursor is not touching any words, find previous end
                 let mut shift_back = x;
-                while let WordState::Out = self.cursor_word_state(&words, shift_back) {
+                while let WordState::Out = self.cursor_word_state(&line, &words, shift_back) {
                     shift_back = shift_back.saturating_sub(1);
                     if shift_back == 0 {
                         break;
                     }
                 }
-                match self.cursor_word_state(&words, shift_back) {
-                    WordState::AtEnd(idx) => words[idx].0,
+                match self.cursor_word_state(&line, &words, shift_back) {
+                    WordState::AtEnd(idx) => Searcher::raw_to_char(words[idx].0, &line),
                     _ => 0,
                 }
             }
@@ -82,24 +85,26 @@ impl Document {
         let Loc { x, y } = from;
         let line = self.line(y).unwrap_or_default();
         let words = self.word_boundaries(&line);
-        let state = self.cursor_word_state(&words, x);
+        let state = self.cursor_word_state(&line, &words, x);
         match state {
             // Go to start of line if at beginning
             WordState::AtEnd(0) | WordState::InCenter(0) | WordState::AtStart(0) => 0,
             // Cursor is at the middle / end of a word, move to previous end
-            WordState::AtEnd(idx) | WordState::InCenter(idx) => words[idx.saturating_sub(1)].1,
-            WordState::AtStart(idx) => words[idx.saturating_sub(1)].0,
+            WordState::AtEnd(idx) | WordState::InCenter(idx) => {
+                Searcher::raw_to_char(words[idx.saturating_sub(1)].1, &line)
+            }
+            WordState::AtStart(idx) => Searcher::raw_to_char(words[idx.saturating_sub(1)].0, &line),
             WordState::Out => {
                 // Cursor is not touching any words, find previous end
                 let mut shift_back = x;
-                while let WordState::Out = self.cursor_word_state(&words, shift_back) {
+                while let WordState::Out = self.cursor_word_state(&line, &words, shift_back) {
                     shift_back = shift_back.saturating_sub(1);
                     if shift_back == 0 {
                         break;
                     }
                 }
-                match self.cursor_word_state(&words, shift_back) {
-                    WordState::AtEnd(idx) => words[idx].1,
+                match self.cursor_word_state(&line, &words, shift_back) {
+                    WordState::AtEnd(idx) => Searcher::raw_to_char(words[idx].1, &line),
                     _ => 0,
                 }
             }
@@ -128,12 +133,12 @@ impl Document {
         let Loc { x, y } = from;
         let line = self.line(y).unwrap_or_default();
         let words = self.word_boundaries(&line);
-        let state = self.cursor_word_state(&words, x);
+        let state = self.cursor_word_state(&line, &words, x);
         match state {
             // Cursor is at the middle / end of a word, move to next end
             WordState::AtEnd(idx) | WordState::InCenter(idx) => {
                 if let Some(word) = words.get(idx) {
-                    word.1
+                    Searcher::raw_to_char(word.1, &line)
                 } else {
                     // No next word exists, just go to end of line
                     line.chars().count()
@@ -142,7 +147,7 @@ impl Document {
             WordState::AtStart(idx) => {
                 // Cursor is at the start of a word, move to next start
                 if let Some(word) = words.get(idx) {
-                    word.0
+                    Searcher::raw_to_char(word.0, &line)
                 } else {
                     // No next word exists, just go to end of line
                     line.chars().count()
@@ -151,14 +156,14 @@ impl Document {
             WordState::Out => {
                 // Cursor is not touching any words, find next start
                 let mut shift_forward = x;
-                while let WordState::Out = self.cursor_word_state(&words, shift_forward) {
+                while let WordState::Out = self.cursor_word_state(&line, &words, shift_forward) {
                     shift_forward += 1;
                     if shift_forward >= line.chars().count() {
                         break;
                     }
                 }
-                match self.cursor_word_state(&words, shift_forward) {
-                    WordState::AtStart(idx) => words[idx].0,
+                match self.cursor_word_state(&line, &words, shift_forward) {
+                    WordState::AtStart(idx) => Searcher::raw_to_char(words[idx].0, &line),
                     _ => line.chars().count(),
                 }
             }
@@ -171,12 +176,12 @@ impl Document {
         let Loc { x, y } = from;
         let line = self.line(y).unwrap_or_default();
         let words = self.word_boundaries(&line);
-        let state = self.cursor_word_state(&words, x);
+        let state = self.cursor_word_state(&line, &words, x);
         match state {
             // Cursor is at the middle / end of a word, move to next end
             WordState::AtEnd(idx) | WordState::InCenter(idx) => {
                 if let Some(word) = words.get(idx + 1) {
-                    word.1
+                    Searcher::raw_to_char(word.1, &line)
                 } else {
                     // No next word exists, just go to end of line
                     line.chars().count()
@@ -185,7 +190,7 @@ impl Document {
             WordState::AtStart(idx) => {
                 // Cursor is at the start of a word, move to next start
                 if let Some(word) = words.get(idx + 1) {
-                    word.0
+                    Searcher::raw_to_char(word.0, &line)
                 } else {
                     // No next word exists, just go to end of line
                     line.chars().count()
@@ -194,14 +199,14 @@ impl Document {
             WordState::Out => {
                 // Cursor is not touching any words, find next start
                 let mut shift_forward = x;
-                while let WordState::Out = self.cursor_word_state(&words, shift_forward) {
+                while let WordState::Out = self.cursor_word_state(&line, &words, shift_forward) {
                     shift_forward += 1;
                     if shift_forward >= line.chars().count() {
                         break;
                     }
                 }
-                match self.cursor_word_state(&words, shift_forward) {
-                    WordState::AtStart(idx) => words[idx].0,
+                match self.cursor_word_state(&line, &words, shift_forward) {
+                    WordState::AtStart(idx) => Searcher::raw_to_char(words[idx].0, &line),
                     _ => line.chars().count(),
                 }
             }
@@ -232,33 +237,35 @@ impl Document {
         let Loc { x, y } = self.char_loc();
         let line = self.line(y).unwrap_or_default();
         let words = self.word_boundaries(&line);
-        let state = self.cursor_word_state(&words, x);
+        let state = self.cursor_word_state(&line, &words, x);
         let delete_upto = match state {
             WordState::InCenter(idx) | WordState::AtEnd(idx) => {
                 // Delete back to start of this word
-                words[idx].0
+                Searcher::raw_to_char(words[idx].0, &line)
             }
             WordState::AtStart(0) => 0,
             WordState::AtStart(idx) => {
                 // Delete back to start of the previous word
-                words[idx.saturating_sub(1)].0
+                Searcher::raw_to_char(words[idx.saturating_sub(1)].0, &line)
             }
             WordState::Out => {
                 // Delete back to the end of the previous word
                 let mut shift_back = x;
-                while let WordState::Out = self.cursor_word_state(&words, shift_back) {
+                while let WordState::Out = self.cursor_word_state(&line, &words, shift_back) {
                     shift_back = shift_back.saturating_sub(1);
                     if shift_back == 0 {
                         break;
                     }
                 }
                 let char = line.chars().nth(shift_back);
-                let state = self.cursor_word_state(&words, shift_back);
+                let state = self.cursor_word_state(&line, &words, shift_back);
                 match (char, state) {
                     // Shift to start of previous word if there is a space
-                    (Some(' '), WordState::AtEnd(idx)) => words[idx].0,
+                    (Some(' '), WordState::AtEnd(idx)) => {
+                        Searcher::raw_to_char(words[idx].0, &line)
+                    }
                     // Shift to end of previous word if there is not a space
-                    (_, WordState::AtEnd(idx)) => words[idx].1,
+                    (_, WordState::AtEnd(idx)) => Searcher::raw_to_char(words[idx].1, &line),
                     _ => 0,
                 }
             }
