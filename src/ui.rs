@@ -175,7 +175,7 @@ impl Terminal {
 
     /// Restore terminal back to state before the editor was started
     pub fn end(&mut self) -> Result<()> {
-        self.show_cursor()?;
+        self.show_cursor();
         terminal::disable_raw_mode()?;
         execute!(
             self.stdout,
@@ -192,19 +192,17 @@ impl Terminal {
     }
 
     /// Shows the cursor on the screen
-    pub fn show_cursor(&mut self) -> Result<()> {
+    pub fn show_cursor(&mut self) {
         self.cache += &Show.to_string();
-        Ok(())
     }
 
     /// Hides the cursor on the screen
-    pub fn hide_cursor(&mut self) -> Result<()> {
+    pub fn hide_cursor(&mut self) {
         self.cache += &Hide.to_string();
-        Ok(())
     }
 
     /// Moves the cursor to a specific position on screen
-    pub fn goto<Num: Into<usize>>(&mut self, x: Num, y: Num) -> Result<()> {
+    pub fn goto<Num: Into<usize>>(&mut self, x: Num, y: Num) {
         let x: usize = x.into();
         let y: usize = y.into();
         self.cache += &MoveTo(
@@ -212,19 +210,17 @@ impl Terminal {
             u16::try_from(y).unwrap_or(u16::MAX),
         )
         .to_string();
-        Ok(())
     }
 
     /// Clears the current line
-    pub fn clear_current_line(&mut self) -> Result<()> {
+    pub fn clear_current_line(&mut self) {
         self.cache += &Clear(ClType::CurrentLine).to_string();
-        Ok(())
     }
 
     /// Moves to a line and makes sure it is cleared
-    pub fn prepare_line(&mut self, y: usize) -> Result<()> {
-        self.goto(0, y)?;
-        self.clear_current_line()
+    pub fn prepare_line(&mut self, y: usize) {
+        self.goto(0, y);
+        self.clear_current_line();
     }
 
     /// Flush the stdout (push the queued events to the screen)

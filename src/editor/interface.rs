@@ -6,10 +6,7 @@ use crate::ui::{key_event, size, Feedback};
 use crate::{display, handle_lua_error};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
-    queue,
-    style::{
-        Attribute, Color, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg,
-    },
+    style::{Attribute, Color, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
 };
 use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, Loc, Size};
 use mlua::Lua;
@@ -24,7 +21,7 @@ impl Editor {
             return Ok(());
         }
         self.needs_rerender = false;
-        self.terminal.hide_cursor()?;
+        self.terminal.hide_cursor();
         let Size { w, mut h } = size()?;
         h = h.saturating_sub(1 + self.push_down);
         // Update the width of the document in case of update
@@ -46,8 +43,8 @@ impl Editor {
         self.render_feedback_line(w, h)?;
         // Move cursor to the correct location and perform render
         if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
-            self.terminal.show_cursor()?;
-            self.terminal.goto(x + max, y + self.push_down)?;
+            self.terminal.show_cursor();
+            self.terminal.goto(x + max, y + self.push_down);
         }
         self.terminal.flush()?;
         Ok(())
@@ -91,7 +88,7 @@ impl Editor {
                     w.saturating_sub(self.dent())
                 };
             // Go to the right location
-            self.terminal.goto(0, y as usize + self.push_down)?;
+            self.terminal.goto(0, y as usize + self.push_down);
             // Start colours
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
@@ -235,7 +232,7 @@ impl Editor {
     /// Render the tab line at the top of the document
     #[allow(clippy::similar_names)]
     pub fn render_tab_line(&mut self, lua: &Lua, w: usize) -> Result<()> {
-        self.terminal.goto(0_usize, 0_usize)?;
+        self.terminal.goto(0_usize, 0_usize);
         let tab_inactive_bg = Bg(config!(self.config, colors).tab_inactive_bg.to_color()?);
         let tab_inactive_fg = Fg(config!(self.config, colors).tab_inactive_fg.to_color()?);
         let tab_active_bg = Bg(config!(self.config, colors).tab_active_bg.to_color()?);
@@ -266,7 +263,7 @@ impl Editor {
     /// Render the status line at the bottom of the document
     #[allow(clippy::similar_names)]
     pub fn render_status_line(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
-        self.terminal.goto(0, h + self.push_down)?;
+        self.terminal.goto(0, h + self.push_down);
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
         let status_bg = Bg(config!(self.config, colors).status_bg.to_color()?);
@@ -303,7 +300,7 @@ impl Editor {
 
     /// Render the feedback line
     pub fn render_feedback_line(&mut self, w: usize, h: usize) -> Result<()> {
-        self.terminal.goto(0, h + 2)?;
+        self.terminal.goto(0, h + 2);
         let content = self.feedback.render(&config!(self.config, colors), w)?;
         display!(self, content);
         Ok(())
@@ -315,7 +312,7 @@ impl Editor {
         let greeting = config!(self.config, greeting_message).render(lua, &colors)?;
         let message: Vec<&str> = greeting.split('\n').collect();
         for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
-            self.terminal.goto(4, h / 4 + c + 1)?;
+            self.terminal.goto(4, h / 4 + c + 1);
             let content = alinio::align::center(line, w.saturating_sub(4)).unwrap_or_default();
             display!(self, content);
         }
@@ -332,8 +329,8 @@ impl Editor {
             let h = size()?.h;
             let w = size()?.w;
             // Render prompt message
-            self.terminal.prepare_line(h)?;
-            self.terminal.show_cursor()?;
+            self.terminal.prepare_line(h);
+            self.terminal.show_cursor();
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             display!(
                 self,
@@ -343,7 +340,7 @@ impl Editor {
                 input.clone(),
                 " ".to_string().repeat(w)
             );
-            self.terminal.goto(prompt.len() + input.len() + 2, h)?;
+            self.terminal.goto(prompt.len() + input.len() + 2, h);
             self.terminal.flush()?;
             // Handle events
             if let Some((modifiers, code)) =
@@ -409,8 +406,8 @@ impl Editor {
                 .unwrap_or(input.clone());
             // Render prompt message
             let h = size()?.h;
-            self.terminal.prepare_line(h)?;
-            self.terminal.show_cursor()?;
+            self.terminal.prepare_line(h);
+            self.terminal.show_cursor();
             let suggestion_text = suggestion
                 .chars()
                 .skip(input.chars().count())
@@ -431,7 +428,7 @@ impl Editor {
                 editor_fg
             );
             let tab_width = config!(self.config, document).tab_width;
-            self.terminal.goto(6 + width(&input, tab_width), h)?;
+            self.terminal.goto(6 + width(&input, tab_width), h);
             self.terminal.flush()?;
             // Handle events
             if let Some((modifiers, code)) =
@@ -476,7 +473,7 @@ impl Editor {
         let mut done = false;
         let mut result = false;
         // Enter into the confirmation menu
-        self.terminal.hide_cursor()?;
+        self.terminal.hide_cursor();
         while !done {
             let h = size()?.h;
             let w = size()?.w;
@@ -504,7 +501,7 @@ impl Editor {
                 }
             }
         }
-        self.terminal.show_cursor()?;
+        self.terminal.show_cursor();
         Ok(result)
     }
 
