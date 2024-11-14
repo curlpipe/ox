@@ -5,7 +5,7 @@ use crate::utils::get_absolute_path;
 use crate::{Document, Loc, Size};
 use ropey::Rope;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Read, BufRead};
+use std::io::{BufRead, BufReader, BufWriter, Read};
 
 /// A document info struct to store information about the file it represents
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -158,7 +158,7 @@ pub fn load_rope_from_reader<T: Read + BufRead>(mut reader: T) -> Rope {
         match String::from_utf8(incomplete_bytes.clone()) {
             Ok(decoded) => {
                 valid_string.push_str(&decoded); // Append valid data
-                incomplete_bytes.clear();        // Clear incomplete bytes
+                incomplete_bytes.clear(); // Clear incomplete bytes
             }
             Err(err) => {
                 // Handle valid and invalid parts separately
