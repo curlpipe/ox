@@ -99,7 +99,6 @@ impl Editor {
             let line_number_fg = Fg(config!(self.config, colors).line_number_fg.to_color()?);
             let selection_bg = Bg(config!(self.config, colors).selection_bg.to_color()?);
             let selection_fg = Fg(config!(self.config, colors).selection_fg.to_color()?);
-            display!(self, editor_bg, editor_fg);
             // Write line number of document
             if config!(self.config, line_numbers).enabled {
                 let num = self.doc().line_number(y as usize + self.doc().offset.y);
@@ -116,6 +115,8 @@ impl Editor {
                     editor_fg,
                     editor_bg
                 );
+            } else {
+                display!(self, editor_bg, editor_fg);
             }
             // Render line if it exists
             let idx = y as usize + self.doc().offset.y;
@@ -148,6 +149,8 @@ impl Editor {
                         TokOpt::None(text) => (text, editor_fg),
                     };
                     // Do the rendering (including selection where applicable)
+                    let underline = SetAttribute(Attribute::Underlined);
+                    let no_underline = SetAttribute(Attribute::NoUnderline);
                     for c in text.chars() {
                         let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
                         let is_selected = self
@@ -174,8 +177,6 @@ impl Editor {
                             }
                         }
                         // Render multi-cursors
-                        let underline = SetAttribute(Attribute::Underlined);
-                        let no_underline = SetAttribute(Attribute::NoUnderline);
                         let at_loc = Loc { y: idx, x: at_x };
                         let multi_cursor_here = self.doc().has_cursor(at_loc).is_some();
                         if multi_cursor_here {
