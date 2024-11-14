@@ -82,8 +82,14 @@ impl Editor {
                         self.doc_mut().select_line_at(loc.y);
                         let line = self.doc().line(loc.y).unwrap_or_default();
                         self.alt_click_state = Some((
-                            Loc { x: 0, y: self.doc().loc().y },
-                            Loc { x: line.chars().count(), y: self.doc().loc().y }
+                            Loc {
+                                x: 0,
+                                y: self.doc().loc().y,
+                            },
+                            Loc {
+                                x: line.chars().count(),
+                                y: self.doc().loc().y,
+                            },
                         ));
                     }
                 }
@@ -129,7 +135,10 @@ impl Editor {
                                 if loc.y > self.doc().cursor.selection_end.y {
                                     let line = self.doc().line(loc.y).unwrap_or_default();
                                     self.doc_mut().move_to(&line_start);
-                                    self.doc_mut().select_to(&Loc { x: line.chars().count(), y: loc.y });
+                                    self.doc_mut().select_to(&Loc {
+                                        x: line.chars().count(),
+                                        y: loc.y,
+                                    });
                                 } else {
                                     self.doc_mut().move_to(&line_end);
                                     self.doc_mut().select_to(&Loc { x: 0, y: loc.y });
