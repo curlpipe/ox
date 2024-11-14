@@ -160,7 +160,11 @@ impl Editor {
         // Select the current word
         if let MouseLocation::File(loc) = self.find_mouse_location(lua, event) {
             self.doc_mut().select_word_at(&loc);
-            self.in_dbl_click = Some((self.doc().cursor.selection_end, self.doc().cursor.loc));
+            let mut selection = self.doc().cursor.selection_end;
+            let mut cursor = self.doc().cursor.loc;
+            selection.x = self.doc().character_idx(&selection);
+            cursor.x = self.doc().character_idx(&cursor);
+            self.in_dbl_click = Some((selection, cursor));
         }
     }
 }
