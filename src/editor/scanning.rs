@@ -84,10 +84,10 @@ impl Editor {
             self.render_document(lua, w, h.saturating_sub(2))?;
             // Render custom status line with mode information
             self.terminal.goto(0, h)?;
-            queue!(
-                self.terminal.stdout,
+            display!(
+                self,
                 Print("[<-]: Search previous | [->]: Search next | [Enter] Finish | [Esc] Cancel")
-            )?;
+            );
             // Move back to correct cursor position
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
                 let max = self.dent();
@@ -178,12 +178,12 @@ impl Editor {
             self.render_document(lua, w, h.saturating_sub(2))?;
             // Write custom status line for the replace mode
             self.terminal.goto(0, h)?;
-            queue!(
-                self.terminal.stdout,
+            display!(
+                self,
                 Print(
                     "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All | [Esc] Exit"
                 )
-            )?;
+            );
             // Move back to correct cursor location
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
                 let max = self.dent();
