@@ -62,7 +62,7 @@ pub struct Editor {
     /// Stores the last click the user made (in order to detect double-click)
     pub last_click: Option<(Instant, MouseEvent)>,
     /// Stores whether or not we're in a double click
-    pub in_dbl_click: Option<(Loc, Loc)>,
+    pub alt_click_state: Option<(Loc, Loc)>,
     /// Macro manager
     pub macro_man: MacroMan,
 }
@@ -86,7 +86,7 @@ impl Editor {
             config_path: "~/.oxrc".to_string(),
             plugin_active: false,
             last_click: None,
-            in_dbl_click: None,
+            alt_click_state: None,
             macro_man: MacroMan::default(),
         })
     }

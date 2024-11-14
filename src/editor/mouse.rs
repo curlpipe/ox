@@ -80,11 +80,19 @@ impl Editor {
                     // Select the current line
                     if let MouseLocation::File(loc) = self.find_mouse_location(lua, event) {
                         self.doc_mut().select_line_at(loc.y);
+                        let line = self.doc().line(loc.y).unwrap_or_default();
+                        self.alt_click_state = Some((
+                            Loc { x: 0, y: self.doc().loc().y },
+                            Loc { x: line.chars().count(), y: self.doc().loc().y }
+                        ));
                     }
+                }
+                MouseEventKind::Up(MouseButton::Right) => {
+                    self.alt_click_state = None;
                 }
                 // Double click detection
                 MouseEventKind::Up(MouseButton::Left) => {
-                    self.in_dbl_click = None;
+                    self.alt_click_state = None;
                     let now = Instant::now();
                     // Register this click as having happened
                     self.last_click = Some((now, event));
@@ -94,7 +102,7 @@ impl Editor {
                     match self.find_mouse_location(lua, event) {
                         MouseLocation::File(mut loc) => {
                             loc.x = self.doc_mut().character_idx(&loc);
-                            if let Some((dbl_start, dbl_end)) = self.in_dbl_click {
+                            if let Some((dbl_start, dbl_end)) = self.alt_click_state {
                                 if loc.x > self.doc().cursor.selection_end.x {
                                     // Find boundary of next word
                                     let next = self.doc().next_word_close(loc);
@@ -117,7 +125,18 @@ impl Editor {
                     match self.find_mouse_location(lua, event) {
                         MouseLocation::File(mut loc) => {
                             loc.x = self.doc_mut().character_idx(&loc);
-                            self.doc_mut().select_to_y(loc.y);
+                            if let Some((line_start, line_end)) = self.alt_click_state {
+                                if loc.y > self.doc().cursor.selection_end.y {
+                                    let line = self.doc().line(loc.y).unwrap_or_default();
+                                    self.doc_mut().move_to(&line_start);
+                                    self.doc_mut().select_to(&Loc { x: line.chars().count(), y: loc.y });
+                                } else {
+                                    self.doc_mut().move_to(&line_end);
+                                    self.doc_mut().select_to(&Loc { x: 0, y: loc.y });
+                                }
+                            } else {
+                                self.doc_mut().select_to(&loc);
+                            }
                         }
                         MouseLocation::Tabs(_) | MouseLocation::Out => (),
                     }
@@ -164,7 +183,7 @@ impl Editor {
             let mut cursor = self.doc().cursor.loc;
             selection.x = self.doc().character_idx(&selection);
             cursor.x = self.doc().character_idx(&cursor);
-            self.in_dbl_click = Some((selection, cursor));
+            self.alt_click_state = Some((selection, cursor));
         }
     }
 }
