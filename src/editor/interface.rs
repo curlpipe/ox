@@ -6,10 +6,7 @@ use crate::ui::{key_event, size, Feedback};
 use crate::{display, handle_lua_error};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
-    queue,
-    style::{
-        Attribute, Color, Print, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg,
-    },
+    style::{Attribute, Color, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
 };
 use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, Loc, Size};
 use mlua::Lua;
@@ -24,7 +21,7 @@ impl Editor {
             return Ok(());
         }
         self.needs_rerender = false;
-        self.terminal.hide_cursor()?;
+        self.terminal.hide_cursor();
         let Size { w, mut h } = size()?;
         h = h.saturating_sub(1 + self.push_down);
         // Update the width of the document in case of update
@@ -46,8 +43,8 @@ impl Editor {
         self.render_feedback_line(w, h)?;
         // Move cursor to the correct location and perform render
         if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
-            self.terminal.show_cursor()?;
-            self.terminal.goto(x + max, y + self.push_down)?;
+            self.terminal.show_cursor();
+            self.terminal.goto(x + max, y + self.push_down);
         }
         self.terminal.flush()?;
         Ok(())
@@ -79,6 +76,8 @@ impl Editor {
         let first_line = (h / 2).saturating_sub(message.len() / 2) + 1;
         let start = u16::try_from(first_line).unwrap_or(u16::MAX);
         let end = start + u16::try_from(message.len()).unwrap_or(u16::MAX);
+        // Get other information
+        let selection = self.doc().selection_loc_bound_disp();
         // Render each line of the document
         for y in 0..u16::try_from(h).unwrap_or(0) {
             // Work out how long the line should be (accounting for help message if necessary)
@@ -89,7 +88,7 @@ impl Editor {
                     w.saturating_sub(self.dent())
                 };
             // Go to the right location
-            self.terminal.goto(0, y as usize + self.push_down)?;
+            self.terminal.goto(0, y as usize + self.push_down);
             // Start colours
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
@@ -97,7 +96,6 @@ impl Editor {
             let line_number_fg = Fg(config!(self.config, colors).line_number_fg.to_color()?);
             let selection_bg = Bg(config!(self.config, colors).selection_bg.to_color()?);
             let selection_fg = Fg(config!(self.config, colors).selection_fg.to_color()?);
-            display!(self, editor_bg, editor_fg);
             // Write line number of document
             if config!(self.config, line_numbers).enabled {
                 let num = self.doc().line_number(y as usize + self.doc().offset.y);
@@ -114,6 +112,8 @@ impl Editor {
                     editor_fg,
                     editor_bg
                 );
+            } else {
+                display!(self, editor_bg, editor_fg);
             }
             // Render line if it exists
             let idx = y as usize + self.doc().offset.y;
@@ -124,7 +124,8 @@ impl Editor {
                 // Gather the tokens
                 let tokens = self.highlighter().line(idx, &line);
                 let tokens = trim_fit(&tokens, self.doc().offset.x, required_width, tab_width);
-                let mut x_pos = self.doc().offset.x;
+                let mut x_disp = self.doc().offset.x;
+                let mut x_char = self.doc().character_idx(&self.doc().offset);
                 for token in tokens {
                     // Find out the text (and colour of that text)
                     let (text, colour) = match token {
@@ -146,9 +147,12 @@ impl Editor {
                         TokOpt::None(text) => (text, editor_fg),
                     };
                     // Do the rendering (including selection where applicable)
+                    let underline = SetAttribute(Attribute::Underlined);
+                    let no_underline = SetAttribute(Attribute::NoUnderline);
                     for c in text.chars() {
-                        let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
-                        let is_selected = self.doc().is_loc_selected(Loc { y: idx, x: at_x });
+                        let disp_loc = Loc { y: idx, x: x_disp };
+                        let char_loc = Loc { y: idx, x: x_char };
+                        let is_selected = self.doc().is_this_loc_selected_disp(disp_loc, selection);
                         // Render the correct colour
                         if is_selected {
                             if cache_bg != selection_bg {
@@ -170,10 +174,7 @@ impl Editor {
                             }
                         }
                         // Render multi-cursors
-                        let underline = SetAttribute(Attribute::Underlined);
-                        let no_underline = SetAttribute(Attribute::NoUnderline);
-                        let at_loc = Loc { y: idx, x: at_x };
-                        let multi_cursor_here = self.doc().has_cursor(at_loc).is_some();
+                        let multi_cursor_here = self.doc().has_cursor(char_loc).is_some();
                         if multi_cursor_here {
                             display!(self, underline, Bg(Color::White), Fg(Color::Black));
                         }
@@ -183,7 +184,8 @@ impl Editor {
                         if multi_cursor_here {
                             display!(self, no_underline, cache_bg, cache_fg);
                         }
-                        x_pos += 1;
+                        x_char += 1;
+                        x_disp += width(&c.to_string(), tab_width);
                     }
                 }
                 display!(self, editor_fg, editor_bg);
@@ -217,7 +219,7 @@ impl Editor {
             if c == self.ptr {
                 idx = headers.len().saturating_sub(1);
             }
-            while c == self.ptr && length > w {
+            while c == self.ptr && length > w && headers.len() > 1 {
                 headers.remove(0);
                 length = length.saturating_sub(width(&headers[0], 4) + 1);
                 idx = headers.len().saturating_sub(1);
@@ -230,7 +232,7 @@ impl Editor {
     /// Render the tab line at the top of the document
     #[allow(clippy::similar_names)]
     pub fn render_tab_line(&mut self, lua: &Lua, w: usize) -> Result<()> {
-        self.terminal.goto(0_usize, 0_usize)?;
+        self.terminal.goto(0_usize, 0_usize);
         let tab_inactive_bg = Bg(config!(self.config, colors).tab_inactive_bg.to_color()?);
         let tab_inactive_fg = Fg(config!(self.config, colors).tab_inactive_fg.to_color()?);
         let tab_active_bg = Bg(config!(self.config, colors).tab_active_bg.to_color()?);
@@ -261,7 +263,7 @@ impl Editor {
     /// Render the status line at the bottom of the document
     #[allow(clippy::similar_names)]
     pub fn render_status_line(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
-        self.terminal.goto(0, h + self.push_down)?;
+        self.terminal.goto(0, h + self.push_down);
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
         let status_bg = Bg(config!(self.config, colors).status_bg.to_color()?);
@@ -298,7 +300,7 @@ impl Editor {
 
     /// Render the feedback line
     pub fn render_feedback_line(&mut self, w: usize, h: usize) -> Result<()> {
-        self.terminal.goto(0, h + 2)?;
+        self.terminal.goto(0, h + 2);
         let content = self.feedback.render(&config!(self.config, colors), w)?;
         display!(self, content);
         Ok(())
@@ -310,7 +312,7 @@ impl Editor {
         let greeting = config!(self.config, greeting_message).render(lua, &colors)?;
         let message: Vec<&str> = greeting.split('\n').collect();
         for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
-            self.terminal.goto(4, h / 4 + c + 1)?;
+            self.terminal.goto(4, h / 4 + c + 1);
             let content = alinio::align::center(line, w.saturating_sub(4)).unwrap_or_default();
             display!(self, content);
         }
@@ -327,8 +329,8 @@ impl Editor {
             let h = size()?.h;
             let w = size()?.w;
             // Render prompt message
-            self.terminal.prepare_line(h)?;
-            self.terminal.show_cursor()?;
+            self.terminal.prepare_line(h);
+            self.terminal.show_cursor();
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             display!(
                 self,
@@ -338,7 +340,7 @@ impl Editor {
                 input.clone(),
                 " ".to_string().repeat(w)
             );
-            self.terminal.goto(prompt.len() + input.len() + 2, h)?;
+            self.terminal.goto(prompt.len() + input.len() + 2, h);
             self.terminal.flush()?;
             // Handle events
             if let Some((modifiers, code)) =
@@ -404,8 +406,8 @@ impl Editor {
                 .unwrap_or(input.clone());
             // Render prompt message
             let h = size()?.h;
-            self.terminal.prepare_line(h)?;
-            self.terminal.show_cursor()?;
+            self.terminal.prepare_line(h);
+            self.terminal.show_cursor();
             let suggestion_text = suggestion
                 .chars()
                 .skip(input.chars().count())
@@ -426,7 +428,7 @@ impl Editor {
                 editor_fg
             );
             let tab_width = config!(self.config, document).tab_width;
-            self.terminal.goto(6 + width(&input, tab_width), h)?;
+            self.terminal.goto(6 + width(&input, tab_width), h);
             self.terminal.flush()?;
             // Handle events
             if let Some((modifiers, code)) =
@@ -471,7 +473,7 @@ impl Editor {
         let mut done = false;
         let mut result = false;
         // Enter into the confirmation menu
-        self.terminal.hide_cursor()?;
+        self.terminal.hide_cursor();
         while !done {
             let h = size()?.h;
             let w = size()?.w;
@@ -499,7 +501,7 @@ impl Editor {
                 }
             }
         }
-        self.terminal.show_cursor()?;
+        self.terminal.show_cursor();
         Ok(result)
     }
 

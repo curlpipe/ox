@@ -1,5 +1,5 @@
-use crate::config;
 /// Main functionality of the editor
+use crate::config;
 use crate::config::{Config, Indentation};
 use crate::error::{OxError, Result};
 use crate::ui::{size, Feedback, Terminal};
@@ -8,7 +8,7 @@ use crossterm::event::{
 };
 use kaolinite::event::Error as KError;
 use kaolinite::utils::{get_absolute_path, get_file_name};
-use kaolinite::Document;
+use kaolinite::{Document, Loc};
 use mlua::{Error as LuaError, Lua};
 use std::env;
 use std::io::ErrorKind;
@@ -62,7 +62,7 @@ pub struct Editor {
     /// Stores the last click the user made (in order to detect double-click)
     pub last_click: Option<(Instant, MouseEvent)>,
     /// Stores whether or not we're in a double click
-    pub in_dbl_click: bool,
+    pub alt_click_state: Option<(Loc, Loc)>,
     /// Macro manager
     pub macro_man: MacroMan,
 }
@@ -86,7 +86,7 @@ impl Editor {
             config_path: "~/.oxrc".to_string(),
             plugin_active: false,
             last_click: None,
-            in_dbl_click: false,
+            alt_click_state: None,
             macro_man: MacroMan::default(),
         })
     }

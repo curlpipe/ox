@@ -5,7 +5,6 @@ use crate::ui::{key_event, size};
 use crate::{config, display};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
-    queue,
     style::{Attribute, Print, SetAttribute, SetBackgroundColor as Bg},
 };
 use kaolinite::utils::{Loc, Size};
@@ -23,8 +22,8 @@ impl Editor {
         while !done {
             let Size { w, h } = size()?;
             // Render prompt message
-            self.terminal.prepare_line(h)?;
-            self.terminal.show_cursor()?;
+            self.terminal.prepare_line(h);
+            self.terminal.show_cursor();
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             display!(
                 self,
@@ -34,15 +33,15 @@ impl Editor {
                 "│",
                 " ".to_string().repeat(w)
             );
-            self.terminal.hide_cursor()?;
+            self.terminal.hide_cursor();
             self.render_document(lua, w, h.saturating_sub(2))?;
             // Move back to correct cursor position
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
                 let max = self.dent();
-                self.terminal.goto(x + max, y + 1)?;
-                self.terminal.show_cursor()?;
+                self.terminal.goto(x + max, y + 1);
+                self.terminal.show_cursor();
             } else {
-                self.terminal.hide_cursor()?;
+                self.terminal.hide_cursor();
             }
             self.terminal.flush()?;
             if let Some((modifiers, code)) =
@@ -80,21 +79,21 @@ impl Editor {
         // Enter into search menu
         while !done {
             // Render just the document part
-            self.terminal.hide_cursor()?;
+            self.terminal.hide_cursor();
             self.render_document(lua, w, h.saturating_sub(2))?;
             // Render custom status line with mode information
-            self.terminal.goto(0, h)?;
-            queue!(
-                self.terminal.stdout,
+            self.terminal.goto(0, h);
+            display!(
+                self,
                 Print("[<-]: Search previous | [->]: Search next | [Enter] Finish | [Esc] Cancel")
-            )?;
+            );
             // Move back to correct cursor position
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
                 let max = self.dent();
-                self.terminal.goto(x + max, y + 1)?;
-                self.terminal.show_cursor()?;
+                self.terminal.goto(x + max, y + 1);
+                self.terminal.show_cursor();
             } else {
-                self.terminal.hide_cursor()?;
+                self.terminal.hide_cursor();
             }
             self.terminal.flush()?;
             // Handle events
@@ -174,23 +173,23 @@ impl Editor {
         // Enter into the replace menu
         while !done {
             // Render just the document part
-            self.terminal.hide_cursor()?;
+            self.terminal.hide_cursor();
             self.render_document(lua, w, h.saturating_sub(2))?;
             // Write custom status line for the replace mode
-            self.terminal.goto(0, h)?;
-            queue!(
-                self.terminal.stdout,
+            self.terminal.goto(0, h);
+            display!(
+                self,
                 Print(
                     "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All | [Esc] Exit"
                 )
-            )?;
+            );
             // Move back to correct cursor location
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
                 let max = self.dent();
-                self.terminal.goto(x + max, y + 1)?;
-                self.terminal.show_cursor()?;
+                self.terminal.goto(x + max, y + 1);
+                self.terminal.show_cursor();
             } else {
-                self.terminal.hide_cursor()?;
+                self.terminal.hide_cursor();
             }
             self.terminal.flush()?;
             // Handle events

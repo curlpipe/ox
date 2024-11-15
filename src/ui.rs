@@ -27,9 +27,9 @@ use std::io::{stdout, Stdout, Write};
 #[macro_export]
 macro_rules! display {
     ( $self:expr, $( $x:expr ),* ) => {
-        queue!($self.terminal.stdout, SetAttribute(Attribute::NormalIntensity))?;
+        $self.terminal.cache += &SetAttribute(Attribute::NormalIntensity).to_string();
         $(
-            queue!($self.terminal.stdout, Print($x))?;
+            $self.terminal.cache += &$x.to_string();
         )*
     };
 }
@@ -124,6 +124,7 @@ impl Feedback {
 
 pub struct Terminal {
     pub stdout: Stdout,
+    pub cache: String,
     pub config: AnyUserData,
 }
 
@@ -131,6 +132,7 @@ impl Terminal {
     pub fn new(config: AnyUserData) -> Self {
         Terminal {
             stdout: stdout(),
+            cache: String::with_capacity(size().map(|s| s.w * s.h).unwrap_or(1000)),
             config,
         }
     }
@@ -167,12 +169,13 @@ impl Terminal {
                 PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
             )?;
         }
+        self.flush()?;
         Ok(())
     }
 
     /// Restore terminal back to state before the editor was started
     pub fn end(&mut self) -> Result<()> {
-        self.show_cursor()?;
+        self.show_cursor();
         terminal::disable_raw_mode()?;
         execute!(
             self.stdout,
@@ -184,49 +187,49 @@ impl Terminal {
         if cfg.mouse_enabled {
             execute!(self.stdout, DisableMouseCapture)?;
         }
+        self.flush()?;
         Ok(())
     }
 
     /// Shows the cursor on the screen
-    pub fn show_cursor(&mut self) -> Result<()> {
-        queue!(self.stdout, Show)?;
-        Ok(())
+    pub fn show_cursor(&mut self) {
+        self.cache += &Show.to_string();
     }
 
     /// Hides the cursor on the screen
-    pub fn hide_cursor(&mut self) -> Result<()> {
-        queue!(self.stdout, Hide)?;
-        Ok(())
+    pub fn hide_cursor(&mut self) {
+        self.cache += &Hide.to_string();
     }
 
     /// Moves the cursor to a specific position on screen
-    pub fn goto<Num: Into<usize>>(&mut self, x: Num, y: Num) -> Result<()> {
+    pub fn goto<Num: Into<usize>>(&mut self, x: Num, y: Num) {
         let x: usize = x.into();
         let y: usize = y.into();
-        queue!(
-            self.stdout,
-            MoveTo(
-                u16::try_from(x).unwrap_or(u16::MAX),
-                u16::try_from(y).unwrap_or(u16::MAX)
-            )
-        )?;
-        Ok(())
+        self.cache += &MoveTo(
+            u16::try_from(x).unwrap_or(u16::MAX),
+            u16::try_from(y).unwrap_or(u16::MAX),
+        )
+        .to_string();
     }
 
     /// Clears the current line
-    pub fn clear_current_line(&mut self) -> Result<()> {
-        queue!(self.stdout, Clear(ClType::CurrentLine))?;
-        Ok(())
+    pub fn clear_current_line(&mut self) {
+        self.cache += &Clear(ClType::CurrentLine).to_string();
     }
 
     /// Moves to a line and makes sure it is cleared
-    pub fn prepare_line(&mut self, y: usize) -> Result<()> {
-        self.goto(0, y)?;
-        self.clear_current_line()
+    pub fn prepare_line(&mut self, y: usize) {
+        self.goto(0, y);
+        self.clear_current_line();
     }
 
     /// Flush the stdout (push the queued events to the screen)
     pub fn flush(&mut self) -> Result<()> {
+        let mut queue = String::new();
+        std::mem::swap(&mut queue, &mut self.cache);
+        queue!(self.stdout, crossterm::style::Print(&queue))?;
+        queue.clear();
+        std::mem::swap(&mut queue, &mut self.cache);
         self.stdout.flush()?;
         Ok(())
     }

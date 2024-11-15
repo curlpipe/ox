@@ -46,6 +46,7 @@ impl Editor {
     }
 
     /// Handles a mouse event (dragging / clicking)
+    #[allow(clippy::too_many_lines)]
     pub fn handle_mouse_event(&mut self, lua: &Lua, event: MouseEvent) {
         match event.modifiers {
             KeyModifiers::NONE => match event.kind {
@@ -58,7 +59,6 @@ impl Editor {
                         let same_location =
                             last_event.column == event.column && last_event.row == event.row;
                         if short_period && same_location {
-                            self.in_dbl_click = true;
                             self.handle_double_click(lua, event);
                             return;
                         }
@@ -81,11 +81,25 @@ impl Editor {
                     // Select the current line
                     if let MouseLocation::File(loc) = self.find_mouse_location(lua, event) {
                         self.doc_mut().select_line_at(loc.y);
+                        let line = self.doc().line(loc.y).unwrap_or_default();
+                        self.alt_click_state = Some((
+                            Loc {
+                                x: 0,
+                                y: self.doc().loc().y,
+                            },
+                            Loc {
+                                x: line.chars().count(),
+                                y: self.doc().loc().y,
+                            },
+                        ));
                     }
+                }
+                MouseEventKind::Up(MouseButton::Right) => {
+                    self.alt_click_state = None;
                 }
                 // Double click detection
                 MouseEventKind::Up(MouseButton::Left) => {
-                    self.in_dbl_click = false;
+                    self.alt_click_state = None;
                     let now = Instant::now();
                     // Register this click as having happened
                     self.last_click = Some((now, event));
@@ -95,14 +109,16 @@ impl Editor {
                     match self.find_mouse_location(lua, event) {
                         MouseLocation::File(mut loc) => {
                             loc.x = self.doc_mut().character_idx(&loc);
-                            if self.in_dbl_click {
-                                if loc.x >= self.doc().cursor.selection_end.x {
+                            if let Some((dbl_start, dbl_end)) = self.alt_click_state {
+                                if loc.x > self.doc().cursor.selection_end.x {
                                     // Find boundary of next word
                                     let next = self.doc().next_word_close(loc);
+                                    self.doc_mut().move_to(&dbl_start);
                                     self.doc_mut().select_to(&Loc { x: next, y: loc.y });
                                 } else {
                                     // Find boundary of previous word
                                     let next = self.doc().prev_word_close(loc);
+                                    self.doc_mut().move_to(&dbl_end);
                                     self.doc_mut().select_to(&Loc { x: next, y: loc.y });
                                 }
                             } else {
@@ -116,7 +132,21 @@ impl Editor {
                     match self.find_mouse_location(lua, event) {
                         MouseLocation::File(mut loc) => {
                             loc.x = self.doc_mut().character_idx(&loc);
-                            self.doc_mut().select_to_y(loc.y);
+                            if let Some((line_start, line_end)) = self.alt_click_state {
+                                if loc.y > self.doc().cursor.selection_end.y {
+                                    let line = self.doc().line(loc.y).unwrap_or_default();
+                                    self.doc_mut().move_to(&line_start);
+                                    self.doc_mut().select_to(&Loc {
+                                        x: line.chars().count(),
+                                        y: loc.y,
+                                    });
+                                } else {
+                                    self.doc_mut().move_to(&line_end);
+                                    self.doc_mut().select_to(&Loc { x: 0, y: loc.y });
+                                }
+                            } else {
+                                self.doc_mut().select_to(&loc);
+                            }
                         }
                         MouseLocation::Tabs(_) | MouseLocation::Out => (),
                     }
@@ -159,6 +189,11 @@ impl Editor {
         // Select the current word
         if let MouseLocation::File(loc) = self.find_mouse_location(lua, event) {
             self.doc_mut().select_word_at(&loc);
+            let mut selection = self.doc().cursor.selection_end;
+            let mut cursor = self.doc().cursor.loc;
+            selection.x = self.doc().character_idx(&selection);
+            cursor.x = self.doc().character_idx(&cursor);
+            self.alt_click_state = Some((selection, cursor));
         }
     }
 }

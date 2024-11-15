@@ -26,3 +26,6 @@ cp target/x86_64-apple-darwin/release/ox target/pkgs/ox-macos
 cargo build --release --target x86_64-pc-windows-gnu
 strip -s target/x86_64-pc-windows-gnu/release/ox.exe
 cp target/x86_64-pc-windows-gnu/release/ox.exe target/pkgs/ox.exe
+
+# Clean up
+rm .intentionally-empty-file.o

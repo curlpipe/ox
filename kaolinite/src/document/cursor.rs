@@ -345,22 +345,43 @@ impl Document {
 
     /// Will return the bounds of the current active selection
     #[must_use]
-    pub fn selection_loc_bound(&self) -> (Loc, Loc) {
+    pub fn selection_loc_bound_disp(&self) -> (Loc, Loc) {
         let mut left = self.cursor.loc;
         let mut right = self.cursor.selection_end;
         // Convert into character indices
-        left.x = self.character_idx(&left);
-        right.x = self.character_idx(&right);
         if left > right {
             std::mem::swap(&mut left, &mut right);
         }
         (left, right)
     }
 
+    /// Will return the bounds of the current active selection
+    #[must_use]
+    pub fn selection_loc_bound(&self) -> (Loc, Loc) {
+        let (mut left, mut right) = self.selection_loc_bound_disp();
+        // Convert into character indices
+        left.x = self.character_idx(&left);
+        right.x = self.character_idx(&right);
+        (left, right)
+    }
+
     /// Returns true if the provided location is within the current active selection
     #[must_use]
     pub fn is_loc_selected(&self, loc: Loc) -> bool {
-        let (left, right) = self.selection_loc_bound();
+        self.is_this_loc_selected(loc, self.selection_loc_bound())
+    }
+
+    /// Returns true if the provided location is within the provided selection argument
+    #[must_use]
+    pub fn is_this_loc_selected(&self, loc: Loc, selection_bound: (Loc, Loc)) -> bool {
+        let (left, right) = selection_bound;
+        left <= loc && loc < right
+    }
+
+    /// Returns true if the provided location is within the provided selection argument
+    #[must_use]
+    pub fn is_this_loc_selected_disp(&self, loc: Loc, selection_bound: (Loc, Loc)) -> bool {
+        let (left, right) = selection_bound;
         left <= loc && loc < right
     }
 

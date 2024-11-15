@@ -5,7 +5,7 @@ use crate::utils::get_absolute_path;
 use crate::{Document, Loc, Size};
 use ropey::Rope;
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::{BufRead, BufReader, BufWriter, Read};
 
 /// A document info struct to store information about the file it represents
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -54,7 +54,7 @@ impl Document {
     #[cfg(not(tarpaulin_include))]
     pub fn open<S: Into<String>>(size: Size, file_name: S) -> Result<Self> {
         let file_name = file_name.into();
-        let file = Rope::from_reader(BufReader::new(File::open(&file_name)?))?;
+        let file = load_rope_from_reader(BufReader::new(File::open(&file_name)?));
         let file_name = get_absolute_path(&file_name);
         Ok(Self {
             info: DocumentInfo {
@@ -139,4 +139,40 @@ impl Document {
             self.info.loaded_to = to;
         }
     }
+}
+
+pub fn load_rope_from_reader<T: Read + BufRead>(mut reader: T) -> Rope {
+    let mut buffer = [0u8; 2048]; // Buffer to read chunks
+    let mut valid_string = String::new();
+    let mut incomplete_bytes = Vec::new(); // Buffer to handle partial UTF-8 sequences
+
+    while let Ok(bytes_read) = reader.read(&mut buffer) {
+        if bytes_read == 0 {
+            break; // EOF reached
+        }
+
+        // Combine leftover bytes with current chunk
+        incomplete_bytes.extend_from_slice(&buffer[..bytes_read]);
+
+        // Attempt to decode as much UTF-8 as possible
+        match String::from_utf8(incomplete_bytes.clone()) {
+            Ok(decoded) => {
+                valid_string.push_str(&decoded); // Append valid data
+                incomplete_bytes.clear(); // Clear incomplete bytes
+            }
+            Err(err) => {
+                // Handle valid and invalid parts separately
+                let valid_up_to = err.utf8_error().valid_up_to();
+                valid_string.push_str(&String::from_utf8_lossy(&incomplete_bytes[..valid_up_to]));
+                incomplete_bytes = incomplete_bytes[valid_up_to..].to_vec(); // Retain invalid/partial
+            }
+        }
+    }
+
+    // Append any remaining valid UTF-8 data
+    if !incomplete_bytes.is_empty() {
+        valid_string.push_str(&String::from_utf8_lossy(&incomplete_bytes));
+    }
+
+    Rope::from_str(&valid_string)
 }

@@ -1,5 +1,5 @@
 --[[
-Quickcomment v0.1
+Quickcomment v0.2
 
 A plug-in to help you comment and uncomment lines quickly
 ]]--
@@ -52,14 +52,44 @@ end
 function quickcomment:comment_start()
     if editor.document_type == "Shell" then
         comment_start = "#"
-	elseif editor.document_type == "Python" then
+    elseif editor.document_type == "Python" then
         comment_start = "#"
-	elseif editor.document_type == "Ruby" then
+    elseif editor.document_type == "Ruby" then
         comment_start = "#"
-	elseif editor.document_type == "Lua" then
+    elseif editor.document_type == "TOML" then
+        comment_start = "#"
+    elseif editor.document_type == "Lua" then
         comment_start = "--"
-	elseif editor.document_type == "Haskell" then
+    elseif editor.document_type == "Haskell" then
         comment_start = "--"
+    elseif editor.document_type == "Assembly" then
+        comment_start = ";"
+    elseif editor.document_type == "Ada" then
+        comment_start = "--"
+    elseif editor.document_type == "Crystal" then
+        comment_start = "#"
+    elseif editor.document_type == "Makefile" then
+        comment_start = "#"
+    elseif editor.document_type == "Julia" then
+        comment_start = "#"
+    elseif editor.document_type == "Lisp" then
+        comment_start = ";"
+    elseif editor.document_type == "Perl" then
+        comment_start = "#"
+    elseif editor.document_type == "R" then
+        comment_start = "#"
+    elseif editor.document_type == "Racket" then
+        comment_start = ";"
+    elseif editor.document_type == "SQL" then
+        comment_start = "--"
+    elseif editor.document_type == "Zsh" then
+        comment_start = "#"
+    elseif editor.document_type == "Yaml" then
+        comment_start = "#"
+    elseif editor.document_type == "Clojure" then
+        comment_start = ";"
+    elseif editor.document_type == "Zsh" then
+        comment_start = "#"
     else
         comment_start = "//"
     end
