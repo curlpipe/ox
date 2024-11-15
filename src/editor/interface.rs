@@ -77,7 +77,7 @@ impl Editor {
         let start = u16::try_from(first_line).unwrap_or(u16::MAX);
         let end = start + u16::try_from(message.len()).unwrap_or(u16::MAX);
         // Get other information
-        let selection = self.doc().selection_loc_bound();
+        let selection = self.doc().selection_loc_bound_disp();
         // Render each line of the document
         for y in 0..u16::try_from(h).unwrap_or(0) {
             // Work out how long the line should be (accounting for help message if necessary)
@@ -124,7 +124,8 @@ impl Editor {
                 // Gather the tokens
                 let tokens = self.highlighter().line(idx, &line);
                 let tokens = trim_fit(&tokens, self.doc().offset.x, required_width, tab_width);
-                let mut x_pos = self.doc().character_idx(&self.doc().offset);
+                let mut x_disp = self.doc().offset.x;
+                let mut x_char = self.doc().character_idx(&self.doc().offset);
                 for token in tokens {
                     // Find out the text (and colour of that text)
                     let (text, colour) = match token {
@@ -149,8 +150,9 @@ impl Editor {
                     let underline = SetAttribute(Attribute::Underlined);
                     let no_underline = SetAttribute(Attribute::NoUnderline);
                     for c in text.chars() {
-                        let at_loc = Loc { y: idx, x: x_pos };
-                        let is_selected = self.doc().is_this_loc_selected(at_loc, selection);
+                        let disp_loc = Loc { y: idx, x: x_disp };
+                        let char_loc = Loc { y: idx, x: x_char };
+                        let is_selected = self.doc().is_this_loc_selected_disp(disp_loc, selection);
                         // Render the correct colour
                         if is_selected {
                             if cache_bg != selection_bg {
@@ -172,7 +174,7 @@ impl Editor {
                             }
                         }
                         // Render multi-cursors
-                        let multi_cursor_here = self.doc().has_cursor(at_loc).is_some();
+                        let multi_cursor_here = self.doc().has_cursor(char_loc).is_some();
                         if multi_cursor_here {
                             display!(self, underline, Bg(Color::White), Fg(Color::Black));
                         }
@@ -182,7 +184,8 @@ impl Editor {
                         if multi_cursor_here {
                             display!(self, no_underline, cache_bg, cache_fg);
                         }
-                        x_pos += 1;
+                        x_char += 1;
+                        x_disp += width(&c.to_string(), tab_width);
                     }
                 }
                 display!(self, editor_fg, editor_bg);

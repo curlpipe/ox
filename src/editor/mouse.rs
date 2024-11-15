@@ -46,6 +46,7 @@ impl Editor {
     }
 
     /// Handles a mouse event (dragging / clicking)
+    #[allow(clippy::too_many_lines)]
     pub fn handle_mouse_event(&mut self, lua: &Lua, event: MouseEvent) {
         match event.modifiers {
             KeyModifiers::NONE => match event.kind {
