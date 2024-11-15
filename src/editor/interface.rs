@@ -124,7 +124,7 @@ impl Editor {
                 // Gather the tokens
                 let tokens = self.highlighter().line(idx, &line);
                 let tokens = trim_fit(&tokens, self.doc().offset.x, required_width, tab_width);
-                let mut x_pos = self.doc().offset.x;
+                let mut x_pos = self.doc().character_idx(&self.doc().offset);
                 for token in tokens {
                     // Find out the text (and colour of that text)
                     let (text, colour) = match token {
@@ -149,10 +149,8 @@ impl Editor {
                     let underline = SetAttribute(Attribute::Underlined);
                     let no_underline = SetAttribute(Attribute::NoUnderline);
                     for c in text.chars() {
-                        let at_x = self.doc().character_idx(&Loc { y: idx, x: x_pos });
-                        let is_selected = self
-                            .doc()
-                            .is_this_loc_selected(Loc { y: idx, x: at_x }, selection);
+                        let at_loc = Loc { y: idx, x: x_pos };
+                        let is_selected = self.doc().is_this_loc_selected(at_loc, selection);
                         // Render the correct colour
                         if is_selected {
                             if cache_bg != selection_bg {
@@ -174,7 +172,6 @@ impl Editor {
                             }
                         }
                         // Render multi-cursors
-                        let at_loc = Loc { y: idx, x: at_x };
                         let multi_cursor_here = self.doc().has_cursor(at_loc).is_some();
                         if multi_cursor_here {
                             display!(self, underline, Bg(Color::White), Fg(Color::Black));
@@ -219,7 +216,7 @@ impl Editor {
             if c == self.ptr {
                 idx = headers.len().saturating_sub(1);
             }
-            while c == self.ptr && length > w {
+            while c == self.ptr && length > w && headers.len() > 1 {
                 headers.remove(0);
                 length = length.saturating_sub(width(&headers[0], 4) + 1);
                 idx = headers.len().saturating_sub(1);
