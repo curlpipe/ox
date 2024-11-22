@@ -24,7 +24,7 @@ impl Editor {
         let tab_enabled = config!(self.config, tab_line).enabled;
         let tab = usize::from(tab_enabled);
         if event.row == 0 && tab_enabled {
-            let (tabs, _, offset) = self.get_tab_parts(lua, size().map_or(0, |s| s.w));
+            let (tabs, _, offset) = self.get_tab_parts(&self.ptr.clone(), lua, size().map_or(0, |s| s.w));
             let mut c = event.column + 2;
             for (i, header) in tabs.iter().enumerate() {
                 let header_len = width(header, 4) + 1;
@@ -71,7 +71,8 @@ impl Editor {
                             self.doc_mut().old_cursor = self.doc().loc().x;
                         }
                         MouseLocation::Tabs(i) => {
-                            self.ptr = i;
+                            todo!("CHANGING TABS");
+                            //self.ptr = i;
                             self.update_cwd();
                         }
                         MouseLocation::Out => (),

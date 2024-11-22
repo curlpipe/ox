@@ -26,8 +26,9 @@ mod mouse;
 mod scanning;
 
 pub use cursor::{allowed_by_multi_cursor, handle_multiple_cursors};
-pub use documents::FileContainer;
+pub use documents::{FileContainer, FileLayout};
 pub use filetypes::{FileType, FileTypes};
+pub use interface::RenderCache;
 pub use macros::MacroMan;
 
 /// For managing all editing and rendering of cactus
@@ -40,9 +41,9 @@ pub struct Editor {
     /// Configuration information for the editor
     pub config: Config,
     /// Storage of all the documents opened in the editor
-    pub files: Vec<FileContainer>,
+    pub files: FileLayout,
     /// Pointer to the document that is currently being edited
-    pub ptr: usize,
+    pub ptr: Vec<usize>,
     /// true if the editor is still running, false otherwise
     pub active: bool,
     /// true if the editor should show a greeting message on next render
@@ -65,6 +66,8 @@ pub struct Editor {
     pub alt_click_state: Option<(Loc, Loc)>,
     /// Macro manager
     pub macro_man: MacroMan,
+    /// Render cache
+    pub render_cache: RenderCache,
 }
 
 impl Editor {
@@ -72,8 +75,8 @@ impl Editor {
     pub fn new(lua: &Lua) -> Result<Self> {
         let config = Config::new(lua)?;
         Ok(Self {
-            files: vec![],
-            ptr: 0,
+            files: FileLayout::Atom(vec![], 0),
+            ptr: vec![],
             terminal: Terminal::new(config.terminal.clone()),
             config,
             active: true,
@@ -88,6 +91,7 @@ impl Editor {
             last_click: None,
             alt_click_state: None,
             macro_man: MacroMan::default(),
+            render_cache: RenderCache::default(),
         })
     }
 
@@ -115,10 +119,12 @@ impl Editor {
             file_type: Some(FileType::default()),
             doc,
         };
-        if self.ptr + 1 >= self.files.len() {
-            self.files.push(file);
-        } else {
-            self.files.insert(self.ptr + 1, file);
+        if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
+            if *ptr + 1 >= files.len() {
+                files.push(file);
+            } else {
+                files.insert(*ptr + 1, file);
+            }
         }
         Ok(())
     }
@@ -133,7 +139,7 @@ impl Editor {
     /// Create a blank document if none are already opened
     pub fn new_if_empty(&mut self) -> Result<()> {
         // If no documents were provided, create a new empty document
-        if self.files.is_empty() {
+        if self.files.len() == 0 {
             self.blank()?;
             self.greet = config!(self.config, greeting_message).enabled;
         }
@@ -142,8 +148,12 @@ impl Editor {
 
     /// Function to open a document into the editor
     pub fn open(&mut self, file_name: &str) -> Result<()> {
-        if let Some(idx) = self.already_open(&get_absolute_path(file_name).unwrap_or_default()) {
-            self.ptr = idx;
+        // Check if a file is already opened
+        if let Some((idx, ptr)) = self.already_open(&get_absolute_path(file_name).unwrap_or_default()) {
+            // Move to existing file
+            self.ptr = idx.clone();
+            self.files.move_to(idx, ptr);
+            // Send out error message
             let file = get_file_name(file_name).unwrap_or_default();
             return Err(OxError::AlreadyOpen { file });
         }
@@ -167,10 +177,16 @@ impl Editor {
             highlighter,
             file_type,
         };
-        if self.ptr + 1 >= self.files.len() {
-            self.files.push(file);
+        if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
+            // Atom already exists
+            if *ptr + 1 >= files.len() {
+                files.push(file);
+            } else {
+                files.insert(*ptr + 1, file);
+            }
         } else {
-            self.files.insert(self.ptr + 1, file);
+            // Atom ought to be created
+            self.files = FileLayout::Atom(vec![file], 0);
         }
         Ok(())
     }
@@ -191,22 +207,24 @@ impl Editor {
             if os.kind() == ErrorKind::NotFound {
                 // Create a new document if not found
                 self.blank()?;
-                let file = self.files.last_mut().unwrap();
-                file.doc.file_name = Some(file_name);
-                // Work out information for the document
-                let tab_width = config!(self.config, document).tab_width;
-                let file_type = config!(self.config, document)
-                    .file_types
-                    .identify(&mut file.doc);
-                // Set up the document
-                file.doc.set_tab_width(tab_width);
-                // Attach the correct highlighter
-                let highlighter = file_type.clone().map_or(Highlighter::new(tab_width), |t| {
-                    t.get_highlighter(&self.config, tab_width)
-                });
-                file.highlighter = highlighter;
-                file.highlighter.run(&file.doc.lines);
-                file.file_type = file_type;
+                if let Some((files, _)) = self.files.get_atom_mut(self.ptr.clone()) {
+                    let file = files.last_mut().unwrap();
+                    file.doc.file_name = Some(file_name);
+                    // Work out information for the document
+                    let tab_width = config!(self.config, document).tab_width;
+                    let file_type = config!(self.config, document)
+                        .file_types
+                        .identify(&mut file.doc);
+                    // Set up the document
+                    file.doc.set_tab_width(tab_width);
+                    // Attach the correct highlighter
+                    let highlighter = file_type.clone().map_or(Highlighter::new(tab_width), |t| {
+                        t.get_highlighter(&self.config, tab_width)
+                    });
+                    file.highlighter = highlighter;
+                    file.highlighter.run(&file.doc.lines);
+                    file.file_type = file_type;
+                }
                 Ok(())
             } else {
                 file
@@ -217,15 +235,9 @@ impl Editor {
     }
 
     /// Determine if a file is already open
-    pub fn already_open(&mut self, abs_path: &str) -> Option<usize> {
-        for (ptr, file) in self.files.iter().enumerate() {
-            let file_path = file.doc.file_name.as_ref();
-            let file_path = file_path.map(|f| get_absolute_path(f).unwrap_or_default());
-            if file_path == Some(abs_path.to_string()) {
-                return Some(ptr);
-            }
-        }
-        None
+    /// TODO: Requires a rewrite (you shouldn't be able to open a duplicate file in another split)
+    pub fn already_open(&mut self, abs_path: &str) -> Option<(Vec<usize>, usize)> {
+        self.files.find(vec![], abs_path)
     }
 
     /// save the document to the disk
@@ -242,19 +254,21 @@ impl Editor {
         let file_name = self.prompt("Save as")?;
         self.doc_mut().save_as(&file_name)?;
         if self.doc().file_name.is_none() {
-            // Get information about the document
-            let file = self.files.last_mut().unwrap();
-            let tab_width = config!(self.config, document).tab_width;
-            let file_type = config!(self.config, document)
-                .file_types
-                .identify(&mut file.doc);
-            // Reattach an appropriate highlighter
-            let highlighter = file_type.map_or(Highlighter::new(tab_width), |t| {
-                t.get_highlighter(&self.config, tab_width)
-            });
-            file.highlighter = highlighter;
-            file.highlighter.run(&file.doc.lines);
-            file.doc.file_name = Some(file_name.clone());
+            if let Some((files, _)) = self.files.get_atom_mut(self.ptr.clone()) {
+                // Get information about the document
+                let file = files.last_mut().unwrap();
+                let tab_width = config!(self.config, document).tab_width;
+                let file_type = config!(self.config, document)
+                    .file_types
+                    .identify(&mut file.doc);
+                // Reattach an appropriate highlighter
+                let highlighter = file_type.map_or(Highlighter::new(tab_width), |t| {
+                    t.get_highlighter(&self.config, tab_width)
+                });
+                file.highlighter = highlighter;
+                file.highlighter.run(&file.doc.lines);
+                file.doc.file_name = Some(file_name.clone());
+            }
         }
         // Commit events to event manager (for undo / redo)
         self.doc_mut().commit();
@@ -265,10 +279,12 @@ impl Editor {
 
     /// Save all the open documents to the disk
     pub fn save_all(&mut self) -> Result<()> {
-        for file in &mut self.files {
-            file.doc.save()?;
-            // Commit events to event manager (for undo / redo)
-            file.doc.commit();
+        if let Some((files, _)) = self.files.get_atom_mut(self.ptr.clone()) {
+            for file in files {
+                file.doc.save()?;
+                // Commit events to event manager (for undo / redo)
+                file.doc.commit();
+            }
         }
         self.feedback = Feedback::Info("Saved all documents".to_string());
         Ok(())
@@ -276,32 +292,38 @@ impl Editor {
 
     /// Quit the editor
     pub fn quit(&mut self) -> Result<()> {
-        self.active = !self.files.is_empty();
+        self.active = self.files.len() != 0;
         // If there are still documents open, only close the requested document
         if self.active {
             let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
             if self.doc().event_mgmt.with_disk(&self.doc().take_snapshot()) || self.confirm(msg)? {
-                self.files.remove(self.ptr);
-                self.prev();
+                if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
+                    files.remove(*ptr);
+                    self.prev();
+                }
             }
         }
-        self.active = !self.files.is_empty();
+        self.active = self.files.len() != 0;
         Ok(())
     }
 
     /// Move to the next document opened in the editor
     pub fn next(&mut self) {
-        if self.ptr + 1 < self.files.len() {
-            self.ptr += 1;
-            self.update_cwd();
+        if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
+            if *ptr + 1 < files.len() {
+                *ptr += 1;
+                self.update_cwd();
+            }
         }
     }
 
     /// Move to the previous document opened in the editor
     pub fn prev(&mut self) {
-        if self.ptr != 0 {
-            self.ptr = self.ptr.saturating_sub(1);
-            self.update_cwd();
+        if let Some((_, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
+            if *ptr != 0 {
+                *ptr = ptr.saturating_sub(1);
+                self.update_cwd();
+            }
         }
     }
 
@@ -317,32 +339,32 @@ impl Editor {
 
     /// Try to get a document
     pub fn try_doc(&self) -> Option<&Document> {
-        self.files.get(self.ptr).map(|file| &file.doc)
+        self.files.get(self.ptr.clone()).map(|file| &file.doc)
     }
 
     /// Try to get a document
     pub fn try_doc_mut(&mut self) -> Option<&mut Document> {
-        self.files.get_mut(self.ptr).map(|file| &mut file.doc)
+        self.files.get_mut(self.ptr.clone()).map(|file| &mut file.doc)
     }
 
     /// Returns a document at a certain index
     pub fn get_doc(&mut self, idx: usize) -> &mut Document {
-        &mut self.files.get_mut(idx).unwrap().doc
+        &mut self.files.get_atom_mut(self.ptr.clone()).unwrap().0[idx].doc
     }
 
     /// Gets a reference to the current document
     pub fn doc(&self) -> &Document {
-        &self.files.get(self.ptr).unwrap().doc
+        &self.files.get(self.ptr.clone()).unwrap().doc
     }
 
     /// Gets a mutable reference to the current document
     pub fn doc_mut(&mut self) -> &mut Document {
-        &mut self.files.get_mut(self.ptr).unwrap().doc
+        &mut self.files.get_mut(self.ptr.clone()).unwrap().doc
     }
 
     /// Gets the number of documents currently open
     pub fn doc_len(&mut self) -> usize {
-        self.files.len()
+        self.files.get_atom(self.ptr.clone()).unwrap().0.len()
     }
 
     /// Load the configuration values
@@ -416,7 +438,7 @@ impl Editor {
         // Ensure all lines in viewport are loaded
         let max = self.dent();
         self.doc_mut().size.w = w.saturating_sub(u16::try_from(max).unwrap_or(u16::MAX)) as usize;
-        self.doc_mut().size.h = h.saturating_sub(3) as usize;
+        self.doc_mut().size.h = h.saturating_sub(2) as usize;
         let max = self.doc().offset.y + self.doc().size.h;
         self.doc_mut().load_to(max + 1);
     }

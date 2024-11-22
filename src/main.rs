@@ -37,6 +37,86 @@ macro_rules! ged {
     };
 }
 
+/*
+/// TEMPORARY - REMOVE WHEN SPLITS ARE IMPLEMENTED
+use crate::editor::{FileLayout, FileContainer};
+use kaolinite::{Document, Size};
+use synoptic::Highlighter;
+fn main() {
+    let lua = Lua::new();
+    // Create editor
+    let mut editor = match Editor::new(&lua) {
+        Ok(editor) => editor,
+        Err(error) => panic!("Editor failed to start: {error:?}"),
+    };
+    
+    lua.load(PLUGIN_BOOTSTRAP).exec().unwrap();
+    editor.load_config("/home/luke/.oxrc", &lua);
+    lua.load(PLUGIN_RUN).exec().unwrap();
+    
+    editor.files = FileLayout::SideBySide(vec![
+        (
+            FileLayout::Atom(vec![
+                FileContainer {
+                    doc: Document::open(Size { w: 0, h: 0 }, "src/main.rs").unwrap(),
+                    highlighter: synoptic::from_extension("rs", 4).unwrap(),
+                    file_type: None,
+                }
+            ], 0),
+            0.45,
+        ),
+        (
+            FileLayout::TopToBottom(vec![
+                (
+                    FileLayout::Atom(vec![
+                        FileContainer {
+                            doc: Document::new(Size { w: 0, h: 0 }),
+                            highlighter: Highlighter::new(4),
+                            file_type: None,
+                        }
+                    ], 0),
+                    0.4,
+                ),
+                (
+                    FileLayout::Atom(vec![
+                        FileContainer {
+                            doc: Document::open(Size { w: 0, h: 0 }, "plugins/todo.lua").unwrap(),
+                            highlighter: synoptic::from_extension("lua", 4).unwrap(),
+                            file_type: None,
+                        }
+                    ], 0),
+                    0.6,
+                ),
+            ]),
+            0.55,
+        ),
+    ]);
+    editor.active = true;
+    editor.ptr = vec![1, 0];
+    editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
+    editor.update_highlighter();
+    editor.ptr = vec![1, 1];
+    editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
+    editor.update_highlighter();
+    editor.ptr = vec![0];
+    editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
+    editor.update_highlighter();
+
+    let viewport = Size { w: 154, h: 40 };
+    
+    for i in 0..viewport.h {
+        let output = editor.render_line(
+            i,
+            viewport, 
+            &lua
+        ).unwrap();
+        
+        println!("{output}");
+    }
+}
+*/
+
+
 /// Entry point - grabs command line arguments and runs the editor
 fn main() {
     // Interact with user to find out what they want to do
@@ -59,7 +139,6 @@ fn main() {
         panic!("{err:?}");
     }
 }
-
 /// Run the editor
 #[allow(clippy::too_many_lines)]
 fn run(cli: &CommandLineInterface) -> Result<()> {
@@ -132,7 +211,8 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             let mut highlighter = file_type.get_highlighter(&ged!(&editor).config, tab_width);
             highlighter.run(&ged!(mut &editor).get_doc(c).lines);
             let mut editor = ged!(mut &editor);
-            let file = editor.files.get_mut(c).unwrap();
+            let current_ptr = editor.ptr.clone();
+            let file = &mut editor.files.get_atom_mut(current_ptr).unwrap().0[c];
             file.highlighter = highlighter;
             file.file_type = Some(file_type);
         }
@@ -140,15 +220,17 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         ged!(mut &editor).next();
     }
     // Reset the pointer back to the first document
-    ged!(mut &editor).ptr = 0;
-
+    let current_ptr = ged!(mut &editor).ptr.clone();
+    ged!(mut &editor).files.move_to(current_ptr, 0);
+    
     // Handle stdin if applicable
     if cli.flags.stdin {
         let stdin = cli::get_stdin();
         let mut holder = ged!(mut &editor);
         holder.blank()?;
         let this_doc = holder.doc_len().saturating_sub(1);
-        let doc = holder.get_doc(this_doc);
+        let current_ptr = holder.ptr.clone();
+        let mut doc = &mut holder.files.get_atom_mut(current_ptr).unwrap().0[this_doc].doc;
         doc.exe(Event::Insert(Loc { x: 0, y: 0 }, stdin))?;
         doc.load_to(doc.size.h);
         let lines = doc.lines.clone();
@@ -161,7 +243,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
 
     // Create a blank document if none are opened
     ged!(mut &editor).new_if_empty()?;
-
+    
     // Add in the plugin manager
     handle_lua_error(
         "",
@@ -212,6 +294,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     ged!(mut &editor).terminal.end()?;
     Ok(())
 }
+
 
 fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
     // Clear screen of temporary items (expect on resize event)
@@ -345,7 +428,7 @@ fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
         Ok(()) => (),
         Err(OxError::AlreadyOpen { .. }) => {
             let len = ged!(&editor).files.len().saturating_sub(1);
-            ged!(mut &editor).ptr = len;
+            ged!(mut &editor).files.move_to(ged!(&editor).ptr.clone(), len);
         }
         Err(OxError::Kaolinite(kerr)) => {
             match kerr {

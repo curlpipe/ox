@@ -34,7 +34,7 @@ impl Editor {
                 " ".to_string().repeat(w)
             );
             self.terminal.hide_cursor();
-            self.render_document(lua, w, h.saturating_sub(2))?;
+            self.render(lua)?;
             // Move back to correct cursor position
             if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
                 let max = self.dent();
@@ -80,7 +80,7 @@ impl Editor {
         while !done {
             // Render just the document part
             self.terminal.hide_cursor();
-            self.render_document(lua, w, h.saturating_sub(2))?;
+            self.render(lua)?;
             // Render custom status line with mode information
             self.terminal.goto(0, h);
             display!(
@@ -174,7 +174,7 @@ impl Editor {
         while !done {
             // Render just the document part
             self.terminal.hide_cursor();
-            self.render_document(lua, w, h.saturating_sub(2))?;
+            self.render(lua)?;
             // Write custom status line for the replace mode
             self.terminal.goto(0, h);
             display!(
@@ -227,8 +227,9 @@ impl Editor {
         self.doc_mut().move_to(&loc);
         // Update syntax highlighter
         self.update_highlighter();
-        let file = &mut self.files[self.ptr];
-        file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+        if let Some(file) = self.files.get_mut(self.ptr.clone()) {
+            file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+        }
         Ok(())
     }
 
@@ -241,9 +242,10 @@ impl Editor {
         while let Some(mtch) = self.doc_mut().next_match(target, 1) {
             drop(self.doc_mut().replace(mtch.loc, &mtch.text, into));
             self.update_highlighter();
-            let file = &mut self.files[self.ptr];
-            file.highlighter
-                .edit(mtch.loc.y, &file.doc.lines[mtch.loc.y]);
+            if let Some(file) = self.files.get_mut(self.ptr.clone()) {
+                file.highlighter
+                    .edit(mtch.loc.y, &file.doc.lines[mtch.loc.y]);
+            }
         }
     }
 }

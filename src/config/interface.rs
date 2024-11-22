@@ -8,6 +8,7 @@ use kaolinite::searching::Searcher;
 use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
 use mlua::prelude::*;
 use std::result::Result as RResult;
+use std::ops::Range;
 
 use super::{issue_warning, Colors};
 
@@ -98,13 +99,23 @@ impl Default for GreetingMessage {
 
 impl GreetingMessage {
     /// Take the configuration information and render the greeting message
-    pub fn render(&self, lua: &Lua, colors: &Colors) -> Result<String> {
-        let highlight = Fg(colors.highlight.to_color()?).to_string();
-        let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
+    pub fn render(&self, lua: &Lua) -> Result<(String, Vec<usize>)> {
         let mut result = self.format.clone();
+        // Substitute in simple values
         result = result.replace("{version}", VERSION).to_string();
-        result = result.replace("{highlight_start}", &highlight).to_string();
-        result = result.replace("{highlight_end}", &editor_fg).to_string();
+        result = result.replace("\t", "    ").to_string();
+        // Handle highlighted part
+        let start = result.find("{highlight_start}");
+        let end = result.find("{highlight_end}");
+        let highlighted = if let (Some(s), Some(e)) = (start, end) {
+            let s = result.chars().take(s).filter(|c| *c == '\n').count();
+            let e = result.chars().take(e).filter(|c| *c == '\n').count();
+            (s..=e).collect()
+        } else {
+            vec![]
+        };
+        result = result.replace("{highlight_start}", "").to_string();
+        result = result.replace("{highlight_end}", "").to_string();
         // Find functions to call and substitute in
         let mut searcher = Searcher::new(r"\{[A-Za-z_][A-Za-z0-9_]*\}");
         while let Some(m) = searcher.lfind(&result) {
@@ -124,7 +135,7 @@ impl GreetingMessage {
                 break;
             }
         }
-        Ok(result)
+        Ok((result, highlighted))
     }
 }
 
@@ -321,34 +332,27 @@ impl Default for StatusLine {
 
 impl StatusLine {
     /// Take the configuration information and render the status line
-    pub fn render(&self, editor: &Editor, lua: &Lua, w: usize) -> RResult<String, LuaError> {
-        let file = &editor.files[editor.ptr];
+    pub fn render(&self, ptr: &Vec<usize>, editor: &Editor, lua: &Lua, w: usize) -> RResult<String, LuaError> {
         let mut result = vec![];
-        let path = editor
-            .doc()
+        let fc = editor.files.get(ptr.clone()).unwrap();
+        let doc = &fc.doc;
+        let path = doc
             .file_name
             .clone()
             .unwrap_or_else(|| "[No Name]".to_string());
         let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
-        let file_type = file
-            .file_type
-            .clone()
-            .map_or("Unknown".to_string(), |t| t.name);
-        let icon = file.file_type.clone().map_or("󰈙 ".to_string(), |t| t.icon);
-        let modified = if editor
-            .doc()
-            .event_mgmt
-            .with_disk(&editor.doc().take_snapshot())
-        {
+        let file_type = fc.file_type.clone().map_or("Unknown".to_string(), |ft| ft.name);
+        let icon = fc.file_type.clone().map_or("󰈙 ".to_string(), |ft| ft.icon);
+        let modified = if doc.event_mgmt.with_disk(&editor.doc().take_snapshot()) {
             ""
         } else {
             "[+]"
         };
-        let cursor_y = (editor.doc().loc().y + 1).to_string();
-        let cursor_x = editor.doc().char_ptr.to_string();
-        let line_count = editor.doc().len_lines().to_string();
+        let cursor_y = (doc.loc().y + 1).to_string();
+        let cursor_x = doc.char_ptr.to_string();
+        let line_count = doc.len_lines().to_string();
 
         for part in &self.parts {
             let mut part = part.clone();
