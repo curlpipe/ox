@@ -12,6 +12,8 @@ use std::ops::Range;
 
 use super::{issue_warning, Colors};
 
+type LuaRes<T> = RResult<T, LuaError>;
+
 /// For storing general configuration related to the terminal functionality
 #[derive(Debug)]
 pub struct Terminal {
@@ -246,8 +248,8 @@ impl Default for TabLine {
 
 impl TabLine {
     /// Take the configuration information and render the tab line
-    pub fn render(&self, lua: &Lua, file: &FileContainer, feedback: &mut Feedback) -> String {
-        let path = file
+    pub fn render(&self, lua: &Lua, fc: &FileContainer, fb: &mut Feedback) -> String {
+        let path = fc
             .doc
             .file_name
             .clone()
@@ -255,8 +257,8 @@ impl TabLine {
         let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
-        let icon = file.file_type.clone().map_or("󰈙 ".to_string(), |t| t.icon);
-        let modified = if file.doc.event_mgmt.with_disk(&file.doc.take_snapshot()) {
+        let icon = fc.file_type.clone().map_or("󰈙 ".to_string(), |t| t.icon);
+        let modified = if fc.doc.event_mgmt.with_disk(&fc.doc.take_snapshot()) {
             ""
         } else {
             "[+]"
@@ -287,7 +289,7 @@ impl TabLine {
                         result = result.replace(&m.text, r.to_string_lossy().as_str());
                     }
                     Err(e) => {
-                        *feedback = Feedback::Error(format!("Error occured in tab line: {e:?}"));
+                        *fb = Feedback::Error(format!("Error occured in tab line: {e:?}"));
                         break;
                     }
                 }
@@ -332,7 +334,7 @@ impl Default for StatusLine {
 
 impl StatusLine {
     /// Take the configuration information and render the status line
-    pub fn render(&self, ptr: &Vec<usize>, editor: &Editor, lua: &Lua, w: usize) -> RResult<String, LuaError> {
+    pub fn render(&self, ptr: &Vec<usize>, editor: &Editor, lua: &Lua, w: usize) -> LuaRes<String> {
         let mut result = vec![];
         let fc = editor.files.get(ptr.clone()).unwrap();
         let doc = &fc.doc;

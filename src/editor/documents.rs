@@ -5,6 +5,8 @@ use synoptic::Highlighter;
 use std::ops::Range;
 use kaolinite::Size;
 
+pub type Span = Vec<(Vec<usize>, Range<usize>, Range<usize>)>;
+
 // File split structure
 #[derive(Debug)]
 pub enum FileLayout {
@@ -27,7 +29,7 @@ impl Default for FileLayout {
 impl FileLayout {
     /// Will return file containers and what span of columns and rows they take up
     /// In the format of (container, rows, columns)
-    pub fn span(&self, idx: Vec<usize>, size: Size) -> Vec<(Vec<usize>, Range<usize>, Range<usize>)> {
+    pub fn span(&self, idx: Vec<usize>, size: Size) -> Span {
         match self {
             Self::None => vec![],
             Self::Atom(containers, ptr) => vec![(idx, 0..size.h, 0..size.w)],
@@ -78,7 +80,7 @@ impl FileLayout {
     }
     
     /// Work out which file containers to render where on a particular line and in what order
-    pub fn line(y: usize, spans: &Vec<(Vec<usize>, Range<usize>, Range<usize>)>) -> Vec<(Vec<usize>, Range<usize>, Range<usize>)> {
+    pub fn line(y: usize, spans: &Span) -> Span {
         let mut appropriate: Vec<_> = spans
             .iter()
             .filter_map(|(ptr, rows, columns)|

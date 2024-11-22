@@ -23,6 +23,7 @@ pub struct RenderCache {
 }
 
 impl Editor {
+    /// Update the render cache
     pub fn update_render_cache(&mut self, lua: &Lua, size: Size) {
         // Calculate greeting message
         if config!(self.config, tab_line).enabled && self.greet {
@@ -34,6 +35,7 @@ impl Editor {
         self.render_cache.span = self.files.span(vec![], size);
     }
 
+    /// Render a specific line
     pub fn render_line(&mut self, y: usize, size: Size, lua: &Lua) -> Result<String> {
         let tab_line_enabled = config!(self.config, tab_line).enabled;
         let mut result = String::new();
