@@ -46,10 +46,20 @@ impl LuaUserData for Editor {
             }
         });
         fields.add_field_method_get("version", |_, _| Ok(VERSION));
-        fields.add_field_method_get("current_document_id", |_, editor| Ok(editor.files.get_atom(editor.ptr.clone()).map(|a| a.1)));
-        fields.add_field_method_get("document_count", |_, editor| Ok(editor.files.get_all(editor.ptr.clone()).len()));
+        fields.add_field_method_get("current_document_id", |_, editor| {
+            Ok(editor.files.get_atom(editor.ptr.clone()).map(|a| a.1))
+        });
+        fields.add_field_method_get("document_count", |_, editor| {
+            Ok(editor.files.get_all(editor.ptr.clone()).len())
+        });
         fields.add_field_method_get("document_type", |_, editor| {
-            Ok(editor.files.get(editor.ptr.clone()).unwrap_or(&FileContainer::default()).file_type.clone().map_or("Unknown".to_string(), |ft| ft.name))
+            Ok(editor
+                .files
+                .get(editor.ptr.clone())
+                .unwrap_or(&FileContainer::default())
+                .file_type
+                .clone()
+                .map_or("Unknown".to_string(), |ft| ft.name))
         });
         fields.add_field_method_get("file_name", |_, editor| {
             if let Some(doc) = editor.try_doc() {

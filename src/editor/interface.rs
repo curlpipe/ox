@@ -1,17 +1,17 @@
+use crate::editor::{FileContainer, FileLayout};
 /// Functions for rendering the UI
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
 use crate::ui::{key_event, size, Feedback};
-use crate::editor::{FileLayout, FileContainer};
-use crate::{display, handle_lua_error, config};
+use crate::{config, display, handle_lua_error};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
     style::{Attribute, Color, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
 };
 use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, Loc, Size};
 use mlua::Lua;
-use synoptic::{trim_fit, Highlighter, TokOpt};
 use std::ops::Range;
+use synoptic::{trim_fit, Highlighter, TokOpt};
 
 use super::Editor;
 
@@ -58,7 +58,15 @@ impl Editor {
                 result += &self.render_status_line(&fc, lua, length)?;
             } else {
                 // Line of file
-                result += &self.render_document(&fc, rel_y.saturating_sub(self.push_down), lua, length, size.h)?;
+                result += &self.render_document(
+                    &fc,
+                    rel_y.saturating_sub(self.push_down),
+                    lua,
+                    Size {
+                        w: length,
+                        h: size.h,
+                    },
+                )?;
             }
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
@@ -105,7 +113,14 @@ impl Editor {
     }
 
     /// Render the lines of the document
-    pub fn render_document(&mut self, ptr: &Vec<usize>, y: usize, lua: &Lua, mut w: usize, h: usize) -> Result<String> {
+    pub fn render_document(
+        &mut self,
+        ptr: &Vec<usize>,
+        y: usize,
+        lua: &Lua,
+        size: Size,
+    ) -> Result<String> {
+        let Size { mut w, h } = size;
         let mut result = String::new();
         // Get various information
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
@@ -169,8 +184,14 @@ impl Editor {
                 };
                 // Do the rendering (including selection where applicable)
                 for c in text.chars() {
-                    let disp_loc = Loc { y: at_line, x: x_disp };
-                    let char_loc = Loc { y: at_line, x: x_char };
+                    let disp_loc = Loc {
+                        y: at_line,
+                        x: x_disp,
+                    };
+                    let char_loc = Loc {
+                        y: at_line,
+                        x: x_char,
+                    };
                     // Work out selection
                     let is_selected = self.doc().is_this_loc_selected_disp(disp_loc, selection);
                     // Render the correct colour
@@ -213,7 +234,7 @@ impl Editor {
             result += &format!("{editor_fg}{editor_bg}{cache_fg}");
             result += &" ".repeat(w.saturating_sub(total_width));
         } else if config!(self.config, greeting_message).enabled && self.greet {
-            // Render the greeting message (if enabled)      
+            // Render the greeting message (if enabled)
             result += &self.render_greeting(y, lua, w, h)?;
         } else {
             // Empty line, just pad out with spaces to prevent artefacts
@@ -224,7 +245,12 @@ impl Editor {
     }
 
     /// Get list of tabs
-    pub fn get_tab_parts(&mut self, ptr: &Vec<usize>, lua: &Lua, w: usize) -> (Vec<String>, usize, usize) {
+    pub fn get_tab_parts(
+        &mut self,
+        ptr: &Vec<usize>,
+        lua: &Lua,
+        w: usize,
+    ) -> (Vec<String>, usize, usize) {
         let mut headers: Vec<String> = vec![];
         let mut idx = 0;
         let mut length = 0;
@@ -234,7 +260,10 @@ impl Editor {
             let render = tab_line.render(lua, file, &mut self.feedback);
             length += width(&render, 4) + 1;
             headers.push(render);
-            let ptr = self.files.get_atom(self.ptr.clone()).map_or(0, |(_, ptr)| ptr);
+            let ptr = self
+                .files
+                .get_atom(self.ptr.clone())
+                .map_or(0, |(_, ptr)| ptr);
             if c == ptr {
                 idx = headers.len().saturating_sub(1);
             }
@@ -525,7 +554,10 @@ impl Editor {
     /// Append any missed lines to the syntax highlighter
     pub fn update_highlighter(&mut self) {
         if self.active {
-            let actual = self.files.get(self.ptr.clone()).map_or(0, |fc| fc.doc.info.loaded_to);
+            let actual = self
+                .files
+                .get(self.ptr.clone())
+                .map_or(0, |fc| fc.doc.info.loaded_to);
             let percieved = self.highlighter().line_ref.len();
             if percieved < actual {
                 let diff = actual.saturating_sub(percieved);

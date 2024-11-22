@@ -1,9 +1,9 @@
 /// Tools for placing all information about open files into one place
-use crate::editor::{FileType, get_absolute_path};
+use crate::editor::{get_absolute_path, FileType};
 use kaolinite::Document;
-use synoptic::Highlighter;
-use std::ops::Range;
 use kaolinite::Size;
+use std::ops::Range;
+use synoptic::Highlighter;
 
 pub type Span = Vec<(Vec<usize>, Range<usize>, Range<usize>)>;
 
@@ -39,10 +39,13 @@ impl FileLayout {
                 for (c, (layout, props)) in layouts.iter().enumerate() {
                     let mut subidx = idx.clone();
                     subidx.push(c);
-                    let this_size = Size { w: at + (size.w as f64 * props) as usize, h: size.h };
+                    let this_size = Size {
+                        w: at + (size.w as f64 * props) as usize,
+                        h: size.h,
+                    };
                     for mut sub in layout.span(subidx, this_size) {
                         let mut end = sub.2.end;
-                        if c == layouts.len().saturating_sub(1) { 
+                        if c == layouts.len().saturating_sub(1) {
                             end += size.w.saturating_sub(sub.2.end)
                         } else {
                             end -= 1;
@@ -60,7 +63,10 @@ impl FileLayout {
                 for (c, (layout, props)) in layouts.iter().enumerate() {
                     let mut subidx = idx.clone();
                     subidx.push(c);
-                    let this_size = Size { w: size.w, h: at + (size.h as f64 * props) as usize };
+                    let this_size = Size {
+                        w: size.w,
+                        h: at + (size.h as f64 * props) as usize,
+                    };
                     for mut sub in layout.span(subidx, this_size) {
                         let mut end = sub.1.end;
                         if c == layouts.len().saturating_sub(1) {
@@ -78,37 +84,33 @@ impl FileLayout {
             }
         }
     }
-    
+
     /// Work out which file containers to render where on a particular line and in what order
     pub fn line(y: usize, spans: &Span) -> Span {
         let mut appropriate: Vec<_> = spans
             .iter()
-            .filter_map(|(ptr, rows, columns)|
-                if rows.contains(&y) { 
+            .filter_map(|(ptr, rows, columns)| {
+                if rows.contains(&y) {
                     Some((ptr.clone(), rows.clone(), columns.clone()))
                 } else {
                     None
                 }
-            )
+            })
             .collect();
         appropriate.sort_by(|a, b| a.1.start.cmp(&b.1.start));
         appropriate
     }
-    
+
     /// Work out how many files are currently open
     pub fn len(&self) -> usize {
         match self {
             Self::None => 0,
             Self::Atom(containers, _) => containers.len(),
-            Self::SideBySide(layouts) => {
-                layouts.iter().map(|(layout, _)| layout.len()).sum()
-            }
-            Self::TopToBottom(layouts) => {
-                layouts.iter().map(|(layout, _)| layout.len()).sum()
-            }
+            Self::SideBySide(layouts) => layouts.iter().map(|(layout, _)| layout.len()).sum(),
+            Self::TopToBottom(layouts) => layouts.iter().map(|(layout, _)| layout.len()).sum(),
         }
     }
-    
+
     /// Find a file container location from it's path
     pub fn find(&self, idx: Vec<usize>, path: &str) -> Option<(Vec<usize>, usize)> {
         match self {
@@ -123,7 +125,7 @@ impl FileLayout {
                     }
                 }
                 None
-            },
+            }
             Self::SideBySide(layouts) => {
                 // Recursively scan
                 for (nth, (layout, _)) in layouts.iter().enumerate() {
@@ -150,7 +152,7 @@ impl FileLayout {
             }
         }
     }
-    
+
     /// Given an index, find the file containers in the tree
     pub fn get_atom(&self, mut idx: Vec<usize>) -> Option<(Vec<&FileContainer>, usize)> {
         match self {
@@ -166,9 +168,12 @@ impl FileLayout {
             }
         }
     }
-    
+
     /// Given an index, find the file containers in the tree
-    pub fn get_atom_mut(&mut self, mut idx: Vec<usize>) -> Option<(&mut Vec<FileContainer>, &mut usize)> {
+    pub fn get_atom_mut(
+        &mut self,
+        mut idx: Vec<usize>,
+    ) -> Option<(&mut Vec<FileContainer>, &mut usize)> {
         match self {
             Self::None => None,
             Self::Atom(ref mut containers, ref mut ptr) => Some((containers, ptr)),
@@ -182,29 +187,30 @@ impl FileLayout {
             }
         }
     }
-    
+
     /// Given an index, find the file container in the tree
     pub fn get_all(&self, idx: Vec<usize>) -> Vec<&FileContainer> {
         self.get_atom(idx).map_or(vec![], |(fcs, _)| fcs)
     }
-    
+
     /// Given an index, find the file container in the tree
     pub fn get_all_mut(&mut self, idx: Vec<usize>) -> Vec<&mut FileContainer> {
-        self.get_atom_mut(idx).map_or(vec![], |(fcs, _)| fcs.iter_mut().collect())
+        self.get_atom_mut(idx)
+            .map_or(vec![], |(fcs, _)| fcs.iter_mut().collect())
     }
-    
+
     /// Given an index, find the file container in the tree
     pub fn get(&self, idx: Vec<usize>) -> Option<&FileContainer> {
         let (fcs, ptr) = self.get_atom(idx)?;
         Some(fcs.get(ptr)?)
     }
-    
+
     /// Given an index, find the file container in the tree
     pub fn get_mut(&mut self, idx: Vec<usize>) -> Option<&mut FileContainer> {
         let (fcs, ptr) = self.get_atom_mut(idx)?;
         Some(fcs.get_mut(*ptr)?)
     }
-    
+
     /// In the currently active atom, move to a different document
     pub fn move_to(&mut self, mut idx: Vec<usize>, ptr: usize) {
         match self {

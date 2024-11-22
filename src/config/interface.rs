@@ -7,8 +7,8 @@ use crossterm::style::SetForegroundColor as Fg;
 use kaolinite::searching::Searcher;
 use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
 use mlua::prelude::*;
-use std::result::Result as RResult;
 use std::ops::Range;
+use std::result::Result as RResult;
 
 use super::{issue_warning, Colors};
 
@@ -345,7 +345,10 @@ impl StatusLine {
         let file_extension = get_file_ext(&path).unwrap_or_else(|| "Unknown".to_string());
         let absolute_path = get_absolute_path(&path).unwrap_or_else(|| "[No Name]".to_string());
         let file_name = get_file_name(&path).unwrap_or_else(|| "[No Name]".to_string());
-        let file_type = fc.file_type.clone().map_or("Unknown".to_string(), |ft| ft.name);
+        let file_type = fc
+            .file_type
+            .clone()
+            .map_or("Unknown".to_string(), |ft| ft.name);
         let icon = fc.file_type.clone().map_or("󰈙 ".to_string(), |ft| ft.icon);
         let modified = if doc.event_mgmt.with_disk(&editor.doc().take_snapshot()) {
             ""

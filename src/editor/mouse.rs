@@ -24,7 +24,8 @@ impl Editor {
         let tab_enabled = config!(self.config, tab_line).enabled;
         let tab = usize::from(tab_enabled);
         if event.row == 0 && tab_enabled {
-            let (tabs, _, offset) = self.get_tab_parts(&self.ptr.clone(), lua, size().map_or(0, |s| s.w));
+            let (tabs, _, offset) =
+                self.get_tab_parts(&self.ptr.clone(), lua, size().map_or(0, |s| s.w));
             let mut c = event.column + 2;
             for (i, header) in tabs.iter().enumerate() {
                 let header_len = width(header, 4) + 1;

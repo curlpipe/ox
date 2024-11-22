@@ -49,11 +49,11 @@ fn main() {
         Ok(editor) => editor,
         Err(error) => panic!("Editor failed to start: {error:?}"),
     };
-    
+
     lua.load(PLUGIN_BOOTSTRAP).exec().unwrap();
     editor.load_config("/home/luke/.oxrc", &lua);
     lua.load(PLUGIN_RUN).exec().unwrap();
-    
+
     editor.files = FileLayout::SideBySide(vec![
         (
             FileLayout::Atom(vec![
@@ -103,19 +103,18 @@ fn main() {
     editor.update_highlighter();
 
     let viewport = Size { w: 154, h: 40 };
-    
+
     for i in 0..viewport.h {
         let output = editor.render_line(
             i,
-            viewport, 
+            viewport,
             &lua
         ).unwrap();
-        
+
         println!("{output}");
     }
 }
 */
-
 
 /// Entry point - grabs command line arguments and runs the editor
 fn main() {
@@ -222,7 +221,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     // Reset the pointer back to the first document
     let current_ptr = ged!(mut &editor).ptr.clone();
     ged!(mut &editor).files.move_to(current_ptr, 0);
-    
+
     // Handle stdin if applicable
     if cli.flags.stdin {
         let stdin = cli::get_stdin();
@@ -243,7 +242,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
 
     // Create a blank document if none are opened
     ged!(mut &editor).new_if_empty()?;
-    
+
     // Add in the plugin manager
     handle_lua_error(
         "",
@@ -294,7 +293,6 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
     ged!(mut &editor).terminal.end()?;
     Ok(())
 }
-
 
 fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
     // Clear screen of temporary items (expect on resize event)
@@ -428,7 +426,9 @@ fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
         Ok(()) => (),
         Err(OxError::AlreadyOpen { .. }) => {
             let len = ged!(&editor).files.len().saturating_sub(1);
-            ged!(mut &editor).files.move_to(ged!(&editor).ptr.clone(), len);
+            ged!(mut &editor)
+                .files
+                .move_to(ged!(&editor).ptr.clone(), len);
         }
         Err(OxError::Kaolinite(kerr)) => {
             match kerr {

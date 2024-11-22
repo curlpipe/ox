@@ -149,7 +149,9 @@ impl Editor {
     /// Function to open a document into the editor
     pub fn open(&mut self, file_name: &str) -> Result<()> {
         // Check if a file is already opened
-        if let Some((idx, ptr)) = self.already_open(&get_absolute_path(file_name).unwrap_or_default()) {
+        if let Some((idx, ptr)) =
+            self.already_open(&get_absolute_path(file_name).unwrap_or_default())
+        {
             // Move to existing file
             self.ptr = idx.clone();
             self.files.move_to(idx, ptr);
@@ -344,7 +346,9 @@ impl Editor {
 
     /// Try to get a document
     pub fn try_doc_mut(&mut self) -> Option<&mut Document> {
-        self.files.get_mut(self.ptr.clone()).map(|file| &mut file.doc)
+        self.files
+            .get_mut(self.ptr.clone())
+            .map(|file| &mut file.doc)
     }
 
     /// Returns a document at a certain index
