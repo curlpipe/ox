@@ -20,6 +20,9 @@ use super::Editor;
 pub struct RenderCache {
     greeting_message: (String, Vec<usize>),
     span: Vec<(Vec<usize>, Range<usize>, Range<usize>)>,
+    help_message: Vec<(bool, String)>,
+    help_message_width: usize,
+    help_message_span: Range<usize>,
 }
 
 impl Editor {
@@ -33,6 +36,22 @@ impl Editor {
         }
         // Calculate span
         self.render_cache.span = self.files.span(vec![], size);
+        // Calculate help message information
+        let tab_width = config!(self.config, document).tab_width;
+        self.render_cache.help_message = config!(self.config, help_message).render(lua);
+        self.render_cache.help_message_width = self
+            .render_cache
+            .help_message
+            .iter()
+            .map(|(_, line)| width(line, tab_width))
+            .max()
+            .unwrap_or(0)
+            + 5;
+        let help_length = self.render_cache.help_message.len();
+        let help_start =
+            usize::try_from((size.h / 2).saturating_sub(help_length / 2) + 1).unwrap_or(usize::MAX);
+        let help_end = help_start + usize::try_from(help_length).unwrap_or(usize::MAX) as usize;
+        self.render_cache.help_message_span = help_start..help_end + 1;
     }
 
     /// Render a specific line
@@ -129,7 +148,7 @@ impl Editor {
         let line_number_fg = Fg(config!(self.config, colors).line_number_fg.to_color()?);
         let selection_bg = Bg(config!(self.config, colors).selection_bg.to_color()?);
         let selection_fg = Fg(config!(self.config, colors).selection_fg.to_color()?);
-        let colors = config!(self.config, colors).highlight.to_color()?;
+        let colors = Fg(config!(self.config, colors).highlight.to_color()?);
         let underline = SetAttribute(Attribute::Underlined);
         let no_underline = SetAttribute(Attribute::NoUnderline);
         let tab_width = config!(self.config, document).tab_width;
@@ -139,7 +158,14 @@ impl Editor {
         let selection = self.doc().selection_loc_bound_disp();
         let fc = self.files.get(ptr.clone()).unwrap();
         let doc = &fc.doc;
-        let mut total_width = 0;
+        let help_message_here = config!(self.config, help_message).enabled
+            && self.render_cache.help_message_span.contains(&y);
+        // Render short of the help message
+        let mut total_width = if help_message_here {
+            self.render_cache.help_message_width
+        } else {
+            0
+        };
         // Render the line numbers if enabled
         if line_numbers_enabled {
             let num = doc.line_number(y + doc.offset.y);
@@ -147,10 +173,10 @@ impl Editor {
             let padding_right = " ".repeat(ln_pad_right);
             result += &format!("{line_number_bg}{line_number_fg}{padding_left}{num}{padding_right}│{editor_fg}{editor_bg}");
             total_width += ln_pad_left + ln_pad_right + width(&num, tab_width) + 1;
-            w = w.saturating_sub(total_width);
         } else {
             result += &format!("{editor_fg}{editor_bg}");
         }
+        w = w.saturating_sub(total_width);
         // Render the body of the document if available
         let at_line = y + doc.offset.y;
         if let Some(line) = doc.line(at_line) {
@@ -239,6 +265,23 @@ impl Editor {
         } else {
             // Empty line, just pad out with spaces to prevent artefacts
             result += &" ".repeat(w);
+        }
+        // Add on help message if applicable
+        if help_message_here {
+            let at = y.saturating_sub(self.render_cache.help_message_span.start);
+            let max_width = self.render_cache.help_message_width;
+            let (hl, msg) = self
+                .render_cache
+                .help_message
+                .get(at)
+                .map(|(hl, content)| (*hl, content.to_string()))
+                .unwrap_or((false, " ".repeat(max_width)));
+            let extra_padding = " ".repeat(max_width.saturating_sub(width(&msg, tab_width)));
+            if hl {
+                result += &format!("{colors}{msg}{extra_padding}{editor_fg}");
+            } else {
+                result += &format!("{editor_fg}{msg}{extra_padding}");
+            }
         }
         // Send out the result
         Ok(result)

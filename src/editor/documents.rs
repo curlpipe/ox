@@ -8,7 +8,7 @@ use synoptic::Highlighter;
 pub type Span = Vec<(Vec<usize>, Range<usize>, Range<usize>)>;
 
 // File split structure
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FileLayout {
     /// Side-by-side documents (with proportions)
     SideBySide(Vec<(FileLayout, f64)>),
@@ -153,6 +153,54 @@ impl FileLayout {
         }
     }
 
+    /// Get the FileLayout at a certain index
+    pub fn get_raw(&self, mut idx: Vec<usize>) -> Option<&FileLayout> {
+        match self {
+            Self::None => Some(self),
+            Self::Atom(containers, ptr) => Some(self),
+            Self::SideBySide(layouts) => {
+                if idx.get(0).is_some() {
+                    let subidx = idx.remove(0);
+                    layouts[subidx].0.get_raw(idx)
+                } else {
+                    Some(self)
+                }
+            }
+            Self::TopToBottom(layouts) => {
+                if idx.get(0).is_some() {
+                    let subidx = idx.remove(0);
+                    layouts[subidx].0.get_raw(idx)
+                } else {
+                    Some(self)
+                }
+            }
+        }
+    }
+
+    /// Get the FileLayout at a certain index
+    pub fn set(&mut self, mut idx: Vec<usize>, fl: FileLayout) {
+        match self {
+            Self::None => *self = fl,
+            Self::Atom(_, _) => *self = fl,
+            Self::SideBySide(layouts) => {
+                if idx.get(0).is_some() {
+                    let subidx = idx.remove(0);
+                    layouts[subidx].0.set(idx, fl)
+                } else {
+                    *self = fl;
+                }
+            }
+            Self::TopToBottom(layouts) => {
+                if idx.get(0).is_some() {
+                    let subidx = idx.remove(0);
+                    layouts[subidx].0.set(idx, fl)
+                } else {
+                    *self = fl;
+                }
+            }
+        }
+    }
+
     /// Given an index, find the file containers in the tree
     pub fn get_atom(&self, mut idx: Vec<usize>) -> Option<(Vec<&FileContainer>, usize)> {
         match self {
@@ -226,10 +274,27 @@ impl FileLayout {
             }
         }
     }
+
+    /// Open a split to the right of the current pointer
+    pub fn open_right(&mut self, at: Vec<usize>, fl: FileLayout) {
+        if let Some(old_fl) = self.get_raw(at.clone()) {
+            let new_fl = match old_fl {
+                Self::None => fl,
+                Self::Atom(containers, ptr) => {
+                    Self::SideBySide(vec![(self.clone(), 0.5), (fl, 0.5)])
+                }
+                Self::SideBySide(layouts) => Self::SideBySide(vec![(self.clone(), 0.5), (fl, 0.5)]),
+                Self::TopToBottom(layouts) => {
+                    Self::SideBySide(vec![(self.clone(), 0.5), (fl, 0.5)])
+                }
+            };
+            self.set(at, new_fl);
+        }
+    }
 }
 
 /// Container for a file
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileContainer {
     /// Document (stores kaolinite information)
     pub doc: Document,
