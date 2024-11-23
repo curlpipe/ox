@@ -283,7 +283,9 @@ impl FileLayout {
                 Self::Atom(containers, ptr) => {
                     Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
                 }
-                Self::SideBySide(layouts) => Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)]),
+                Self::SideBySide(layouts) => {
+                    Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
+                }
                 Self::TopToBottom(layouts) => {
                     Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
                 }
@@ -300,7 +302,9 @@ impl FileLayout {
                 Self::Atom(containers, ptr) => {
                     Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)])
                 }
-                Self::SideBySide(layouts) => Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)]),
+                Self::SideBySide(layouts) => {
+                    Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)])
+                }
                 Self::TopToBottom(layouts) => {
                     Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)])
                 }
