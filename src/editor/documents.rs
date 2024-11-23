@@ -275,6 +275,57 @@ impl FileLayout {
         }
     }
 
+    /// Open a split above the current pointer
+    pub fn open_top(&mut self, at: Vec<usize>, fl: FileLayout) {
+        if let Some(old_fl) = self.get_raw(at.clone()) {
+            let new_fl = match old_fl {
+                Self::None => fl,
+                Self::Atom(containers, ptr) => {
+                    Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
+                }
+                Self::SideBySide(layouts) => Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)]),
+                Self::TopToBottom(layouts) => {
+                    Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
+                }
+            };
+            self.set(at, new_fl);
+        }
+    }
+
+    /// Open a split below the current pointer
+    pub fn open_bottom(&mut self, at: Vec<usize>, fl: FileLayout) {
+        if let Some(old_fl) = self.get_raw(at.clone()) {
+            let new_fl = match old_fl {
+                Self::None => fl,
+                Self::Atom(containers, ptr) => {
+                    Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)])
+                }
+                Self::SideBySide(layouts) => Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)]),
+                Self::TopToBottom(layouts) => {
+                    Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)])
+                }
+            };
+            self.set(at, new_fl);
+        }
+    }
+
+    /// Open a split to the left of the current pointer
+    pub fn open_left(&mut self, at: Vec<usize>, fl: FileLayout) {
+        if let Some(old_fl) = self.get_raw(at.clone()) {
+            let new_fl = match old_fl {
+                Self::None => fl,
+                Self::Atom(containers, ptr) => {
+                    Self::SideBySide(vec![(fl, 0.5), (self.clone(), 0.5)])
+                }
+                Self::SideBySide(layouts) => Self::SideBySide(vec![(fl, 0.5), (self.clone(), 0.5)]),
+                Self::TopToBottom(layouts) => {
+                    Self::SideBySide(vec![(fl, 0.5), (self.clone(), 0.5)])
+                }
+            };
+            self.set(at, new_fl);
+        }
+    }
+
     /// Open a split to the right of the current pointer
     pub fn open_right(&mut self, at: Vec<usize>, fl: FileLayout) {
         if let Some(old_fl) = self.get_raw(at.clone()) {
