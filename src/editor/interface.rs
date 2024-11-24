@@ -123,12 +123,26 @@ impl Editor {
         // Render the feedback line
         self.render_feedback_line(w, h)?;
         // Move cursor to the correct location and perform render
-        if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
+        if let Some(Loc { x, y }) = self.cursor_position() {
             self.terminal.show_cursor();
-            self.terminal.goto(x + max, y + self.push_down);
+            self.terminal.goto(x, y);
         }
         self.terminal.flush()?;
         Ok(())
+    }
+
+    /// Function to calculate the cursor's position on screen
+    pub fn cursor_position(&self) -> Option<Loc> {
+        let Loc { x, y } = self.doc().cursor_loc_in_screen()?;
+        for (ptr, rows, cols) in &self.render_cache.span {
+            if ptr == &self.ptr {
+                return Some(Loc {
+                    x: cols.start + x + self.dent(),
+                    y: rows.start + y + self.push_down,
+                });
+            }
+        }
+        None
     }
 
     /// Render the lines of the document
@@ -219,7 +233,7 @@ impl Editor {
                         x: x_char,
                     };
                     // Work out selection
-                    let is_selected = self.doc().is_this_loc_selected_disp(disp_loc, selection);
+                    let is_selected = &self.ptr == ptr && self.doc().is_this_loc_selected_disp(disp_loc, selection);
                     // Render the correct colour
                     if is_selected {
                         if cache_bg != selection_bg {

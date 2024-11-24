@@ -303,15 +303,15 @@ impl FileLayout {
                 Self::None => fl,
                 Self::Atom(containers, ptr) => {
                     new_ptr.push(0);
-                    Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
+                    Self::TopToBottom(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
                 }
                 Self::SideBySide(layouts) => {
                     new_ptr.push(0);
-                    Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
+                    Self::TopToBottom(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
                 }
                 Self::TopToBottom(layouts) => {
                     new_ptr.push(0);
-                    Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
+                    Self::TopToBottom(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
                 }
             };
             self.set(at, new_fl);

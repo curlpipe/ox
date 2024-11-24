@@ -620,6 +620,8 @@ impl LuaUserData for Editor {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
+            editor.needs_rerender = true;
+            editor.render(lua);
             Ok(())
         });
         methods.add_method_mut("replace", |lua, editor, ()| {
@@ -627,6 +629,8 @@ impl LuaUserData for Editor {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
+            editor.needs_rerender = true;
+            editor.render(lua);
             Ok(())
         });
         methods.add_method_mut("move_next_match", |_, editor, query: String| {

@@ -15,16 +15,18 @@ use super::Editor;
 impl Editor {
     /// Use search feature
     pub fn search(&mut self, lua: &Lua) -> Result<()> {
+        let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         let cache = self.doc().char_loc();
         // Prompt for a search term
         let mut target = String::new();
         let mut done = false;
         while !done {
             let Size { w, h } = size()?;
+            // Rerender the editor
+            self.needs_rerender = true;
+            self.render(lua)?;
             // Render prompt message
             self.terminal.prepare_line(h);
-            self.terminal.show_cursor();
-            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             display!(
                 self,
                 editor_bg,
@@ -33,12 +35,9 @@ impl Editor {
                 "│",
                 " ".to_string().repeat(w)
             );
-            self.terminal.hide_cursor();
-            self.render(lua)?;
             // Move back to correct cursor position
-            if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
-                let max = self.dent();
-                self.terminal.goto(x + max, y + 1);
+            if let Some(Loc { x, y }) = self.cursor_position() {
+                self.terminal.goto(x, y);
                 self.terminal.show_cursor();
             } else {
                 self.terminal.hide_cursor();
@@ -78,19 +77,20 @@ impl Editor {
         let Size { w, h } = size()?;
         // Enter into search menu
         while !done {
-            // Render just the document part
-            self.terminal.hide_cursor();
+            // Rerender the editor
+            self.needs_rerender = true;
             self.render(lua)?;
             // Render custom status line with mode information
-            self.terminal.goto(0, h);
+            self.terminal.prepare_line(h);
             display!(
                 self,
-                Print("[<-]: Search previous | [->]: Search next | [Enter] Finish | [Esc] Cancel")
+                editor_bg,
+                Print("[<-]: Search previous | [->]: Search next | [Enter] Finish | [Esc] Cancel"),
+                Print(" ".repeat(w.saturating_sub(73)))
             );
             // Move back to correct cursor position
-            if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
-                let max = self.dent();
-                self.terminal.goto(x + max, y + 1);
+            if let Some(Loc { x, y }) = self.cursor_position() {
+                self.terminal.goto(x, y);
                 self.terminal.show_cursor();
             } else {
                 self.terminal.hide_cursor();
@@ -184,9 +184,8 @@ impl Editor {
                 )
             );
             // Move back to correct cursor location
-            if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
-                let max = self.dent();
-                self.terminal.goto(x + max, y + 1);
+            if let Some(Loc { x, y }) = self.cursor_position() {
+                self.terminal.goto(x, y);
                 self.terminal.show_cursor();
             } else {
                 self.terminal.hide_cursor();
