@@ -177,6 +177,26 @@ impl FileLayout {
         }
     }
 
+    /// Get the FileLayout at a certain index (mutable)
+    pub fn get_raw_mut(&mut self, mut idx: Vec<usize>) -> Option<&mut FileLayout> {
+        if idx.get(0).is_none() {
+            Some(self)
+        } else {
+            match self {
+                Self::None => Some(self),
+                Self::Atom(containers, ptr) => Some(self),
+                Self::SideBySide(layouts) => {
+                    let subidx = idx.remove(0);
+                    layouts[subidx].0.get_raw_mut(idx)
+                }
+                Self::TopToBottom(layouts) => {
+                    let subidx = idx.remove(0);
+                    layouts[subidx].0.get_raw_mut(idx)
+                }
+            }
+        }
+    }
+
     /// Get the FileLayout at a certain index
     pub fn set(&mut self, mut idx: Vec<usize>, fl: FileLayout) {
         match self {
@@ -276,74 +296,237 @@ impl FileLayout {
     }
 
     /// Open a split above the current pointer
-    pub fn open_top(&mut self, at: Vec<usize>, fl: FileLayout) {
+    pub fn open_top(&mut self, at: Vec<usize>, fl: FileLayout) -> Vec<usize> {
+        let mut new_ptr = at.clone();
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
                 Self::Atom(containers, ptr) => {
+                    new_ptr.push(0);
                     Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
                 }
                 Self::SideBySide(layouts) => {
+                    new_ptr.push(0);
                     Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
                 }
                 Self::TopToBottom(layouts) => {
+                    new_ptr.push(0);
                     Self::TopToBottom(vec![(fl, 0.5), (self.clone(), 0.5)])
                 }
             };
             self.set(at, new_fl);
         }
+        new_ptr
     }
 
     /// Open a split below the current pointer
-    pub fn open_bottom(&mut self, at: Vec<usize>, fl: FileLayout) {
+    pub fn open_bottom(&mut self, at: Vec<usize>, fl: FileLayout) -> Vec<usize> {
+        let mut new_ptr = at.clone();
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
                 Self::Atom(containers, ptr) => {
-                    Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)])
+                    new_ptr.push(1);
+                    Self::TopToBottom(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
                 }
                 Self::SideBySide(layouts) => {
-                    Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)])
+                    new_ptr.push(1);
+                    Self::TopToBottom(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
                 }
                 Self::TopToBottom(layouts) => {
-                    Self::TopToBottom(vec![(self.clone(), 0.5), (fl, 0.5)])
+                    new_ptr.push(1);
+                    Self::TopToBottom(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
                 }
             };
             self.set(at, new_fl);
         }
+        new_ptr
     }
 
     /// Open a split to the left of the current pointer
-    pub fn open_left(&mut self, at: Vec<usize>, fl: FileLayout) {
+    pub fn open_left(&mut self, at: Vec<usize>, fl: FileLayout) -> Vec<usize> {
+        let mut new_ptr = at.clone();
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
                 Self::Atom(containers, ptr) => {
-                    Self::SideBySide(vec![(fl, 0.5), (self.clone(), 0.5)])
+                    new_ptr.push(0);
+                    Self::SideBySide(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
                 }
-                Self::SideBySide(layouts) => Self::SideBySide(vec![(fl, 0.5), (self.clone(), 0.5)]),
+                Self::SideBySide(layouts) => {
+                    new_ptr.push(0);
+                    Self::SideBySide(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
+                }
                 Self::TopToBottom(layouts) => {
-                    Self::SideBySide(vec![(fl, 0.5), (self.clone(), 0.5)])
+                    new_ptr.push(0);
+                    Self::SideBySide(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
                 }
             };
             self.set(at, new_fl);
         }
+        new_ptr
     }
 
     /// Open a split to the right of the current pointer
-    pub fn open_right(&mut self, at: Vec<usize>, fl: FileLayout) {
+    pub fn open_right(&mut self, at: Vec<usize>, fl: FileLayout) -> Vec<usize> {
+        let mut new_ptr = at.clone();
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
                 Self::Atom(containers, ptr) => {
-                    Self::SideBySide(vec![(self.clone(), 0.5), (fl, 0.5)])
+                    new_ptr.push(1);
+                    Self::SideBySide(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
                 }
-                Self::SideBySide(layouts) => Self::SideBySide(vec![(self.clone(), 0.5), (fl, 0.5)]),
+                Self::SideBySide(layouts) => {
+                    new_ptr.push(1);
+                    Self::SideBySide(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
+                }
                 Self::TopToBottom(layouts) => {
-                    Self::SideBySide(vec![(self.clone(), 0.5), (fl, 0.5)])
+                    new_ptr.push(1);
+                    Self::SideBySide(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
                 }
             };
             self.set(at, new_fl);
+        }
+        new_ptr
+    }
+
+    /// Get the proportion of a certain node in the tree
+    pub fn get_proportion(&self, mut at: Vec<usize>) -> f64 {
+        if let Some(last_idx) = at.pop() {
+            if let Some(FileLayout::SideBySide(layouts) | FileLayout::TopToBottom(layouts)) =
+                self.get_raw(at)
+            {
+                layouts[last_idx].1
+            } else {
+                1.0
+            }
+        } else {
+            1.0
+        }
+    }
+
+    /// Get the proportion of a certain node in the tree
+    pub fn set_proportion(&mut self, mut at: Vec<usize>, amount: f64) {
+        if let Some(last_idx) = at.pop() {
+            if let Some(FileLayout::SideBySide(layouts) | FileLayout::TopToBottom(layouts)) =
+                self.get_raw_mut(at)
+            {
+                layouts[last_idx].1 = amount;
+                // Potential problem with this algorithm - it could cause underflow (resulting in props not adding up to 1)
+                let reduce = layouts.iter().map(|(_, prop)| prop).sum::<f64>() - 1.0;
+                let reduce_each = reduce / layouts.len().saturating_sub(1) as f64;
+                layouts
+                    .iter_mut()
+                    .enumerate()
+                    .filter(|(c, _)| *c != last_idx)
+                    .for_each(|(_, (_, prop))| *prop -= reduce_each);
+            }
+        }
+    }
+
+    /// Find the nearest parent sidebyside, returns the pointer and we were in it
+    pub fn get_sidebyside_parent(&self, mut at: Vec<usize>) -> Option<(Vec<usize>, usize)> {
+        // "Zoom out" to try and find a sidebyside parent
+        let mut subidx = None;
+        while let Some(FileLayout::TopToBottom(_) | FileLayout::Atom(_, _) | FileLayout::None) =
+            self.get_raw(at.clone())
+        {
+            subidx = at.pop();
+        }
+        subidx.map(|s| (at, s))
+    }
+
+    /// Find the nearest parent toptobottom, returns the pointer and we were in it
+    pub fn get_toptobottom_parent(&self, mut at: Vec<usize>) -> Option<(Vec<usize>, usize)> {
+        // "Zoom out" to try and find a sidebyside parent
+        let mut subidx = None;
+        while let Some(FileLayout::SideBySide(_) | FileLayout::Atom(_, _) | FileLayout::None) =
+            self.get_raw(at.clone())
+        {
+            subidx = at.pop();
+        }
+        subidx.map(|s| (at, s))
+    }
+
+    /// Find the new cursor position when moving left
+    pub fn move_left(&self, at: Vec<usize>) -> Vec<usize> {
+        if let Some((mut parent_idx, to_change)) = self.get_sidebyside_parent(at.clone()) {
+            // Move backward from where we were
+            let to_change = to_change.saturating_sub(1);
+            parent_idx.push(to_change);
+            // "Zoom in" down to atom level
+            while let Some(FileLayout::TopToBottom(_) | FileLayout::SideBySide(_)) =
+                self.get_raw(parent_idx.clone())
+            {
+                parent_idx.push(0);
+            }
+            parent_idx
+        } else {
+            at
+        }
+    }
+
+    /// Find the new cursor position when moving right
+    pub fn move_right(&self, at: Vec<usize>) -> Vec<usize> {
+        if let Some((mut parent_idx, mut to_change)) = self.get_sidebyside_parent(at.clone()) {
+            // Move backward from where we were
+            if let Some(FileLayout::SideBySide(layouts)) = self.get_raw(parent_idx.clone()) {
+                if to_change + 1 < layouts.len() {
+                    to_change = to_change + 1;
+                }
+            }
+            parent_idx.push(to_change);
+            // "Zoom in" down to atom level
+            while let Some(FileLayout::TopToBottom(_) | FileLayout::SideBySide(_)) =
+                self.get_raw(parent_idx.clone())
+            {
+                parent_idx.push(0);
+            }
+            parent_idx
+        } else {
+            at
+        }
+    }
+
+    /// Find the new cursor position when moving up
+    pub fn move_up(&self, at: Vec<usize>) -> Vec<usize> {
+        if let Some((mut parent_idx, to_change)) = self.get_toptobottom_parent(at.clone()) {
+            // Move backward from where we were
+            let to_change = to_change.saturating_sub(1);
+            parent_idx.push(to_change);
+            // "Zoom in" down to atom level
+            while let Some(
+                FileLayout::TopToBottom(_) | FileLayout::SideBySide(_) | FileLayout::None,
+            ) = self.get_raw(parent_idx.clone())
+            {
+                parent_idx.push(0);
+            }
+            parent_idx
+        } else {
+            at
+        }
+    }
+
+    /// Find the new cursor position when moving down
+    pub fn move_down(&self, at: Vec<usize>) -> Vec<usize> {
+        if let Some((mut parent_idx, mut to_change)) = self.get_toptobottom_parent(at.clone()) {
+            // Move backward from where we were
+            if let Some(FileLayout::TopToBottom(layouts)) = self.get_raw(parent_idx.clone()) {
+                if to_change + 1 < layouts.len() {
+                    to_change = to_change + 1;
+                }
+            }
+            parent_idx.push(to_change);
+            // "Zoom in" down to atom level
+            while let Some(FileLayout::TopToBottom(_) | FileLayout::SideBySide(_)) =
+                self.get_raw(parent_idx.clone())
+            {
+                parent_idx.push(0);
+            }
+            parent_idx
+        } else {
+            at
         }
     }
 }

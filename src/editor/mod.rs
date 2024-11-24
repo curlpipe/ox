@@ -148,6 +148,23 @@ impl Editor {
 
     /// Function to open a document into the editor
     pub fn open(&mut self, file_name: &str) -> Result<()> {
+        let file = self.open_fc(file_name)?;
+        if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
+            // Atom already exists
+            if *ptr + 1 >= files.len() {
+                files.push(file);
+            } else {
+                files.insert(*ptr + 1, file);
+            }
+        } else {
+            // Atom ought to be created
+            self.files = FileLayout::Atom(vec![file], 0);
+        }
+        Ok(())
+    }
+
+    /// Function to create a file container
+    pub fn open_fc(&mut self, file_name: &str) -> Result<FileContainer> {
         // Check if a file is already opened
         if let Some((idx, ptr)) =
             self.already_open(&get_absolute_path(file_name).unwrap_or_default())
@@ -179,18 +196,7 @@ impl Editor {
             highlighter,
             file_type,
         };
-        if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
-            // Atom already exists
-            if *ptr + 1 >= files.len() {
-                files.push(file);
-            } else {
-                files.insert(*ptr + 1, file);
-            }
-        } else {
-            // Atom ought to be created
-            self.files = FileLayout::Atom(vec![file], 0);
-        }
-        Ok(())
+        Ok(file)
     }
 
     /// Function to ask the user for a file to open

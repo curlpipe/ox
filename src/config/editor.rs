@@ -1,6 +1,6 @@
 /// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
-use crate::editor::{Editor, FileContainer};
+use crate::editor::{Editor, FileContainer, FileLayout};
 use crate::ui::Feedback;
 use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
@@ -537,6 +537,81 @@ impl LuaUserData for Editor {
             if let Some(doc) = editor.try_doc_mut() {
                 doc.commit();
             }
+            Ok(())
+        });
+        // Split management
+        methods.add_method_mut("open_split_top", |_, editor, file: String| {
+            if let Ok(fc) = editor.open_fc(&file) {
+                editor.ptr = editor
+                    .files
+                    .open_top(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("open_split_bottom", |_, editor, file: String| {
+            if let Ok(fc) = editor.open_fc(&file) {
+                editor.ptr = editor
+                    .files
+                    .open_bottom(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("open_split_left", |_, editor, file: String| {
+            if let Ok(fc) = editor.open_fc(&file) {
+                editor.ptr = editor
+                    .files
+                    .open_left(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("open_split_right", |_, editor, file: String| {
+            if let Ok(fc) = editor.open_fc(&file) {
+                editor.ptr = editor
+                    .files
+                    .open_right(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("grow_split", |_, editor, amount: f64| {
+            let current = editor.files.get_proportion(editor.ptr.clone());
+            if current + amount <= 1.0 {
+                editor
+                    .files
+                    .set_proportion(editor.ptr.clone(), current + amount)
+            }
+            Ok(())
+        });
+        methods.add_method_mut("shrink_split", |_, editor, amount: f64| {
+            let current = editor.files.get_proportion(editor.ptr.clone());
+            if current > amount {
+                editor
+                    .files
+                    .set_proportion(editor.ptr.clone(), current - amount)
+            }
+            Ok(())
+        });
+        methods.add_method_mut("focus_split_up", |_, editor, ()| {
+            editor.ptr = editor.files.move_up(editor.ptr.clone());
+            Ok(())
+        });
+        methods.add_method_mut("focus_split_down", |_, editor, ()| {
+            editor.ptr = editor.files.move_down(editor.ptr.clone());
+            Ok(())
+        });
+        methods.add_method_mut("focus_split_left", |_, editor, ()| {
+            editor.ptr = editor.files.move_left(editor.ptr.clone());
+            Ok(())
+        });
+        methods.add_method_mut("focus_split_right", |_, editor, ()| {
+            editor.ptr = editor.files.move_right(editor.ptr.clone());
             Ok(())
         });
         // Searching and replacing
