@@ -54,7 +54,7 @@ fn main() {
     editor.load_config("/home/luke/.oxrc", &lua);
     lua.load(PLUGIN_RUN).exec().unwrap();
 
-    editor.files = FileLayout::SideBySide(vec![
+    editor.files = FileLayout::TopToBottom(vec![
         (
             FileLayout::Atom(vec![
                 FileContainer {
@@ -63,7 +63,7 @@ fn main() {
                     file_type: None,
                 }
             ], 0),
-            0.45,
+            0.5,
         ),
         (
             FileLayout::TopToBottom(vec![
@@ -75,7 +75,7 @@ fn main() {
                             file_type: None,
                         }
                     ], 0),
-                    0.4,
+                    0.5,
                 ),
                 (
                     FileLayout::Atom(vec![
@@ -85,10 +85,10 @@ fn main() {
                             file_type: None,
                         }
                     ], 0),
-                    0.6,
+                    0.5,
                 ),
             ]),
-            0.55,
+            0.5,
         ),
     ]);
     editor.active = true;
@@ -102,17 +102,9 @@ fn main() {
     editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
     editor.update_highlighter();
 
-    let viewport = Size { w: 154, h: 40 };
-
-    for i in 0..viewport.h {
-        let output = editor.render_line(
-            i,
-            viewport,
-            &lua
-        ).unwrap();
-
-        println!("{output}");
-    }
+    // editor.update_render_cache(&lua, Size { w: 151, h: 15 });
+    // editor.render(&lua);
+    // println!("\n\n\n{:#?}", editor.render_cache.span);
 }
 */
 

@@ -40,20 +40,19 @@ impl FileLayout {
                     let mut subidx = idx.clone();
                     subidx.push(c);
                     let this_size = Size {
-                        w: at + (size.w as f64 * props) as usize,
+                        w: (size.w as f64 * props) as usize,
                         h: size.h,
                     };
                     for mut sub in layout.span(subidx, this_size) {
-                        let mut end = sub.2.end;
-                        if c == layouts.len().saturating_sub(1) {
-                            end += size.w.saturating_sub(sub.2.end)
-                        } else {
-                            end -= 1;
+                        // Shift this range up to it's correct location
+                        sub.2.start += at;
+                        sub.2.end += at;
+                        if c != layouts.len().saturating_sub(1) {
+                            sub.2.end -= 1;
                         }
-                        sub.2 = at..end;
                         result.push(sub);
                     }
-                    at = this_size.w;
+                    at += this_size.w;
                 }
                 result
             }
@@ -65,20 +64,17 @@ impl FileLayout {
                     subidx.push(c);
                     let this_size = Size {
                         w: size.w,
-                        h: at + (size.h as f64 * props) as usize,
+                        h: (size.h as f64 * props) as usize,
                     };
                     for mut sub in layout.span(subidx, this_size) {
-                        let mut end = sub.1.end;
-                        if c == layouts.len().saturating_sub(1) {
-                            end += size.h.saturating_sub(sub.1.end)
-                        } else {
-                            end -= 1;
-                            result.push((vec![42].repeat(100), sub.1.clone(), sub.2.clone()));
+                        sub.1.start += at;
+                        sub.1.end += at;
+                        if c != layouts.len().saturating_sub(1) {
+                            sub.1.end -= 1;
                         }
-                        sub.1 = at..end;
-                        result.push(sub);
+                        result.push(sub.clone());
                     }
-                    at = this_size.h;
+                    at += this_size.h;
                 }
                 result
             }
@@ -99,6 +95,53 @@ impl FileLayout {
             .collect();
         appropriate.sort_by(|a, b| a.1.start.cmp(&b.1.start));
         appropriate
+    }
+
+    /// Fixes span underflow (where nodes are shorter than desired due to division errors)
+    pub fn fix_underflow(mut span: Span, desired: Size) -> Span {
+        // FIX FOR WIDTH
+        // Go through each line in a span
+        for y in 0..desired.h {
+            let line = Self::line(y, &span);
+            if let Some((idx, _, cols)) = line.get(line.len().saturating_sub(1)) {
+                // If this line has the width shorter than desired
+                if cols.end < desired.w {
+                    if let Some((_, _, ref mut col_span)) = span.iter_mut().find(|(checking_idx, _, _)| checking_idx == idx) {
+                        // Take the idx of the last node and push it up to ensure it fits
+                        let shift_by = desired.w.saturating_sub(cols.end);
+                        col_span.end += shift_by;
+                    }
+                }
+            }
+        }
+
+        // FIX FOR HEIGHT
+        // Work out:
+        // - The number of vacant line entries at the end of the desired height
+        // - The last non-empty entry in the line registry
+        let mut last_active_line = 0;
+        let mut empty_last_lines = 0;
+        for y in 0..desired.h {
+            let line = Self::line(y, &span);
+            if line.is_empty() {
+                empty_last_lines += 1;
+            } else {
+                last_active_line = y;
+                empty_last_lines = 0;
+            }
+        }
+        let last_panes = Self::line(last_active_line, &span).into_iter().map(|(idx, cols, rows)| idx).collect::<Vec<_>>();
+        // For each pane on the last non-empty line:
+        for pane_idx in last_panes {
+            if let Some((_, ref mut row_span, _)) = span.iter_mut().find(|(checking_idx, _, _)| *checking_idx == pane_idx) {
+                // Set the end of the rows range to the desired height (in effect expanding them downwards)
+                let shift_by = desired.h.saturating_sub(1 + last_active_line);
+                row_span.end += shift_by;
+            }
+        }
+
+        // Return the modified result
+        span
     }
 
     /// Work out how many files are currently open

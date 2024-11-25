@@ -18,11 +18,11 @@ use super::Editor;
 /// Render cache to store the results of any calculations during rendering
 #[derive(Default)]
 pub struct RenderCache {
-    greeting_message: (String, Vec<usize>),
-    span: Vec<(Vec<usize>, Range<usize>, Range<usize>)>,
-    help_message: Vec<(bool, String)>,
-    help_message_width: usize,
-    help_message_span: Range<usize>,
+    pub greeting_message: (String, Vec<usize>),
+    pub span: Vec<(Vec<usize>, Range<usize>, Range<usize>)>,
+    pub help_message: Vec<(bool, String)>,
+    pub help_message_width: usize,
+    pub help_message_span: Range<usize>,
 }
 
 impl Editor {
@@ -35,7 +35,7 @@ impl Editor {
             }
         }
         // Calculate span
-        self.render_cache.span = self.files.span(vec![], size);
+        self.render_cache.span = FileLayout::fix_underflow(self.files.span(vec![], size), size);
         // Calculate help message information
         let tab_width = config!(self.config, document).tab_width;
         self.render_cache.help_message = config!(self.config, help_message).render(lua);
@@ -59,15 +59,11 @@ impl Editor {
         let tab_line_enabled = config!(self.config, tab_line).enabled;
         let mut result = String::new();
         let fcs = FileLayout::line(y, &self.render_cache.span);
+        if fcs.is_empty() && y < size.h {
+            return Ok("─".repeat(size.w));
+        }
         for (mut c, (fc, rows, range)) in fcs.iter().enumerate() {
             let length = range.end.saturating_sub(range.start);
-            // Insert horizontal bar where appropriate (horribly janky implementation, but it works)
-            if vec![42].repeat(100) == *fc {
-                if y == rows.end.saturating_sub(1) {
-                    result += &"─".repeat(length);
-                }
-                continue;
-            }
             let rel_y = y.saturating_sub(rows.start);
             if y == rows.start && tab_line_enabled {
                 // Tab line
@@ -233,7 +229,8 @@ impl Editor {
                         x: x_char,
                     };
                     // Work out selection
-                    let is_selected = &self.ptr == ptr && self.doc().is_this_loc_selected_disp(disp_loc, selection);
+                    let is_selected = &self.ptr == ptr
+                        && self.doc().is_this_loc_selected_disp(disp_loc, selection);
                     // Render the correct colour
                     if is_selected {
                         if cache_bg != selection_bg {
