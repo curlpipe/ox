@@ -106,7 +106,10 @@ impl FileLayout {
             if let Some((idx, _, cols)) = line.get(line.len().saturating_sub(1)) {
                 // If this line has the width shorter than desired
                 if cols.end < desired.w {
-                    if let Some((_, _, ref mut col_span)) = span.iter_mut().find(|(checking_idx, _, _)| checking_idx == idx) {
+                    if let Some((_, _, ref mut col_span)) = span
+                        .iter_mut()
+                        .find(|(checking_idx, _, _)| checking_idx == idx)
+                    {
                         // Take the idx of the last node and push it up to ensure it fits
                         let shift_by = desired.w.saturating_sub(cols.end);
                         col_span.end += shift_by;
@@ -130,10 +133,16 @@ impl FileLayout {
                 empty_last_lines = 0;
             }
         }
-        let last_panes = Self::line(last_active_line, &span).into_iter().map(|(idx, cols, rows)| idx).collect::<Vec<_>>();
+        let last_panes = Self::line(last_active_line, &span)
+            .into_iter()
+            .map(|(idx, cols, rows)| idx)
+            .collect::<Vec<_>>();
         // For each pane on the last non-empty line:
         for pane_idx in last_panes {
-            if let Some((_, ref mut row_span, _)) = span.iter_mut().find(|(checking_idx, _, _)| *checking_idx == pane_idx) {
+            if let Some((_, ref mut row_span, _)) = span
+                .iter_mut()
+                .find(|(checking_idx, _, _)| *checking_idx == pane_idx)
+            {
                 // Set the end of the rows range to the desired height (in effect expanding them downwards)
                 let shift_by = desired.h.saturating_sub(1 + last_active_line);
                 row_span.end += shift_by;
