@@ -540,21 +540,21 @@ impl LuaUserData for Editor {
             Ok(())
         });
         // Split management
-        methods.add_method_mut("open_split_top", |_, editor, file: String| {
+        methods.add_method_mut("open_split_up", |_, editor, file: String| {
             if let Ok(fc) = editor.open_fc(&file) {
                 editor.ptr = editor
                     .files
-                    .open_top(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                    .open_up(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
                 Ok(true)
             } else {
                 Ok(false)
             }
         });
-        methods.add_method_mut("open_split_bottom", |_, editor, file: String| {
+        methods.add_method_mut("open_split_down", |_, editor, file: String| {
             if let Ok(fc) = editor.open_fc(&file) {
                 editor.ptr = editor
                     .files
-                    .open_bottom(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                    .open_down(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
                 Ok(true)
             } else {
                 Ok(false)

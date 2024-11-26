@@ -213,7 +213,7 @@ impl FileLayout {
             Self::SideBySide(layouts) => {
                 if idx.get(0).is_some() {
                     let subidx = idx.remove(0);
-                    layouts[subidx].0.get_raw(idx)
+                    layouts.get(subidx)?.0.get_raw(idx)
                 } else {
                     Some(self)
                 }
@@ -221,7 +221,7 @@ impl FileLayout {
             Self::TopToBottom(layouts) => {
                 if idx.get(0).is_some() {
                     let subidx = idx.remove(0);
-                    layouts[subidx].0.get_raw(idx)
+                    layouts.get(subidx)?.0.get_raw(idx)
                 } else {
                     Some(self)
                 }
@@ -239,11 +239,11 @@ impl FileLayout {
                 Self::Atom(containers, ptr) => Some(self),
                 Self::SideBySide(layouts) => {
                     let subidx = idx.remove(0);
-                    layouts[subidx].0.get_raw_mut(idx)
+                    layouts.get_mut(subidx)?.0.get_raw_mut(idx)
                 }
                 Self::TopToBottom(layouts) => {
                     let subidx = idx.remove(0);
-                    layouts[subidx].0.get_raw_mut(idx)
+                    layouts.get_mut(subidx)?.0.get_raw_mut(idx)
                 }
             }
         }
@@ -280,11 +280,11 @@ impl FileLayout {
             Self::Atom(containers, ptr) => Some((containers.iter().collect(), *ptr)),
             Self::SideBySide(layouts) => {
                 let subidx = idx.remove(0);
-                layouts[subidx].0.get_atom(idx)
+                layouts.get(subidx)?.0.get_atom(idx)
             }
             Self::TopToBottom(layouts) => {
                 let subidx = idx.remove(0);
-                layouts[subidx].0.get_atom(idx)
+                layouts.get(subidx)?.0.get_atom(idx)
             }
         }
     }
@@ -299,11 +299,11 @@ impl FileLayout {
             Self::Atom(ref mut containers, ref mut ptr) => Some((containers, ptr)),
             Self::SideBySide(layouts) => {
                 let subidx = idx.remove(0);
-                layouts[subidx].0.get_atom_mut(idx)
+                layouts.get_mut(subidx)?.0.get_atom_mut(idx)
             }
             Self::TopToBottom(layouts) => {
                 let subidx = idx.remove(0);
-                layouts[subidx].0.get_atom_mut(idx)
+                layouts.get_mut(subidx)?.0.get_atom_mut(idx)
             }
         }
     }
@@ -347,8 +347,89 @@ impl FileLayout {
         }
     }
 
+    /// Remove any empty atoms
+    pub fn clean_up(&mut self) {
+        // Continue checking for obselete nodes until none are remaining
+        while let Some(empty_idx) = self.empty_atoms(vec![]) {
+            // Delete the empty node
+            self.remove(empty_idx.clone());
+        }
+    }
+
+    /// Remove a certain index from this tree
+    pub fn remove(&mut self, at: Vec<usize>) {
+        // Get parent of the node we wish to delete
+        let mut at_parent = at.clone();
+        if let Some(within_parent) = at_parent.pop() {
+            // Determine behaviour based on parent
+            if let Some(parent) = self.get_raw_mut(at_parent) {
+                match parent {
+                    Self::None | Self::Atom(_, _) => unreachable!(),
+                    Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
+                        // Get the proportion of what we're removing
+                        let removed_prop = layouts[within_parent].1;
+                        // Remove from the parent
+                        layouts.remove(within_parent);
+                        // Redistribute proportions
+                        let redistributed = removed_prop / layouts.len() as f64;
+                        for (_, prop) in layouts.iter_mut() {
+                            *prop += redistributed;
+                        }
+                    }
+                }
+            }
+        } else {
+            // This is the root node of the entire tree!
+            // In this case, we just set the whole thing to FileLayout::None
+            self.set(at, FileLayout::None);
+        }
+    }
+
+    /// Traverse the tree and return a list of indices to empty atoms
+    pub fn empty_atoms(&self, at: Vec<usize>) -> Option<Vec<usize>> {
+        match self {
+            Self::None => None,
+            Self::Atom(fcs, _) => if fcs.is_empty() {
+                Some(at)
+            } else {
+                None
+            },
+            Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
+                if layouts.is_empty() {
+                    Some(at)
+                } else {
+                    for (c, layout) in layouts.iter().enumerate() {
+                        let mut idx = at.clone();
+                        idx.push(c);
+                        if let Some(result) = layout.0.empty_atoms(idx) {
+                            return Some(result)
+                        }
+                    }
+                    None
+                }
+            }
+        }
+    }
+
+    /// Find a new pointer position when something is removed
+    pub fn new_pointer_position(&self, old: Vec<usize>) -> Vec<usize> {
+        // Zoom out until a sidebyside or toptobottom is found
+        let mut copy = old.clone();
+        while let Some(Self::None | Self::Atom(_, _)) | None = self.get_raw(copy.clone()) {
+            copy.pop();
+            if copy.is_empty() { break }
+        }
+        // Zoom in to find a new cursor position
+        while let Some(FileLayout::TopToBottom(_) | FileLayout::SideBySide(_)) =
+            self.get_raw(copy.clone())
+        {
+            copy.push(0);
+        }
+        copy
+    }
+
     /// Open a split above the current pointer
-    pub fn open_top(&mut self, at: Vec<usize>, fl: FileLayout) -> Vec<usize> {
+    pub fn open_up(&mut self, at: Vec<usize>, fl: FileLayout) -> Vec<usize> {
         let mut new_ptr = at.clone();
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {
@@ -372,7 +453,7 @@ impl FileLayout {
     }
 
     /// Open a split below the current pointer
-    pub fn open_bottom(&mut self, at: Vec<usize>, fl: FileLayout) -> Vec<usize> {
+    pub fn open_down(&mut self, at: Vec<usize>, fl: FileLayout) -> Vec<usize> {
         let mut new_ptr = at.clone();
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {

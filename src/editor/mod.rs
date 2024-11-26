@@ -300,18 +300,24 @@ impl Editor {
 
     /// Quit the editor
     pub fn quit(&mut self) -> Result<()> {
-        self.active = self.files.len() != 0;
-        // If there are still documents open, only close the requested document
-        if self.active {
+        // Get the atom we're currently at
+        if let Some((fcs, ptr)) = self.files.get_atom(self.ptr.clone()) {
+            // Remove the file that is currently open and selected
             let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
-            if self.doc().event_mgmt.with_disk(&self.doc().take_snapshot()) || self.confirm(msg)? {
-                if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
-                    files.remove(*ptr);
-                    self.prev();
-                }
+            let doc = &fcs[ptr].doc;
+            if doc.event_mgmt.with_disk(&doc.take_snapshot()) || self.confirm(msg)? {
+                let (fcs, ptr) = self.files.get_atom_mut(self.ptr.clone()).unwrap();
+                fcs.remove(*ptr);
+                self.prev();
             }
+            let (fcs, ptr) = self.files.get_atom(self.ptr.clone()).unwrap();
+            // Clean up the file structure
+            self.files.clean_up();
+            // Find a new pointer position
+            self.ptr = self.files.new_pointer_position(self.ptr.clone());
         }
-        self.active = self.files.len() != 0;
+        // If there are no longer any active atoms, quit the entire editor
+        self.active = !matches!(self.files, FileLayout::None);
         Ok(())
     }
 

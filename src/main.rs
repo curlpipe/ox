@@ -66,7 +66,7 @@ fn main() {
             0.5,
         ),
         (
-            FileLayout::TopToBottom(vec![
+            FileLayout::SideBySide(vec![
                 (
                     FileLayout::Atom(vec![
                         FileContainer {
@@ -92,15 +92,15 @@ fn main() {
         ),
     ]);
     editor.active = true;
-    editor.ptr = vec![1, 0];
-    editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
-    editor.update_highlighter();
-    editor.ptr = vec![1, 1];
-    editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
-    editor.update_highlighter();
-    editor.ptr = vec![0];
-    editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
-    editor.update_highlighter();
+    // editor.ptr = vec![1, 0];
+    // editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
+    // editor.update_highlighter();
+    // editor.ptr = vec![1, 1];
+    // editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
+    // editor.update_highlighter();
+    // editor.ptr = vec![0];
+    // editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
+    // editor.update_highlighter();
 
     // editor.update_render_cache(&lua, Size { w: 151, h: 15 });
     // editor.render(&lua);

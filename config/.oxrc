@@ -315,10 +315,10 @@ commands = {
             result = editor:open_split_left(file)
         elseif arguments[1] == "right" then
             result = editor:open_split_right(file)
-        elseif arguments[1] == "top" then
-            result = editor:open_split_top(file)
-        elseif arguments[1] == "bottom" then
-            result = editor:open_split_bottom(file)
+        elseif arguments[1] == "up" then
+            result = editor:open_split_up(file)
+        elseif arguments[1] == "down" then
+            result = editor:open_split_down(file)
         elseif arguments[1] == "grow" then
             result = true
             editor:grow_split(0.2)
