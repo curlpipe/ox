@@ -350,7 +350,7 @@ impl StatusLine {
             .clone()
             .map_or("Unknown".to_string(), |ft| ft.name);
         let icon = fc.file_type.clone().map_or("󰈙 ".to_string(), |ft| ft.icon);
-        let modified = if doc.event_mgmt.with_disk(&editor.doc().take_snapshot()) {
+        let modified = if doc.event_mgmt.with_disk(&doc.take_snapshot()) {
             ""
         } else {
             "[+]"
