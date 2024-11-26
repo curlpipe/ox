@@ -114,14 +114,20 @@ impl Editor {
             return Ok(());
         }
         self.needs_rerender = false;
-        // Get size information and update the document's size
+        // Get size information
         let mut size = size()?;
         let Size { w, mut h } = size.clone();
         h = h.saturating_sub(1 + self.push_down);
         let max = self.dent();
-        self.doc_mut().size.w = w.saturating_sub(max);
         // Update the cache before rendering
         self.update_render_cache(lua, size);
+        // Update all document's size
+        let updates = self.files.update_doc_sizes(&self.render_cache.span, &self);
+        for (ptr, doc, new_size) in updates {
+            self.files.get_atom_mut(ptr.clone()).unwrap().0[doc]
+                .doc
+                .size = new_size;
+        }
         // Hide the cursor before rendering
         self.terminal.hide_cursor();
         // Render each line of the document
@@ -658,10 +664,23 @@ impl Editor {
 
     /// Work out how much to push the document to the right (to make way for line numbers)
     pub fn dent(&self) -> usize {
+        if let Some((_, doc)) = self.files.get_atom(self.ptr.clone()) {
+            self.dent_for(&self.ptr, doc)
+        } else {
+            0
+        }
+    }
+
+    /// Work out how much to push the document to the right (to make way for line numbers)
+    pub fn dent_for(&self, at: &Vec<usize>, doc: usize) -> usize {
         if config!(self.config, line_numbers).enabled {
             let padding_left = config!(self.config, line_numbers).padding_left;
             let padding_right = config!(self.config, line_numbers).padding_right;
-            self.doc().len_lines().to_string().len() + 1 + padding_left + padding_right
+            if let Some((fcs, _)) = self.files.get_atom(at.clone()) {
+                fcs[doc].doc.len_lines().to_string().len() + 1 + padding_left + padding_right
+            } else {
+                0
+            }
         } else {
             0
         }

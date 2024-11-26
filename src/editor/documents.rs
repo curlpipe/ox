@@ -1,5 +1,5 @@
 /// Tools for placing all information about open files into one place
-use crate::editor::{get_absolute_path, FileType};
+use crate::editor::{get_absolute_path, Editor, FileType};
 use kaolinite::Document;
 use kaolinite::Size;
 use std::ops::Range;
@@ -151,6 +151,26 @@ impl FileLayout {
 
         // Return the modified result
         span
+    }
+
+    /// Update the sizes of documents
+    pub fn update_doc_sizes(&self, span: &Span, ed: &Editor) -> Vec<(Vec<usize>, usize, Size)> {
+        let mut result = vec![];
+        // For each atom
+        for (idx, rows, cols) in span {
+            if let Some((fcs, _)) = self.get_atom(idx.clone()) {
+                // For each document in this atom
+                for (doc, fc) in fcs.iter().enumerate() {
+                    // Work out correct new document width
+                    let new_size = Size {
+                        h: rows.end.saturating_sub(rows.start + ed.push_down + 1),
+                        w: cols.end.saturating_sub(cols.start + ed.dent_for(&idx, doc)),
+                    };
+                    result.push((idx.clone(), doc, new_size));
+                }
+            }
+        }
+        result
     }
 
     /// Work out how many files are currently open
