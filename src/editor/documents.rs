@@ -93,7 +93,7 @@ impl FileLayout {
                 }
             })
             .collect();
-        appropriate.sort_by(|a, b| a.1.start.cmp(&b.1.start));
+        appropriate.sort_by(|a, b| a.2.start.cmp(&b.2.start));
         appropriate
     }
 

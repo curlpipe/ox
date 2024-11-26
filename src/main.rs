@@ -36,6 +36,7 @@ macro_rules! ged {
         $editor.borrow_mut::<Editor>().unwrap()
     };
 }
+
 /*
 /// TEMPORARY - REMOVE WHEN SPLITS ARE IMPLEMENTED
 use crate::editor::{FileLayout, FileContainer};
@@ -65,7 +66,7 @@ fn main() {
             0.5,
         ),
         (
-            FileLayout::SideBySide(vec![
+            FileLayout::TopToBottom(vec![
                 (
                     FileLayout::Atom(vec![
                         FileContainer {
@@ -101,7 +102,7 @@ fn main() {
     editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
     editor.update_highlighter();
 
-    // editor.update_render_cache(&lua, Size { w: 150, h: 50 });
+    // editor.update_render_cache(&lua, Size { w: 100, h: 20 });
     editor.render(&lua);
     editor.terminal.show_cursor();
     editor.terminal.flush();
