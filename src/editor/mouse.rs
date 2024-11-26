@@ -11,9 +11,9 @@ use super::Editor;
 /// Represents where the mouse has clicked / been dragged
 enum MouseLocation {
     /// Where the mouse has clicked within a file
-    File(Loc),
+    File(Vec<usize>, Loc),
     /// Where the mouse has clicked on a tab
-    Tabs(usize),
+    Tabs(Vec<usize>, usize),
     /// Mouse has clicked nothing of importance
     Out,
 }
@@ -21,28 +21,63 @@ enum MouseLocation {
 impl Editor {
     /// Finds the position of the mouse within the viewport
     fn find_mouse_location(&mut self, lua: &Lua, event: MouseEvent) -> MouseLocation {
+        // Calculate various things beforehand
+        let row = event.row as usize;
+        let col = event.column as usize;
         let tab_enabled = config!(self.config, tab_line).enabled;
         let tab = usize::from(tab_enabled);
-        if event.row == 0 && tab_enabled {
-            let (tabs, _, offset) =
-                self.get_tab_parts(&self.ptr.clone(), lua, size().map_or(0, |s| s.w));
-            let mut c = event.column + 2;
-            for (i, header) in tabs.iter().enumerate() {
-                let header_len = width(header, 4) + 1;
-                c = c.saturating_sub(u16::try_from(header_len).unwrap_or(u16::MAX));
-                if c == 0 {
-                    return MouseLocation::Tabs(i + offset);
+        // From a mouse click, locate the split that the user has clicked on
+        let at_idx = self
+            .render_cache
+            .span
+            .iter()
+            .find(|(idx, rows, cols)| rows.contains(&row) && cols.contains(&col));
+        if let Some((idx, rows, cols)) = at_idx {
+            let idx = idx.clone();
+            // Calculate the current dent in this split
+            let doc_idx = self.files.get_atom(idx.clone()).unwrap().1;
+            let dent = self.dent_for(&idx, doc_idx);
+            // Split that user clicked in located - adjust event location
+            let mut clicked = Loc {
+                x: col.saturating_sub(cols.start),
+                y: row.saturating_sub(rows.start),
+            };
+            // Work out where the user clicked
+            if clicked.y == 0 && tab_enabled {
+                // Clicked on tab line
+                let (tabs, _, offset) =
+                    self.get_tab_parts(&idx, lua, cols.end.saturating_sub(cols.start));
+                // Try to work out which tab we clicked on
+                let mut c = u16::try_from(clicked.x).unwrap_or(u16::MAX) + 2;
+                for (i, header) in tabs.iter().enumerate() {
+                    let header_len = width(header, 4) + 1;
+                    c = c.saturating_sub(u16::try_from(header_len).unwrap_or(u16::MAX));
+                    if c == 0 {
+                        // This tab was clicked on
+                        return MouseLocation::Tabs(idx.clone(), i + offset);
+                    }
                 }
+                // Did not click on a tab
+                MouseLocation::Out
+            } else if clicked.y == rows.end.saturating_sub(1) {
+                // Clicked on status line
+                MouseLocation::Out
+            } else if clicked.x < dent {
+                // Clicked on line numbers
+                MouseLocation::Out
+            } else {
+                // Clicked on document
+                let offset = self.doc().offset;
+                MouseLocation::File(
+                    idx.clone(),
+                    Loc {
+                        x: clicked.x.saturating_sub(dent),
+                        y: clicked.y.saturating_sub(tab) + offset.y,
+                    },
+                )
             }
-            MouseLocation::Out
-        } else if (event.column as usize) < self.dent() {
-            MouseLocation::Out
         } else {
-            let offset = self.doc().offset;
-            MouseLocation::File(Loc {
-                x: (event.column as usize).saturating_sub(self.dent()) + offset.x,
-                y: (event.row as usize).saturating_sub(tab) + offset.y,
-            })
+            MouseLocation::Out
         }
     }
 
@@ -65,15 +100,16 @@ impl Editor {
                         }
                     }
                     match self.find_mouse_location(lua, event) {
-                        MouseLocation::File(mut loc) => {
+                        MouseLocation::File(idx, mut loc) => {
+                            self.ptr = idx.clone();
                             self.doc_mut().clear_cursors();
                             loc.x = self.doc_mut().character_idx(&loc);
                             self.doc_mut().move_to(&loc);
                             self.doc_mut().old_cursor = self.doc().loc().x;
                         }
-                        MouseLocation::Tabs(i) => {
-                            todo!("CHANGING TABS");
-                            //self.ptr = i;
+                        MouseLocation::Tabs(idx, i) => {
+                            self.files.move_to(idx.clone(), i);
+                            self.ptr = idx.clone();
                             self.update_cwd();
                         }
                         MouseLocation::Out => (),
@@ -81,7 +117,8 @@ impl Editor {
                 }
                 MouseEventKind::Down(MouseButton::Right) => {
                     // Select the current line
-                    if let MouseLocation::File(loc) = self.find_mouse_location(lua, event) {
+                    if let MouseLocation::File(idx, loc) = self.find_mouse_location(lua, event) {
+                        self.ptr = idx.clone();
                         self.doc_mut().select_line_at(loc.y);
                         let line = self.doc().line(loc.y).unwrap_or_default();
                         self.alt_click_state = Some((
@@ -109,7 +146,8 @@ impl Editor {
                 // Mouse drag
                 MouseEventKind::Drag(MouseButton::Left) => {
                     match self.find_mouse_location(lua, event) {
-                        MouseLocation::File(mut loc) => {
+                        MouseLocation::File(idx, mut loc) => {
+                            self.ptr = idx.clone();
                             loc.x = self.doc_mut().character_idx(&loc);
                             if let Some((dbl_start, dbl_end)) = self.alt_click_state {
                                 if loc.x > self.doc().cursor.selection_end.x {
@@ -127,12 +165,13 @@ impl Editor {
                                 self.doc_mut().select_to(&loc);
                             }
                         }
-                        MouseLocation::Tabs(_) | MouseLocation::Out => (),
+                        MouseLocation::Tabs(_, _) | MouseLocation::Out => (),
                     }
                 }
                 MouseEventKind::Drag(MouseButton::Right) => {
                     match self.find_mouse_location(lua, event) {
-                        MouseLocation::File(mut loc) => {
+                        MouseLocation::File(idx, mut loc) => {
+                            self.ptr = idx.clone();
                             loc.x = self.doc_mut().character_idx(&loc);
                             if let Some((line_start, line_end)) = self.alt_click_state {
                                 if loc.y > self.doc().cursor.selection_end.y {
@@ -150,12 +189,13 @@ impl Editor {
                                 self.doc_mut().select_to(&loc);
                             }
                         }
-                        MouseLocation::Tabs(_) | MouseLocation::Out => (),
+                        MouseLocation::Tabs(_, _) | MouseLocation::Out => (),
                     }
                 }
                 // Mouse scroll behaviour
                 MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
-                    if let MouseLocation::File(_) = self.find_mouse_location(lua, event) {
+                    if let MouseLocation::File(idx, _) = self.find_mouse_location(lua, event) {
+                        self.ptr = idx.clone();
                         let scroll_amount = config!(self.config, terminal).scroll_amount;
                         for _ in 0..scroll_amount {
                             if event.kind == MouseEventKind::ScrollDown {
@@ -177,7 +217,8 @@ impl Editor {
             // Multi cursor behaviour
             KeyModifiers::CONTROL => {
                 if let MouseEventKind::Down(MouseButton::Left) = event.kind {
-                    if let MouseLocation::File(loc) = self.find_mouse_location(lua, event) {
+                    if let MouseLocation::File(idx, loc) = self.find_mouse_location(lua, event) {
+                        self.ptr = idx.clone();
                         self.doc_mut().new_cursor(loc);
                     }
                 }
@@ -189,7 +230,7 @@ impl Editor {
     /// Handle a double-click event
     pub fn handle_double_click(&mut self, lua: &Lua, event: MouseEvent) {
         // Select the current word
-        if let MouseLocation::File(loc) = self.find_mouse_location(lua, event) {
+        if let MouseLocation::File(idx, loc) = self.find_mouse_location(lua, event) {
             self.doc_mut().select_word_at(&loc);
             let mut selection = self.doc().cursor.selection_end;
             let mut cursor = self.doc().cursor.loc;

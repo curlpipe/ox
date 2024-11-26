@@ -334,10 +334,7 @@ impl Editor {
             let render = tab_line.render(lua, file, &mut self.feedback);
             length += width(&render, 4) + 1;
             headers.push(render);
-            let ptr = self
-                .files
-                .get_atom(self.ptr.clone())
-                .map_or(0, |(_, ptr)| ptr);
+            let ptr = self.files.get_atom(ptr.clone()).map_or(0, |(_, ptr)| ptr);
             if c == ptr {
                 idx = headers.len().saturating_sub(1);
             }
