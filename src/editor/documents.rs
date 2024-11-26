@@ -103,9 +103,9 @@ impl FileLayout {
         // Go through each line in a span
         for y in 0..desired.h {
             let line = Self::line(y, &span);
-            if let Some((idx, _, cols)) = line.get(line.len().saturating_sub(1)) {
-                // If this line has the width shorter than desired
-                if cols.end < desired.w {
+            if let Some((idx, rows, cols)) = line.get(line.len().saturating_sub(1)) {
+                // If this line has the width shorter than desired (and is the first of it's kind)
+                if cols.end < desired.w && y == rows.start {
                     if let Some((_, _, ref mut col_span)) = span
                         .iter_mut()
                         .find(|(checking_idx, _, _)| checking_idx == idx)
@@ -389,11 +389,13 @@ impl FileLayout {
     pub fn empty_atoms(&self, at: Vec<usize>) -> Option<Vec<usize>> {
         match self {
             Self::None => None,
-            Self::Atom(fcs, _) => if fcs.is_empty() {
-                Some(at)
-            } else {
-                None
-            },
+            Self::Atom(fcs, _) => {
+                if fcs.is_empty() {
+                    Some(at)
+                } else {
+                    None
+                }
+            }
             Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
                 if layouts.is_empty() {
                     Some(at)
@@ -402,7 +404,7 @@ impl FileLayout {
                         let mut idx = at.clone();
                         idx.push(c);
                         if let Some(result) = layout.0.empty_atoms(idx) {
-                            return Some(result)
+                            return Some(result);
                         }
                     }
                     None
@@ -417,7 +419,9 @@ impl FileLayout {
         let mut copy = old.clone();
         while let Some(Self::None | Self::Atom(_, _)) | None = self.get_raw(copy.clone()) {
             copy.pop();
-            if copy.is_empty() { break }
+            if copy.is_empty() {
+                break;
+            }
         }
         // Zoom in to find a new cursor position
         while let Some(FileLayout::TopToBottom(_) | FileLayout::SideBySide(_)) =

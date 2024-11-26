@@ -36,7 +36,6 @@ macro_rules! ged {
         $editor.borrow_mut::<Editor>().unwrap()
     };
 }
-
 /*
 /// TEMPORARY - REMOVE WHEN SPLITS ARE IMPLEMENTED
 use crate::editor::{FileLayout, FileContainer};
@@ -54,7 +53,7 @@ fn main() {
     editor.load_config("/home/luke/.oxrc", &lua);
     lua.load(PLUGIN_RUN).exec().unwrap();
 
-    editor.files = FileLayout::TopToBottom(vec![
+    editor.files = FileLayout::SideBySide(vec![
         (
             FileLayout::Atom(vec![
                 FileContainer {
@@ -92,19 +91,21 @@ fn main() {
         ),
     ]);
     editor.active = true;
-    // editor.ptr = vec![1, 0];
-    // editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
-    // editor.update_highlighter();
-    // editor.ptr = vec![1, 1];
-    // editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
-    // editor.update_highlighter();
-    // editor.ptr = vec![0];
-    // editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
-    // editor.update_highlighter();
+    editor.ptr = vec![1, 0];
+    editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
+    editor.update_highlighter();
+    editor.ptr = vec![1, 1];
+    editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
+    editor.update_highlighter();
+    editor.ptr = vec![0];
+    editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
+    editor.update_highlighter();
 
-    // editor.update_render_cache(&lua, Size { w: 151, h: 15 });
-    // editor.render(&lua);
-    // println!("\n\n\n{:#?}", editor.render_cache.span);
+    // editor.update_render_cache(&lua, Size { w: 150, h: 50 });
+    editor.render(&lua);
+    editor.terminal.show_cursor();
+    editor.terminal.flush();
+    println!("\n\n\n{:#?}", editor.render_cache.span);
 }
 */
 

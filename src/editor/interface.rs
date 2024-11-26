@@ -59,9 +59,11 @@ impl Editor {
         let tab_line_enabled = config!(self.config, tab_line).enabled;
         let mut result = String::new();
         let fcs = FileLayout::line(y, &self.render_cache.span);
-        if fcs.is_empty() && y < size.h {
-            return Ok("─".repeat(size.w));
-        }
+        let shorted = size
+            .w
+            .saturating_sub(fcs.last().map(|ll| ll.2.end).unwrap_or(0));
+        let mut bump = 0;
+        // Render each component of this line
         for (mut c, (fc, rows, range)) in fcs.iter().enumerate() {
             let length = range.end.saturating_sub(range.start);
             let rel_y = y.saturating_sub(rows.start);
@@ -86,9 +88,14 @@ impl Editor {
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
             // Insert vertical bar where appropriate
-            if c != fcs.len().saturating_sub(1) {
+            if shorted > 0 || c != fcs.len().saturating_sub(1) {
                 result += &format!("{editor_bg}{editor_fg}│");
+                bump += 1;
             }
+        }
+        // If line falls short and we're in rendering range, render a vertical bar (gap between splits)
+        if shorted > 0 && y < size.h {
+            result += &"─".repeat(shorted.saturating_sub(bump));
         }
         Ok(result)
     }
