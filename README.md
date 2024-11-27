@@ -28,13 +28,7 @@ Ox is an independent text editor that can be used to write everything from text 
 If you're looking for a text editor that...
 1. :feather: Is lightweight and efficient
 2. :wrench: Can be configured to your heart's content
-3. :package: Has features out of the box, including
-    - syntax highlighting
-    - undo and redo
-    - search and replace
-    - line numbers
-    - opening multiple files
-    - full mouse cursor interaction
+3. :package: Has useful features out of the box
 
 ...then Ox is right up your street
 
@@ -66,6 +60,8 @@ It works best on linux, but macOS and Windows are also supported.
 - :eye: UI that shows you the state of the editor and file
 - :computer_mouse: You can move the cursor and select text with your mouse
 - :writing_hand: Convenient shortcuts when writing code
+- :crossed_swords: Multi-editing features such as multiple cursors and recordable macros
+- :window: Splits to view multiple documents on the same screen at the same time
 
 ### Robustness
 
