@@ -321,10 +321,12 @@ commands = {
             result = editor:open_split_down(file)
         elseif arguments[1] == "grow" then
             result = true
-            editor:grow_split(0.15, arguments[2])
+            local amount = tonumber(arguments[3]) or 0.15
+            editor:grow_split(amount, arguments[2])
         elseif arguments[1] == "shrink" then
             result = true
-            editor:shrink_split(0.15, arguments[2])
+            local amount = tonumber(arguments[3]) or 0.15
+            editor:shrink_split(amount, arguments[2])
         elseif arguments[1] == "focus" then
             result = true
             if arguments[2] == "up" then
