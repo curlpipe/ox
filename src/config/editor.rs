@@ -599,19 +599,27 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("focus_split_up", |_, editor, ()| {
-            editor.ptr = editor.files.move_up(editor.ptr.clone());
+            editor.ptr = editor
+                .files
+                .move_up(editor.ptr.clone(), &editor.render_cache.span);
             Ok(())
         });
         methods.add_method_mut("focus_split_down", |_, editor, ()| {
-            editor.ptr = editor.files.move_down(editor.ptr.clone());
+            editor.ptr = editor
+                .files
+                .move_down(editor.ptr.clone(), &editor.render_cache.span);
             Ok(())
         });
         methods.add_method_mut("focus_split_left", |_, editor, ()| {
-            editor.ptr = editor.files.move_left(editor.ptr.clone());
+            editor.ptr = editor
+                .files
+                .move_left(editor.ptr.clone(), &editor.render_cache.span);
             Ok(())
         });
         methods.add_method_mut("focus_split_right", |_, editor, ()| {
-            editor.ptr = editor.files.move_right(editor.ptr.clone());
+            editor.ptr = editor
+                .files
+                .move_right(editor.ptr.clone(), &editor.render_cache.span);
             Ok(())
         });
         // Searching and replacing

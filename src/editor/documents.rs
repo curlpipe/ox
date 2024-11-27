@@ -1,5 +1,6 @@
 /// Tools for placing all information about open files into one place
 use crate::editor::{get_absolute_path, Editor, FileType};
+use crate::Loc;
 use kaolinite::Document;
 use kaolinite::Size;
 use std::ops::Range;
@@ -606,85 +607,157 @@ impl FileLayout {
         subidx.map(|s| (at, s))
     }
 
-    /// Find the new cursor position when moving left
-    pub fn move_left(&self, at: Vec<usize>) -> Vec<usize> {
-        if let Some((mut parent_idx, to_change)) = self.get_sidebyside_parent(at.clone()) {
-            // Move backward from where we were
-            let to_change = to_change.saturating_sub(1);
-            parent_idx.push(to_change);
-            // "Zoom in" down to atom level
-            while let Some(FileLayout::TopToBottom(_) | FileLayout::SideBySide(_)) =
-                self.get_raw(parent_idx.clone())
-            {
-                parent_idx.push(0);
+    /// Find the current location in a particular span
+    pub fn get_line_pos(&self, at: Vec<usize>, span: &Span) -> Option<(usize, usize)> {
+        // Find the first line that has this split rendered in
+        let mut blank_count = 0;
+        let mut y = 0;
+        while blank_count < 2 {
+            let line = Self::line(y, span);
+            // Update blank detection
+            if line.is_empty() {
+                blank_count += 1;
+            } else {
+                blank_count = 0;
             }
-            parent_idx
+            // Check whether this line contains the current split
+            let find_position = line
+                .iter()
+                .enumerate()
+                .find(|(c, (idx, _, _))| *idx == at)
+                .map(|(c, _)| c);
+            if let Some(our_idx) = find_position {
+                return Some((y, our_idx));
+            }
+            // Ready for next iteration
+            y += 1;
+        }
+        None
+    }
+
+    /// Find the current location in a particular span (last line)
+    pub fn get_line_pos_last(&self, at: Vec<usize>, span: &Span) -> Option<(usize, usize)> {
+        // Find the last line that has this split rendered in
+        let mut blank_count = 0;
+        let mut y = 0;
+        let mut result = None;
+        while blank_count < 2 {
+            let line = Self::line(y, span);
+            // Update blank detection
+            if line.is_empty() {
+                blank_count += 1;
+            } else {
+                blank_count = 0;
+            }
+            // Check whether this line contains the current split
+            let find_position = line
+                .iter()
+                .enumerate()
+                .find(|(c, (idx, _, _))| *idx == at)
+                .map(|(c, _)| c);
+            if let Some(our_idx) = find_position {
+                result = Some((y, our_idx));
+            } else if result.is_some() {
+                break;
+            }
+            // Ready for next iteration
+            y += 1;
+        }
+        result
+    }
+
+    /// Find the new cursor position when moving left
+    pub fn move_left(&self, at: Vec<usize>, span: &Span) -> Vec<usize> {
+        // Get the geometric location
+        if let Some((y, our_idx)) = self.get_line_pos(at.clone(), span) {
+            // Try to find the one before it
+            let prior_idx = our_idx.saturating_sub(1);
+            if let Some((new_idx, _, _)) = Self::line(y, span).get(prior_idx) {
+                new_idx.to_vec()
+            } else {
+                at
+            }
         } else {
             at
         }
     }
 
     /// Find the new cursor position when moving right
-    pub fn move_right(&self, at: Vec<usize>) -> Vec<usize> {
-        if let Some((mut parent_idx, mut to_change)) = self.get_sidebyside_parent(at.clone()) {
-            // Move backward from where we were
-            if let Some(FileLayout::SideBySide(layouts)) = self.get_raw(parent_idx.clone()) {
-                if to_change + 1 < layouts.len() {
-                    to_change = to_change + 1;
-                }
+    pub fn move_right(&self, at: Vec<usize>, span: &Span) -> Vec<usize> {
+        // Get the geometric location
+        if let Some((y, our_idx)) = self.get_line_pos(at.clone(), span) {
+            // Try to find the one after it
+            let next_idx = our_idx + 1;
+            if let Some((new_idx, _, _)) = Self::line(y, span).get(next_idx) {
+                return new_idx.to_vec();
+            } else {
+                at
             }
-            parent_idx.push(to_change);
-            // "Zoom in" down to atom level
-            while let Some(FileLayout::TopToBottom(_) | FileLayout::SideBySide(_)) =
-                self.get_raw(parent_idx.clone())
-            {
-                parent_idx.push(0);
-            }
-            parent_idx
         } else {
             at
         }
     }
 
     /// Find the new cursor position when moving up
-    pub fn move_up(&self, at: Vec<usize>) -> Vec<usize> {
-        if let Some((mut parent_idx, to_change)) = self.get_toptobottom_parent(at.clone()) {
-            // Move backward from where we were
-            let to_change = to_change.saturating_sub(1);
-            parent_idx.push(to_change);
-            // "Zoom in" down to atom level
-            while let Some(
-                FileLayout::TopToBottom(_) | FileLayout::SideBySide(_) | FileLayout::None,
-            ) = self.get_raw(parent_idx.clone())
-            {
-                parent_idx.push(0);
+    pub fn move_up(&self, at: Vec<usize>, span: &Span) -> Vec<usize> {
+        // Get geometric location
+        if let Some((y, our_idx)) = self.get_line_pos(at.clone(), span) {
+            if let Some((_, _, cols)) = Self::line(y, span).get(our_idx) {
+                // Get the starting column index
+                let at_x = cols.start;
+                // Work from this y position upwards
+                let mut at_y = y.saturating_sub(1);
+                loop {
+                    // Attempt to find part containing matching at_x value
+                    if let Some((idx, _, _)) = Self::line(at_y, span)
+                        .iter()
+                        .find(|(idx, rows, cols)| cols.contains(&at_x))
+                    {
+                        // Found match!
+                        return idx.to_vec();
+                    }
+                    if at_y == 0 {
+                        break;
+                    } else {
+                        at_y = at_y.saturating_sub(1);
+                    }
+                }
             }
-            parent_idx
-        } else {
-            at
         }
+        at
     }
 
     /// Find the new cursor position when moving down
-    pub fn move_down(&self, at: Vec<usize>) -> Vec<usize> {
-        if let Some((mut parent_idx, mut to_change)) = self.get_toptobottom_parent(at.clone()) {
-            // Move backward from where we were
-            if let Some(FileLayout::TopToBottom(layouts)) = self.get_raw(parent_idx.clone()) {
-                if to_change + 1 < layouts.len() {
-                    to_change = to_change + 1;
+    pub fn move_down(&self, at: Vec<usize>, span: &Span) -> Vec<usize> {
+        // Get geometric location
+        if let Some((y, our_idx)) = self.get_line_pos_last(at.clone(), span) {
+            if let Some((_, _, cols)) = Self::line(y, span).get(our_idx) {
+                // Get the starting column index
+                let at_x = cols.start;
+                // Work from this y position downwards
+                let mut at_y = y + 1;
+                let mut blanks = 0;
+                loop {
+                    // Attempt to find part containing matching at_x value
+                    let line_reg = Self::line(at_y, span);
+                    if let Some((idx, _, _)) = line_reg
+                        .iter()
+                        .find(|(idx, rows, cols)| cols.contains(&at_x))
+                    {
+                        // Found match!
+                        return idx.to_vec();
+                    } else if line_reg.is_empty() {
+                        blanks += 1;
+                    }
+                    if blanks >= 2 {
+                        break;
+                    } else {
+                        at_y += 1;
+                    }
                 }
             }
-            parent_idx.push(to_change);
-            // "Zoom in" down to atom level
-            while let Some(FileLayout::TopToBottom(_) | FileLayout::SideBySide(_)) =
-                self.get_raw(parent_idx.clone())
-            {
-                parent_idx.push(0);
-            }
-            parent_idx
-        } else {
-            at
         }
+        at
     }
 }
 
