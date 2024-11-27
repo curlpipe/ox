@@ -30,11 +30,16 @@ impl Default for FileLayout {
 impl FileLayout {
     /// Will return file containers and what span of columns and rows they take up
     /// In the format of (container, rows, columns)
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
+    )]
     pub fn span(&self, idx: Vec<usize>, size: Size, at: Loc) -> Span {
         match self {
             Self::None => vec![],
             // Atom: stretches from starting position through to end of it's container
-            Self::Atom(containers, ptr) => vec![(idx, at.y..at.y + size.h, at.x..at.x + size.w)],
+            Self::Atom(_, _) => vec![(idx, at.y..at.y + size.h, at.x..at.x + size.w)],
             // SideBySide: distributes available container space to each sub-layout
             Self::SideBySide(layouts) => {
                 let mut result = vec![];
@@ -43,7 +48,7 @@ impl FileLayout {
                 for (c, (layout, prop)) in layouts.iter().enumerate() {
                     let last = c == layouts.len().saturating_sub(1);
                     // Calculate the width
-                    let mut base_width = ((size.w as f64 * prop) as usize);
+                    let mut base_width = (size.w as f64 * prop) as usize;
                     if last {
                         // Tack on any remaining things
                         base_width += remaining.saturating_sub(base_width);
@@ -64,7 +69,7 @@ impl FileLayout {
                     // Update values
                     result.append(&mut sub_span);
                     remaining = remaining.saturating_sub(sub_size.w);
-                    up_to += sub_size.w + if last { 0 } else { 1 };
+                    up_to += sub_size.w + usize::from(!last);
                 }
                 result
             }
@@ -75,7 +80,7 @@ impl FileLayout {
                 for (c, (layout, prop)) in layouts.iter().enumerate() {
                     let last = c == layouts.len().saturating_sub(1);
                     // Calculate the height
-                    let mut base_height = ((size.h as f64 * prop) as usize);
+                    let mut base_height = (size.h as f64 * prop) as usize;
                     if last {
                         // Tack on any remaining things
                         base_height += remaining.saturating_sub(base_height);
@@ -96,7 +101,7 @@ impl FileLayout {
                     // Update values
                     result.append(&mut sub_span);
                     remaining = remaining.saturating_sub(sub_size.h);
-                    up_to += sub_size.h + if last { 0 } else { 1 };
+                    up_to += sub_size.h + usize::from(!last);
                 }
                 result
             }
@@ -126,11 +131,11 @@ impl FileLayout {
         for (idx, rows, cols) in span {
             if let Some((fcs, _)) = self.get_atom(idx.clone()) {
                 // For each document in this atom
-                for (doc, fc) in fcs.iter().enumerate() {
+                for (doc, _) in fcs.iter().enumerate() {
                     // Work out correct new document width
                     let new_size = Size {
                         h: rows.end.saturating_sub(rows.start + ed.push_down + 1),
-                        w: cols.end.saturating_sub(cols.start + ed.dent_for(&idx, doc)),
+                        w: cols.end.saturating_sub(cols.start + ed.dent_for(idx, doc)),
                     };
                     result.push((idx.clone(), doc, new_size));
                 }
@@ -164,24 +169,12 @@ impl FileLayout {
                 }
                 None
             }
-            Self::SideBySide(layouts) => {
+            Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
                 // Recursively scan
                 for (nth, (layout, _)) in layouts.iter().enumerate() {
                     let mut this_idx = idx.clone();
                     this_idx.push(nth);
-                    let result = layout.find(this_idx, path.clone());
-                    if result.is_some() {
-                        return result;
-                    }
-                }
-                None
-            }
-            Self::TopToBottom(layouts) => {
-                // Recursively scan
-                for (nth, (layout, _)) in layouts.iter().enumerate() {
-                    let mut this_idx = idx.clone();
-                    this_idx.push(nth);
-                    let result = layout.find(this_idx, path.clone());
+                    let result = layout.find(this_idx, path);
                     if result.is_some() {
                         return result;
                     }
@@ -191,13 +184,12 @@ impl FileLayout {
         }
     }
 
-    /// Get the FileLayout at a certain index
+    /// Get the `FileLayout` at a certain index
     pub fn get_raw(&self, mut idx: Vec<usize>) -> Option<&FileLayout> {
         match self {
-            Self::None => Some(self),
-            Self::Atom(containers, ptr) => Some(self),
+            Self::None | Self::Atom(_, _) => Some(self),
             Self::SideBySide(layouts) => {
-                if idx.get(0).is_some() {
+                if idx.first().is_some() {
                     let subidx = idx.remove(0);
                     layouts.get(subidx)?.0.get_raw(idx)
                 } else {
@@ -205,7 +197,7 @@ impl FileLayout {
                 }
             }
             Self::TopToBottom(layouts) => {
-                if idx.get(0).is_some() {
+                if idx.first().is_some() {
                     let subidx = idx.remove(0);
                     layouts.get(subidx)?.0.get_raw(idx)
                 } else {
@@ -215,14 +207,13 @@ impl FileLayout {
         }
     }
 
-    /// Get the FileLayout at a certain index (mutable)
+    /// Get the `FileLayout` at a certain index (mutable)
     pub fn get_raw_mut(&mut self, mut idx: Vec<usize>) -> Option<&mut FileLayout> {
-        if idx.get(0).is_none() {
+        if idx.first().is_none() {
             Some(self)
         } else {
             match self {
-                Self::None => Some(self),
-                Self::Atom(containers, ptr) => Some(self),
+                Self::None | Self::Atom(_, _) => Some(self),
                 Self::SideBySide(layouts) => {
                     let subidx = idx.remove(0);
                     layouts.get_mut(subidx)?.0.get_raw_mut(idx)
@@ -235,23 +226,14 @@ impl FileLayout {
         }
     }
 
-    /// Get the FileLayout at a certain index
+    /// Get the `FileLayout` at a certain index
     pub fn set(&mut self, mut idx: Vec<usize>, fl: FileLayout) {
         match self {
-            Self::None => *self = fl,
-            Self::Atom(_, _) => *self = fl,
-            Self::SideBySide(layouts) => {
-                if idx.get(0).is_some() {
+            Self::None | Self::Atom(_, _) => *self = fl,
+            Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
+                if idx.first().is_some() {
                     let subidx = idx.remove(0);
-                    layouts[subidx].0.set(idx, fl)
-                } else {
-                    *self = fl;
-                }
-            }
-            Self::TopToBottom(layouts) => {
-                if idx.get(0).is_some() {
-                    let subidx = idx.remove(0);
-                    layouts[subidx].0.set(idx, fl)
+                    layouts[subidx].0.set(idx, fl);
                 } else {
                     *self = fl;
                 }
@@ -300,12 +282,6 @@ impl FileLayout {
     }
 
     /// Given an index, find the file container in the tree
-    pub fn get_all_mut(&mut self, idx: Vec<usize>) -> Vec<&mut FileContainer> {
-        self.get_atom_mut(idx)
-            .map_or(vec![], |(fcs, _)| fcs.iter_mut().collect())
-    }
-
-    /// Given an index, find the file container in the tree
     pub fn get(&self, idx: Vec<usize>) -> Option<&FileContainer> {
         let (fcs, ptr) = self.get_atom(idx)?;
         Some(fcs.get(ptr)?)
@@ -314,7 +290,7 @@ impl FileLayout {
     /// Given an index, find the file container in the tree
     pub fn get_mut(&mut self, idx: Vec<usize>) -> Option<&mut FileContainer> {
         let (fcs, ptr) = self.get_atom_mut(idx)?;
-        Some(fcs.get_mut(*ptr)?)
+        fcs.get_mut(*ptr)
     }
 
     /// In the currently active atom, move to a different document
@@ -322,13 +298,9 @@ impl FileLayout {
         match self {
             Self::None => (),
             Self::Atom(_, ref mut old_ptr) => *old_ptr = ptr,
-            Self::SideBySide(layouts) => {
+            Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
                 let subidx = idx.remove(0);
-                layouts[subidx].0.move_to(idx, ptr)
-            }
-            Self::TopToBottom(layouts) => {
-                let subidx = idx.remove(0);
-                layouts[subidx].0.move_to(idx, ptr)
+                layouts[subidx].0.move_to(idx, ptr);
             }
         }
     }
@@ -343,6 +315,7 @@ impl FileLayout {
     }
 
     /// Remove a certain index from this tree
+    #[allow(clippy::cast_precision_loss)]
     pub fn remove(&mut self, at: Vec<usize>) {
         // Get parent of the node we wish to delete
         let mut at_parent = at.clone();
@@ -400,9 +373,9 @@ impl FileLayout {
     }
 
     /// Find a new pointer position when something is removed
-    pub fn new_pointer_position(&self, old: Vec<usize>) -> Vec<usize> {
+    pub fn new_pointer_position(&self, old: &[usize]) -> Vec<usize> {
         // Zoom out until a sidebyside or toptobottom is found
-        let mut copy = old.clone();
+        let mut copy = old.to_owned();
         while let Some(Self::None | Self::Atom(_, _)) | None = self.get_raw(copy.clone()) {
             copy.pop();
             if copy.is_empty() {
@@ -424,15 +397,7 @@ impl FileLayout {
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
-                Self::Atom(containers, ptr) => {
-                    new_ptr.push(0);
-                    Self::TopToBottom(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
-                }
-                Self::SideBySide(layouts) => {
-                    new_ptr.push(0);
-                    Self::TopToBottom(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
-                }
-                Self::TopToBottom(layouts) => {
+                Self::Atom(_, _) | Self::SideBySide(_) | Self::TopToBottom(_) => {
                     new_ptr.push(0);
                     Self::TopToBottom(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
                 }
@@ -448,15 +413,7 @@ impl FileLayout {
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
-                Self::Atom(containers, ptr) => {
-                    new_ptr.push(1);
-                    Self::TopToBottom(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
-                }
-                Self::SideBySide(layouts) => {
-                    new_ptr.push(1);
-                    Self::TopToBottom(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
-                }
-                Self::TopToBottom(layouts) => {
+                Self::Atom(_, _) | Self::SideBySide(_) | Self::TopToBottom(_) => {
                     new_ptr.push(1);
                     Self::TopToBottom(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
                 }
@@ -472,15 +429,7 @@ impl FileLayout {
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
-                Self::Atom(containers, ptr) => {
-                    new_ptr.push(0);
-                    Self::SideBySide(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
-                }
-                Self::SideBySide(layouts) => {
-                    new_ptr.push(0);
-                    Self::SideBySide(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
-                }
-                Self::TopToBottom(layouts) => {
+                Self::Atom(_, _) | Self::SideBySide(_) | Self::TopToBottom(_) => {
                     new_ptr.push(0);
                     Self::SideBySide(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
                 }
@@ -496,15 +445,7 @@ impl FileLayout {
         if let Some(old_fl) = self.get_raw(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
-                Self::Atom(containers, ptr) => {
-                    new_ptr.push(1);
-                    Self::SideBySide(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
-                }
-                Self::SideBySide(layouts) => {
-                    new_ptr.push(1);
-                    Self::SideBySide(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
-                }
-                Self::TopToBottom(layouts) => {
+                Self::Atom(_, _) | Self::SideBySide(_) | Self::TopToBottom(_) => {
                     new_ptr.push(1);
                     Self::SideBySide(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
                 }
@@ -530,6 +471,7 @@ impl FileLayout {
     }
 
     /// Get the proportion of a certain node in the tree
+    #[allow(clippy::cast_precision_loss)]
     pub fn set_proportion(&mut self, mut at: Vec<usize>, amount: f64) {
         if let Some(last_idx) = at.pop() {
             if let Some(FileLayout::SideBySide(layouts) | FileLayout::TopToBottom(layouts)) =
@@ -549,9 +491,9 @@ impl FileLayout {
     }
 
     /// Shrink this split's width
-    pub fn shrink_width(&mut self, at: Vec<usize>, amount: f64) {
+    pub fn shrink_width(&mut self, at: &[usize], amount: f64) {
         // Find the parent
-        if let Some((idx, one_down)) = self.get_sidebyside_parent(at.clone()) {
+        if let Some((idx, one_down)) = self.get_sidebyside_parent(at.to_vec()) {
             // Got a side by side parent! Adjust the proportion
             let mut child = idx.clone();
             child.push(one_down);
@@ -563,9 +505,9 @@ impl FileLayout {
     }
 
     /// Grow this split's width
-    pub fn grow_width(&mut self, mut at: Vec<usize>, amount: f64) {
+    pub fn grow_width(&mut self, at: &[usize], amount: f64) {
         // Find the parent
-        if let Some((idx, one_down)) = self.get_sidebyside_parent(at.clone()) {
+        if let Some((idx, one_down)) = self.get_sidebyside_parent(at.to_vec()) {
             // Got a side by side parent! Adjust the proportion
             let mut child = idx.clone();
             child.push(one_down);
@@ -577,9 +519,9 @@ impl FileLayout {
     }
 
     /// Shrink this split's height
-    pub fn shrink_height(&mut self, mut at: Vec<usize>, amount: f64) {
+    pub fn shrink_height(&mut self, at: &[usize], amount: f64) {
         // Find the parent
-        if let Some((idx, one_down)) = self.get_toptobottom_parent(at.clone()) {
+        if let Some((idx, one_down)) = self.get_toptobottom_parent(at.to_vec()) {
             // Got a top to bottom parent! Adjust the proportion
             let mut child = idx.clone();
             child.push(one_down);
@@ -591,9 +533,9 @@ impl FileLayout {
     }
 
     /// Grow this split's height
-    pub fn grow_height(&mut self, mut at: Vec<usize>, amount: f64) {
+    pub fn grow_height(&mut self, at: &[usize], amount: f64) {
         // Find the parent
-        if let Some((idx, one_down)) = self.get_toptobottom_parent(at.clone()) {
+        if let Some((idx, one_down)) = self.get_toptobottom_parent(at.to_vec()) {
             // Got a top to bottom parent! Adjust the proportion
             let mut child = idx.clone();
             child.push(one_down);
@@ -635,7 +577,7 @@ impl FileLayout {
     }
 
     /// Find the current location in a particular span
-    pub fn get_line_pos(&self, at: Vec<usize>, span: &Span) -> Option<(usize, usize)> {
+    pub fn get_line_pos(at: &[usize], span: &Span) -> Option<(usize, usize)> {
         // Find the first line that has this split rendered in
         let mut blank_count = 0;
         let mut y = 0;
@@ -651,7 +593,7 @@ impl FileLayout {
             let find_position = line
                 .iter()
                 .enumerate()
-                .find(|(c, (idx, _, _))| *idx == at)
+                .find(|(_, (idx, _, _))| *idx == at)
                 .map(|(c, _)| c);
             if let Some(our_idx) = find_position {
                 return Some((y, our_idx));
@@ -663,7 +605,7 @@ impl FileLayout {
     }
 
     /// Find the current location in a particular span (last line)
-    pub fn get_line_pos_last(&self, at: Vec<usize>, span: &Span) -> Option<(usize, usize)> {
+    pub fn get_line_pos_last(at: &[usize], span: &Span) -> Option<(usize, usize)> {
         // Find the last line that has this split rendered in
         let mut blank_count = 0;
         let mut y = 0;
@@ -680,7 +622,7 @@ impl FileLayout {
             let find_position = line
                 .iter()
                 .enumerate()
-                .find(|(c, (idx, _, _))| *idx == at)
+                .find(|(_, (idx, _, _))| *idx == at)
                 .map(|(c, _)| c);
             if let Some(our_idx) = find_position {
                 result = Some((y, our_idx));
@@ -694,13 +636,13 @@ impl FileLayout {
     }
 
     /// Find the new cursor position when moving left
-    pub fn move_left(&self, at: Vec<usize>, span: &Span) -> Vec<usize> {
+    pub fn move_left(at: Vec<usize>, span: &Span) -> Vec<usize> {
         // Get the geometric location
-        if let Some((y, our_idx)) = self.get_line_pos(at.clone(), span) {
+        if let Some((y, our_idx)) = Self::get_line_pos(&at, span) {
             // Try to find the one before it
             let prior_idx = our_idx.saturating_sub(1);
             if let Some((new_idx, _, _)) = Self::line(y, span).get(prior_idx) {
-                new_idx.to_vec()
+                new_idx.clone()
             } else {
                 at
             }
@@ -710,25 +652,24 @@ impl FileLayout {
     }
 
     /// Find the new cursor position when moving right
-    pub fn move_right(&self, at: Vec<usize>, span: &Span) -> Vec<usize> {
+    pub fn move_right(at: Vec<usize>, span: &Span) -> Vec<usize> {
         // Get the geometric location
-        if let Some((y, our_idx)) = self.get_line_pos(at.clone(), span) {
+        if let Some((y, our_idx)) = Self::get_line_pos(&at, span) {
             // Try to find the one after it
             let next_idx = our_idx + 1;
             if let Some((new_idx, _, _)) = Self::line(y, span).get(next_idx) {
-                return new_idx.to_vec();
-            } else {
-                at
+                return new_idx.clone();
             }
+            at
         } else {
             at
         }
     }
 
     /// Find the new cursor position when moving up
-    pub fn move_up(&self, at: Vec<usize>, span: &Span) -> Vec<usize> {
+    pub fn move_up(at: Vec<usize>, span: &Span) -> Vec<usize> {
         // Get geometric location
-        if let Some((y, our_idx)) = self.get_line_pos(at.clone(), span) {
+        if let Some((y, our_idx)) = Self::get_line_pos(&at, span) {
             if let Some((_, _, cols)) = Self::line(y, span).get(our_idx) {
                 // Get the starting column index
                 let at_x = cols.start;
@@ -738,16 +679,15 @@ impl FileLayout {
                     // Attempt to find part containing matching at_x value
                     if let Some((idx, _, _)) = Self::line(at_y, span)
                         .iter()
-                        .find(|(idx, rows, cols)| cols.contains(&at_x))
+                        .find(|(_, _, cols)| cols.contains(&at_x))
                     {
                         // Found match!
-                        return idx.to_vec();
+                        return idx.clone();
                     }
                     if at_y == 0 {
                         break;
-                    } else {
-                        at_y = at_y.saturating_sub(1);
                     }
+                    at_y = at_y.saturating_sub(1);
                 }
             }
         }
@@ -755,9 +695,9 @@ impl FileLayout {
     }
 
     /// Find the new cursor position when moving down
-    pub fn move_down(&self, at: Vec<usize>, span: &Span) -> Vec<usize> {
+    pub fn move_down(at: Vec<usize>, span: &Span) -> Vec<usize> {
         // Get geometric location
-        if let Some((y, our_idx)) = self.get_line_pos_last(at.clone(), span) {
+        if let Some((y, our_idx)) = Self::get_line_pos_last(&at, span) {
             if let Some((_, _, cols)) = Self::line(y, span).get(our_idx) {
                 // Get the starting column index
                 let at_x = cols.start;
@@ -767,20 +707,18 @@ impl FileLayout {
                 loop {
                     // Attempt to find part containing matching at_x value
                     let line_reg = Self::line(at_y, span);
-                    if let Some((idx, _, _)) = line_reg
-                        .iter()
-                        .find(|(idx, rows, cols)| cols.contains(&at_x))
+                    if let Some((idx, _, _)) =
+                        line_reg.iter().find(|(_, _, cols)| cols.contains(&at_x))
                     {
                         // Found match!
-                        return idx.to_vec();
+                        return idx.clone();
                     } else if line_reg.is_empty() {
                         blanks += 1;
                     }
                     if blanks >= 2 {
                         break;
-                    } else {
-                        at_y += 1;
                     }
+                    at_y += 1;
                 }
             }
         }

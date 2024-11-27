@@ -170,7 +170,7 @@ impl Editor {
             self.already_open(&get_absolute_path(file_name).unwrap_or_default())
         {
             // Move to existing file
-            self.ptr = idx.clone();
+            self.ptr.clone_from(&idx);
             self.files.move_to(idx, ptr);
             // Send out error message
             let file = get_file_name(file_name).unwrap_or_default();
@@ -310,11 +310,10 @@ impl Editor {
                 fcs.remove(*ptr);
                 self.prev();
             }
-            let (fcs, ptr) = self.files.get_atom(self.ptr.clone()).unwrap();
             // Clean up the file structure
             self.files.clean_up();
             // Find a new pointer position
-            self.ptr = self.files.new_pointer_position(self.ptr.clone());
+            self.ptr = self.files.new_pointer_position(&self.ptr);
         }
         // If there are no longer any active atoms, quit the entire editor
         self.active = !matches!(self.files, FileLayout::None);

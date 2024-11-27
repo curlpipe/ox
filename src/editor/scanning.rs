@@ -155,7 +155,7 @@ impl Editor {
         let target = self.prompt("Replace")?;
         let into = self.prompt("With")?;
         let mut done = false;
-        let Size { w, h } = size()?;
+        let h = size()?.h;
         // Jump to match
         let mut mtch;
         if let Some(m) = self.next_match(&target) {

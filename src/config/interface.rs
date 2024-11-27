@@ -1,16 +1,13 @@
 /// Utilities for configuring and rendering parts of the interface
 use crate::cli::VERSION;
 use crate::editor::{Editor, FileContainer};
-use crate::error::Result;
 use crate::Feedback;
-use crossterm::style::SetForegroundColor as Fg;
 use kaolinite::searching::Searcher;
 use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
 use mlua::prelude::*;
-use std::ops::Range;
 use std::result::Result as RResult;
 
-use super::{issue_warning, Colors};
+use super::issue_warning;
 
 type LuaRes<T> = RResult<T, LuaError>;
 
@@ -101,11 +98,11 @@ impl Default for GreetingMessage {
 
 impl GreetingMessage {
     /// Take the configuration information and render the greeting message
-    pub fn render(&self, lua: &Lua) -> Result<(String, Vec<usize>)> {
+    pub fn render(&self, lua: &Lua) -> (String, Vec<usize>) {
         let mut result = self.format.clone();
         // Substitute in simple values
         result = result.replace("{version}", VERSION).to_string();
-        result = result.replace("\t", "    ").to_string();
+        result = result.replace('\t', "    ").to_string();
         // Handle highlighted part
         let start = result.find("{highlight_start}");
         let end = result.find("{highlight_end}");
@@ -137,7 +134,7 @@ impl GreetingMessage {
                 break;
             }
         }
-        Ok((result, highlighted))
+        (result, highlighted)
     }
 }
 
@@ -334,9 +331,9 @@ impl Default for StatusLine {
 
 impl StatusLine {
     /// Take the configuration information and render the status line
-    pub fn render(&self, ptr: &Vec<usize>, editor: &Editor, lua: &Lua, w: usize) -> LuaRes<String> {
+    pub fn render(&self, ptr: &[usize], editor: &Editor, lua: &Lua, w: usize) -> LuaRes<String> {
         let mut result = vec![];
-        let fc = editor.files.get(ptr.clone()).unwrap();
+        let fc = editor.files.get(ptr.to_vec()).unwrap();
         let doc = &fc.doc;
         let path = doc
             .file_name

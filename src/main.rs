@@ -224,7 +224,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         holder.blank()?;
         let this_doc = holder.doc_len().saturating_sub(1);
         let current_ptr = holder.ptr.clone();
-        let mut doc = &mut holder.files.get_atom_mut(current_ptr).unwrap().0[this_doc].doc;
+        let doc = &mut holder.files.get_atom_mut(current_ptr).unwrap().0[this_doc].doc;
         doc.exe(Event::Insert(Loc { x: 0, y: 0 }, stdin))?;
         doc.load_to(doc.size.h);
         let lines = doc.lines.clone();

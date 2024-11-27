@@ -1,5 +1,5 @@
-use crate::editor::{FileContainer, FileLayout};
 /// Functions for rendering the UI
+use crate::editor::FileLayout;
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
 use crate::ui::{key_event, size, Feedback};
@@ -27,12 +27,11 @@ pub struct RenderCache {
 
 impl Editor {
     /// Update the render cache
+    #[allow(clippy::range_plus_one)]
     pub fn update_render_cache(&mut self, lua: &Lua, size: Size) {
         // Calculate greeting message
         if config!(self.config, tab_line).enabled && self.greet {
-            if let Ok(gm) = config!(self.config, greeting_message).render(lua) {
-                self.render_cache.greeting_message = gm;
-            }
+            self.render_cache.greeting_message = config!(self.config, greeting_message).render(lua);
         }
         // Calculate span
         self.render_cache.span = self.files.span(vec![], size, Loc::at(0, 0));
@@ -48,13 +47,13 @@ impl Editor {
             .unwrap_or(0)
             + 5;
         let help_length = self.render_cache.help_message.len();
-        let help_start =
-            usize::try_from((size.h / 2).saturating_sub(help_length / 2) + 1).unwrap_or(usize::MAX);
-        let help_end = help_start + usize::try_from(help_length).unwrap_or(usize::MAX) as usize;
+        let help_start = (size.h / 2).saturating_sub(help_length / 2) + 1;
+        let help_end = help_start + help_length;
         self.render_cache.help_message_span = help_start..help_end + 1;
     }
 
     /// Render a specific line
+    #[allow(clippy::similar_names)]
     pub fn render_line(&mut self, y: usize, size: Size, lua: &Lua) -> Result<String> {
         let tab_line_enabled = config!(self.config, tab_line).enabled;
         let mut result = String::new();
@@ -62,7 +61,7 @@ impl Editor {
         // Accounted for is used to detect gaps in lines (which should be filled with vertical bars)
         let mut accounted_for = 0;
         // Render each component of this line
-        for (mut c, (fc, rows, range)) in fcs.iter().enumerate() {
+        for (c, (fc, rows, range)) in fcs.iter().enumerate() {
             // Check if we have encountered an area of discontinuity in the line
             if range.start != accounted_for {
                 // Discontinuity detected, fill with vertical bar!
@@ -74,16 +73,15 @@ impl Editor {
             let rel_y = y.saturating_sub(rows.start);
             if y == rows.start && tab_line_enabled {
                 // Tab line
-                result += &self.render_tab_line(&fc, lua, length)?;
+                result += &self.render_tab_line(fc, lua, length)?;
             } else if y == rows.end.saturating_sub(1) {
                 // Status line
-                result += &self.render_status_line(&fc, lua, length)?;
+                result += &self.render_status_line(fc, lua, length)?;
             } else {
                 // Line of file
                 result += &self.render_document(
-                    &fc,
+                    fc,
                     rel_y.saturating_sub(self.push_down),
-                    lua,
                     Size {
                         w: length,
                         h: size.h,
@@ -115,14 +113,13 @@ impl Editor {
         }
         self.needs_rerender = false;
         // Get size information
-        let mut size = size()?;
-        let Size { w, mut h } = size.clone();
+        let size = size()?;
+        let Size { w, mut h } = size;
         h = h.saturating_sub(1 + self.push_down);
-        let max = self.dent();
         // Update the cache before rendering
         self.update_render_cache(lua, size);
         // Update all document's size
-        let updates = self.files.update_doc_sizes(&self.render_cache.span, &self);
+        let updates = self.files.update_doc_sizes(&self.render_cache.span, self);
         for (ptr, doc, new_size) in updates {
             self.files.get_atom_mut(ptr.clone()).unwrap().0[doc]
                 .doc
@@ -162,13 +159,8 @@ impl Editor {
     }
 
     /// Render the lines of the document
-    pub fn render_document(
-        &mut self,
-        ptr: &Vec<usize>,
-        y: usize,
-        lua: &Lua,
-        size: Size,
-    ) -> Result<String> {
+    #[allow(clippy::similar_names)]
+    pub fn render_document(&mut self, ptr: &Vec<usize>, y: usize, size: Size) -> Result<String> {
         let Size { mut w, h } = size;
         let mut result = String::new();
         // Get various information
@@ -178,7 +170,6 @@ impl Editor {
         let line_number_fg = Fg(config!(self.config, colors).line_number_fg.to_color()?);
         let selection_bg = Bg(config!(self.config, colors).selection_bg.to_color()?);
         let selection_fg = Fg(config!(self.config, colors).selection_fg.to_color()?);
-        let colors = Fg(config!(self.config, colors).highlight.to_color()?);
         let underline = SetAttribute(Attribute::Underlined);
         let no_underline = SetAttribute(Attribute::NoUnderline);
         let tab_width = config!(self.config, document).tab_width;
@@ -220,24 +211,7 @@ impl Editor {
             let mut x_char = doc.character_idx(&doc.offset);
             for token in tokens {
                 // Find out the text (and colour of that text)
-                let (text, colour) = match token {
-                    // Non-highlighted text
-                    TokOpt::Some(text, kind) => {
-                        let colour = config!(self.config, syntax).get_theme(&kind);
-                        let colour = match colour {
-                            // Success, write token
-                            Ok(col) => Fg(col),
-                            // Failure, show error message and don't highlight this token
-                            Err(err) => {
-                                self.feedback = Feedback::Error(err.to_string());
-                                editor_fg
-                            }
-                        };
-                        (text, colour)
-                    }
-                    // Highlighted text
-                    TokOpt::None(text) => (text, editor_fg),
-                };
+                let (text, colour) = self.breakdown_token(token)?;
                 // Do the rendering (including selection where applicable)
                 for c in text.chars() {
                     let disp_loc = Loc {
@@ -292,36 +266,68 @@ impl Editor {
             result += &" ".repeat(w.saturating_sub(total_width));
         } else if config!(self.config, greeting_message).enabled && self.greet {
             // Render the greeting message (if enabled)
-            result += &self.render_greeting(y, lua, w, h)?;
+            result += &self.render_greeting(y, w, h)?;
         } else {
             // Empty line, just pad out with spaces to prevent artefacts
             result += &" ".repeat(w);
         }
         // Add on help message if applicable
         if help_message_here {
-            let at = y.saturating_sub(self.render_cache.help_message_span.start);
-            let max_width = self.render_cache.help_message_width;
-            let (hl, msg) = self
-                .render_cache
-                .help_message
-                .get(at)
-                .map(|(hl, content)| (*hl, content.to_string()))
-                .unwrap_or((false, " ".repeat(max_width)));
-            let extra_padding = " ".repeat(max_width.saturating_sub(width(&msg, tab_width)));
-            if hl {
-                result += &format!("{colors}{msg}{extra_padding}{editor_fg}");
-            } else {
-                result += &format!("{editor_fg}{msg}{extra_padding}");
-            }
+            result += &self.render_help_message(y)?;
         }
         // Send out the result
         Ok(result)
     }
 
+    /// Render help message
+    pub fn render_help_message(&self, y: usize) -> Result<String> {
+        let tab_width = config!(self.config, document).tab_width;
+        let colors = Fg(config!(self.config, colors).highlight.to_color()?);
+        let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+        let at = y.saturating_sub(self.render_cache.help_message_span.start);
+        let max_width = self.render_cache.help_message_width;
+        let (hl, msg) = self
+            .render_cache
+            .help_message
+            .get(at)
+            .map_or((false, " ".repeat(max_width)), |(hl, content)| {
+                (*hl, content.to_string())
+            });
+        let extra_padding = " ".repeat(max_width.saturating_sub(width(&msg, tab_width)));
+        if hl {
+            Ok(format!("{colors}{msg}{extra_padding}{editor_fg}"))
+        } else {
+            Ok(format!("{editor_fg}{msg}{extra_padding}"))
+        }
+    }
+
+    /// Take a token and try to break it down into a colour and text
+    pub fn breakdown_token(&mut self, token: TokOpt) -> Result<(String, Fg)> {
+        let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+        match token {
+            // Non-highlighted text
+            TokOpt::Some(text, kind) => {
+                let colour = config!(self.config, syntax).get_theme(&kind);
+                let colour = match colour {
+                    // Success, write token
+                    Ok(col) => Fg(col),
+                    // Failure, show error message and don't highlight this token
+                    Err(err) => {
+                        self.feedback = Feedback::Error(err.to_string());
+                        editor_fg
+                    }
+                };
+                Ok((text, colour))
+            }
+            // Highlighted text
+            TokOpt::None(text) => Ok((text, editor_fg)),
+        }
+    }
+
     /// Get list of tabs
     pub fn get_tab_parts(
         &mut self,
-        ptr: &Vec<usize>,
+        ptr: &[usize],
         lua: &Lua,
         w: usize,
     ) -> (Vec<String>, usize, usize) {
@@ -334,7 +340,10 @@ impl Editor {
             let render = tab_line.render(lua, file, &mut self.feedback);
             length += width(&render, 4) + 1;
             headers.push(render);
-            let ptr = self.files.get_atom(ptr.clone()).map_or(0, |(_, ptr)| ptr);
+            let ptr = self
+                .files
+                .get_atom(ptr.to_owned())
+                .map_or(0, |(_, ptr)| ptr);
             if c == ptr {
                 idx = headers.len().saturating_sub(1);
             }
@@ -350,7 +359,7 @@ impl Editor {
 
     /// Render the tab line at the top of the document
     #[allow(clippy::similar_names)]
-    pub fn render_tab_line(&mut self, ptr: &Vec<usize>, lua: &Lua, w: usize) -> Result<String> {
+    pub fn render_tab_line(&mut self, ptr: &[usize], lua: &Lua, w: usize) -> Result<String> {
         let tab_inactive_bg = Bg(config!(self.config, colors).tab_inactive_bg.to_color()?);
         let tab_inactive_fg = Fg(config!(self.config, colors).tab_inactive_fg.to_color()?);
         let tab_active_bg = Bg(config!(self.config, colors).tab_active_bg.to_color()?);
@@ -377,7 +386,7 @@ impl Editor {
 
     /// Render the status line at the bottom of the document
     #[allow(clippy::similar_names)]
-    pub fn render_status_line(&mut self, ptr: &Vec<usize>, lua: &Lua, w: usize) -> Result<String> {
+    pub fn render_status_line(&mut self, ptr: &[usize], lua: &Lua, w: usize) -> Result<String> {
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
         let status_bg = Bg(config!(self.config, colors).status_bg.to_color()?);
@@ -414,7 +423,7 @@ impl Editor {
     }
 
     /// Render the greeting message
-    fn render_greeting(&mut self, y: usize, lua: &Lua, w: usize, h: usize) -> Result<String> {
+    fn render_greeting(&mut self, y: usize, w: usize, h: usize) -> Result<String> {
         // Produce the greeting message
         let colors = config!(self.config, colors);
         let highlight = Fg(colors.highlight.to_color()?).to_string();
@@ -669,11 +678,11 @@ impl Editor {
     }
 
     /// Work out how much to push the document to the right (to make way for line numbers)
-    pub fn dent_for(&self, at: &Vec<usize>, doc: usize) -> usize {
+    pub fn dent_for(&self, at: &[usize], doc: usize) -> usize {
         if config!(self.config, line_numbers).enabled {
             let padding_left = config!(self.config, line_numbers).padding_left;
             let padding_right = config!(self.config, line_numbers).padding_right;
-            if let Some((fcs, _)) = self.files.get_atom(at.clone()) {
+            if let Some((fcs, _)) = self.files.get_atom(at.to_owned()) {
                 fcs[doc].doc.len_lines().to_string().len() + 1 + padding_left + padding_right
             } else {
                 0

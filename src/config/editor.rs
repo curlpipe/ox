@@ -4,7 +4,7 @@ use crate::editor::{Editor, FileContainer, FileLayout};
 use crate::ui::Feedback;
 use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
-use kaolinite::{Loc, Size};
+use kaolinite::Loc;
 use mlua::prelude::*;
 
 impl LuaUserData for Editor {
@@ -584,8 +584,8 @@ impl LuaUserData for Editor {
             "grow_split",
             |_, editor, (amount, direction): (f64, String)| {
                 match direction.as_str() {
-                    "width" => editor.files.grow_width(editor.ptr.clone(), amount),
-                    "height" => editor.files.grow_height(editor.ptr.clone(), amount),
+                    "width" => editor.files.grow_width(&editor.ptr, amount),
+                    "height" => editor.files.grow_height(&editor.ptr, amount),
                     _ => (),
                 }
                 Ok(())
@@ -595,35 +595,27 @@ impl LuaUserData for Editor {
             "shrink_split",
             |_, editor, (amount, direction): (f64, String)| {
                 match direction.as_str() {
-                    "width" => editor.files.shrink_width(editor.ptr.clone(), amount),
-                    "height" => editor.files.shrink_height(editor.ptr.clone(), amount),
+                    "width" => editor.files.shrink_width(&editor.ptr, amount),
+                    "height" => editor.files.shrink_height(&editor.ptr, amount),
                     _ => (),
                 }
                 Ok(())
             },
         );
         methods.add_method_mut("focus_split_up", |_, editor, ()| {
-            editor.ptr = editor
-                .files
-                .move_up(editor.ptr.clone(), &editor.render_cache.span);
+            editor.ptr = FileLayout::move_up(editor.ptr.clone(), &editor.render_cache.span);
             Ok(())
         });
         methods.add_method_mut("focus_split_down", |_, editor, ()| {
-            editor.ptr = editor
-                .files
-                .move_down(editor.ptr.clone(), &editor.render_cache.span);
+            editor.ptr = FileLayout::move_down(editor.ptr.clone(), &editor.render_cache.span);
             Ok(())
         });
         methods.add_method_mut("focus_split_left", |_, editor, ()| {
-            editor.ptr = editor
-                .files
-                .move_left(editor.ptr.clone(), &editor.render_cache.span);
+            editor.ptr = FileLayout::move_left(editor.ptr.clone(), &editor.render_cache.span);
             Ok(())
         });
         methods.add_method_mut("focus_split_right", |_, editor, ()| {
-            editor.ptr = editor
-                .files
-                .move_right(editor.ptr.clone(), &editor.render_cache.span);
+            editor.ptr = FileLayout::move_right(editor.ptr.clone(), &editor.render_cache.span);
             Ok(())
         });
         // Searching and replacing
@@ -633,7 +625,7 @@ impl LuaUserData for Editor {
             }
             editor.update_highlighter();
             editor.needs_rerender = true;
-            editor.render(lua);
+            let _ = editor.render(lua);
             Ok(())
         });
         methods.add_method_mut("replace", |lua, editor, ()| {
@@ -642,7 +634,7 @@ impl LuaUserData for Editor {
             }
             editor.update_highlighter();
             editor.needs_rerender = true;
-            editor.render(lua);
+            let _ = editor.render(lua);
             Ok(())
         });
         methods.add_method_mut("move_next_match", |_, editor, query: String| {
