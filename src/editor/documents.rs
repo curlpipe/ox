@@ -149,7 +149,12 @@ impl FileLayout {
                 row_span.end += shift_by;
             }
         }
-
+        // Handle the case where heights within splits are awkwardly different
+        for (idx, rows, cols) in span.iter_mut() {
+            if rows.end == desired.h.saturating_sub(1) {
+                rows.end = desired.h;
+            }
+        }
         // Return the modified result
         span
     }
