@@ -102,11 +102,11 @@ fn main() {
     editor.files.get_mut(editor.ptr.clone()).unwrap().doc.load_to(100);
     editor.update_highlighter();
 
-    editor.update_render_cache(&lua, Size { w: 100, h: 47 });
-    editor.render(&lua);
-    editor.terminal.show_cursor();
-    editor.terminal.flush();
-    println!("{}", "\n".repeat(crossterm::terminal::size().unwrap().1.into()));
+    // editor.update_render_cache(&lua, Size { w: 100, h: 47 });
+    // editor.render(&lua);
+    // editor.terminal.show_cursor();
+    // editor.terminal.flush();
+    // println!("{}", "\n".repeat(crossterm::terminal::size().unwrap().1.into()));
     // println!("\n\n\n{:#?}", editor.render_cache.span);
 }
 */

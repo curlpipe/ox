@@ -35,7 +35,7 @@ impl Editor {
             }
         }
         // Calculate span
-        self.render_cache.span = FileLayout::fix_underflow(self.files.span(vec![], size), size);
+        self.render_cache.span = self.files.span(vec![], size, Loc::at(0, 0));
         // Calculate help message information
         let tab_width = config!(self.config, document).tab_width;
         self.render_cache.help_message = config!(self.config, help_message).render(lua);

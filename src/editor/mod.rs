@@ -444,6 +444,7 @@ impl Editor {
             (KMod::NONE, KCode::Backspace) => self.backspace()?,
             (KMod::NONE, KCode::Delete) => self.delete()?,
             (KMod::NONE, KCode::Enter) => self.enter()?,
+            (KMod::CONTROL, KCode::Char('1')) => panic!("{:?}", self.render_cache.span),
             _ => (),
         }
         Ok(())

@@ -30,52 +30,73 @@ impl Default for FileLayout {
 impl FileLayout {
     /// Will return file containers and what span of columns and rows they take up
     /// In the format of (container, rows, columns)
-    pub fn span(&self, idx: Vec<usize>, size: Size) -> Span {
+    pub fn span(&self, idx: Vec<usize>, size: Size, at: Loc) -> Span {
         match self {
             Self::None => vec![],
-            Self::Atom(containers, ptr) => vec![(idx, 0..size.h, 0..size.w)],
+            // Atom: stretches from starting position through to end of it's container
+            Self::Atom(containers, ptr) => vec![(idx, at.y..at.y + size.h, at.x..at.x + size.w)],
+            // SideBySide: distributes available container space to each sub-layout
             Self::SideBySide(layouts) => {
                 let mut result = vec![];
-                let mut at = 0;
-                for (c, (layout, props)) in layouts.iter().enumerate() {
-                    let mut subidx = idx.clone();
-                    subidx.push(c);
-                    let this_size = Size {
-                        w: (size.w as f64 * props) as usize,
+                let mut remaining = size.w.saturating_sub(1);
+                let mut up_to = at.x;
+                for (c, (layout, prop)) in layouts.iter().enumerate() {
+                    let last = c == layouts.len().saturating_sub(1);
+                    // Calculate the width
+                    let mut base_width = ((size.w as f64 * prop) as usize);
+                    if last {
+                        // Tack on any remaining things
+                        base_width += remaining.saturating_sub(base_width);
+                    } else {
+                        // Leave room for a vertical bar
+                        base_width = base_width.saturating_sub(1);
+                    }
+                    // Calculate location and size information for this layout in particular
+                    let sub_size = Size {
+                        w: base_width,
                         h: size.h,
                     };
-                    for mut sub in layout.span(subidx, this_size) {
-                        // Shift this range up to it's correct location
-                        sub.2.start += at;
-                        sub.2.end += at;
-                        if c != layouts.len().saturating_sub(1) {
-                            sub.2.end -= 1;
-                        }
-                        result.push(sub);
-                    }
-                    at += this_size.w;
+                    let sub_at = Loc { x: up_to, y: at.y };
+                    // Calculate new index
+                    let mut sub_idx = idx.clone();
+                    sub_idx.push(c);
+                    let mut sub_span = layout.span(sub_idx, sub_size, sub_at);
+                    // Update values
+                    result.append(&mut sub_span);
+                    remaining = remaining.saturating_sub(sub_size.w);
+                    up_to += sub_size.w + if last { 0 } else { 1 };
                 }
                 result
             }
             Self::TopToBottom(layouts) => {
                 let mut result = vec![];
-                let mut at = 0;
-                for (c, (layout, props)) in layouts.iter().enumerate() {
-                    let mut subidx = idx.clone();
-                    subidx.push(c);
-                    let this_size = Size {
-                        w: size.w,
-                        h: (size.h as f64 * props) as usize,
-                    };
-                    for mut sub in layout.span(subidx, this_size) {
-                        sub.1.start += at;
-                        sub.1.end += at;
-                        if c != layouts.len().saturating_sub(1) {
-                            sub.1.end -= 1;
-                        }
-                        result.push(sub.clone());
+                let mut remaining = size.h.saturating_sub(1);
+                let mut up_to = at.y;
+                for (c, (layout, prop)) in layouts.iter().enumerate() {
+                    let last = c == layouts.len().saturating_sub(1);
+                    // Calculate the height
+                    let mut base_height = ((size.h as f64 * prop) as usize);
+                    if last {
+                        // Tack on any remaining things
+                        base_height += remaining.saturating_sub(base_height);
+                    } else {
+                        // Leave room for a horizontal bar
+                        base_height = base_height.saturating_sub(1);
                     }
-                    at += this_size.h;
+                    // Calculate location and size information for this layout in particular
+                    let sub_size = Size {
+                        h: base_height,
+                        w: size.w,
+                    };
+                    let sub_at = Loc { x: at.x, y: up_to };
+                    // Calculate new index
+                    let mut sub_idx = idx.clone();
+                    sub_idx.push(c);
+                    let mut sub_span = layout.span(sub_idx, sub_size, sub_at);
+                    // Update values
+                    result.append(&mut sub_span);
+                    remaining = remaining.saturating_sub(sub_size.h);
+                    up_to += sub_size.h + if last { 0 } else { 1 };
                 }
                 result
             }
@@ -96,67 +117,6 @@ impl FileLayout {
             .collect();
         appropriate.sort_by(|a, b| a.2.start.cmp(&b.2.start));
         appropriate
-    }
-
-    /// Fixes span underflow (where nodes are shorter than desired due to division errors)
-    pub fn fix_underflow(mut span: Span, desired: Size) -> Span {
-        // FIX FOR WIDTH
-        // Go through each line in a span
-        for y in 0..desired.h {
-            let line = Self::line(y, &span);
-            if let Some((idx, rows, cols)) = line.get(line.len().saturating_sub(1)) {
-                // If this line has the width shorter than desired (and is the first of it's kind)
-                if cols.end < desired.w && y == rows.start {
-                    if let Some((_, _, ref mut col_span)) = span
-                        .iter_mut()
-                        .find(|(checking_idx, _, _)| checking_idx == idx)
-                    {
-                        // Take the idx of the last node and push it up to ensure it fits
-                        let shift_by = desired.w.saturating_sub(cols.end);
-                        col_span.end += shift_by;
-                    }
-                }
-            }
-        }
-
-        // FIX FOR HEIGHT
-        // Work out:
-        // - The number of vacant line entries at the end of the desired height
-        // - The last non-empty entry in the line registry
-        let mut last_active_line = 0;
-        let mut empty_last_lines = 0;
-        for y in 0..desired.h {
-            let line = Self::line(y, &span);
-            if line.is_empty() {
-                empty_last_lines += 1;
-            } else {
-                last_active_line = y;
-                empty_last_lines = 0;
-            }
-        }
-        let last_panes = Self::line(last_active_line, &span)
-            .into_iter()
-            .map(|(idx, cols, rows)| idx)
-            .collect::<Vec<_>>();
-        // For each pane on the last non-empty line:
-        for pane_idx in last_panes {
-            if let Some((_, ref mut row_span, _)) = span
-                .iter_mut()
-                .find(|(checking_idx, _, _)| *checking_idx == pane_idx)
-            {
-                // Set the end of the rows range to the desired height (in effect expanding them downwards)
-                let shift_by = desired.h.saturating_sub(1 + last_active_line);
-                row_span.end += shift_by;
-            }
-        }
-        // Handle the case where heights within splits are awkwardly different
-        for (idx, rows, cols) in span.iter_mut() {
-            if rows.end == desired.h.saturating_sub(1) {
-                rows.end = desired.h;
-            }
-        }
-        // Return the modified result
-        span
     }
 
     /// Update the sizes of documents
