@@ -580,24 +580,28 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
-        methods.add_method_mut("grow_split", |_, editor, amount: f64| {
-            let current = editor.files.get_proportion(editor.ptr.clone());
-            if current + amount <= 1.0 {
-                editor
-                    .files
-                    .set_proportion(editor.ptr.clone(), current + amount)
-            }
-            Ok(())
-        });
-        methods.add_method_mut("shrink_split", |_, editor, amount: f64| {
-            let current = editor.files.get_proportion(editor.ptr.clone());
-            if current > amount {
-                editor
-                    .files
-                    .set_proportion(editor.ptr.clone(), current - amount)
-            }
-            Ok(())
-        });
+        methods.add_method_mut(
+            "grow_split",
+            |_, editor, (amount, direction): (f64, String)| {
+                match direction.as_str() {
+                    "width" => editor.files.grow_width(editor.ptr.clone(), amount),
+                    "height" => editor.files.grow_height(editor.ptr.clone(), amount),
+                    _ => (),
+                }
+                Ok(())
+            },
+        );
+        methods.add_method_mut(
+            "shrink_split",
+            |_, editor, (amount, direction): (f64, String)| {
+                match direction.as_str() {
+                    "width" => editor.files.shrink_width(editor.ptr.clone(), amount),
+                    "height" => editor.files.shrink_height(editor.ptr.clone(), amount),
+                    _ => (),
+                }
+                Ok(())
+            },
+        );
         methods.add_method_mut("focus_split_up", |_, editor, ()| {
             editor.ptr = editor
                 .files

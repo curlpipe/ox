@@ -588,13 +588,72 @@ impl FileLayout {
         }
     }
 
-    /// Find the nearest parent sidebyside, returns the pointer and we were in it
+    /// Shrink this split's width
+    pub fn shrink_width(&mut self, at: Vec<usize>, amount: f64) {
+        // Find the parent
+        if let Some((idx, one_down)) = self.get_sidebyside_parent(at.clone()) {
+            // Got a side by side parent! Adjust the proportion
+            let mut child = idx.clone();
+            child.push(one_down);
+            let current_prop = self.get_proportion(child.clone());
+            if current_prop > amount {
+                self.set_proportion(child, current_prop - amount);
+            }
+        }
+    }
+
+    /// Grow this split's width
+    pub fn grow_width(&mut self, mut at: Vec<usize>, amount: f64) {
+        // Find the parent
+        if let Some((idx, one_down)) = self.get_sidebyside_parent(at.clone()) {
+            // Got a side by side parent! Adjust the proportion
+            let mut child = idx.clone();
+            child.push(one_down);
+            let current_prop = self.get_proportion(child.clone());
+            if current_prop + amount < 1.0 {
+                self.set_proportion(child, current_prop + amount);
+            }
+        }
+    }
+
+    /// Shrink this split's height
+    pub fn shrink_height(&mut self, mut at: Vec<usize>, amount: f64) {
+        // Find the parent
+        if let Some((idx, one_down)) = self.get_toptobottom_parent(at.clone()) {
+            // Got a top to bottom parent! Adjust the proportion
+            let mut child = idx.clone();
+            child.push(one_down);
+            let current_prop = self.get_proportion(child.clone());
+            if current_prop > amount {
+                self.set_proportion(child, current_prop - amount);
+            }
+        }
+    }
+
+    /// Grow this split's height
+    pub fn grow_height(&mut self, mut at: Vec<usize>, amount: f64) {
+        // Find the parent
+        if let Some((idx, one_down)) = self.get_toptobottom_parent(at.clone()) {
+            // Got a top to bottom parent! Adjust the proportion
+            let mut child = idx.clone();
+            child.push(one_down);
+            let current_prop = self.get_proportion(child.clone());
+            if current_prop + amount < 1.0 {
+                self.set_proportion(child, current_prop + amount);
+            }
+        }
+    }
+
+    /// Find the nearest parent sidebyside, returns the pointer and where we were in it
     pub fn get_sidebyside_parent(&self, mut at: Vec<usize>) -> Option<(Vec<usize>, usize)> {
         // "Zoom out" to try and find a sidebyside parent
         let mut subidx = None;
         while let Some(FileLayout::TopToBottom(_) | FileLayout::Atom(_, _) | FileLayout::None) =
             self.get_raw(at.clone())
         {
+            if at.is_empty() {
+                return None;
+            }
             subidx = at.pop();
         }
         subidx.map(|s| (at, s))
@@ -607,6 +666,9 @@ impl FileLayout {
         while let Some(FileLayout::SideBySide(_) | FileLayout::Atom(_, _) | FileLayout::None) =
             self.get_raw(at.clone())
         {
+            if at.is_empty() {
+                return None;
+            }
             subidx = at.pop();
         }
         subidx.map(|s| (at, s))
