@@ -124,6 +124,12 @@ impl FileLayout {
         appropriate
     }
 
+    /// Work out if a certain index on a certain line is empty
+    pub fn is_empty_at(y: usize, x: usize, span: &Span) -> bool {
+        let line = Self::line(y, span);
+        !line.is_empty() && !line.iter().any(|(_, _, cols)| cols.contains(&x))
+    }
+
     /// Update the sizes of documents
     pub fn update_doc_sizes(&self, span: &Span, ed: &Editor) -> Vec<(Vec<usize>, usize, Size)> {
         let mut result = vec![];

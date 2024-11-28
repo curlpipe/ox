@@ -56,6 +56,8 @@ impl Editor {
     #[allow(clippy::similar_names)]
     pub fn render_line(&mut self, y: usize, size: Size, lua: &Lua) -> Result<String> {
         let tab_line_enabled = config!(self.config, tab_line).enabled;
+        let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
+        let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
         let mut result = String::new();
         let fcs = FileLayout::line(y, &self.render_cache.span);
         // Accounted for is used to detect gaps in lines (which should be filled with vertical bars)
@@ -66,7 +68,25 @@ impl Editor {
             if range.start != accounted_for {
                 // Discontinuity detected, fill with vertical bar!
                 let fill_length = range.start.saturating_sub(accounted_for);
-                result += &"─".repeat(fill_length);
+                result += &format!("{editor_bg}{editor_fg}");
+                for at in 0..fill_length.saturating_sub(1) {
+                    let empty_below = FileLayout::is_empty_at(
+                        y.saturating_add(1),
+                        at + accounted_for,
+                        &self.render_cache.span,
+                    );
+                    let empty_above = FileLayout::is_empty_at(
+                        y.saturating_sub(1),
+                        at + accounted_for,
+                        &self.render_cache.span,
+                    );
+                    if empty_below && empty_above && at != fill_length.saturating_sub(1) {
+                        result += "┼";
+                    } else {
+                        result += "─";
+                    }
+                }
+                result += "┤";
             }
             // Render this part of the line
             let length = range.end.saturating_sub(range.start);
@@ -88,19 +108,48 @@ impl Editor {
                     },
                 )?;
             }
-            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
-            let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
             // Insert vertical bar where appropriate
-            if c != fcs.len().saturating_sub(1) {
-                result += &format!("{editor_bg}{editor_fg}│");
+            if c == fcs.len().saturating_sub(1) {
+                accounted_for = range.end;
+            } else {
+                result += &format!("{editor_bg}{editor_fg}");
+                result += if fcs[c + 1].2.start == range.end + 1 {
+                    // There is no vertical bar after this part
+                    "│"
+                } else {
+                    // There is a vertical bar after this part
+                    "├"
+                };
+                accounted_for = range.end + 1;
             }
-            accounted_for = range.end + 1;
         }
         // Tack on any last vertical bar that is needed
         if size.w != accounted_for {
             // Discontinuity detected at the end, fill with vertical bar!
             let fill_length = (size.w + 1).saturating_sub(accounted_for);
-            result += &"─".repeat(fill_length);
+            for at in 0..fill_length {
+                let empty_below = FileLayout::is_empty_at(
+                    y.saturating_add(1),
+                    at + accounted_for,
+                    &self.render_cache.span,
+                );
+                let empty_above = FileLayout::is_empty_at(
+                    y.saturating_sub(1),
+                    at + accounted_for,
+                    &self.render_cache.span,
+                );
+                result += if at == 0 && accounted_for != 0 {
+                    "├"
+                } else if empty_below && empty_above && at != fill_length.saturating_sub(1) {
+                    "┼"
+                } else if empty_below && at != fill_length.saturating_sub(1) {
+                    "┬"
+                } else if empty_above && at != fill_length.saturating_sub(1) {
+                    "┴"
+                } else {
+                    "─"
+                };
+            }
         }
         Ok(result)
     }
