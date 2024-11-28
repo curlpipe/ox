@@ -347,9 +347,8 @@ fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
         Ok(()) => (),
         Err(OxError::AlreadyOpen { .. }) => {
             let len = ged!(&editor).files.len().saturating_sub(1);
-            ged!(mut &editor)
-                .files
-                .move_to(ged!(&editor).ptr.clone(), len);
+            let current_ptr = ged!(&editor).ptr.clone();
+            ged!(mut &editor).files.move_to(current_ptr, len);
         }
         Err(OxError::Kaolinite(kerr)) => {
             match kerr {
