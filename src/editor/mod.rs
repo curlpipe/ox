@@ -243,7 +243,6 @@ impl Editor {
     }
 
     /// Determine if a file is already open
-    /// TODO: Requires a rewrite (you shouldn't be able to open a duplicate file in another split)
     pub fn already_open(&mut self, abs_path: &str) -> Option<(Vec<usize>, usize)> {
         self.files.find(vec![], abs_path)
     }
@@ -443,7 +442,6 @@ impl Editor {
             (KMod::NONE, KCode::Backspace) => self.backspace()?,
             (KMod::NONE, KCode::Delete) => self.delete()?,
             (KMod::NONE, KCode::Enter) => self.enter()?,
-            (KMod::CONTROL, KCode::Char('1')) => panic!("{:?}", self.render_cache.span),
             _ => (),
         }
         Ok(())
