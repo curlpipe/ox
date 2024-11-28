@@ -18,7 +18,7 @@ use error::{OxError, Result};
 use events::wait_for_event;
 use kaolinite::event::{Error as KError, Event};
 use kaolinite::searching::Searcher;
-use kaolinite::utils::{get_cwd, file_or_dir};
+use kaolinite::utils::{file_or_dir, get_cwd};
 use kaolinite::Loc;
 use mlua::Error::{RuntimeError, SyntaxError};
 use mlua::{AnyUserData, FromLua, Lua, Value};
@@ -350,25 +350,22 @@ fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
             let current_ptr = ged!(&editor).ptr.clone();
             ged!(mut &editor).files.move_to(current_ptr, len);
         }
-        Err(OxError::Kaolinite(kerr)) => {
-            match kerr {
-                KError::Io(ioerr) => match ioerr.kind() {
-                    ErrorKind::NotFound => fatal_error(&format!("File '{name}' not found")),
-                    ErrorKind::PermissionDenied => {
-                        fatal_error(&format!("Permission to read file '{name}' denied"));
-                    }
-                    ErrorKind::IsADirectory =>
-                        fatal_error(&format!("'{name}' is a directory, not a file")),
-                    ErrorKind::ReadOnlyFilesystem =>
-                        fatal_error("You are on a read only file system"),
-                    ErrorKind::ResourceBusy =>
-                        fatal_error(&format!("The resource '{name}' is busy")),
-                    ErrorKind::OutOfMemory => fatal_error("You are out of memory"),
-                    kind => fatal_error(&format!("I/O error occured: {kind:?}")),
-                },
-                _ => fatal_error(&format!("Backend error opening '{name}': {kerr:?}")),
-            }
-        }
+        Err(OxError::Kaolinite(kerr)) => match kerr {
+            KError::Io(ioerr) => match ioerr.kind() {
+                ErrorKind::NotFound => fatal_error(&format!("File '{name}' not found")),
+                ErrorKind::PermissionDenied => {
+                    fatal_error(&format!("Permission to read file '{name}' denied"));
+                }
+                ErrorKind::IsADirectory => {
+                    fatal_error(&format!("'{name}' is a directory, not a file"));
+                }
+                ErrorKind::ReadOnlyFilesystem => fatal_error("You are on a read only file system"),
+                ErrorKind::ResourceBusy => fatal_error(&format!("The resource '{name}' is busy")),
+                ErrorKind::OutOfMemory => fatal_error("You are out of memory"),
+                kind => fatal_error(&format!("I/O error occured: {kind:?}")),
+            },
+            _ => fatal_error(&format!("Backend error opening '{name}': {kerr:?}")),
+        },
         result => fatal_error(&format!("Error opening file '{name}': {result:?}")),
     }
 }
