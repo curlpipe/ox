@@ -31,6 +31,9 @@ colors.tab_inactive_fg = foreground
 colors.tab_active_bg = background
 colors.tab_active_fg = pink
 
+colors.split_bg = background
+colors.split_fg = white
+
 colors.info_bg = background
 colors.info_fg = cyan
 colors.warning_bg = background

@@ -388,6 +388,9 @@ colors.tab_inactive_bg = {59, 59, 84}
 colors.tab_active_fg = {255, 255, 255}
 colors.tab_active_bg = {41, 41, 61}
 
+colors.split_bg = {41, 41, 61}
+colors.split_fg = {59, 59, 84}
+
 colors.info_fg = {99, 162, 255}
 colors.info_bg = {41, 41, 61}
 colors.warning_fg = {255, 182, 99}

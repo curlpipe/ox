@@ -35,6 +35,9 @@ colors.tab_inactive_fg = white
 colors.tab_active_bg = darkblue
 colors.tab_active_fg = white
 
+colors.split_bg = black
+colors.split_fg = darkblue
+
 colors.info_bg = black
 colors.info_fg = cyan
 colors.warning_bg = black
