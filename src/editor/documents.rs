@@ -189,19 +189,19 @@ impl FileLayout {
         match self {
             Self::None | Self::Atom(_, _) => Some(self),
             Self::SideBySide(layouts) => {
-                if idx.first().is_some() {
+                if idx.is_empty() {
+                    Some(self)
+                } else {
                     let subidx = idx.remove(0);
                     layouts.get(subidx)?.0.get_raw(idx)
-                } else {
-                    Some(self)
                 }
             }
             Self::TopToBottom(layouts) => {
-                if idx.first().is_some() {
+                if idx.is_empty() {
+                    Some(self)
+                } else {
                     let subidx = idx.remove(0);
                     layouts.get(subidx)?.0.get_raw(idx)
-                } else {
-                    Some(self)
                 }
             }
         }
@@ -209,7 +209,7 @@ impl FileLayout {
 
     /// Get the `FileLayout` at a certain index (mutable)
     pub fn get_raw_mut(&mut self, mut idx: Vec<usize>) -> Option<&mut FileLayout> {
-        if idx.first().is_none() {
+        if idx.is_empty() {
             Some(self)
         } else {
             match self {
@@ -231,11 +231,11 @@ impl FileLayout {
         match self {
             Self::None | Self::Atom(_, _) => *self = fl,
             Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
-                if idx.first().is_some() {
+                if idx.is_empty() {
+                    *self = fl;
+                } else {
                     let subidx = idx.remove(0);
                     layouts[subidx].0.set(idx, fl);
-                } else {
-                    *self = fl;
                 }
             }
         }
