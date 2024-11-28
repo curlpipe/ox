@@ -151,11 +151,12 @@ impl Editor {
 
     /// Use replace feature
     pub fn replace(&mut self, lua: &Lua) -> Result<()> {
+        let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         // Request replace information
         let target = self.prompt("Replace")?;
         let into = self.prompt("With")?;
         let mut done = false;
-        let h = size()?.h;
+        let Size { w, h } = size()?;
         // Jump to match
         let mut mtch;
         if let Some(m) = self.next_match(&target) {
@@ -172,16 +173,18 @@ impl Editor {
         self.update_highlighter();
         // Enter into the replace menu
         while !done {
-            // Render just the document part
-            self.terminal.hide_cursor();
+            // Rerender
+            self.needs_rerender = true;
             self.render(lua)?;
             // Write custom status line for the replace mode
-            self.terminal.goto(0, h);
+            self.terminal.prepare_line(h);
             display!(
                 self,
+                editor_bg,
                 Print(
                     "[<-] Previous | [->] Next | [Enter] Replace | [Tab] Replace All | [Esc] Exit"
-                )
+                ),
+                Print(" ".repeat(w.saturating_sub(76)))
             );
             // Move back to correct cursor location
             if let Some(Loc { x, y }) = self.cursor_position() {
