@@ -70,7 +70,7 @@ impl Editor {
                 MouseLocation::File(
                     idx.clone(),
                     Loc {
-                        x: clicked.x.saturating_sub(dent),
+                        x: clicked.x.saturating_sub(dent) + offset.x,
                         y: clicked.y.saturating_sub(tab) + offset.y,
                     },
                 )
