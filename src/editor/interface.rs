@@ -1,225 +1,354 @@
 /// Functions for rendering the UI
-use crate::config;
+use crate::editor::FileLayout;
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
 use crate::ui::{key_event, size, Feedback};
-use crate::{display, handle_lua_error};
+use crate::{config, display, handle_lua_error};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
     style::{Attribute, Color, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
 };
 use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, Loc, Size};
 use mlua::Lua;
+use std::ops::Range;
 use synoptic::{trim_fit, Highlighter, TokOpt};
 
 use super::Editor;
 
-impl Editor {
-    /// Render a single frame of the editor in it's current state
-    pub fn render(&mut self, lua: &Lua) -> Result<()> {
-        if !self.needs_rerender {
-            return Ok(());
-        }
-        self.needs_rerender = false;
-        self.terminal.hide_cursor();
-        let Size { w, mut h } = size()?;
-        h = h.saturating_sub(1 + self.push_down);
-        // Update the width of the document in case of update
-        let max = self.dent();
-        self.doc_mut().size.w = w.saturating_sub(max);
-        // Render the tab line
-        if config!(self.config, tab_line).enabled {
-            self.render_tab_line(lua, w)?;
-        }
-        // Run through each line of the terminal, rendering the correct line
-        self.render_document(lua, w, h)?;
-        // Leave last line for status line
-        self.render_status_line(lua, w, h)?;
-        // Render greeting if applicable
-        if self.greet {
-            self.render_greeting(lua, w, h)?;
-        }
-        // Render feedback line
-        self.render_feedback_line(w, h)?;
-        // Move cursor to the correct location and perform render
-        if let Some(Loc { x, y }) = self.doc().cursor_loc_in_screen() {
-            self.terminal.show_cursor();
-            self.terminal.goto(x + max, y + self.push_down);
-        }
-        self.terminal.flush()?;
-        Ok(())
-    }
+/// Render cache to store the results of any calculations during rendering
+#[derive(Default)]
+pub struct RenderCache {
+    pub greeting_message: (String, Vec<usize>),
+    pub span: Vec<(Vec<usize>, Range<usize>, Range<usize>)>,
+    pub help_message: Vec<(bool, String)>,
+    pub help_message_width: usize,
+    pub help_message_span: Range<usize>,
+}
 
-    /// Render the lines of the document
-    #[allow(clippy::similar_names, clippy::too_many_lines)]
-    pub fn render_document(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
-        // Get some details about the help message
-        let colors = config!(self.config, colors).highlight.to_color()?;
+impl Editor {
+    /// Update the render cache
+    #[allow(clippy::range_plus_one)]
+    pub fn update_render_cache(&mut self, lua: &Lua, size: Size) {
+        // Calculate greeting message
+        if config!(self.config, tab_line).enabled && self.greet {
+            self.render_cache.greeting_message = config!(self.config, greeting_message).render(lua);
+        }
+        // Calculate span
+        self.render_cache.span = self.files.span(vec![], size, Loc::at(0, 0));
+        // Calculate help message information
         let tab_width = config!(self.config, document).tab_width;
-        let message = config!(self.config, help_message).render(lua);
-        let max_width = message
+        self.render_cache.help_message = config!(self.config, help_message).render(lua);
+        self.render_cache.help_message_width = self
+            .render_cache
+            .help_message
             .iter()
             .map(|(_, line)| width(line, tab_width))
             .max()
             .unwrap_or(0)
             + 5;
-        let message = message
-            .iter()
-            .map(|(hl, line)| {
-                if *hl {
-                    format!("{}{line}", Fg(colors))
-                } else {
-                    line.to_owned()
-                }
-            })
-            .collect::<Vec<_>>();
-        let first_line = (h / 2).saturating_sub(message.len() / 2) + 1;
-        let start = u16::try_from(first_line).unwrap_or(u16::MAX);
-        let end = start + u16::try_from(message.len()).unwrap_or(u16::MAX);
-        // Get other information
-        let selection = self.doc().selection_loc_bound_disp();
-        // Render each line of the document
-        for y in 0..u16::try_from(h).unwrap_or(0) {
-            // Work out how long the line should be (accounting for help message if necessary)
-            let required_width =
-                if config!(self.config, help_message).enabled && (start..=end).contains(&y) {
-                    w.saturating_sub(self.dent()).saturating_sub(max_width)
-                } else {
-                    w.saturating_sub(self.dent())
-                };
-            // Go to the right location
-            self.terminal.goto(0, y as usize + self.push_down);
-            // Start colours
+        let help_length = self.render_cache.help_message.len();
+        let help_start = (size.h / 2).saturating_sub(help_length / 2) + 1;
+        let help_end = help_start + help_length;
+        self.render_cache.help_message_span = help_start..help_end + 1;
+    }
+
+    /// Render a specific line
+    #[allow(clippy::similar_names)]
+    pub fn render_line(&mut self, y: usize, size: Size, lua: &Lua) -> Result<String> {
+        let tab_line_enabled = config!(self.config, tab_line).enabled;
+        let mut result = String::new();
+        let fcs = FileLayout::line(y, &self.render_cache.span);
+        // Accounted for is used to detect gaps in lines (which should be filled with vertical bars)
+        let mut accounted_for = 0;
+        // Render each component of this line
+        for (c, (fc, rows, range)) in fcs.iter().enumerate() {
+            // Check if we have encountered an area of discontinuity in the line
+            if range.start != accounted_for {
+                // Discontinuity detected, fill with vertical bar!
+                let fill_length = range.start.saturating_sub(accounted_for);
+                result += &"─".repeat(fill_length);
+            }
+            // Render this part of the line
+            let length = range.end.saturating_sub(range.start);
+            let rel_y = y.saturating_sub(rows.start);
+            if y == rows.start && tab_line_enabled {
+                // Tab line
+                result += &self.render_tab_line(fc, lua, length)?;
+            } else if y == rows.end.saturating_sub(1) {
+                // Status line
+                result += &self.render_status_line(fc, lua, length)?;
+            } else {
+                // Line of file
+                result += &self.render_document(
+                    fc,
+                    rel_y.saturating_sub(self.push_down),
+                    Size {
+                        w: length,
+                        h: size.h,
+                    },
+                )?;
+            }
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
             let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
-            let line_number_bg = Bg(config!(self.config, colors).line_number_bg.to_color()?);
-            let line_number_fg = Fg(config!(self.config, colors).line_number_fg.to_color()?);
-            let selection_bg = Bg(config!(self.config, colors).selection_bg.to_color()?);
-            let selection_fg = Fg(config!(self.config, colors).selection_fg.to_color()?);
-            // Write line number of document
-            if config!(self.config, line_numbers).enabled {
-                let num = self.doc().line_number(y as usize + self.doc().offset.y);
-                let padding_left = " ".repeat(config!(self.config, line_numbers).padding_left);
-                let padding_right = " ".repeat(config!(self.config, line_numbers).padding_right);
-                display!(
-                    self,
-                    line_number_bg,
-                    line_number_fg,
-                    padding_left,
-                    num,
-                    padding_right,
-                    "│",
-                    editor_fg,
-                    editor_bg
-                );
-            } else {
-                display!(self, editor_bg, editor_fg);
+            // Insert vertical bar where appropriate
+            if c != fcs.len().saturating_sub(1) {
+                result += &format!("{editor_bg}{editor_fg}│");
             }
-            // Render line if it exists
-            let idx = y as usize + self.doc().offset.y;
-            if let Some(line) = self.doc().line(idx) {
-                // Reset the cache
-                let mut cache_bg = editor_bg;
-                let mut cache_fg = editor_fg;
-                // Gather the tokens
-                let tokens = self.highlighter().line(idx, &line);
-                let tokens = trim_fit(&tokens, self.doc().offset.x, required_width, tab_width);
-                let mut x_disp = self.doc().offset.x;
-                let mut x_char = self.doc().character_idx(&self.doc().offset);
-                for token in tokens {
-                    // Find out the text (and colour of that text)
-                    let (text, colour) = match token {
-                        // Non-highlighted text
-                        TokOpt::Some(text, kind) => {
-                            let colour = config!(self.config, syntax).get_theme(&kind);
-                            let colour = match colour {
-                                // Success, write token
-                                Ok(col) => Fg(col),
-                                // Failure, show error message and don't highlight this token
-                                Err(err) => {
-                                    self.feedback = Feedback::Error(err.to_string());
-                                    editor_fg
-                                }
-                            };
-                            (text, colour)
-                        }
-                        // Highlighted text
-                        TokOpt::None(text) => (text, editor_fg),
-                    };
-                    // Do the rendering (including selection where applicable)
-                    let underline = SetAttribute(Attribute::Underlined);
-                    let no_underline = SetAttribute(Attribute::NoUnderline);
-                    for c in text.chars() {
-                        let disp_loc = Loc { y: idx, x: x_disp };
-                        let char_loc = Loc { y: idx, x: x_char };
-                        let is_selected = self.doc().is_this_loc_selected_disp(disp_loc, selection);
-                        // Render the correct colour
-                        if is_selected {
-                            if cache_bg != selection_bg {
-                                display!(self, selection_bg);
-                                cache_bg = selection_bg;
-                            }
-                            if cache_fg != selection_fg {
-                                display!(self, selection_fg);
-                                cache_fg = selection_fg;
-                            }
-                        } else {
-                            if cache_bg != editor_bg {
-                                display!(self, editor_bg);
-                                cache_bg = editor_bg;
-                            }
-                            if cache_fg != colour {
-                                display!(self, colour);
-                                cache_fg = colour;
-                            }
-                        }
-                        // Render multi-cursors
-                        let multi_cursor_here = self.doc().has_cursor(char_loc).is_some();
-                        if multi_cursor_here {
-                            display!(self, underline, Bg(Color::White), Fg(Color::Black));
-                        }
-                        // Render the character
-                        display!(self, c);
-                        // Reset any multi-cursor display
-                        if multi_cursor_here {
-                            display!(self, no_underline, cache_bg, cache_fg);
-                        }
-                        x_char += 1;
-                        x_disp += width(&c.to_string(), tab_width);
-                    }
-                }
-                display!(self, editor_fg, editor_bg);
-            } else {
-                // Empty line, just pad out with spaces to prevent artefacts
-                display!(self, " ".repeat(required_width));
-            }
-            // Render help message if applicable (otherwise, just output padding to clear buffer)
-            if config!(self.config, help_message).enabled && (start..=end).contains(&y) {
-                let idx = y.saturating_sub(start);
-                let line = message
-                    .get(idx as usize)
-                    .map_or(" ".repeat(max_width), std::string::ToString::to_string);
-                display!(self, line, " ".repeat(max_width));
-            }
+            accounted_for = range.end + 1;
         }
+        // Tack on any last vertical bar that is needed
+        if size.w != accounted_for {
+            // Discontinuity detected at the end, fill with vertical bar!
+            let fill_length = (size.w + 1).saturating_sub(accounted_for);
+            result += &"─".repeat(fill_length);
+        }
+        Ok(result)
+    }
+
+    /// Render a single frame of the editor in it's current state
+    pub fn render(&mut self, lua: &Lua) -> Result<()> {
+        // Determine if re-rendering is needed
+        if !self.needs_rerender {
+            return Ok(());
+        }
+        self.needs_rerender = false;
+        // Get size information
+        let size = size()?;
+        let Size { w, mut h } = size;
+        h = h.saturating_sub(1 + self.push_down);
+        // Update the cache before rendering
+        self.update_render_cache(lua, size);
+        // Update all document's size
+        let updates = self.files.update_doc_sizes(&self.render_cache.span, self);
+        for (ptr, doc_idx, new_size) in updates {
+            let doc = &mut self.files.get_atom_mut(ptr.clone()).unwrap().0[doc_idx].doc;
+            doc.size = new_size;
+            doc.load_to(doc.offset.y + doc.size.h + 1);
+            self.update_highlighter_for(&ptr, doc_idx);
+        }
+        // Hide the cursor before rendering
+        self.terminal.hide_cursor();
+        // Render each line of the document
+        for y in 0..size.h {
+            let line = self.render_line(y, size, lua)?;
+            self.terminal.goto(0, y);
+            display!(self, line);
+        }
+        // Render the feedback line
+        self.render_feedback_line(w, h)?;
+        // Move cursor to the correct location and perform render
+        if let Some(Loc { x, y }) = self.cursor_position() {
+            self.terminal.show_cursor();
+            self.terminal.goto(x, y);
+        }
+        self.terminal.flush()?;
         Ok(())
     }
 
+    /// Function to calculate the cursor's position on screen
+    pub fn cursor_position(&self) -> Option<Loc> {
+        let Loc { x, y } = self.doc().cursor_loc_in_screen()?;
+        for (ptr, rows, cols) in &self.render_cache.span {
+            if ptr == &self.ptr {
+                return Some(Loc {
+                    x: cols.start + x + self.dent(),
+                    y: rows.start + y + self.push_down,
+                });
+            }
+        }
+        None
+    }
+
+    /// Render the lines of the document
+    #[allow(clippy::similar_names)]
+    pub fn render_document(&mut self, ptr: &Vec<usize>, y: usize, size: Size) -> Result<String> {
+        let Size { mut w, h } = size;
+        let mut result = String::new();
+        // Get various information
+        let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
+        let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+        let line_number_bg = Bg(config!(self.config, colors).line_number_bg.to_color()?);
+        let line_number_fg = Fg(config!(self.config, colors).line_number_fg.to_color()?);
+        let selection_bg = Bg(config!(self.config, colors).selection_bg.to_color()?);
+        let selection_fg = Fg(config!(self.config, colors).selection_fg.to_color()?);
+        let underline = SetAttribute(Attribute::Underlined);
+        let no_underline = SetAttribute(Attribute::NoUnderline);
+        let tab_width = config!(self.config, document).tab_width;
+        let line_numbers_enabled = config!(self.config, line_numbers).enabled;
+        let ln_pad_left = config!(self.config, line_numbers).padding_left;
+        let ln_pad_right = config!(self.config, line_numbers).padding_right;
+        let selection = self.doc().selection_loc_bound_disp();
+        let fc = self.files.get(ptr.clone()).unwrap();
+        let doc = &fc.doc;
+        let help_message_here = config!(self.config, help_message).enabled
+            && self.render_cache.help_message_span.contains(&y);
+        // Render short of the help message
+        let mut total_width = if help_message_here {
+            self.render_cache.help_message_width
+        } else {
+            0
+        };
+        // Render the line numbers if enabled
+        if line_numbers_enabled {
+            let num = doc.line_number(y + doc.offset.y);
+            let padding_left = " ".repeat(ln_pad_left);
+            let padding_right = " ".repeat(ln_pad_right);
+            result += &format!("{line_number_bg}{line_number_fg}{padding_left}{num}{padding_right}│{editor_fg}{editor_bg}");
+            total_width += ln_pad_left + ln_pad_right + width(&num, tab_width) + 1;
+        } else {
+            result += &format!("{editor_fg}{editor_bg}");
+        }
+        w = w.saturating_sub(total_width);
+        // Render the body of the document if available
+        let at_line = y + doc.offset.y;
+        if let Some(line) = doc.line(at_line) {
+            // Reset the cache
+            let mut cache_bg = editor_bg;
+            let mut cache_fg = editor_fg;
+            // Gather the tokens
+            let tokens = fc.highlighter.line(at_line, &line);
+            let tokens = trim_fit(&tokens, doc.offset.x, w, tab_width);
+            let mut x_disp = doc.offset.x;
+            let mut x_char = doc.character_idx(&doc.offset);
+            for token in tokens {
+                // Find out the text (and colour of that text)
+                let (text, colour) = self.breakdown_token(token)?;
+                // Do the rendering (including selection where applicable)
+                for c in text.chars() {
+                    let disp_loc = Loc {
+                        y: at_line,
+                        x: x_disp,
+                    };
+                    let char_loc = Loc {
+                        y: at_line,
+                        x: x_char,
+                    };
+                    // Work out selection
+                    let is_selected = &self.ptr == ptr
+                        && self.doc().is_this_loc_selected_disp(disp_loc, selection);
+                    // Render the correct colour
+                    if is_selected {
+                        if cache_bg != selection_bg {
+                            result += &selection_bg.to_string();
+                            cache_bg = selection_bg;
+                        }
+                        if cache_fg != selection_fg {
+                            result += &selection_fg.to_string();
+                            cache_fg = selection_fg;
+                        }
+                    } else {
+                        if cache_bg != editor_bg {
+                            result += &editor_bg.to_string();
+                            cache_bg = editor_bg;
+                        }
+                        if cache_fg != colour {
+                            result += &colour.to_string();
+                            cache_fg = colour;
+                        }
+                    }
+                    // Render multi-cursors
+                    let multi_cursor_here = self.doc().has_cursor(char_loc).is_some();
+                    if multi_cursor_here {
+                        result += &format!("{underline}{}{}", Bg(Color::White), Fg(Color::Black));
+                    }
+                    // Render the character
+                    result.push(c);
+                    // Reset any multi-cursor display
+                    if multi_cursor_here {
+                        result += &format!("{no_underline}{cache_bg}{cache_fg}");
+                    }
+                    x_char += 1;
+                    let c_width = width(&c.to_string(), tab_width);
+                    x_disp += c_width;
+                    total_width += c_width;
+                }
+            }
+            result += &format!("{editor_fg}{editor_bg}{cache_fg}");
+            result += &" ".repeat(w.saturating_sub(total_width));
+        } else if config!(self.config, greeting_message).enabled && self.greet {
+            // Render the greeting message (if enabled)
+            result += &self.render_greeting(y, w, h)?;
+        } else {
+            // Empty line, just pad out with spaces to prevent artefacts
+            result += &" ".repeat(w);
+        }
+        // Add on help message if applicable
+        if help_message_here {
+            result += &self.render_help_message(y)?;
+        }
+        // Send out the result
+        Ok(result)
+    }
+
+    /// Render help message
+    pub fn render_help_message(&self, y: usize) -> Result<String> {
+        let tab_width = config!(self.config, document).tab_width;
+        let colors = Fg(config!(self.config, colors).highlight.to_color()?);
+        let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+        let at = y.saturating_sub(self.render_cache.help_message_span.start);
+        let max_width = self.render_cache.help_message_width;
+        let (hl, msg) = self
+            .render_cache
+            .help_message
+            .get(at)
+            .map_or((false, " ".repeat(max_width)), |(hl, content)| {
+                (*hl, content.to_string())
+            });
+        let extra_padding = " ".repeat(max_width.saturating_sub(width(&msg, tab_width)));
+        if hl {
+            Ok(format!("{colors}{msg}{extra_padding}{editor_fg}"))
+        } else {
+            Ok(format!("{editor_fg}{msg}{extra_padding}"))
+        }
+    }
+
+    /// Take a token and try to break it down into a colour and text
+    pub fn breakdown_token(&mut self, token: TokOpt) -> Result<(String, Fg)> {
+        let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+        match token {
+            // Non-highlighted text
+            TokOpt::Some(text, kind) => {
+                let colour = config!(self.config, syntax).get_theme(&kind);
+                let colour = match colour {
+                    // Success, write token
+                    Ok(col) => Fg(col),
+                    // Failure, show error message and don't highlight this token
+                    Err(err) => {
+                        self.feedback = Feedback::Error(err.to_string());
+                        editor_fg
+                    }
+                };
+                Ok((text, colour))
+            }
+            // Highlighted text
+            TokOpt::None(text) => Ok((text, editor_fg)),
+        }
+    }
+
     /// Get list of tabs
-    pub fn get_tab_parts(&mut self, lua: &Lua, w: usize) -> (Vec<String>, usize, usize) {
+    pub fn get_tab_parts(
+        &mut self,
+        ptr: &[usize],
+        lua: &Lua,
+        w: usize,
+    ) -> (Vec<String>, usize, usize) {
         let mut headers: Vec<String> = vec![];
         let mut idx = 0;
         let mut length = 0;
         let mut offset = 0;
         let tab_line = config!(self.config, tab_line);
-        for (c, file) in self.files.iter().enumerate() {
+        for (c, file) in self.files.get_all(ptr.to_vec()).iter().enumerate() {
             let render = tab_line.render(lua, file, &mut self.feedback);
             length += width(&render, 4) + 1;
             headers.push(render);
-            if c == self.ptr {
+            let ptr = self
+                .files
+                .get_atom(ptr.to_owned())
+                .map_or(0, |(_, ptr)| ptr);
+            if c == ptr {
                 idx = headers.len().saturating_sub(1);
             }
-            while c == self.ptr && length > w && headers.len() > 1 {
+            while c == ptr && length > w && headers.len() > 1 {
                 headers.remove(0);
                 length = length.saturating_sub(width(&headers[0], 4) + 1);
                 idx = headers.len().saturating_sub(1);
@@ -231,71 +360,59 @@ impl Editor {
 
     /// Render the tab line at the top of the document
     #[allow(clippy::similar_names)]
-    pub fn render_tab_line(&mut self, lua: &Lua, w: usize) -> Result<()> {
-        self.terminal.goto(0_usize, 0_usize);
+    pub fn render_tab_line(&mut self, ptr: &[usize], lua: &Lua, w: usize) -> Result<String> {
         let tab_inactive_bg = Bg(config!(self.config, colors).tab_inactive_bg.to_color()?);
         let tab_inactive_fg = Fg(config!(self.config, colors).tab_inactive_fg.to_color()?);
         let tab_active_bg = Bg(config!(self.config, colors).tab_active_bg.to_color()?);
         let tab_active_fg = Fg(config!(self.config, colors).tab_active_fg.to_color()?);
-        let (tabs, idx, _) = self.get_tab_parts(lua, w);
-        display!(self, tab_inactive_fg, tab_inactive_bg);
+        let tab_width = config!(self.config, document).tab_width;
+        let mut current_width = 0;
+        let (tabs, idx, _) = self.get_tab_parts(ptr, lua, w);
+        let mut result = format!("{tab_inactive_fg}{tab_inactive_bg}");
         for (c, header) in tabs.iter().enumerate() {
             if c == idx {
-                display!(
-                    self,
-                    tab_active_bg,
-                    tab_active_fg,
+                result += &format!(
+                    "{tab_active_bg}{tab_active_fg}{}{header}{}{tab_inactive_fg}{tab_inactive_bg}│",
                     SetAttribute(Attribute::Bold),
-                    header,
                     SetAttribute(Attribute::Reset),
-                    tab_inactive_fg,
-                    tab_inactive_bg,
-                    "│"
                 );
             } else {
-                display!(self, header, "│");
+                result += &format!("{header}│");
             }
+            current_width += width(header, tab_width) + 1;
         }
-        display!(self, " ".to_string().repeat(w));
-        Ok(())
+        result += &" ".to_string().repeat(w.saturating_sub(current_width));
+        Ok(result)
     }
 
     /// Render the status line at the bottom of the document
     #[allow(clippy::similar_names)]
-    pub fn render_status_line(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
-        self.terminal.goto(0, h + self.push_down);
+    pub fn render_status_line(&mut self, ptr: &[usize], lua: &Lua, w: usize) -> Result<String> {
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
         let status_bg = Bg(config!(self.config, colors).status_bg.to_color()?);
         let status_fg = Fg(config!(self.config, colors).status_fg.to_color()?);
-        match config!(self.config, status_line).render(self, lua, w) {
+        let mut result = String::new();
+        result += &format!("{status_bg}{status_fg}");
+        match config!(self.config, status_line).render(ptr, self, lua, w) {
             Ok(content) => {
-                display!(
-                    self,
-                    status_bg,
-                    status_fg,
-                    SetAttribute(Attribute::Bold),
-                    content,
-                    SetAttribute(Attribute::Reset),
-                    editor_fg,
-                    editor_bg
-                );
+                if content.is_empty() {
+                    result += &" ".repeat(w);
+                } else {
+                    result += &format!(
+                        "{}{content}{}",
+                        SetAttribute(Attribute::Bold),
+                        SetAttribute(Attribute::Reset),
+                    );
+                }
             }
             Err(lua_error) => {
-                display!(
-                    self,
-                    status_bg,
-                    status_fg,
-                    SetAttribute(Attribute::Bold),
-                    " ".repeat(w),
-                    SetAttribute(Attribute::Reset),
-                    editor_fg,
-                    editor_bg
-                );
+                result += &" ".repeat(w);
                 handle_lua_error("status_line", Err(lua_error), &mut self.feedback);
             }
         }
-        Ok(())
+        result += &format!("{editor_fg}{editor_bg}");
+        Ok(result)
     }
 
     /// Render the feedback line
@@ -306,17 +423,27 @@ impl Editor {
         Ok(())
     }
 
-    /// Render the help message
-    fn render_greeting(&mut self, lua: &Lua, w: usize, h: usize) -> Result<()> {
+    /// Render the greeting message
+    fn render_greeting(&mut self, y: usize, w: usize, h: usize) -> Result<String> {
+        // Produce the greeting message
         let colors = config!(self.config, colors);
-        let greeting = config!(self.config, greeting_message).render(lua, &colors)?;
-        let message: Vec<&str> = greeting.split('\n').collect();
-        for (c, line) in message.iter().enumerate().take(h.saturating_sub(h / 4)) {
-            self.terminal.goto(4, h / 4 + c + 1);
-            let content = alinio::align::center(line, w.saturating_sub(4)).unwrap_or_default();
-            display!(self, content);
+        let highlight = Fg(colors.highlight.to_color()?).to_string();
+        let editor_fg = Fg(colors.editor_fg.to_color()?).to_string();
+        let (message, highlights) = &self.render_cache.greeting_message;
+        let message: Vec<&str> = message.split('\n').collect();
+        // Select the correct line
+        let greeting_span = (h / 4)..(h / 4 + message.len());
+        let line = if greeting_span.contains(&y) {
+            message[y.saturating_sub(h / 4)]
+        } else {
+            ""
+        };
+        let mut content = alinio::align::center(line, w).unwrap_or_default();
+        if highlights.contains(&y.saturating_sub(h / 4)) {
+            content = format!("{highlight}{content}{editor_fg}");
         }
-        Ok(())
+        // Output
+        Ok(content)
     }
 
     /// Display a prompt in the document
@@ -507,15 +634,23 @@ impl Editor {
 
     /// Append any missed lines to the syntax highlighter
     pub fn update_highlighter(&mut self) {
+        if let Some((_, doc_idx)) = self.files.get_atom(self.ptr.clone()) {
+            self.update_highlighter_for(&self.ptr.clone(), doc_idx);
+        }
+    }
+
+    /// Update highlighter of a certain document
+    pub fn update_highlighter_for(&mut self, ptr: &[usize], doc: usize) {
+        let percieved = self.highlighter_for(ptr.to_owned(), doc).line_ref.len();
         if self.active {
-            let actual = self.files.get(self.ptr).map_or(0, |d| d.doc.info.loaded_to);
-            let percieved = self.highlighter().line_ref.len();
-            if percieved < actual {
-                let diff = actual.saturating_sub(percieved);
-                for i in 0..diff {
-                    let file = &mut self.files[self.ptr];
-                    let line = &file.doc.lines[percieved + i];
-                    file.highlighter.append(line);
+            if let Some((ref mut fcs, _)) = self.files.get_atom_mut(ptr.to_owned()) {
+                let actual = fcs[doc].doc.info.loaded_to;
+                if percieved < actual {
+                    let diff = actual.saturating_sub(percieved);
+                    for i in 0..diff {
+                        let line = fcs[doc].doc.lines[percieved + i].clone();
+                        fcs[doc].highlighter.append(&line);
+                    }
                 }
             }
         }
@@ -523,26 +658,45 @@ impl Editor {
 
     /// Returns a highlighter at a certain index
     pub fn get_highlighter(&mut self, idx: usize) -> &mut Highlighter {
-        &mut self.files.get_mut(idx).unwrap().highlighter
+        &mut self.files.get_atom_mut(self.ptr.clone()).unwrap().0[idx].highlighter
     }
 
     /// Gets a mutable reference to the current document
     pub fn highlighter(&mut self) -> &mut Highlighter {
-        &mut self.files.get_mut(self.ptr).unwrap().highlighter
+        &mut self.files.get_mut(self.ptr.clone()).unwrap().highlighter
+    }
+
+    /// Gets a mutable reference to the current document
+    pub fn highlighter_for(&self, ptr: Vec<usize>, doc: usize) -> &Highlighter {
+        &self.files.get_atom(ptr).unwrap().0[doc].highlighter
     }
 
     /// Reload the whole document in the highlighter
     pub fn reload_highlight(&mut self) {
-        let file = &mut self.files[self.ptr];
-        file.highlighter.run(&file.doc.lines);
+        if let Some(file) = self.files.get_mut(self.ptr.clone()) {
+            file.highlighter.run(&file.doc.lines);
+        }
     }
 
     /// Work out how much to push the document to the right (to make way for line numbers)
     pub fn dent(&self) -> usize {
+        if let Some((_, doc)) = self.files.get_atom(self.ptr.clone()) {
+            self.dent_for(&self.ptr, doc)
+        } else {
+            0
+        }
+    }
+
+    /// Work out how much to push the document to the right (to make way for line numbers)
+    pub fn dent_for(&self, at: &[usize], doc: usize) -> usize {
         if config!(self.config, line_numbers).enabled {
             let padding_left = config!(self.config, line_numbers).padding_left;
             let padding_right = config!(self.config, line_numbers).padding_right;
-            self.doc().len_lines().to_string().len() + 1 + padding_left + padding_right
+            if let Some((fcs, _)) = self.files.get_atom(at.to_owned()) {
+                fcs[doc].doc.len_lines().to_string().len() + 1 + padding_left + padding_right
+            } else {
+                0
+            }
         } else {
             0
         }

@@ -59,7 +59,6 @@ fn main() {
         panic!("{err:?}");
     }
 }
-
 /// Run the editor
 #[allow(clippy::too_many_lines)]
 fn run(cli: &CommandLineInterface) -> Result<()> {
@@ -132,7 +131,8 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
             let mut highlighter = file_type.get_highlighter(&ged!(&editor).config, tab_width);
             highlighter.run(&ged!(mut &editor).get_doc(c).lines);
             let mut editor = ged!(mut &editor);
-            let file = editor.files.get_mut(c).unwrap();
+            let current_ptr = editor.ptr.clone();
+            let file = &mut editor.files.get_atom_mut(current_ptr).unwrap().0[c];
             file.highlighter = highlighter;
             file.file_type = Some(file_type);
         }
@@ -140,7 +140,8 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         ged!(mut &editor).next();
     }
     // Reset the pointer back to the first document
-    ged!(mut &editor).ptr = 0;
+    let current_ptr = ged!(mut &editor).ptr.clone();
+    ged!(mut &editor).files.move_to(current_ptr, 0);
 
     // Handle stdin if applicable
     if cli.flags.stdin {
@@ -148,7 +149,8 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         let mut holder = ged!(mut &editor);
         holder.blank()?;
         let this_doc = holder.doc_len().saturating_sub(1);
-        let doc = holder.get_doc(this_doc);
+        let current_ptr = holder.ptr.clone();
+        let doc = &mut holder.files.get_atom_mut(current_ptr).unwrap().0[this_doc].doc;
         doc.exe(Event::Insert(Loc { x: 0, y: 0 }, stdin))?;
         doc.load_to(doc.size.h);
         let lines = doc.lines.clone();
@@ -345,7 +347,8 @@ fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
         Ok(()) => (),
         Err(OxError::AlreadyOpen { .. }) => {
             let len = ged!(&editor).files.len().saturating_sub(1);
-            ged!(mut &editor).ptr = len;
+            let current_ptr = ged!(&editor).ptr.clone();
+            ged!(mut &editor).files.move_to(current_ptr, len);
         }
         Err(OxError::Kaolinite(kerr)) => {
             match kerr {

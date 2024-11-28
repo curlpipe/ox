@@ -33,9 +33,10 @@ impl Editor {
         } else {
             let loc = self.doc().char_loc();
             self.exe(Event::Insert(loc, ch.to_string()))?;
-            let file = &mut self.files[self.ptr];
-            if !file.doc.info.read_only {
-                file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+            if let Some(file) = self.files.get_mut(self.ptr.clone()) {
+                if !file.doc.info.read_only {
+                    file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+                }
             }
         }
         Ok(())
@@ -51,12 +52,13 @@ impl Editor {
             // Enter pressed in the start, middle or end of the line
             let loc = self.doc().char_loc();
             self.exe(Event::SplitDown(loc))?;
-            let file = &mut self.files[self.ptr];
-            if !file.doc.info.read_only {
-                let line = &file.doc.lines[loc.y + 1];
-                file.highlighter.insert_line(loc.y + 1, line);
-                let line = &file.doc.lines[loc.y];
-                file.highlighter.edit(loc.y, line);
+            if let Some(file) = self.files.get_mut(self.ptr.clone()) {
+                if !file.doc.info.read_only {
+                    let line = &file.doc.lines[loc.y + 1];
+                    file.highlighter.insert_line(loc.y + 1, line);
+                    let line = &file.doc.lines[loc.y];
+                    file.highlighter.edit(loc.y, line);
+                }
             }
         }
         Ok(())
@@ -78,15 +80,15 @@ impl Editor {
             // Backspace was pressed on the start of the line, move line to the top
             self.new_row()?;
             let mut loc = self.doc().char_loc();
-            let file = &self.files[self.ptr];
+            let file = self.files.get_mut(self.ptr.clone()).unwrap();
             if !file.doc.info.read_only {
                 self.highlighter().remove_line(loc.y);
             }
             loc.y = loc.y.saturating_sub(1);
-            let file = &mut self.files[self.ptr];
+            let file = self.files.get_mut(self.ptr.clone()).unwrap();
             loc.x = file.doc.line(loc.y).unwrap().chars().count();
             self.exe(Event::SpliceUp(loc))?;
-            let file = &mut self.files[self.ptr];
+            let file = self.files.get_mut(self.ptr.clone()).unwrap();
             let line = &file.doc.lines[loc.y];
             if !file.doc.info.read_only {
                 file.highlighter.edit(loc.y, line);
@@ -101,7 +103,7 @@ impl Editor {
                         y: self.doc().loc().y,
                     };
                     self.exe(Event::Delete(loc, ch.to_string()))?;
-                    let file = &mut self.files[self.ptr];
+                    let file = self.files.get_mut(self.ptr.clone()).unwrap();
                     if !file.doc.info.read_only {
                         file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
                     }
@@ -121,9 +123,10 @@ impl Editor {
                     y: self.doc().loc().y,
                 };
                 self.exe(Event::Delete(loc, ch.to_string()))?;
-                let file = &mut self.files[self.ptr];
-                if !file.doc.info.read_only {
-                    file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+                if let Some(file) = self.files.get_mut(self.ptr.clone()) {
+                    if !file.doc.info.read_only {
+                        file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+                    }
                 }
             }
         }

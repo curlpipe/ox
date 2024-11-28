@@ -1,10 +1,10 @@
 /// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
-use crate::editor::Editor;
+use crate::editor::{Editor, FileContainer, FileLayout};
 use crate::ui::Feedback;
 use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
-use kaolinite::{Loc, Size};
+use kaolinite::Loc;
 use mlua::prelude::*;
 
 impl LuaUserData for Editor {
@@ -46,13 +46,20 @@ impl LuaUserData for Editor {
             }
         });
         fields.add_field_method_get("version", |_, _| Ok(VERSION));
-        fields.add_field_method_get("current_document_id", |_, editor| Ok(editor.ptr));
-        fields.add_field_method_get("document_count", |_, editor| Ok(editor.files.len()));
+        fields.add_field_method_get("current_document_id", |_, editor| {
+            Ok(editor.files.get_atom(editor.ptr.clone()).map(|a| a.1))
+        });
+        fields.add_field_method_get("document_count", |_, editor| {
+            Ok(editor.files.get_all(editor.ptr.clone()).len())
+        });
         fields.add_field_method_get("document_type", |_, editor| {
-            Ok(editor.files[editor.ptr]
+            Ok(editor
+                .files
+                .get(editor.ptr.clone())
+                .unwrap_or(&FileContainer::default())
                 .file_type
                 .clone()
-                .map_or("Unknown".to_string(), |t| t.name))
+                .map_or("Unknown".to_string(), |ft| ft.name))
         });
         fields.add_field_method_get("file_name", |_, editor| {
             if let Some(doc) = editor.try_doc() {
@@ -473,7 +480,7 @@ impl LuaUserData for Editor {
             Ok(())
         });
         methods.add_method_mut("move_to_document", |_, editor, id: usize| {
-            editor.ptr = id;
+            editor.files.move_to(editor.ptr.clone(), id);
             Ok(())
         });
         methods.add_method_mut("new", |_, editor, ()| {
@@ -532,12 +539,93 @@ impl LuaUserData for Editor {
             }
             Ok(())
         });
+        // Split management
+        methods.add_method_mut("open_split_up", |_, editor, file: String| {
+            if let Ok(fc) = editor.open_fc(&file) {
+                editor.ptr = editor
+                    .files
+                    .open_up(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("open_split_down", |_, editor, file: String| {
+            if let Ok(fc) = editor.open_fc(&file) {
+                editor.ptr = editor
+                    .files
+                    .open_down(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("open_split_left", |_, editor, file: String| {
+            if let Ok(fc) = editor.open_fc(&file) {
+                editor.ptr = editor
+                    .files
+                    .open_left(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("open_split_right", |_, editor, file: String| {
+            if let Ok(fc) = editor.open_fc(&file) {
+                editor.ptr = editor
+                    .files
+                    .open_right(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut(
+            "grow_split",
+            |_, editor, (amount, direction): (f64, String)| {
+                match direction.as_str() {
+                    "width" => editor.files.grow_width(&editor.ptr, amount),
+                    "height" => editor.files.grow_height(&editor.ptr, amount),
+                    _ => (),
+                }
+                Ok(())
+            },
+        );
+        methods.add_method_mut(
+            "shrink_split",
+            |_, editor, (amount, direction): (f64, String)| {
+                match direction.as_str() {
+                    "width" => editor.files.shrink_width(&editor.ptr, amount),
+                    "height" => editor.files.shrink_height(&editor.ptr, amount),
+                    _ => (),
+                }
+                Ok(())
+            },
+        );
+        methods.add_method_mut("focus_split_up", |_, editor, ()| {
+            editor.ptr = FileLayout::move_up(editor.ptr.clone(), &editor.render_cache.span);
+            Ok(())
+        });
+        methods.add_method_mut("focus_split_down", |_, editor, ()| {
+            editor.ptr = FileLayout::move_down(editor.ptr.clone(), &editor.render_cache.span);
+            Ok(())
+        });
+        methods.add_method_mut("focus_split_left", |_, editor, ()| {
+            editor.ptr = FileLayout::move_left(editor.ptr.clone(), &editor.render_cache.span);
+            Ok(())
+        });
+        methods.add_method_mut("focus_split_right", |_, editor, ()| {
+            editor.ptr = FileLayout::move_right(editor.ptr.clone(), &editor.render_cache.span);
+            Ok(())
+        });
         // Searching and replacing
         methods.add_method_mut("search", |lua, editor, ()| {
             if let Err(err) = editor.search(lua) {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
+            editor.needs_rerender = true;
+            let _ = editor.render(lua);
             Ok(())
         });
         methods.add_method_mut("replace", |lua, editor, ()| {
@@ -545,6 +633,8 @@ impl LuaUserData for Editor {
                 editor.feedback = Feedback::Error(err.to_string());
             }
             editor.update_highlighter();
+            editor.needs_rerender = true;
+            let _ = editor.render(lua);
             Ok(())
         });
         methods.add_method_mut("move_next_match", |_, editor, query: String| {
@@ -569,8 +659,10 @@ impl LuaUserData for Editor {
             if let Some(file_type) = doc.file_types.get_name(&name) {
                 let mut highlighter = file_type.get_highlighter(&editor.config, 4);
                 highlighter.run(&editor.doc().lines);
-                editor.files[editor.ptr].highlighter = highlighter;
-                editor.files[editor.ptr].file_type = Some(file_type);
+                if let Some(file) = editor.files.get_mut(editor.ptr.clone()) {
+                    file.highlighter = highlighter;
+                    file.file_type = Some(file_type);
+                }
             } else {
                 editor.feedback = Feedback::Error(format!("Invalid file type: {name}"));
             }
@@ -584,38 +676,18 @@ impl LuaUserData for Editor {
             let _ = editor.render(lua);
             Ok(())
         });
-        methods.add_method_mut("rerender_feedback_line", |_, editor, ()| {
+        methods.add_method_mut("rerender_feedback_line", |lua, editor, ()| {
+            // Force a re-render
+            editor.needs_rerender = true;
             // If you can't render the editor, you're pretty much done for anyway
-            let Size { w, mut h } = crate::ui::size().unwrap_or(Size { w: 0, h: 0 });
-            h = h.saturating_sub(1 + editor.push_down);
-            editor.terminal.hide_cursor();
-            // Apply render and restore cursor
-            if editor.try_doc().is_some() {
-                let _ = editor.render_feedback_line(w, h);
-            }
-            if let Some(doc) = editor.try_doc() {
-                let max = editor.dent();
-                if let Some(Loc { x, y }) = doc.cursor_loc_in_screen() {
-                    editor.terminal.goto(x + max, y + editor.push_down);
-                }
-            }
-            editor.terminal.show_cursor();
-            let _ = editor.terminal.flush();
+            let _ = editor.render(lua);
             Ok(())
         });
         methods.add_method_mut("rerender_status_line", |lua, editor, ()| {
+            // Force a re-render
+            editor.needs_rerender = true;
             // If you can't render the editor, you're pretty much done for anyway
-            let Size { w, mut h } = crate::ui::size().unwrap_or(Size { w: 0, h: 0 });
-            h = h.saturating_sub(1 + editor.push_down);
-            editor.terminal.hide_cursor();
-            let _ = editor.render_status_line(lua, w, h);
-            // Apply render and restore cursor
-            let max = editor.dent();
-            if let Some(Loc { x, y }) = editor.doc().cursor_loc_in_screen() {
-                editor.terminal.goto(x + max, y + editor.push_down);
-            }
-            editor.terminal.show_cursor();
-            let _ = editor.terminal.flush();
+            let _ = editor.render(lua);
             Ok(())
         });
         // Miscellaneous

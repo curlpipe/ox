@@ -308,6 +308,46 @@ commands = {
         editor:reload_config()
         editor:display_info("Configuration file reloaded")
     end,
+    ["split"] = function(arguments)
+        local file = arguments[2]
+        local result = false
+        if arguments[1] == "left" then
+            result = editor:open_split_left(file)
+        elseif arguments[1] == "right" then
+            result = editor:open_split_right(file)
+        elseif arguments[1] == "up" then
+            result = editor:open_split_up(file)
+        elseif arguments[1] == "down" then
+            result = editor:open_split_down(file)
+        elseif arguments[1] == "grow" then
+            result = true
+            local amount = tonumber(arguments[3]) or 0.15
+            editor:grow_split(amount, arguments[2])
+        elseif arguments[1] == "shrink" then
+            result = true
+            local amount = tonumber(arguments[3]) or 0.15
+            editor:shrink_split(amount, arguments[2])
+        elseif arguments[1] == "focus" then
+            result = true
+            if arguments[2] == "up" then
+                editor:focus_split_up()
+            elseif arguments[2] == "down" then
+                editor:focus_split_down()
+            elseif arguments[2] == "left" then
+                editor:focus_split_left()
+            elseif arguments[2] == "right" then
+                editor:focus_split_right()
+            else
+                editor:display_error("Unknown direction for split focus")
+            end
+        else
+            result = true
+            editor:display_error(tostring(arguments[1]) .. " is not a valid split command")
+        end
+        if not result then
+            editor:display_error("Failed to open file, please check your path")
+        end
+    end,
     ["macro"] = function(arguments)
         if arguments[1] == "record" then
             editor:macro_record_start()
