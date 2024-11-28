@@ -13,6 +13,8 @@ use std::io::{stdout, Write};
 pub const TROPICAL: &str = include_str!("../../plugins/themes/tropical.lua");
 pub const GALAXY: &str = include_str!("../../plugins/themes/galaxy.lua");
 pub const TRANSPARENT: &str = include_str!("../../plugins/themes/transparent.lua");
+pub const DEFAULT16: &str = include_str!("../../plugins/themes/default16.lua");
+pub const OMNI: &str = include_str!("../../plugins/themes/omni.lua");
 
 #[macro_export]
 macro_rules! gets {
@@ -104,6 +106,8 @@ pub enum Theme {
     Galaxy,
     Transparent,
     Default,
+    Default16,
+    Omni,
 }
 
 impl Theme {
@@ -112,6 +116,8 @@ impl Theme {
             Self::Tropical => TROPICAL,
             Self::Galaxy => GALAXY,
             Self::Transparent => TRANSPARENT,
+            Self::Omni => OMNI,
+            Self::Default16 => DEFAULT16,
             Self::Default => "",
         }
         .to_string()
@@ -338,14 +344,23 @@ impl Assistant {
         Self::demonstrate_themes()?;
         let choice = Self::options(
             "Please choose which theme you'd like",
-            &["default", "tropical", "galaxy", "transparent"],
+            &[
+                "default",
+                "tropical",
+                "galaxy",
+                "transparent",
+                "default16",
+                "omni",
+            ],
             "default",
         );
         result.theme = match choice.as_str() {
             "default" => Theme::Default,
+            "default16" => Theme::Default16,
             "tropical" => Theme::Tropical,
             "galaxy" => Theme::Galaxy,
             "transparent" => Theme::Transparent,
+            "omni" => Theme::Omni,
             _ => unreachable!(),
         };
         Ok(())
@@ -529,9 +544,10 @@ impl Assistant {
     pub fn demonstrate_themes() -> Result<()> {
         println!(
             "{}",
-            Self::demonstrate_theme_row(&["default", "transparent"])?
+            Self::demonstrate_theme_row(&["default", "default16"])?
         );
         println!("{}", Self::demonstrate_theme_row(&["tropical", "galaxy"])?);
+        println!("{}", Self::demonstrate_theme_row(&["transparent", "omni"])?);
         Ok(())
     }
 
@@ -544,6 +560,8 @@ impl Assistant {
                 "tropical" => TROPICAL,
                 "galaxy" => GALAXY,
                 "transparent" => TRANSPARENT,
+                "default16" => DEFAULT16,
+                "omni" => OMNI,
                 _ => unreachable!(),
             };
             let theme = Self::demonstrate_theme(name, code)?
