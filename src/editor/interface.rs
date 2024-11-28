@@ -120,10 +120,11 @@ impl Editor {
         self.update_render_cache(lua, size);
         // Update all document's size
         let updates = self.files.update_doc_sizes(&self.render_cache.span, self);
-        for (ptr, doc, new_size) in updates {
-            self.files.get_atom_mut(ptr.clone()).unwrap().0[doc]
-                .doc
-                .size = new_size;
+        for (ptr, doc_idx, new_size) in updates {
+            let doc = &mut self.files.get_atom_mut(ptr.clone()).unwrap().0[doc_idx].doc;
+            doc.size = new_size;
+            doc.load_to(doc.offset.y + doc.size.h + 1);
+            self.update_highlighter_for(&ptr, doc_idx);
         }
         // Hide the cursor before rendering
         self.terminal.hide_cursor();
@@ -633,18 +634,22 @@ impl Editor {
 
     /// Append any missed lines to the syntax highlighter
     pub fn update_highlighter(&mut self) {
+        if let Some((_, doc_idx)) = self.files.get_atom(self.ptr.clone()) {
+            self.update_highlighter_for(&self.ptr.clone(), doc_idx);
+        }
+    }
+
+    /// Update highlighter of a certain document
+    pub fn update_highlighter_for(&mut self, ptr: &[usize], doc: usize) {
+        let percieved = self.highlighter_for(ptr.to_owned(), doc).line_ref.len();
         if self.active {
-            let actual = self
-                .files
-                .get(self.ptr.clone())
-                .map_or(0, |fc| fc.doc.info.loaded_to);
-            let percieved = self.highlighter().line_ref.len();
-            if percieved < actual {
-                let diff = actual.saturating_sub(percieved);
-                for i in 0..diff {
-                    if let Some(file) = self.files.get_mut(self.ptr.clone()) {
-                        let line = &file.doc.lines[percieved + i];
-                        file.highlighter.append(line);
+            if let Some((ref mut fcs, _)) = self.files.get_atom_mut(ptr.to_owned()) {
+                let actual = fcs[doc].doc.info.loaded_to;
+                if percieved < actual {
+                    let diff = actual.saturating_sub(percieved);
+                    for i in 0..diff {
+                        let line = fcs[doc].doc.lines[percieved + i].clone();
+                        fcs[doc].highlighter.append(&line);
                     }
                 }
             }
@@ -659,6 +664,11 @@ impl Editor {
     /// Gets a mutable reference to the current document
     pub fn highlighter(&mut self) -> &mut Highlighter {
         &mut self.files.get_mut(self.ptr.clone()).unwrap().highlighter
+    }
+
+    /// Gets a mutable reference to the current document
+    pub fn highlighter_for(&self, ptr: Vec<usize>, doc: usize) -> &Highlighter {
+        &self.files.get_atom(ptr).unwrap().0[doc].highlighter
     }
 
     /// Reload the whole document in the highlighter

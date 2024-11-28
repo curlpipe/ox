@@ -415,7 +415,7 @@ impl Editor {
         // Pass event down to special handlers
         match event {
             CEvent::Key(key) => self.handle_key_event(key.modifiers, key.code)?,
-            CEvent::Resize(w, h) => self.handle_resize(w, h),
+            CEvent::Resize(_, _) => self.handle_resize(lua)?,
             CEvent::Mouse(mouse_event) => self.handle_mouse_event(lua, mouse_event),
             CEvent::Paste(text) => self.handle_paste(&text)?,
             _ => (),
@@ -448,13 +448,9 @@ impl Editor {
     }
 
     /// Handle resize
-    pub fn handle_resize(&mut self, w: u16, h: u16) {
-        // Ensure all lines in viewport are loaded
-        let max = self.dent();
-        self.doc_mut().size.w = w.saturating_sub(u16::try_from(max).unwrap_or(u16::MAX)) as usize;
-        self.doc_mut().size.h = h.saturating_sub(2) as usize;
-        let max = self.doc().offset.y + self.doc().size.h;
-        self.doc_mut().load_to(max + 1);
+    pub fn handle_resize(&mut self, lua: &Lua) -> Result<()> {
+        // Rerender the editor (that'll handle everything with the new size)
+        self.render(lua)
     }
 
     /// Handle paste
