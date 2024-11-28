@@ -1,5 +1,5 @@
 --[[
-Git v0.4
+Git v0.5
 
 A plug-in for git integration that provides features to: 
  - Choose which files to add to a commit
@@ -14,6 +14,7 @@ git = {
     status = {},
     icons = (git or { icons = false }).icons,
     has_git = shell:output("git --version"):find("git version"),
+    last_update = nil,
 }
 
 function git:ready()
@@ -26,30 +27,35 @@ function git:repo_path()
 end
 
 function git:refresh_status()
-    local repo_path = self:repo_path()
-    local status_output = shell:output("git status --porcelain")
-    local status = {}
-    for line in status_output:gmatch("[^\r\n]+") do
-        local staged_status = line:sub(1, 1)
-        local unstaged_status = line:sub(2, 2)
-        local file_name = repo_path .. "/" .. line:sub(4)
-        local staged
-        local modified
-        if self.icons then
-            staged = "󰸩 "
-            modified = "󱇨 "
-        else
-            staged = "S"
-            modified = "M"
+    local duration_since_update = os.time(os.date("*t")) - os.time(self.last_update)
+    -- Only do a refresh every 10 seconds maximum
+    if self.last_update == nil or duration_since_update > 10 then
+        local repo_path = self:repo_path()
+        local status_output = shell:output("git status --porcelain")
+        local status = {}
+        for line in status_output:gmatch("[^\r\n]+") do
+            local staged_status = line:sub(1, 1)
+            local unstaged_status = line:sub(2, 2)
+            local file_name = repo_path .. "/" .. line:sub(4)
+            local staged
+            local modified
+            if self.icons then
+                staged = "󰸩 "
+                modified = "󱇨 "
+            else
+                staged = "S"
+                modified = "M"
+            end
+            -- M = modified, S = staged
+            if staged_status ~= " " and staged_status ~= "?" then
+                status[file_name] = staged
+            elseif unstaged_status ~= " " or unstaged_status == "?" then
+                status[file_name] = modified
+            end
         end
-        -- M = modified, S = staged
-        if staged_status ~= " " and staged_status ~= "?" then
-            status[file_name] = staged
-        elseif unstaged_status ~= " " or unstaged_status == "?" then
-            status[file_name] = modified
-        end
+        self.status = status
+        self.last_update = os.date("*t")
     end
-    self.status = status
 end
 
 function git:get_stats()
@@ -118,6 +124,12 @@ end
 
 -- Initial status grab
 after(0, "git_init")
+
+-- When the user saves a document, force a refresh
+event_mapping["ctrl_s"] = function()
+    git.last_update = nil
+    git:refresh_status()
+end
 
 -- Export the git command
 commands["git"] = function(args)
@@ -194,6 +206,7 @@ commands["git"] = function(args)
             end
         end
         -- Refresh state after a git command
+        git.last_update = nil
         git:refresh_status()
     end
 end
