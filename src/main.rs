@@ -18,7 +18,7 @@ use error::{OxError, Result};
 use events::wait_for_event;
 use kaolinite::event::{Error as KError, Event};
 use kaolinite::searching::Searcher;
-use kaolinite::utils::{file_or_dir, get_cwd};
+use kaolinite::utils::{get_cwd, file_or_dir};
 use kaolinite::Loc;
 use mlua::Error::{RuntimeError, SyntaxError};
 use mlua::{AnyUserData, FromLua, Lua, Value};
@@ -339,7 +339,7 @@ fn handle_lua_error(key_str: &str, error: RResult<(), mlua::Error>, feedback: &m
 
 /// Handle opening files
 fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
-    // TEMPORARY WORK-AROUND: Delete after Rust 1.83
+    // Block any directories from being opened (we'll wait until file tree is implemented)
     if file_or_dir(name) == "directory" {
         fatal_error(&format!("'{name}' is a directory, not a file"));
     }
@@ -357,15 +357,12 @@ fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
                     ErrorKind::PermissionDenied => {
                         fatal_error(&format!("Permission to read file '{name}' denied"));
                     }
-                    /*
-                    // NOTE: Uncomment when Rust 1.83 becomes stable (io_error_more will be stabilised)
                     ErrorKind::IsADirectory =>
                         fatal_error(&format!("'{name}' is a directory, not a file")),
                     ErrorKind::ReadOnlyFilesystem =>
-                        fatal_error(&format!("You are on a read only file system")),
+                        fatal_error("You are on a read only file system"),
                     ErrorKind::ResourceBusy =>
                         fatal_error(&format!("The resource '{name}' is busy")),
-                    */
                     ErrorKind::OutOfMemory => fatal_error("You are out of memory"),
                     kind => fatal_error(&format!("I/O error occured: {kind:?}")),
                 },
