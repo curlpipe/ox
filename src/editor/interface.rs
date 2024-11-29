@@ -90,6 +90,7 @@ impl Editor {
             }
             // Render this part of the line
             let length = range.end.saturating_sub(range.start);
+            let height = rows.end.saturating_sub(rows.start);
             let rel_y = y.saturating_sub(rows.start);
             if y == rows.start && tab_line_enabled {
                 // Tab line
@@ -104,7 +105,7 @@ impl Editor {
                     rel_y.saturating_sub(self.push_down),
                     Size {
                         w: length,
-                        h: size.h,
+                        h: height,
                     },
                 )?;
             }
@@ -230,6 +231,7 @@ impl Editor {
         let selection = self.doc().selection_loc_bound_disp();
         let fc = self.files.get(ptr.clone()).unwrap();
         let doc = &fc.doc;
+        let has_file = doc.file_name.is_none();
         // Refuse to render help message on splits - awkward edge case
         let help_message_here = config!(self.config, help_message).enabled
             && self.render_cache.help_message_span.contains(&y)
@@ -317,7 +319,7 @@ impl Editor {
             }
             result += &format!("{editor_fg}{editor_bg}{cache_fg}");
             result += &" ".repeat(w.saturating_sub(total_width));
-        } else if config!(self.config, greeting_message).enabled && self.greet {
+        } else if config!(self.config, greeting_message).enabled && self.greet && has_file {
             // Render the greeting message (if enabled)
             result += &self.render_greeting(y, w, h)?;
         } else {
