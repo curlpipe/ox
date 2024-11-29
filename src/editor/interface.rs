@@ -418,14 +418,14 @@ impl Editor {
         let tab_active_bg = Bg(config!(self.config, colors).tab_active_bg.to_color()?);
         let tab_active_fg = Fg(config!(self.config, colors).tab_active_fg.to_color()?);
         let tab_width = config!(self.config, document).tab_width;
-        let separator_enabled = true; // TODO: allow config option here (defaulting to true meanwhile)
+        let separator_enabled = config!(self.config, tab_line).separators;
         let mut current_width = 0;
         let (tabs, idx, _) = self.get_tab_parts(ptr, lua, w);
         let mut result = format!("{tab_inactive_fg}{tab_inactive_bg}");
         for (c, header) in tabs.iter().enumerate() {
             // Work out what to render and what not to render based on situation
             let pushes_over =
-                (current_width + width(&header, tab_width) + usize::from(separator_enabled))
+                (current_width + width(header, tab_width) + usize::from(separator_enabled))
                     .saturating_sub(w);
             let render_sep = separator_enabled && pushes_over == 0;
             // Calculate the string format
@@ -439,7 +439,7 @@ impl Editor {
             } else {
                 result += &format!("{header}{}", if render_sep { "│" } else { "" });
             }
-            current_width += width(&header, tab_width) + usize::from(render_sep);
+            current_width += width(header, tab_width) + usize::from(render_sep);
             // Don't bother continuing to render if we've gone over
             if pushes_over > 0 {
                 break;

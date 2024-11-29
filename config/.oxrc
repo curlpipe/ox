@@ -412,6 +412,7 @@ terminal.scroll_amount = 4
 
 -- Configure Tab Line --
 tab_line.enabled = true
+tab_line.separators = true
 tab_line.format = "  {file_name}{modified}  "
 
 -- Configure Status Line --
