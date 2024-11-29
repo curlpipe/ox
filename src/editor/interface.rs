@@ -630,6 +630,18 @@ impl Editor {
                         input = suggestion;
                         offset = 0;
                     }
+                    // Go up a directory
+                    (KMod::NONE, KCode::Left) => {
+                        // Find the /
+                        let dir_no_sep = input
+                            .chars()
+                            .take(input.chars().count().saturating_sub(1))
+                            .collect::<String>();
+                        if let Some(parent_cut) = dir_no_sep.rfind('/') {
+                            input = input.chars().take(parent_cut + 1).collect();
+                            offset = 0;
+                        }
+                    }
                     // Cycle through suggestions
                     (KMod::SHIFT, KCode::BackTab) => offset = offset.saturating_sub(1),
                     (KMod::NONE, KCode::Tab) => {
