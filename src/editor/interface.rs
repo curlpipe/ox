@@ -228,9 +228,9 @@ impl Editor {
         let line_numbers_enabled = config!(self.config, line_numbers).enabled;
         let ln_pad_left = config!(self.config, line_numbers).padding_left;
         let ln_pad_right = config!(self.config, line_numbers).padding_right;
-        let selection = self.doc().selection_loc_bound_disp();
         let fc = self.files.get(ptr.clone()).unwrap();
         let doc = &fc.doc;
+        let selection = doc.selection_loc_bound_disp();
         let has_file = doc.file_name.is_none();
         // Refuse to render help message on splits - awkward edge case
         let help_message_here = config!(self.config, help_message).enabled
@@ -268,14 +268,17 @@ impl Editor {
             let is_focus = &self.ptr == ptr;
             for token in tokens {
                 // Find out the text (and colour of that text)
-                let (text, colour) = self.breakdown_token(token)?;
+                let (text, colour, feedback) = self.breakdown_token(token)?;
+                if let Some(fb) = feedback {
+                    self.feedback = fb;
+                }
                 // Do the rendering (including selection where applicable)
                 for c in text.chars() {
                     let disp_loc = Loc::at(x_disp, at_line);
                     let char_loc = Loc::at(x_char, at_line);
                     // Work out selection
                     let is_selected =
-                        is_focus && self.doc().is_this_loc_selected_disp(disp_loc, selection);
+                        is_focus && doc.is_this_loc_selected_disp(disp_loc, selection);
                     // Render the correct colour
                     if is_selected {
                         if cache_bg != selection_bg {
@@ -297,7 +300,7 @@ impl Editor {
                         }
                     }
                     // Render multi-cursors
-                    let multi_cursor_here = self.doc().has_cursor(char_loc).is_some();
+                    let multi_cursor_here = doc.has_cursor(char_loc).is_some();
                     if multi_cursor_here {
                         result += &format!("{underline}{}{}", Bg(Color::White), Fg(Color::Black));
                     }
@@ -353,25 +356,26 @@ impl Editor {
     }
 
     /// Take a token and try to break it down into a colour and text
-    pub fn breakdown_token(&mut self, token: TokOpt) -> Result<(String, Fg)> {
+    pub fn breakdown_token(&self, token: TokOpt) -> Result<(String, Fg, Option<Feedback>)> {
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
         match token {
             // Non-highlighted text
             TokOpt::Some(text, kind) => {
                 let colour = config!(self.config, syntax).get_theme(&kind);
+                let mut feedback = None;
                 let colour = match colour {
                     // Success, write token
                     Ok(col) => Fg(col),
                     // Failure, show error message and don't highlight this token
                     Err(err) => {
-                        self.feedback = Feedback::Error(err.to_string());
+                        feedback = Some(Feedback::Error(err.to_string()));
                         editor_fg
                     }
                 };
-                Ok((text, colour))
+                Ok((text, colour, feedback))
             }
             // Highlighted text
-            TokOpt::None(text) => Ok((text, editor_fg)),
+            TokOpt::None(text) => Ok((text, editor_fg, None)),
         }
     }
 
