@@ -265,19 +265,26 @@ impl Editor {
         self.doc_mut().save_as(&file_name)?;
         if self.doc().file_name.is_none() {
             if let Some((files, _)) = self.files.get_atom_mut(self.ptr.clone()) {
-                // Get information about the document
-                let file = files.last_mut().unwrap();
                 let tab_width = config!(self.config, document).tab_width;
-                let file_type = config!(self.config, document)
+                let file = files.last_mut().unwrap();
+                // Set the file name
+                file.doc.file_name = Some(file_name.clone());
+                // Update the file type
+                file.file_type = config!(self.config, document)
                     .file_types
                     .identify(&mut file.doc);
                 // Reattach an appropriate highlighter
-                let highlighter = file_type.map_or(Highlighter::new(tab_width), |t| {
-                    t.get_highlighter(&self.config, tab_width)
-                });
+                let highlighter = file
+                    .file_type
+                    .clone()
+                    .map_or(Highlighter::new(tab_width), |t| {
+                        t.get_highlighter(&self.config, tab_width)
+                    });
                 file.highlighter = highlighter;
                 file.highlighter.run(&file.doc.lines);
-                file.doc.file_name = Some(file_name.clone());
+                // Set up to date with disk
+                file.doc.event_mgmt.force_not_with_disk = false;
+                file.doc.event_mgmt.disk_write(&file.doc.take_snapshot());
             }
         }
         // Commit events to event manager (for undo / redo)
