@@ -149,6 +149,7 @@ pub struct Terminal {
     pub stdout: Stdout,
     pub cache: String,
     pub config: AnyUserData,
+    pub last_copy: String,
 }
 
 impl Terminal {
@@ -157,6 +158,7 @@ impl Terminal {
             stdout: stdout(),
             cache: String::with_capacity(size().map(|s| s.w * s.h).unwrap_or(1000)),
             config,
+            last_copy: String::new(),
         }
     }
 
@@ -259,6 +261,7 @@ impl Terminal {
 
     /// Put text into the clipboard
     pub fn copy(&mut self, text: &str) -> Result<()> {
+        self.last_copy = text.to_string();
         write!(
             self.stdout,
             "\x1b]52;c;{}\x1b\\",

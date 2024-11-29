@@ -465,6 +465,13 @@ impl Editor {
 
     /// Handle paste
     pub fn handle_paste(&mut self, text: &str) -> Result<()> {
+        // If we're playing back a macro, use the last text the user copied
+        // (to prevent hard-coded pasting)
+        let text = if self.macro_man.playing {
+            self.terminal.last_copy.to_string()
+        } else {
+            text.to_string()
+        };
         // Save state before paste
         self.doc_mut().commit();
         // Apply paste
