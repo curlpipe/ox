@@ -230,8 +230,10 @@ impl Editor {
         let selection = self.doc().selection_loc_bound_disp();
         let fc = self.files.get(ptr.clone()).unwrap();
         let doc = &fc.doc;
+        // Refuse to render help message on splits - awkward edge case
         let help_message_here = config!(self.config, help_message).enabled
-            && self.render_cache.help_message_span.contains(&y);
+            && self.render_cache.help_message_span.contains(&y)
+            && self.files.len() == 1;
         // Render short of the help message
         let mut total_width = if help_message_here {
             self.render_cache.help_message_width
