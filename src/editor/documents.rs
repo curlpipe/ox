@@ -248,10 +248,10 @@ impl FileLayout {
     }
 
     /// Given an index, find the file containers in the tree
-    pub fn get_atom(&self, mut idx: Vec<usize>) -> Option<(Vec<&FileContainer>, usize)> {
+    pub fn get_atom(&self, mut idx: Vec<usize>) -> Option<(&[FileContainer], usize)> {
         match self {
             Self::None => None,
-            Self::Atom(containers, ptr) => Some((containers.iter().collect(), *ptr)),
+            Self::Atom(containers, ptr) => Some((containers, *ptr)),
             Self::SideBySide(layouts) => {
                 let subidx = idx.remove(0);
                 layouts.get(subidx)?.0.get_atom(idx)
@@ -283,14 +283,14 @@ impl FileLayout {
     }
 
     /// Given an index, find the file container in the tree
-    pub fn get_all(&self, idx: Vec<usize>) -> Vec<&FileContainer> {
-        self.get_atom(idx).map_or(vec![], |(fcs, _)| fcs)
+    pub fn get_all(&self, idx: Vec<usize>) -> &[FileContainer] {
+        self.get_atom(idx).map_or(&[], |(fcs, _)| fcs)
     }
 
     /// Given an index, find the file container in the tree
     pub fn get(&self, idx: Vec<usize>) -> Option<&FileContainer> {
         let (fcs, ptr) = self.get_atom(idx)?;
-        Some(fcs.get(ptr)?)
+        fcs.get(ptr)
     }
 
     /// Given an index, find the file container in the tree

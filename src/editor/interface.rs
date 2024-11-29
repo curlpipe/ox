@@ -8,7 +8,7 @@ use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
     style::{Attribute, Color, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
 };
-use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, Loc, Size};
+use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, width_char, Loc, Size};
 use mlua::Lua;
 use std::ops::Range;
 use synoptic::{trim_fit, Highlighter, TokOpt};
@@ -264,6 +264,8 @@ impl Editor {
             let tokens = trim_fit(&tokens, doc.offset.x, w, tab_width);
             let mut x_disp = doc.offset.x;
             let mut x_char = doc.character_idx(&doc.offset);
+            // Run some more calcs
+            let is_focus = &self.ptr == ptr;
             for token in tokens {
                 // Find out the text (and colour of that text)
                 let (text, colour) = self.breakdown_token(token)?;
@@ -272,8 +274,8 @@ impl Editor {
                     let disp_loc = Loc::at(x_disp, at_line);
                     let char_loc = Loc::at(x_char, at_line);
                     // Work out selection
-                    let is_selected = &self.ptr == ptr
-                        && self.doc().is_this_loc_selected_disp(disp_loc, selection);
+                    let is_selected =
+                        is_focus && self.doc().is_this_loc_selected_disp(disp_loc, selection);
                     // Render the correct colour
                     if is_selected {
                         if cache_bg != selection_bg {
@@ -306,7 +308,7 @@ impl Editor {
                         result += &format!("{no_underline}{cache_bg}{cache_fg}");
                     }
                     x_char += 1;
-                    let c_width = width(&c.to_string(), tab_width);
+                    let c_width = width_char(&c, tab_width);
                     x_disp += c_width;
                     total_width += c_width;
                 }
