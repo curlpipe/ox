@@ -460,6 +460,7 @@ impl Editor {
     /// Handle resize
     pub fn handle_resize(&mut self, lua: &Lua) -> Result<()> {
         // Rerender the editor (that'll handle everything with the new size)
+        self.needs_rerender = true;
         self.render(lua)
     }
 
