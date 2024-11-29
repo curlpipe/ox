@@ -33,14 +33,16 @@ function quickcomment:uncomment(y)
     local line = editor:get_line_at(y)
     local old_x = editor.cursor.x
     if self:is_commented(y) then
-        local index = line:find(comment_start)
+        local index = line:find(comment_start, 1, true)
         if index ~= nil then
+            -- Existing comment has a space after it
             for i = 0, #comment_start - 1 do
                 editor:remove_at(index - 1, y)
             end
         else
+            -- Existing comment doesn't have a space after it
             comment_start = self:comment_start()
-            local index = line:find(comment_start)
+            local index = line:find(comment_start, 1, true)
             for i = 0, #comment_start - 1 do
                 editor:remove_at(index - 1, y)
             end
