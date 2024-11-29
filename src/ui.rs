@@ -17,7 +17,7 @@ use crossterm::{
         LeaveAlternateScreen,
     },
 };
-use kaolinite::utils::Size;
+use kaolinite::utils::{width, Size};
 use mlua::AnyUserData;
 use std::collections::HashMap;
 use std::env;
@@ -83,6 +83,7 @@ pub enum Feedback {
 impl Feedback {
     /// Actually render the status message
     pub fn render(&self, colors: &Colors, w: usize) -> Result<String> {
+        // Calculate correct colours
         let start = match self {
             Self::Info(_) => format!(
                 "{}{}",
@@ -101,21 +102,43 @@ impl Feedback {
             ),
             Self::None => String::new(),
         };
-        let empty = String::new();
-        let msg = match self {
-            Self::Info(msg) | Self::Warning(msg) | Self::Error(msg) => msg,
-            Self::None => &empty,
-        };
         let end = format!(
             "{}{}",
             Bg(colors.editor_bg.to_color()?),
             Fg(colors.editor_fg.to_color()?),
         );
+        // Calculate the contents of the feedback line
+        let empty = String::new();
+        let msg = match self {
+            Self::Info(msg) | Self::Warning(msg) | Self::Error(msg) => msg,
+            Self::None => &empty,
+        };
+        let text = if let Some(text) = alinio::align::center(msg, w) {
+            text
+        } else {
+            // Could not fit, trim and add ellipsis
+            let mut total_display = 0;
+            let mut result = String::new();
+            let safe_msg = msg.replace('\t', "    ");
+            let mut chars = safe_msg.chars();
+            while total_display < w.saturating_sub(3) {
+                if let Some(chr) = chars.next() {
+                    let chr = chr.to_string();
+                    result += &chr;
+                    total_display += width(&chr, 4);
+                } else {
+                    break;
+                }
+            }
+            result += "...";
+            result
+        };
+        // Put everything together and return
         Ok(format!(
             "{}{}{}{}{}",
             SetAttribute(Attribute::Bold),
             start,
-            alinio::align::center(msg, w).unwrap_or_default(),
+            text,
             end,
             SetAttribute(Attribute::Reset)
         ))
