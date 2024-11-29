@@ -64,9 +64,9 @@ impl Editor {
             } else if clicked.x < dent {
                 // Clicked on line numbers
                 MouseLocation::Out
-            } else {
+            } else if let Some((fcs, ptr)) = self.files.get_atom(idx.clone()) {
                 // Clicked on document
-                let offset = self.doc().offset;
+                let offset = fcs[ptr].doc.offset;
                 MouseLocation::File(
                     idx.clone(),
                     Loc {
@@ -74,6 +74,9 @@ impl Editor {
                         y: clicked.y.saturating_sub(tab) + offset.y,
                     },
                 )
+            } else {
+                // We can't seem to get the atom for some reason, just default to Out
+                MouseLocation::Out
             }
         } else {
             MouseLocation::Out
