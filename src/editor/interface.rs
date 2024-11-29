@@ -1,3 +1,4 @@
+use crate::config::SyntaxHighlighting as SH;
 /// Functions for rendering the UI
 use crate::editor::FileLayout;
 use crate::error::{OxError, Result};
@@ -54,7 +55,7 @@ impl Editor {
 
     /// Render a specific line
     #[allow(clippy::similar_names)]
-    pub fn render_line(&mut self, y: usize, size: Size, lua: &Lua) -> Result<String> {
+    pub fn render_line(&mut self, y: usize, size: Size, lua: &Lua, sh: &SH) -> Result<String> {
         let tab_line_enabled = config!(self.config, tab_line).enabled;
         let split_bg = Bg(config!(self.config, colors).split_bg.to_color()?);
         let split_fg = Fg(config!(self.config, colors).split_fg.to_color()?);
@@ -100,13 +101,14 @@ impl Editor {
                 result += &self.render_status_line(fc, lua, length)?;
             } else {
                 // Line of file
-                result += &self.render_document(
+                result += &self.render_file(
                     fc,
                     rel_y.saturating_sub(self.push_down),
                     Size {
                         w: length,
                         h: height,
                     },
+                    sh,
                 )?;
             }
             // Insert vertical bar where appropriate
@@ -180,8 +182,9 @@ impl Editor {
         // Hide the cursor before rendering
         self.terminal.hide_cursor();
         // Render each line of the document
+        let syntax = config!(self.config, syntax);
         for y in 0..size.h {
-            let line = self.render_line(y, size, lua)?;
+            let line = self.render_line(y, size, lua, &syntax)?;
             self.terminal.goto(0, y);
             display!(self, line);
         }
@@ -211,8 +214,8 @@ impl Editor {
     }
 
     /// Render the lines of the document
-    #[allow(clippy::similar_names)]
-    pub fn render_document(&mut self, ptr: &Vec<usize>, y: usize, size: Size) -> Result<String> {
+    #[allow(clippy::similar_names, clippy::too_many_lines)]
+    pub fn render_file(&mut self, ptr: &[usize], y: usize, size: Size, sh: &SH) -> Result<String> {
         let Size { mut w, h } = size;
         let mut result = String::new();
         // Get various information
@@ -228,7 +231,7 @@ impl Editor {
         let line_numbers_enabled = config!(self.config, line_numbers).enabled;
         let ln_pad_left = config!(self.config, line_numbers).padding_left;
         let ln_pad_right = config!(self.config, line_numbers).padding_right;
-        let fc = self.files.get(ptr.clone()).unwrap();
+        let fc = self.files.get(ptr.to_owned()).unwrap();
         let doc = &fc.doc;
         let selection = doc.selection_loc_bound_disp();
         let has_file = doc.file_name.is_none();
@@ -265,10 +268,11 @@ impl Editor {
             let mut x_disp = doc.offset.x;
             let mut x_char = doc.character_idx(&doc.offset);
             // Run some more calcs
-            let is_focus = &self.ptr == ptr;
+            let is_focus = self.ptr == ptr;
+            let has_selection_somewhere = doc.cursor.selection_end != doc.cursor.loc;
             for token in tokens {
                 // Find out the text (and colour of that text)
-                let (text, colour, feedback) = self.breakdown_token(token)?;
+                let (text, colour, feedback) = self.breakdown_token(token, sh)?;
                 if let Some(fb) = feedback {
                     self.feedback = fb;
                 }
@@ -277,8 +281,9 @@ impl Editor {
                     let disp_loc = Loc::at(x_disp, at_line);
                     let char_loc = Loc::at(x_char, at_line);
                     // Work out selection
-                    let is_selected =
-                        is_focus && doc.is_this_loc_selected_disp(disp_loc, selection);
+                    let is_selected = is_focus
+                        && has_selection_somewhere
+                        && doc.is_this_loc_selected_disp(disp_loc, selection);
                     // Render the correct colour
                     if is_selected {
                         if cache_bg != selection_bg {
@@ -356,12 +361,16 @@ impl Editor {
     }
 
     /// Take a token and try to break it down into a colour and text
-    pub fn breakdown_token(&self, token: TokOpt) -> Result<(String, Fg, Option<Feedback>)> {
+    pub fn breakdown_token(
+        &self,
+        token: TokOpt,
+        sh: &SH,
+    ) -> Result<(String, Fg, Option<Feedback>)> {
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
         match token {
             // Non-highlighted text
             TokOpt::Some(text, kind) => {
-                let colour = config!(self.config, syntax).get_theme(&kind);
+                let colour = sh.get_theme(&kind);
                 let mut feedback = None;
                 let colour = match colour {
                     // Success, write token
