@@ -1,5 +1,5 @@
 --[[
-Bracket Pairs v0.5
+Bracket Pairs v0.6
 
 Automatically insert and delete brackets and quotes where appropriate
 Also helps when you want to pad out brackets and quotes with whitespace
@@ -19,8 +19,16 @@ autopairs.just_paired = { x = nil, y = nil }
 
 -- Determine whether we are currently inside a pair
 function autopairs:in_pair()
-    local first = editor:get_character_at(editor.cursor.x - 1, editor.cursor.y)
+    -- Get first candidate for a pair
+    local first
+    if editor.cursor.x == 0 then
+        first = ""
+    else
+        first = editor:get_character_at(editor.cursor.x - 1, editor.cursor.y)
+    end
+    -- Get second candidate for a pair
     local second = editor:get_character_at(editor.cursor.x, editor.cursor.y)
+    -- See if there are any matches
     local potential_pair = first .. second
     for _, v in ipairs(autopairs.pairings) do
         if v == potential_pair then
