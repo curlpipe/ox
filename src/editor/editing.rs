@@ -18,6 +18,11 @@ impl Editor {
             if event_type_differs || event_on_different_line {
                 self.doc_mut().commit();
             }
+        } else if self.doc().event_mgmt.history.is_empty() {
+            // If there is no initial commit and a plug-in changes things without commiting
+            // It can cause the initial state of the document to be lost
+            // This condition makes sure there is a copy to go back to if this is the case
+            self.doc_mut().commit();
         }
         self.doc_mut().exe(ev)?;
         Ok(())
