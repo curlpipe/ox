@@ -15,9 +15,17 @@ function quickcomment:comment(y)
     local comment_start = self:comment_start() .. " "
     -- Insert the character
     local old_x = editor.cursor.x
-    editor:move_to(index - 1, y)
+    if index - 1 <= 0 then
+        editor:move_to(0, y)
+    else
+        editor:move_to(index - 1, y)
+    end
     editor:insert(comment_start)
-    editor:move_to(old_x + #comment_start, y)
+    if old_x + #comment_start <= 0 then
+        editor:move_to(0, y)
+    else
+        editor:move_to(old_x + #comment_start, y)
+    end
 end
 
 function quickcomment:uncomment(y)
