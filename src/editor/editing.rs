@@ -8,7 +8,7 @@ use super::Editor;
 impl Editor {
     /// Execute an edit event
     pub fn exe(&mut self, ev: Event) -> Result<()> {
-        if !self.plugin_active {
+        if !(self.plugin_active || self.pasting) {
             let same_type = self.doc().event_mgmt.last_event.as_ref();
             // As long as event isn't present and the same as this one, commit
             if same_type.map(|e| e.same_type(&ev)) != Some(true) {

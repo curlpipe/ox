@@ -60,6 +60,8 @@ pub struct Editor {
     pub config_path: String,
     /// Flag to determine whether or not the editor is under control by a plug-in
     pub plugin_active: bool,
+    /// Flag to determine whether or not the editor is pasting
+    pub pasting: bool,
     /// Stores the last click the user made (in order to detect double-click)
     pub last_click: Option<(Instant, MouseEvent)>,
     /// Stores whether or not we're in a double click
@@ -88,6 +90,7 @@ impl Editor {
             push_down: 1,
             config_path: "~/.oxrc".to_string(),
             plugin_active: false,
+            pasting: false,
             last_click: None,
             alt_click_state: None,
             macro_man: MacroMan::default(),
@@ -455,11 +458,15 @@ impl Editor {
 
     /// Handle paste
     pub fn handle_paste(&mut self, text: &str) -> Result<()> {
+        // Save state before paste
+        self.doc_mut().commit();
         // Apply paste
+        self.pasting = true;
         for ch in text.chars() {
             self.character(ch)?;
         }
-        // Paste warrants a commit here really
+        self.pasting = false;
+        // Save state after paste
         self.doc_mut().commit();
         Ok(())
     }
