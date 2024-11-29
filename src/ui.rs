@@ -45,6 +45,17 @@ pub fn size() -> Result<Size> {
 
 /// Fatal Error
 pub fn fatal_error(msg: &str) {
+    // Prevent upset terminal state
+    terminal::disable_raw_mode().unwrap();
+    execute!(
+        stdout(),
+        LeaveAlternateScreen,
+        Show,
+        DisableMouseCapture,
+        EnableBracketedPaste,
+    )
+    .unwrap();
+    // Display the error information
     eprintln!(
         "{}{}[Error]{}{} {msg}",
         SetAttribute(Attribute::Bold),
