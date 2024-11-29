@@ -389,18 +389,18 @@ impl Editor {
         let mut length = 0;
         let mut offset = 0;
         let tab_line = config!(self.config, tab_line);
+        let doc_idx = self
+            .files
+            .get_atom(ptr.to_owned())
+            .map_or(0, |(_, doc_idx)| doc_idx);
         for (c, file) in self.files.get_all(ptr.to_vec()).iter().enumerate() {
             let render = tab_line.render(lua, file, &mut self.feedback);
             length += width(&render, 4) + 1;
             headers.push(render);
-            let ptr = self
-                .files
-                .get_atom(ptr.to_owned())
-                .map_or(0, |(_, ptr)| ptr);
-            if c == ptr {
+            if c == doc_idx {
                 idx = headers.len().saturating_sub(1);
             }
-            while c == ptr && length > w && headers.len() > 1 {
+            while c == doc_idx && length >= w && headers.len() > 1 {
                 headers.remove(0);
                 length = length.saturating_sub(width(&headers[0], 4) + 1);
                 idx = headers.len().saturating_sub(1);
@@ -418,21 +418,34 @@ impl Editor {
         let tab_active_bg = Bg(config!(self.config, colors).tab_active_bg.to_color()?);
         let tab_active_fg = Fg(config!(self.config, colors).tab_active_fg.to_color()?);
         let tab_width = config!(self.config, document).tab_width;
+        let separator_enabled = true; // TODO: allow config option here (defaulting to true meanwhile)
         let mut current_width = 0;
         let (tabs, idx, _) = self.get_tab_parts(ptr, lua, w);
         let mut result = format!("{tab_inactive_fg}{tab_inactive_bg}");
         for (c, header) in tabs.iter().enumerate() {
+            // Work out what to render and what not to render based on situation
+            let pushes_over =
+                (current_width + width(&header, tab_width) + usize::from(separator_enabled))
+                    .saturating_sub(w);
+            let render_sep = separator_enabled && pushes_over == 0;
+            // Calculate the string format
             if c == idx {
                 result += &format!(
-                    "{tab_active_bg}{tab_active_fg}{}{header}{}{tab_inactive_fg}{tab_inactive_bg}│",
+                    "{tab_active_bg}{tab_active_fg}{}{header}{}{tab_inactive_fg}{tab_inactive_bg}{}",
                     SetAttribute(Attribute::Bold),
                     SetAttribute(Attribute::Reset),
+                    if render_sep { "│" } else { "" },
                 );
             } else {
-                result += &format!("{header}│");
+                result += &format!("{header}{}", if render_sep { "│" } else { "" });
             }
-            current_width += width(header, tab_width) + 1;
+            current_width += width(&header, tab_width) + usize::from(render_sep);
+            // Don't bother continuing to render if we've gone over
+            if pushes_over > 0 {
+                break;
+            }
         }
+        // Pad out
         result += &" ".to_string().repeat(w.saturating_sub(current_width));
         Ok(result)
     }
