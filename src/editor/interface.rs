@@ -269,14 +269,8 @@ impl Editor {
                 let (text, colour) = self.breakdown_token(token)?;
                 // Do the rendering (including selection where applicable)
                 for c in text.chars() {
-                    let disp_loc = Loc {
-                        y: at_line,
-                        x: x_disp,
-                    };
-                    let char_loc = Loc {
-                        y: at_line,
-                        x: x_char,
-                    };
+                    let disp_loc = Loc::at(x_disp, at_line);
+                    let char_loc = Loc::at(x_char, at_line);
                     // Work out selection
                     let is_selected = &self.ptr == ptr
                         && self.doc().is_this_loc_selected_disp(disp_loc, selection);

@@ -79,7 +79,7 @@ Update Notification - Warns you if there is a new version of Ox - requires curl 
 ";
 
 const FINAL_WORDS: &str = r"
-Configuration file was successfully written.
+Configuration file was successfully generated.
 
 Just a few things before you go:
 
@@ -174,6 +174,7 @@ pub struct Assistant {
     pub line_number_padding: (usize, usize),
     pub icons: bool,
     pub tab_line: bool,
+    pub tab_line_sep: bool,
     pub greeting_message: bool,
     pub plugins: Vec<Plugin>,
 }
@@ -191,6 +192,7 @@ impl Default for Assistant {
             line_number_padding: (1, 1),
             // Tab Line
             tab_line: true,
+            tab_line_sep: true,
             // Greeting Message
             greeting_message: true,
             // Mouse and Cursor Behaviour
@@ -439,6 +441,12 @@ impl Assistant {
             "|  {purple}File 1{reset}  |  {green}File 2{reset}  |  {orange}File 3{reset}  |\n"
         );
         result.tab_line = Self::confirmation("Would you like the tab line to be visible", true);
+        if result.tab_line {
+            result.tab_line_sep = Self::confirmation(
+                "Would you like the tab line to have separators (the | between tabs)",
+                true,
+            );
+        }
         // Greeting message
         println!("   {yellow}Welcome to Ox Editor!{reset}   \n");
         result.greeting_message = Self::confirmation(
@@ -724,6 +732,9 @@ impl Assistant {
         if sections.contains(&"tab_line") {
             result += "\n-- Tab Line Configuration --\n";
             result += &format!("tab_line.enabled = {}\n", self.tab_line);
+            if fields.contains(&"tab_line_sep") {
+                result += &format!("tab_line.separators = {}\n", self.tab_line_sep);
+            }
             let mut format = "  {file_name}{modified}  ".to_string();
             let mut format_changed = false;
             if self.icons {
@@ -801,6 +812,7 @@ impl Assistant {
             ("indentation", self.indentation != def.indentation),
             ("line_numbers", self.line_numbers != def.line_numbers),
             ("tab_line", self.tab_line != def.tab_line),
+            ("tab_line_sep", self.tab_line_sep != def.tab_line_sep),
             (
                 "greeting_message",
                 self.greeting_message != def.greeting_message,
@@ -835,6 +847,7 @@ impl Assistant {
             (
                 "tab_line",
                 fields.contains(&"tab_line")
+                    || fields.contains(&"tab_line_sep")
                     || fields.contains(&"icons")
                     || self.plugins.contains(&Plugin::Git),
             ),
