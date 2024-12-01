@@ -12,6 +12,7 @@ A plug-in for git integration that provides features to:
 
 git = {
     status = {},
+    branch = "",
     icons = (git or { icons = false }).icons,
     has_git = shell:output("git --version"):find("git version"),
     last_update = nil,
@@ -30,6 +31,7 @@ function git:refresh_status()
     local duration_since_update = os.time(os.date("*t")) - os.time(self.last_update)
     -- Only do a refresh every 10 seconds maximum
     if self.last_update == nil or duration_since_update > 10 then
+        self.branch = shell:output("git rev-parse --abbrev-ref HEAD")
         local repo_path = self:repo_path()
         local status_output = shell:output("git status --porcelain")
         local status = {}
@@ -94,11 +96,10 @@ end
 
 function git_branch()
     git:refresh_status()
-    local branch = shell:output("git rev-parse --abbrev-ref HEAD")
-    if branch == "" or branch:match("fatal") then
+    if git.branch == "" or git.branch:match("fatal") then
         return "N/A"
     else
-        return branch:gsub("[\r\n]+", "")
+        return git.branch:gsub("[\r\n]+", "")
     end
 end
 
