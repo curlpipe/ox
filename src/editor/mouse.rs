@@ -222,6 +222,7 @@ impl Editor {
                     if let MouseLocation::File(idx, loc) = self.find_mouse_location(lua, event) {
                         self.ptr.clone_from(&idx);
                         self.doc_mut().new_cursor(loc);
+                        self.doc_mut().commit();
                     }
                 }
             }

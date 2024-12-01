@@ -713,6 +713,9 @@ impl LuaUserData for Editor {
         methods.add_method_mut("macro_play", |_, editor, times: usize| {
             editor.macro_man.finish();
             editor.macro_man.play(times);
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.commit();
+            }
             Ok(())
         });
     }

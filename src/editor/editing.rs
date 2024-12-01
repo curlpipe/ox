@@ -8,7 +8,8 @@ use super::Editor;
 impl Editor {
     /// Execute an edit event
     pub fn exe(&mut self, ev: Event) -> Result<()> {
-        if !(self.plugin_active || self.pasting) {
+        let multi_cursors = self.doc().secondary_cursors.len() > 0;
+        if !(self.plugin_active || self.pasting || self.macro_man.playing || multi_cursors) {
             let last_ev = self.doc().event_mgmt.last_event.as_ref();
             // If last event is present and the same as this one, commit
             let event_type_differs = last_ev.map(|e1| e1.same_type(&ev)) != Some(true);
