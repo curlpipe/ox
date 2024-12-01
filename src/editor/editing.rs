@@ -8,12 +8,22 @@ use super::Editor;
 impl Editor {
     /// Execute an edit event
     pub fn exe(&mut self, ev: Event) -> Result<()> {
-        if !self.plugin_active {
-            let same_type = self.doc().event_mgmt.last_event.as_ref();
-            // As long as event isn't present and the same as this one, commit
-            if same_type.map(|e| e.same_type(&ev)) != Some(true) {
+        let multi_cursors = self.doc().secondary_cursors.len() > 0;
+        if !(self.plugin_active || self.pasting || self.macro_man.playing || multi_cursors) {
+            let last_ev = self.doc().event_mgmt.last_event.as_ref();
+            // If last event is present and the same as this one, commit
+            let event_type_differs = last_ev.map(|e1| e1.same_type(&ev)) != Some(true);
+            // If last event is present and on a different line from the previous, commit
+            let event_on_different_line = last_ev.map(|e| e.loc().y == ev.loc().y) != Some(true);
+            // Commit if necessary
+            if event_type_differs || event_on_different_line {
                 self.doc_mut().commit();
             }
+        } else if self.doc().event_mgmt.history.is_empty() {
+            // If there is no initial commit and a plug-in changes things without commiting
+            // It can cause the initial state of the document to be lost
+            // This condition makes sure there is a copy to go back to if this is the case
+            self.doc_mut().commit();
         }
         self.doc_mut().exe(ev)?;
         Ok(())

@@ -1,7 +1,7 @@
 /// utils.rs - utilities to assist in editing and keep code in document.rs readable
 use std::ops::{Bound, RangeBounds};
 use std::path::Path;
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 /// Utility for easily forming a regular expression from a string
 #[macro_export]
@@ -98,6 +98,15 @@ where
 pub fn width(st: &str, tab_width: usize) -> usize {
     let tabs = st.matches('\t').count();
     (st.width() + tabs * tab_width).saturating_sub(tabs)
+}
+
+/// Utility function to determine the width of a character, with variable tab width
+#[must_use]
+pub fn width_char(ch: &char, tab_width: usize) -> usize {
+    match ch {
+        '\t' => tab_width,
+        _ => ch.width().unwrap_or(0),
+    }
 }
 
 /// Utility function to take a line and determine where spaces should be treated as tabs (forwards)

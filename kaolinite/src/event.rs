@@ -38,13 +38,13 @@ impl Event {
 
     /// Get the location of an event
     #[must_use]
-    pub fn loc(self) -> Loc {
+    pub fn loc(&self) -> Loc {
         match self {
             Event::Insert(loc, _)
             | Event::Delete(loc, _)
             | Event::SplitDown(loc)
-            | Event::SpliceUp(loc) => loc,
-            Event::InsertLine(loc, _) | Event::DeleteLine(loc, _) => Loc { x: 0, y: loc },
+            | Event::SpliceUp(loc) => *loc,
+            Event::InsertLine(loc, _) | Event::DeleteLine(loc, _) => Loc { x: 0, y: *loc },
         }
     }
 

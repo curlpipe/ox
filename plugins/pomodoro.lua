@@ -3,7 +3,7 @@ Pomodoro Timer v0.1
 
 A simple timer to help you space out your work with breaks
 This technique is also said to help increase memory retention during study
---]]
+]]--
 
 -- Define our pomodoro state
 pomodoro = {

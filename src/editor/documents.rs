@@ -124,6 +124,12 @@ impl FileLayout {
         appropriate
     }
 
+    /// Work out if a certain index on a certain line is empty
+    pub fn is_empty_at(y: usize, x: usize, span: &Span) -> bool {
+        let line = Self::line(y, span);
+        !line.is_empty() && !line.iter().any(|(_, _, cols)| cols.contains(&x))
+    }
+
     /// Update the sizes of documents
     pub fn update_doc_sizes(&self, span: &Span, ed: &Editor) -> Vec<(Vec<usize>, usize, Size)> {
         let mut result = vec![];
@@ -189,19 +195,19 @@ impl FileLayout {
         match self {
             Self::None | Self::Atom(_, _) => Some(self),
             Self::SideBySide(layouts) => {
-                if idx.first().is_some() {
+                if idx.is_empty() {
+                    Some(self)
+                } else {
                     let subidx = idx.remove(0);
                     layouts.get(subidx)?.0.get_raw(idx)
-                } else {
-                    Some(self)
                 }
             }
             Self::TopToBottom(layouts) => {
-                if idx.first().is_some() {
+                if idx.is_empty() {
+                    Some(self)
+                } else {
                     let subidx = idx.remove(0);
                     layouts.get(subidx)?.0.get_raw(idx)
-                } else {
-                    Some(self)
                 }
             }
         }
@@ -209,7 +215,7 @@ impl FileLayout {
 
     /// Get the `FileLayout` at a certain index (mutable)
     pub fn get_raw_mut(&mut self, mut idx: Vec<usize>) -> Option<&mut FileLayout> {
-        if idx.first().is_none() {
+        if idx.is_empty() {
             Some(self)
         } else {
             match self {
@@ -231,21 +237,21 @@ impl FileLayout {
         match self {
             Self::None | Self::Atom(_, _) => *self = fl,
             Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
-                if idx.first().is_some() {
+                if idx.is_empty() {
+                    *self = fl;
+                } else {
                     let subidx = idx.remove(0);
                     layouts[subidx].0.set(idx, fl);
-                } else {
-                    *self = fl;
                 }
             }
         }
     }
 
     /// Given an index, find the file containers in the tree
-    pub fn get_atom(&self, mut idx: Vec<usize>) -> Option<(Vec<&FileContainer>, usize)> {
+    pub fn get_atom(&self, mut idx: Vec<usize>) -> Option<(&[FileContainer], usize)> {
         match self {
             Self::None => None,
-            Self::Atom(containers, ptr) => Some((containers.iter().collect(), *ptr)),
+            Self::Atom(containers, ptr) => Some((containers, *ptr)),
             Self::SideBySide(layouts) => {
                 let subidx = idx.remove(0);
                 layouts.get(subidx)?.0.get_atom(idx)
@@ -277,14 +283,14 @@ impl FileLayout {
     }
 
     /// Given an index, find the file container in the tree
-    pub fn get_all(&self, idx: Vec<usize>) -> Vec<&FileContainer> {
-        self.get_atom(idx).map_or(vec![], |(fcs, _)| fcs)
+    pub fn get_all(&self, idx: Vec<usize>) -> &[FileContainer] {
+        self.get_atom(idx).map_or(&[], |(fcs, _)| fcs)
     }
 
     /// Given an index, find the file container in the tree
     pub fn get(&self, idx: Vec<usize>) -> Option<&FileContainer> {
         let (fcs, ptr) = self.get_atom(idx)?;
-        Some(fcs.get(ptr)?)
+        fcs.get(ptr)
     }
 
     /// Given an index, find the file container in the tree

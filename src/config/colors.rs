@@ -24,6 +24,9 @@ pub struct Colors {
     pub tab_inactive_fg: Color,
     pub tab_inactive_bg: Color,
 
+    pub split_bg: Color,
+    pub split_fg: Color,
+
     pub info_bg: Color,
     pub info_fg: Color,
     pub warning_bg: Color,
@@ -53,6 +56,9 @@ impl Default for Colors {
             tab_active_bg: Color::Rgb(41, 41, 61),
             tab_inactive_fg: Color::Rgb(255, 255, 255),
             tab_inactive_bg: Color::Rgb(59, 59, 84),
+
+            split_bg: Color::Rgb(41, 41, 61),
+            split_fg: Color::Rgb(255, 255, 255),
 
             info_bg: Color::Rgb(41, 41, 61),
             info_fg: Color::Rgb(99, 162, 255),
@@ -93,6 +99,8 @@ impl LuaUserData for Colors {
         fields.add_field_method_get("tab_inactive_bg", |env, this| {
             Ok(this.tab_inactive_bg.to_lua(env))
         });
+        fields.add_field_method_get("split_bg", |env, this| Ok(this.split_bg.to_lua(env)));
+        fields.add_field_method_get("split_fg", |env, this| Ok(this.split_fg.to_lua(env)));
         fields.add_field_method_get("error_bg", |env, this| Ok(this.error_bg.to_lua(env)));
         fields.add_field_method_get("error_fg", |env, this| Ok(this.error_fg.to_lua(env)));
         fields.add_field_method_get("warning_bg", |env, this| Ok(this.warning_bg.to_lua(env)));
@@ -147,6 +155,14 @@ impl LuaUserData for Colors {
         });
         fields.add_field_method_set("tab_inactive_bg", |_, this, value| {
             this.tab_inactive_bg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("split_fg", |_, this, value| {
+            this.split_fg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("split_bg", |_, this, value| {
+            this.split_bg = Color::from_lua(value);
             Ok(())
         });
         fields.add_field_method_set("error_bg", |_, this, value| {

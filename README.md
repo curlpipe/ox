@@ -40,7 +40,7 @@ It works best on linux, but macOS and Windows are also supported.
 
 ### Lightweight and Efficient
 
-- :feather: Ox is lightweight, with the precompiled binary taking up roughly 5mb in storage space.
+- :feather: Ox is lightweight, with the precompiled binary taking up a few megabytes in storage space.
 - :knot: It uses a `rope` data structure which allows incremental editing, file reading and file writing, which will speed up performance, particularly on huge files.
 - :crab: It was built in Rust, which is a quick lower-level language that has a strong reputation in the performance department.
 

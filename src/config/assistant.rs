@@ -13,6 +13,8 @@ use std::io::{stdout, Write};
 pub const TROPICAL: &str = include_str!("../../plugins/themes/tropical.lua");
 pub const GALAXY: &str = include_str!("../../plugins/themes/galaxy.lua");
 pub const TRANSPARENT: &str = include_str!("../../plugins/themes/transparent.lua");
+pub const DEFAULT16: &str = include_str!("../../plugins/themes/default16.lua");
+pub const OMNI: &str = include_str!("../../plugins/themes/omni.lua");
 
 #[macro_export]
 macro_rules! gets {
@@ -77,7 +79,7 @@ Update Notification - Warns you if there is a new version of Ox - requires curl 
 ";
 
 const FINAL_WORDS: &str = r"
-Configuration file was successfully written.
+Configuration file was successfully generated.
 
 Just a few things before you go:
 
@@ -104,6 +106,8 @@ pub enum Theme {
     Galaxy,
     Transparent,
     Default,
+    Default16,
+    Omni,
 }
 
 impl Theme {
@@ -112,6 +116,8 @@ impl Theme {
             Self::Tropical => TROPICAL,
             Self::Galaxy => GALAXY,
             Self::Transparent => TRANSPARENT,
+            Self::Omni => OMNI,
+            Self::Default16 => DEFAULT16,
             Self::Default => "",
         }
         .to_string()
@@ -168,6 +174,7 @@ pub struct Assistant {
     pub line_number_padding: (usize, usize),
     pub icons: bool,
     pub tab_line: bool,
+    pub tab_line_sep: bool,
     pub greeting_message: bool,
     pub plugins: Vec<Plugin>,
 }
@@ -185,6 +192,7 @@ impl Default for Assistant {
             line_number_padding: (1, 1),
             // Tab Line
             tab_line: true,
+            tab_line_sep: true,
             // Greeting Message
             greeting_message: true,
             // Mouse and Cursor Behaviour
@@ -338,14 +346,23 @@ impl Assistant {
         Self::demonstrate_themes()?;
         let choice = Self::options(
             "Please choose which theme you'd like",
-            &["default", "tropical", "galaxy", "transparent"],
+            &[
+                "default",
+                "tropical",
+                "galaxy",
+                "transparent",
+                "default16",
+                "omni",
+            ],
             "default",
         );
         result.theme = match choice.as_str() {
             "default" => Theme::Default,
+            "default16" => Theme::Default16,
             "tropical" => Theme::Tropical,
             "galaxy" => Theme::Galaxy,
             "transparent" => Theme::Transparent,
+            "omni" => Theme::Omni,
             _ => unreachable!(),
         };
         Ok(())
@@ -424,6 +441,12 @@ impl Assistant {
             "|  {purple}File 1{reset}  |  {green}File 2{reset}  |  {orange}File 3{reset}  |\n"
         );
         result.tab_line = Self::confirmation("Would you like the tab line to be visible", true);
+        if result.tab_line {
+            result.tab_line_sep = Self::confirmation(
+                "Would you like the tab line to have separators (the | between tabs)",
+                true,
+            );
+        }
         // Greeting message
         println!("   {yellow}Welcome to Ox Editor!{reset}   \n");
         result.greeting_message = Self::confirmation(
@@ -529,9 +552,10 @@ impl Assistant {
     pub fn demonstrate_themes() -> Result<()> {
         println!(
             "{}",
-            Self::demonstrate_theme_row(&["default", "transparent"])?
+            Self::demonstrate_theme_row(&["default", "default16"])?
         );
         println!("{}", Self::demonstrate_theme_row(&["tropical", "galaxy"])?);
+        println!("{}", Self::demonstrate_theme_row(&["transparent", "omni"])?);
         Ok(())
     }
 
@@ -544,6 +568,8 @@ impl Assistant {
                 "tropical" => TROPICAL,
                 "galaxy" => GALAXY,
                 "transparent" => TRANSPARENT,
+                "default16" => DEFAULT16,
+                "omni" => OMNI,
                 _ => unreachable!(),
             };
             let theme = Self::demonstrate_theme(name, code)?
@@ -706,6 +732,9 @@ impl Assistant {
         if sections.contains(&"tab_line") {
             result += "\n-- Tab Line Configuration --\n";
             result += &format!("tab_line.enabled = {}\n", self.tab_line);
+            if fields.contains(&"tab_line_sep") {
+                result += &format!("tab_line.separators = {}\n", self.tab_line_sep);
+            }
             let mut format = "  {file_name}{modified}  ".to_string();
             let mut format_changed = false;
             if self.icons {
@@ -783,6 +812,7 @@ impl Assistant {
             ("indentation", self.indentation != def.indentation),
             ("line_numbers", self.line_numbers != def.line_numbers),
             ("tab_line", self.tab_line != def.tab_line),
+            ("tab_line_sep", self.tab_line_sep != def.tab_line_sep),
             (
                 "greeting_message",
                 self.greeting_message != def.greeting_message,
@@ -817,6 +847,7 @@ impl Assistant {
             (
                 "tab_line",
                 fields.contains(&"tab_line")
+                    || fields.contains(&"tab_line_sep")
                     || fields.contains(&"icons")
                     || self.plugins.contains(&Plugin::Git),
             ),

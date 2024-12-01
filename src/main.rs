@@ -339,7 +339,7 @@ fn handle_lua_error(key_str: &str, error: RResult<(), mlua::Error>, feedback: &m
 
 /// Handle opening files
 fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
-    // TEMPORARY WORK-AROUND: Delete after Rust 1.83
+    // Block any directories from being opened (we'll wait until file tree is implemented)
     if file_or_dir(name) == "directory" {
         fatal_error(&format!("'{name}' is a directory, not a file"));
     }
@@ -350,28 +350,22 @@ fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
             let current_ptr = ged!(&editor).ptr.clone();
             ged!(mut &editor).files.move_to(current_ptr, len);
         }
-        Err(OxError::Kaolinite(kerr)) => {
-            match kerr {
-                KError::Io(ioerr) => match ioerr.kind() {
-                    ErrorKind::NotFound => fatal_error(&format!("File '{name}' not found")),
-                    ErrorKind::PermissionDenied => {
-                        fatal_error(&format!("Permission to read file '{name}' denied"));
-                    }
-                    /*
-                    // NOTE: Uncomment when Rust 1.83 becomes stable (io_error_more will be stabilised)
-                    ErrorKind::IsADirectory =>
-                        fatal_error(&format!("'{name}' is a directory, not a file")),
-                    ErrorKind::ReadOnlyFilesystem =>
-                        fatal_error(&format!("You are on a read only file system")),
-                    ErrorKind::ResourceBusy =>
-                        fatal_error(&format!("The resource '{name}' is busy")),
-                    */
-                    ErrorKind::OutOfMemory => fatal_error("You are out of memory"),
-                    kind => fatal_error(&format!("I/O error occured: {kind:?}")),
-                },
-                _ => fatal_error(&format!("Backend error opening '{name}': {kerr:?}")),
-            }
-        }
+        Err(OxError::Kaolinite(kerr)) => match kerr {
+            KError::Io(ioerr) => match ioerr.kind() {
+                ErrorKind::NotFound => fatal_error(&format!("File '{name}' not found")),
+                ErrorKind::PermissionDenied => {
+                    fatal_error(&format!("Permission to read file '{name}' denied"));
+                }
+                ErrorKind::IsADirectory => {
+                    fatal_error(&format!("'{name}' is a directory, not a file"));
+                }
+                ErrorKind::ReadOnlyFilesystem => fatal_error("You are on a read only file system"),
+                ErrorKind::ResourceBusy => fatal_error(&format!("The resource '{name}' is busy")),
+                ErrorKind::OutOfMemory => fatal_error("You are out of memory"),
+                kind => fatal_error(&format!("I/O error occured: {kind:?}")),
+            },
+            _ => fatal_error(&format!("Backend error opening '{name}': {kerr:?}")),
+        },
         result => fatal_error(&format!("Error opening file '{name}': {result:?}")),
     }
 }

@@ -1,3 +1,4 @@
+use crate::config::SyntaxHighlighting as SH;
 /// Functions for rendering the UI
 use crate::editor::FileLayout;
 use crate::error::{OxError, Result};
@@ -8,7 +9,7 @@ use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
     style::{Attribute, Color, SetAttribute, SetBackgroundColor as Bg, SetForegroundColor as Fg},
 };
-use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, Loc, Size};
+use kaolinite::utils::{file_or_dir, get_cwd, get_parent, list_dir, width, width_char, Loc, Size};
 use mlua::Lua;
 use std::ops::Range;
 use synoptic::{trim_fit, Highlighter, TokOpt};
@@ -54,8 +55,10 @@ impl Editor {
 
     /// Render a specific line
     #[allow(clippy::similar_names)]
-    pub fn render_line(&mut self, y: usize, size: Size, lua: &Lua) -> Result<String> {
+    pub fn render_line(&mut self, y: usize, size: Size, lua: &Lua, sh: &SH) -> Result<String> {
         let tab_line_enabled = config!(self.config, tab_line).enabled;
+        let split_bg = Bg(config!(self.config, colors).split_bg.to_color()?);
+        let split_fg = Fg(config!(self.config, colors).split_fg.to_color()?);
         let mut result = String::new();
         let fcs = FileLayout::line(y, &self.render_cache.span);
         // Accounted for is used to detect gaps in lines (which should be filled with vertical bars)
@@ -66,10 +69,29 @@ impl Editor {
             if range.start != accounted_for {
                 // Discontinuity detected, fill with vertical bar!
                 let fill_length = range.start.saturating_sub(accounted_for);
-                result += &"─".repeat(fill_length);
+                result += &format!("{split_bg}{split_fg}");
+                for at in 0..fill_length.saturating_sub(1) {
+                    let empty_below = FileLayout::is_empty_at(
+                        y.saturating_add(1),
+                        at + accounted_for,
+                        &self.render_cache.span,
+                    );
+                    let empty_above = FileLayout::is_empty_at(
+                        y.saturating_sub(1),
+                        at + accounted_for,
+                        &self.render_cache.span,
+                    );
+                    if empty_below && empty_above && at != fill_length.saturating_sub(1) {
+                        result += "┼";
+                    } else {
+                        result += "─";
+                    }
+                }
+                result += "┤";
             }
             // Render this part of the line
             let length = range.end.saturating_sub(range.start);
+            let height = rows.end.saturating_sub(rows.start);
             let rel_y = y.saturating_sub(rows.start);
             if y == rows.start && tab_line_enabled {
                 // Tab line
@@ -79,28 +101,59 @@ impl Editor {
                 result += &self.render_status_line(fc, lua, length)?;
             } else {
                 // Line of file
-                result += &self.render_document(
+                result += &self.render_file(
                     fc,
                     rel_y.saturating_sub(self.push_down),
                     Size {
                         w: length,
-                        h: size.h,
+                        h: height,
                     },
+                    sh,
                 )?;
             }
-            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
-            let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
             // Insert vertical bar where appropriate
-            if c != fcs.len().saturating_sub(1) {
-                result += &format!("{editor_bg}{editor_fg}│");
+            if c == fcs.len().saturating_sub(1) {
+                accounted_for = range.end;
+            } else {
+                result += &format!("{split_bg}{split_fg}");
+                result += if fcs[c + 1].2.start == range.end + 1 {
+                    // There is no vertical bar after this part
+                    "│"
+                } else {
+                    // There is a vertical bar after this part
+                    "├"
+                };
+                accounted_for = range.end + 1;
             }
-            accounted_for = range.end + 1;
         }
         // Tack on any last vertical bar that is needed
         if size.w != accounted_for {
             // Discontinuity detected at the end, fill with vertical bar!
             let fill_length = (size.w + 1).saturating_sub(accounted_for);
-            result += &"─".repeat(fill_length);
+            result += &format!("{split_bg}{split_fg}");
+            for at in 0..fill_length {
+                let empty_below = FileLayout::is_empty_at(
+                    y.saturating_add(1),
+                    at + accounted_for,
+                    &self.render_cache.span,
+                );
+                let empty_above = FileLayout::is_empty_at(
+                    y.saturating_sub(1),
+                    at + accounted_for,
+                    &self.render_cache.span,
+                );
+                result += if at == 0 && accounted_for != 0 {
+                    "├"
+                } else if empty_below && empty_above && at != fill_length.saturating_sub(1) {
+                    "┼"
+                } else if empty_below && at != fill_length.saturating_sub(1) {
+                    "┬"
+                } else if empty_above && at != fill_length.saturating_sub(1) {
+                    "┴"
+                } else {
+                    "─"
+                };
+            }
         }
         Ok(result)
     }
@@ -129,8 +182,9 @@ impl Editor {
         // Hide the cursor before rendering
         self.terminal.hide_cursor();
         // Render each line of the document
+        let syntax = config!(self.config, syntax);
         for y in 0..size.h {
-            let line = self.render_line(y, size, lua)?;
+            let line = self.render_line(y, size, lua, &syntax)?;
             self.terminal.goto(0, y);
             display!(self, line);
         }
@@ -160,8 +214,8 @@ impl Editor {
     }
 
     /// Render the lines of the document
-    #[allow(clippy::similar_names)]
-    pub fn render_document(&mut self, ptr: &Vec<usize>, y: usize, size: Size) -> Result<String> {
+    #[allow(clippy::similar_names, clippy::too_many_lines)]
+    pub fn render_file(&mut self, ptr: &[usize], y: usize, size: Size, sh: &SH) -> Result<String> {
         let Size { mut w, h } = size;
         let mut result = String::new();
         // Get various information
@@ -177,11 +231,14 @@ impl Editor {
         let line_numbers_enabled = config!(self.config, line_numbers).enabled;
         let ln_pad_left = config!(self.config, line_numbers).padding_left;
         let ln_pad_right = config!(self.config, line_numbers).padding_right;
-        let selection = self.doc().selection_loc_bound_disp();
-        let fc = self.files.get(ptr.clone()).unwrap();
+        let fc = self.files.get(ptr.to_owned()).unwrap();
         let doc = &fc.doc;
+        let selection = doc.selection_loc_bound_disp();
+        let has_file = doc.file_name.is_none();
+        // Refuse to render help message on splits - awkward edge case
         let help_message_here = config!(self.config, help_message).enabled
-            && self.render_cache.help_message_span.contains(&y);
+            && self.render_cache.help_message_span.contains(&y)
+            && self.files.len() == 1;
         // Render short of the help message
         let mut total_width = if help_message_here {
             self.render_cache.help_message_width
@@ -210,22 +267,23 @@ impl Editor {
             let tokens = trim_fit(&tokens, doc.offset.x, w, tab_width);
             let mut x_disp = doc.offset.x;
             let mut x_char = doc.character_idx(&doc.offset);
+            // Run some more calcs
+            let is_focus = self.ptr == ptr;
+            let has_selection_somewhere = doc.cursor.selection_end != doc.cursor.loc;
             for token in tokens {
                 // Find out the text (and colour of that text)
-                let (text, colour) = self.breakdown_token(token)?;
+                let (text, colour, feedback) = self.breakdown_token(token, sh)?;
+                if let Some(fb) = feedback {
+                    self.feedback = fb;
+                }
                 // Do the rendering (including selection where applicable)
                 for c in text.chars() {
-                    let disp_loc = Loc {
-                        y: at_line,
-                        x: x_disp,
-                    };
-                    let char_loc = Loc {
-                        y: at_line,
-                        x: x_char,
-                    };
+                    let disp_loc = Loc::at(x_disp, at_line);
+                    let char_loc = Loc::at(x_char, at_line);
                     // Work out selection
-                    let is_selected = &self.ptr == ptr
-                        && self.doc().is_this_loc_selected_disp(disp_loc, selection);
+                    let is_selected = is_focus
+                        && has_selection_somewhere
+                        && doc.is_this_loc_selected_disp(disp_loc, selection);
                     // Render the correct colour
                     if is_selected {
                         if cache_bg != selection_bg {
@@ -247,7 +305,7 @@ impl Editor {
                         }
                     }
                     // Render multi-cursors
-                    let multi_cursor_here = self.doc().has_cursor(char_loc).is_some();
+                    let multi_cursor_here = doc.has_cursor(char_loc).is_some();
                     if multi_cursor_here {
                         result += &format!("{underline}{}{}", Bg(Color::White), Fg(Color::Black));
                     }
@@ -258,14 +316,14 @@ impl Editor {
                         result += &format!("{no_underline}{cache_bg}{cache_fg}");
                     }
                     x_char += 1;
-                    let c_width = width(&c.to_string(), tab_width);
+                    let c_width = width_char(&c, tab_width);
                     x_disp += c_width;
                     total_width += c_width;
                 }
             }
             result += &format!("{editor_fg}{editor_bg}{cache_fg}");
             result += &" ".repeat(w.saturating_sub(total_width));
-        } else if config!(self.config, greeting_message).enabled && self.greet {
+        } else if config!(self.config, greeting_message).enabled && self.greet && has_file {
             // Render the greeting message (if enabled)
             result += &self.render_greeting(y, w, h)?;
         } else {
@@ -303,25 +361,30 @@ impl Editor {
     }
 
     /// Take a token and try to break it down into a colour and text
-    pub fn breakdown_token(&mut self, token: TokOpt) -> Result<(String, Fg)> {
+    pub fn breakdown_token(
+        &self,
+        token: TokOpt,
+        sh: &SH,
+    ) -> Result<(String, Fg, Option<Feedback>)> {
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
         match token {
             // Non-highlighted text
             TokOpt::Some(text, kind) => {
-                let colour = config!(self.config, syntax).get_theme(&kind);
+                let colour = sh.get_theme(&kind);
+                let mut feedback = None;
                 let colour = match colour {
                     // Success, write token
                     Ok(col) => Fg(col),
                     // Failure, show error message and don't highlight this token
                     Err(err) => {
-                        self.feedback = Feedback::Error(err.to_string());
+                        feedback = Some(Feedback::Error(err.to_string()));
                         editor_fg
                     }
                 };
-                Ok((text, colour))
+                Ok((text, colour, feedback))
             }
             // Highlighted text
-            TokOpt::None(text) => Ok((text, editor_fg)),
+            TokOpt::None(text) => Ok((text, editor_fg, None)),
         }
     }
 
@@ -337,18 +400,18 @@ impl Editor {
         let mut length = 0;
         let mut offset = 0;
         let tab_line = config!(self.config, tab_line);
+        let doc_idx = self
+            .files
+            .get_atom(ptr.to_owned())
+            .map_or(0, |(_, doc_idx)| doc_idx);
         for (c, file) in self.files.get_all(ptr.to_vec()).iter().enumerate() {
             let render = tab_line.render(lua, file, &mut self.feedback);
             length += width(&render, 4) + 1;
             headers.push(render);
-            let ptr = self
-                .files
-                .get_atom(ptr.to_owned())
-                .map_or(0, |(_, ptr)| ptr);
-            if c == ptr {
+            if c == doc_idx {
                 idx = headers.len().saturating_sub(1);
             }
-            while c == ptr && length > w && headers.len() > 1 {
+            while c == doc_idx && length >= w && headers.len() > 1 {
                 headers.remove(0);
                 length = length.saturating_sub(width(&headers[0], 4) + 1);
                 idx = headers.len().saturating_sub(1);
@@ -366,21 +429,34 @@ impl Editor {
         let tab_active_bg = Bg(config!(self.config, colors).tab_active_bg.to_color()?);
         let tab_active_fg = Fg(config!(self.config, colors).tab_active_fg.to_color()?);
         let tab_width = config!(self.config, document).tab_width;
+        let separator_enabled = config!(self.config, tab_line).separators;
         let mut current_width = 0;
         let (tabs, idx, _) = self.get_tab_parts(ptr, lua, w);
         let mut result = format!("{tab_inactive_fg}{tab_inactive_bg}");
         for (c, header) in tabs.iter().enumerate() {
+            // Work out what to render and what not to render based on situation
+            let pushes_over =
+                (current_width + width(header, tab_width) + usize::from(separator_enabled))
+                    .saturating_sub(w);
+            let render_sep = separator_enabled && pushes_over == 0;
+            // Calculate the string format
             if c == idx {
                 result += &format!(
-                    "{tab_active_bg}{tab_active_fg}{}{header}{}{tab_inactive_fg}{tab_inactive_bg}│",
+                    "{tab_active_bg}{tab_active_fg}{}{header}{}{tab_inactive_fg}{tab_inactive_bg}{}",
                     SetAttribute(Attribute::Bold),
                     SetAttribute(Attribute::Reset),
+                    if render_sep { "│" } else { "" },
                 );
             } else {
-                result += &format!("{header}│");
+                result += &format!("{header}{}", if render_sep { "│" } else { "" });
             }
-            current_width += width(header, tab_width) + 1;
+            current_width += width(header, tab_width) + usize::from(render_sep);
+            // Don't bother continuing to render if we've gone over
+            if pushes_over > 0 {
+                break;
+            }
         }
+        // Pad out
         result += &" ".to_string().repeat(w.saturating_sub(current_width));
         Ok(result)
     }
@@ -579,6 +655,18 @@ impl Editor {
                         }
                         input = suggestion;
                         offset = 0;
+                    }
+                    // Go up a directory
+                    (KMod::NONE, KCode::Left) => {
+                        // Find the /
+                        let dir_no_sep = input
+                            .chars()
+                            .take(input.chars().count().saturating_sub(1))
+                            .collect::<String>();
+                        if let Some(parent_cut) = dir_no_sep.rfind('/') {
+                            input = input.chars().take(parent_cut + 1).collect();
+                            offset = 0;
+                        }
                     }
                     // Cycle through suggestions
                     (KMod::SHIFT, KCode::BackTab) => offset = offset.saturating_sub(1),

@@ -231,6 +231,7 @@ impl LuaUserData for HelpMessage {
 #[derive(Debug)]
 pub struct TabLine {
     pub enabled: bool,
+    pub separators: bool,
     pub format: String,
 }
 
@@ -238,6 +239,7 @@ impl Default for TabLine {
     fn default() -> Self {
         Self {
             enabled: true,
+            separators: true,
             format: "  {file_name}{modified}  ".to_string(),
         }
     }
@@ -308,6 +310,11 @@ impl LuaUserData for TabLine {
         fields.add_field_method_get("format", |_, this| Ok(this.format.clone()));
         fields.add_field_method_set("format", |_, this, value| {
             this.format = value;
+            Ok(())
+        });
+        fields.add_field_method_get("separators", |_, this| Ok(this.separators));
+        fields.add_field_method_set("separators", |_, this, value| {
+            this.separators = value;
             Ok(())
         });
     }

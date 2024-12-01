@@ -1,5 +1,5 @@
 --[[
-Quickcomment v0.2
+Quickcomment v0.3
 
 A plug-in to help you comment and uncomment lines quickly
 ]]--
@@ -15,9 +15,17 @@ function quickcomment:comment(y)
     local comment_start = self:comment_start() .. " "
     -- Insert the character
     local old_x = editor.cursor.x
-    editor:move_to(index - 1, y)
+    if index - 1 <= 0 then
+        editor:move_to(0, y)
+    else
+        editor:move_to(index - 1, y)
+    end
     editor:insert(comment_start)
-    editor:move_to(old_x + #comment_start, y)
+    if old_x + #comment_start <= 0 then
+        editor:move_to(0, y)
+    else
+        editor:move_to(old_x + #comment_start, y)
+    end
 end
 
 function quickcomment:uncomment(y)
@@ -25,19 +33,25 @@ function quickcomment:uncomment(y)
     local line = editor:get_line_at(y)
     local old_x = editor.cursor.x
     if self:is_commented(y) then
-        local index = line:find(comment_start)
+        local index = line:find(comment_start, 1, true)
         if index ~= nil then
+            -- Existing comment has a space after it
             for i = 0, #comment_start - 1 do
                 editor:remove_at(index - 1, y)
             end
         else
+            -- Existing comment doesn't have a space after it
             comment_start = self:comment_start()
-            local index = line:find(comment_start)
+            local index = line:find(comment_start, 1, true)
             for i = 0, #comment_start - 1 do
                 editor:remove_at(index - 1, y)
             end
         end
-        editor:move_to(old_x - #comment_start, y)
+        if old_x - #comment_start <= 0 then
+            editor:move_to(0, y)
+        else
+            editor:move_to(old_x - #comment_start, y)
+        end
     end
 end
 
@@ -96,12 +110,36 @@ function quickcomment:comment_start()
     return comment_start
 end
 
+function quickcomment:toggle_comment(y)
+    if self:is_commented(y) then
+        self:uncomment(y)
+    else
+        self:comment(y)
+    end
+end
+
 event_mapping["alt_c"] = function()
     editor:commit()
-    if quickcomment:is_commented(editor.cursor.y) then
-        quickcomment:uncomment(editor.cursor.y)
+    local cursor = editor.cursor
+    local select = editor.selection
+    local no_select = select.x == cursor.x and select.y == cursor.y
+    if no_select then
+        quickcomment:toggle_comment(editor.cursor.y)
     else
-        quickcomment:comment(editor.cursor.y)
+        -- toggle comments on a group of lines
+        if cursor.y > select.y then
+            for line = select.y, cursor.y do
+                editor:move_to(0, line)
+                quickcomment:toggle_comment(editor.cursor.y)
+            end
+        else
+            for line = cursor.y, select.y do
+                editor:move_to(0, line)
+                quickcomment:toggle_comment(editor.cursor.y)
+            end
+        end
+        editor:move_to(cursor.x, cursor.y)
+        editor:select_to(select.x, select.y)
     end
     -- Avoid weird behaviour with cursor moving up and down
     editor:cursor_snap()
