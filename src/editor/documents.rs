@@ -41,7 +41,9 @@ impl FileLayout {
         match self {
             Self::None => vec![],
             // Atom and file trees: stretch from starting position through to end of their containers
-            Self::Atom(_, _) | Self::FileTree => vec![(idx, at.y..at.y + size.h, at.x..at.x + size.w)],
+            Self::Atom(_, _) | Self::FileTree => {
+                vec![(idx, at.y..at.y + size.h, at.x..at.x + size.w)]
+            }
             // SideBySide: distributes available container space to each sub-layout
             Self::SideBySide(layouts) => {
                 let mut result = vec![];

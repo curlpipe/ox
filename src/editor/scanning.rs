@@ -263,7 +263,11 @@ impl Editor {
             // Replace everything top to bottom
             self.try_doc_mut().unwrap().move_to(&Loc::at(0, 0));
             while let Some(mtch) = self.try_doc_mut().unwrap().next_match(target, 1) {
-                drop(self.try_doc_mut().unwrap().replace(mtch.loc, &mtch.text, into));
+                drop(
+                    self.try_doc_mut()
+                        .unwrap()
+                        .replace(mtch.loc, &mtch.text, into),
+                );
                 self.update_highlighter();
                 if let Some(file) = self.files.get_mut(self.ptr.clone()) {
                     file.highlighter

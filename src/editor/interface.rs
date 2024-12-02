@@ -65,7 +65,10 @@ impl Editor {
         let mut accounted_for = 0;
         // Render each component of this line
         for (c, (fc, rows, range)) in fcs.iter().enumerate() {
-            let in_file_tree = matches!(self.files.get_raw(fc.to_owned()), Some(FileLayout::FileTree));
+            let in_file_tree = matches!(
+                self.files.get_raw(fc.to_owned()),
+                Some(FileLayout::FileTree)
+            );
             // Check if we have encountered an area of discontinuity in the line
             if range.start != accounted_for {
                 // Discontinuity detected, fill with vertical bar!
@@ -205,7 +208,11 @@ impl Editor {
 
     /// Function to calculate the cursor's position on screen
     pub fn cursor_position(&self) -> Option<Loc> {
-        if !matches!(self.files.get_raw(self.ptr.clone()), Some(FileLayout::FileTree)) {
+        let in_file_tree = matches!(
+            self.files.get_raw(self.ptr.clone()),
+            Some(FileLayout::FileTree)
+        );
+        if !in_file_tree {
             let Loc { x, y } = self.try_doc().unwrap().cursor_loc_in_screen()?;
             for (ptr, rows, cols) in &self.render_cache.span {
                 if ptr == &self.ptr {

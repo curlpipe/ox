@@ -148,7 +148,10 @@ pub fn handle_multiple_cursors(
     while ptr < secondary_cursors.len() {
         // Move to the secondary cursor position
         let sec_cursor = secondary_cursors[ptr];
-        ged!(mut &editor).try_doc_mut().unwrap().move_to(&sec_cursor);
+        ged!(mut &editor)
+            .try_doc_mut()
+            .unwrap()
+            .move_to(&sec_cursor);
         // Replay the event
         let old_loc = ged!(&editor).try_doc().unwrap().char_loc();
         handle_event(editor, event, lua)?;

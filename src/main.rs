@@ -184,7 +184,10 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         let event = wait_for_event(&editor, &lua)?;
 
         // Handle the event
-        let original_loc = ged!(&editor).try_doc().map(Document::char_loc).unwrap_or_default();
+        let original_loc = ged!(&editor)
+            .try_doc()
+            .map(Document::char_loc)
+            .unwrap_or_default();
         handle_event(&editor, &event, &lua)?;
 
         // Handle multi cursors

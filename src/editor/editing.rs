@@ -15,7 +15,8 @@ impl Editor {
                 // If last event is present and the same as this one, commit
                 let event_type_differs = last_ev.map(|e1| e1.same_type(&ev)) != Some(true);
                 // If last event is present and on a different line from the previous, commit
-                let event_on_different_line = last_ev.map(|e| e.loc().y == ev.loc().y) != Some(true);
+                let event_on_different_line =
+                    last_ev.map(|e| e.loc().y == ev.loc().y) != Some(true);
                 // Commit if necessary
                 if event_type_differs || event_on_different_line {
                     self.try_doc_mut().unwrap().commit();
