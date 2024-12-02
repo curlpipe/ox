@@ -535,6 +535,8 @@ impl Editor {
         Ok(content)
     }
 
+    /// Render a line in the file tree
+    #[allow(clippy::similar_names)]
     fn render_file_tree(&mut self, length: usize) -> Result<String> {
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);

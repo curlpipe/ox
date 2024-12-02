@@ -4,13 +4,28 @@ use crate::Editor;
 
 impl Editor {
     /// Open the file tree
+    #[allow(clippy::cast_precision_loss)]
     pub fn open_file_tree(&mut self) {
         if !self.file_tree_is_open() {
             // Wrap existing file layout in new file layout
-            self.files = FileLayout::SideBySide(vec![
-                (FileLayout::FileTree, 0.2),
-                (self.files.clone(), 0.8),
-            ]);
+            if let FileLayout::SideBySide(ref mut layouts) = &mut self.files {
+                // Shrink existing splits
+                let redistribute = 0.2 / layouts.len() as f64;
+                for (_, prop) in &mut *layouts {
+                    if *prop >= redistribute {
+                        *prop -= redistribute;
+                    } else {
+                        *prop = 0.0;
+                    }
+                }
+                // Insert file tree
+                layouts.insert(0, (FileLayout::FileTree, 0.2));
+            } else {
+                self.files = FileLayout::SideBySide(vec![
+                    (FileLayout::FileTree, 0.2),
+                    (self.files.clone(), 0.8),
+                ]);
+            }
             self.ptr = vec![0];
         }
     }
