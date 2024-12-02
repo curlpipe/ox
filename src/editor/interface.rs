@@ -99,7 +99,7 @@ impl Editor {
             let rel_y = y.saturating_sub(rows.start);
             if in_file_tree {
                 // Part of file tree!
-                result += &" ".repeat(length);
+                result += &self.render_file_tree(length)?;
             } else if y == rows.start && tab_line_enabled {
                 // Tab line
                 result += &self.render_tab_line(fc, lua, length)?;
@@ -533,6 +533,12 @@ impl Editor {
         }
         // Output
         Ok(content)
+    }
+
+    fn render_file_tree(&mut self, length: usize) -> Result<String> {
+        let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
+        let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+        Ok(format!("{editor_bg}{editor_fg}{}", " ".repeat(length)))
     }
 
     /// Display a prompt in the document

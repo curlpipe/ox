@@ -1,5 +1,5 @@
 --[[
-Bracket Pairs v0.6
+Bracket Pairs v0.7
 
 Automatically insert and delete brackets and quotes where appropriate
 Also helps when you want to pad out brackets and quotes with whitespace
@@ -19,6 +19,7 @@ autopairs.just_paired = { x = nil, y = nil }
 
 -- Determine whether we are currently inside a pair
 function autopairs:in_pair()
+    if editor.cursor == nil then return false end
     -- Get first candidate for a pair
     local first
     if editor.cursor.x == 0 then
@@ -61,6 +62,7 @@ for i, str in ipairs(autopairs.pairings) do
     if start_pair == end_pair then
         -- Handle hybrid start_pair and end_pair
         event_mapping[start_pair] = function()
+            if editor.cursor == nil then return end
             -- Check if there is a matching start pair
             local at_char = ' '
             if editor.cursor.x > 1 then
@@ -85,6 +87,7 @@ for i, str in ipairs(autopairs.pairings) do
     else
         -- Handle traditional pairs
         event_mapping[end_pair] = function()
+            if editor.cursor == nil then return end
             -- Check if there is a matching start pair
             local at_char = editor:get_character_at(editor.cursor.x - 2, editor.cursor.y)
             local potential_dupe = at_char == start_pair
@@ -100,6 +103,7 @@ for i, str in ipairs(autopairs.pairings) do
             end
         end
         event_mapping[start_pair] = function()
+            if editor.cursor == nil then return end
             autopairs.just_paired = editor.cursor
             editor:insert(end_pair)
             editor:move_left()

@@ -1,5 +1,5 @@
 --[[
-Auto Indent v0.12
+Auto Indent v0.13
 
 Helps you when programming by guessing where indentation should go
 and then automatically applying these guesses as you program
@@ -119,6 +119,7 @@ end
 
 -- Get how indented a line is at a certain y index
 function autoindent:get_indent(y)
+    if y == nil then return nil end
     local line = editor:get_line_at(y)
     return #(line:match("^\t+") or "") + #(line:match("^ +") or "") / document.tab_width
 end
@@ -181,14 +182,18 @@ for i = 32, 126 do
     if char ~= "*" then
         -- Keep track of whether the line was previously dedenting beforehand
         event_mapping["before:" .. char] = function()
-            was_dedenting = autoindent:causes_dedent(editor.cursor.y)
+            if editor.cursor ~= nil then
+                was_dedenting = autoindent:causes_dedent(editor.cursor.y)
+            end
         end
         -- Trigger dedent checking
         event_mapping[char] = function()
             -- Dedent where appropriate
-            if autoindent:causes_dedent(editor.cursor.y) and not was_dedenting then
-                local new_level = autoindent:get_indent(editor.cursor.y) - 1
-                autoindent:set_indent(editor.cursor.y, new_level)
+            if editor.cursor ~= nil then
+                if autoindent:causes_dedent(editor.cursor.y) and not was_dedenting then
+                    local new_level = autoindent:get_indent(editor.cursor.y) - 1
+                    autoindent:set_indent(editor.cursor.y, new_level)
+                end
             end
         end
     end
