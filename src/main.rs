@@ -19,7 +19,7 @@ use events::wait_for_event;
 use kaolinite::event::{Error as KError, Event};
 use kaolinite::searching::Searcher;
 use kaolinite::utils::{file_or_dir, get_cwd};
-use kaolinite::Loc;
+use kaolinite::{Document, Loc};
 use mlua::Error::{RuntimeError, SyntaxError};
 use mlua::{AnyUserData, FromLua, Lua, Value};
 use std::io::ErrorKind;
@@ -184,7 +184,7 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         let event = wait_for_event(&editor, &lua)?;
 
         // Handle the event
-        let original_loc = ged!(&editor).doc().char_loc();
+        let original_loc = ged!(&editor).try_doc().map(Document::char_loc).unwrap_or_default();
         handle_event(&editor, &event, &lua)?;
 
         // Handle multi cursors

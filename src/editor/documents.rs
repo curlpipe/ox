@@ -19,6 +19,8 @@ pub enum FileLayout {
     Atom(Vec<FileContainer>, usize),
     /// Placeholder for an empty file split
     None,
+    /// Representing a file tree
+    FileTree,
 }
 
 impl Default for FileLayout {
@@ -38,8 +40,8 @@ impl FileLayout {
     pub fn span(&self, idx: Vec<usize>, size: Size, at: Loc) -> Span {
         match self {
             Self::None => vec![],
-            // Atom: stretches from starting position through to end of it's container
-            Self::Atom(_, _) => vec![(idx, at.y..at.y + size.h, at.x..at.x + size.w)],
+            // Atom and file trees: stretch from starting position through to end of their containers
+            Self::Atom(_, _) | Self::FileTree => vec![(idx, at.y..at.y + size.h, at.x..at.x + size.w)],
             // SideBySide: distributes available container space to each sub-layout
             Self::SideBySide(layouts) => {
                 let mut result = vec![];
@@ -153,7 +155,7 @@ impl FileLayout {
     /// Work out how many files are currently open
     pub fn len(&self) -> usize {
         match self {
-            Self::None => 0,
+            Self::None | Self::FileTree => 0,
             Self::Atom(containers, _) => containers.len(),
             Self::SideBySide(layouts) => layouts.iter().map(|(layout, _)| layout.len()).sum(),
             Self::TopToBottom(layouts) => layouts.iter().map(|(layout, _)| layout.len()).sum(),
@@ -163,7 +165,7 @@ impl FileLayout {
     /// Find a file container location from it's path
     pub fn find(&self, idx: Vec<usize>, path: &str) -> Option<(Vec<usize>, usize)> {
         match self {
-            Self::None => None,
+            Self::None | Self::FileTree => None,
             Self::Atom(containers, _) => {
                 // Scan this atom for any documents
                 for (ptr, container) in containers.iter().enumerate() {
@@ -193,7 +195,7 @@ impl FileLayout {
     /// Get the `FileLayout` at a certain index
     pub fn get_raw(&self, mut idx: Vec<usize>) -> Option<&FileLayout> {
         match self {
-            Self::None | Self::Atom(_, _) => Some(self),
+            Self::None | Self::Atom(_, _) | Self::FileTree => Some(self),
             Self::SideBySide(layouts) => {
                 if idx.is_empty() {
                     Some(self)
@@ -219,7 +221,7 @@ impl FileLayout {
             Some(self)
         } else {
             match self {
-                Self::None | Self::Atom(_, _) => Some(self),
+                Self::None | Self::Atom(_, _) | Self::FileTree => Some(self),
                 Self::SideBySide(layouts) => {
                     let subidx = idx.remove(0);
                     layouts.get_mut(subidx)?.0.get_raw_mut(idx)
@@ -235,7 +237,7 @@ impl FileLayout {
     /// Get the `FileLayout` at a certain index
     pub fn set(&mut self, mut idx: Vec<usize>, fl: FileLayout) {
         match self {
-            Self::None | Self::Atom(_, _) => *self = fl,
+            Self::None | Self::Atom(_, _) | Self::FileTree => *self = fl,
             Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
                 if idx.is_empty() {
                     *self = fl;
@@ -250,7 +252,7 @@ impl FileLayout {
     /// Given an index, find the file containers in the tree
     pub fn get_atom(&self, mut idx: Vec<usize>) -> Option<(&[FileContainer], usize)> {
         match self {
-            Self::None => None,
+            Self::None | Self::FileTree => None,
             Self::Atom(containers, ptr) => Some((containers, *ptr)),
             Self::SideBySide(layouts) => {
                 let subidx = idx.remove(0);
@@ -269,7 +271,7 @@ impl FileLayout {
         mut idx: Vec<usize>,
     ) -> Option<(&mut Vec<FileContainer>, &mut usize)> {
         match self {
-            Self::None => None,
+            Self::None | Self::FileTree => None,
             Self::Atom(ref mut containers, ref mut ptr) => Some((containers, ptr)),
             Self::SideBySide(layouts) => {
                 let subidx = idx.remove(0);
@@ -302,7 +304,7 @@ impl FileLayout {
     /// In the currently active atom, move to a different document
     pub fn move_to(&mut self, mut idx: Vec<usize>, ptr: usize) {
         match self {
-            Self::None => (),
+            Self::None | Self::FileTree => (),
             Self::Atom(_, ref mut old_ptr) => *old_ptr = ptr,
             Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
                 let subidx = idx.remove(0);
@@ -329,7 +331,7 @@ impl FileLayout {
             // Determine behaviour based on parent
             if let Some(parent) = self.get_raw_mut(at_parent) {
                 match parent {
-                    Self::None | Self::Atom(_, _) => unreachable!(),
+                    Self::None | Self::Atom(_, _) | Self::FileTree => unreachable!(),
                     Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
                         // Get the proportion of what we're removing
                         let removed_prop = layouts[within_parent].1;
@@ -353,7 +355,7 @@ impl FileLayout {
     /// Traverse the tree and return a list of indices to empty atoms
     pub fn empty_atoms(&self, at: Vec<usize>) -> Option<Vec<usize>> {
         match self {
-            Self::None => None,
+            Self::None | Self::FileTree => None,
             Self::Atom(fcs, _) => {
                 if fcs.is_empty() {
                     Some(at)
@@ -407,6 +409,7 @@ impl FileLayout {
                     new_ptr.push(0);
                     Self::TopToBottom(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
                 }
+                Self::FileTree => return at,
             };
             self.set(at, new_fl);
         }
@@ -423,6 +426,7 @@ impl FileLayout {
                     new_ptr.push(1);
                     Self::TopToBottom(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
                 }
+                Self::FileTree => return at,
             };
             self.set(at, new_fl);
         }
@@ -439,6 +443,7 @@ impl FileLayout {
                     new_ptr.push(0);
                     Self::SideBySide(vec![(fl, 0.5), (old_fl.clone(), 0.5)])
                 }
+                Self::FileTree => return at,
             };
             self.set(at, new_fl);
         }
@@ -455,6 +460,7 @@ impl FileLayout {
                     new_ptr.push(1);
                     Self::SideBySide(vec![(old_fl.clone(), 0.5), (fl, 0.5)])
                 }
+                Self::FileTree => return at,
             };
             self.set(at, new_fl);
         }

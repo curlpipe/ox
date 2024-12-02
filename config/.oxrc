@@ -276,6 +276,10 @@ event_mapping = {
         editor:macro_record_stop()
         editor:display_info("Macro recorded")
     end,
+    -- File Tree
+    ["ctrl_space"] = function()
+        editor:toggle_file_tree()
+    end,
 }
 
 -- Define user-defined commands
