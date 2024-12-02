@@ -28,10 +28,10 @@ mod scanning;
 
 pub use cursor::{allowed_by_multi_cursor, handle_multiple_cursors};
 pub use documents::{FileContainer, FileLayout};
+pub use filetree::FileTree;
 pub use filetypes::{FileType, FileTypes};
 pub use interface::RenderCache;
 pub use macros::MacroMan;
-pub use filetree::FileTree;
 
 /// For managing all editing and rendering of cactus
 #[allow(clippy::struct_excessive_bools)]

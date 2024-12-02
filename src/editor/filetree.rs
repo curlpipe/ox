@@ -1,9 +1,9 @@
 /// Utilities for handling the file tree
 use crate::editor::FileLayout;
 use crate::{Editor, OxError, Result};
-use std::path::{Path, PathBuf};
 use kaolinite::utils::{get_cwd, get_file_name};
-use std::fmt::{Error, Display, Formatter};
+use std::fmt::{Display, Error, Formatter};
+use std::path::{Path, PathBuf};
 use std::result::Result as RResult;
 
 #[derive(Debug)]
@@ -148,10 +148,12 @@ impl FileTree {
                                     _ => {
                                         // If both are the same type, compare by path
                                         let a_path = match a {
-                                            FileTree::File { path } | FileTree::Dir { path, .. } => path,
+                                            FileTree::File { path }
+                                            | FileTree::Dir { path, .. } => path,
                                         };
                                         let b_path = match b {
-                                            FileTree::File { path } | FileTree::Dir { path, .. } => path,
+                                            FileTree::File { path }
+                                            | FileTree::Dir { path, .. } => path,
                                         };
                                         a_path.cmp(b_path)
                                     }
@@ -199,10 +201,20 @@ impl FileTree {
 impl Display for FileTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> RResult<(), Error> {
         match self {
-            Self::File { path } => writeln!(f, "{}{}", self.icon(), get_file_name(path).unwrap_or(path.to_string()))?,
+            Self::File { path } => writeln!(
+                f,
+                "{}{}",
+                self.icon(),
+                get_file_name(path).unwrap_or(path.to_string())
+            )?,
             Self::Dir { path, files } => {
                 // Write self
-                writeln!(f, "{}{}", self.icon(), get_file_name(path).unwrap_or(path.to_string()))?;
+                writeln!(
+                    f,
+                    "{}{}",
+                    self.icon(),
+                    get_file_name(path).unwrap_or(path.to_string())
+                )?;
                 if let Some(files) = files {
                     // Write child nodes
                     for file in files {

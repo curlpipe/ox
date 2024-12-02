@@ -55,7 +55,10 @@ impl Editor {
         // Calculate file tree display representation
         if let Some(file_tree) = self.file_tree.as_ref() {
             let filetree = format!("{file_tree}");
-            self.render_cache.file_tree = filetree.split('\n').map(std::string::ToString::to_string).collect();
+            self.render_cache.file_tree = filetree
+                .split('\n')
+                .map(std::string::ToString::to_string)
+                .collect();
         }
     }
 
@@ -547,7 +550,8 @@ impl Editor {
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
         // Work out which line to use
-        let line = self.render_cache
+        let line = self
+            .render_cache
             .file_tree
             .get(y)
             .map(std::string::ToString::to_string)
