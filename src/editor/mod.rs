@@ -442,7 +442,47 @@ impl Editor {
 
     /// Handle key event
     pub fn handle_key_event(&mut self, modifiers: KMod, code: KCode) -> Result<()> {
-        if self.try_doc().is_some() {
+        let in_file_tree = matches!(
+            self.files.get_raw(self.ptr.clone()),
+            Some(FileLayout::FileTree)
+        );
+        if in_file_tree {
+            // File tree key behaviour
+            match (modifiers, code) {
+                (KMod::NONE, KCode::Up) => {
+                    if let Some(ref mut fts) = self.render_cache.file_tree_selection {
+                        // Move up a file (in the render cache)
+                        *fts = fts.saturating_sub(1);
+                        // Move up a file (in the backend)
+                        let flat = self
+                            .file_tree
+                            .as_ref()
+                            .map(FileTree::flatten)
+                            .unwrap_or_default();
+                        let new_path = flat.get(*fts);
+                        self.file_tree_selection = new_path.cloned();
+                    }
+                }
+                (KMod::NONE, KCode::Down) => {
+                    if let Some(ref mut fts) = self.render_cache.file_tree_selection {
+                        let flat = self
+                            .file_tree
+                            .as_ref()
+                            .map(FileTree::flatten)
+                            .unwrap_or_default();
+                        if *fts + 1 < flat.len() {
+                            // Move up a file (in the render cache)
+                            *fts += 1;
+                            // Move up a file (in the backend)
+                            let new_path = flat.get(*fts);
+                            self.file_tree_selection = new_path.cloned();
+                        }
+                    }
+                }
+                _ => (),
+            }
+        } else {
+            // Non file tree behaviour
             // Check period of inactivity
             let end = Instant::now();
             let inactivity = end.duration_since(self.last_active).as_millis() as usize;

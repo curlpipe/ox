@@ -162,16 +162,18 @@ function autoindent:disperse_block()
 end
 
 event_mapping["enter"] = function()
-    -- Indent where appropriate
-    if autoindent:causes_indent(editor.cursor.y - 1) then
-        local new_level = autoindent:get_indent(editor.cursor.y) + 1
-        autoindent:set_indent(editor.cursor.y, new_level)
+    if editor.cursor ~= nil then
+        -- Indent where appropriate
+        if autoindent:causes_indent(editor.cursor.y - 1) then
+            local new_level = autoindent:get_indent(editor.cursor.y) + 1
+            autoindent:set_indent(editor.cursor.y, new_level)
+        end
+        -- Give newly created line a boost to match it up relatively with the line before it
+        local added_level = autoindent:get_indent(editor.cursor.y) + autoindent:get_indent(editor.cursor.y - 1)
+        autoindent:set_indent(editor.cursor.y, added_level)
+        -- Handle the case where enter is pressed, creating a multi-line block that requires neatening up
+        autoindent:disperse_block()
     end
-    -- Give newly created line a boost to match it up relatively with the line before it
-    local added_level = autoindent:get_indent(editor.cursor.y) + autoindent:get_indent(editor.cursor.y - 1)
-    autoindent:set_indent(editor.cursor.y, added_level)
-    -- Handle the case where enter is pressed, creating a multi-line block that requires neatening up
-    autoindent:disperse_block()
 end
 
 -- For each ascii characters and punctuation
@@ -210,62 +212,66 @@ end
 
 -- Shortcut to indent a selection
 event_mapping["ctrl_tab"] = function()
-    local cursor = editor.cursor
-    local select = editor.selection
-    if cursor.y == select.y then
-        -- Single line is selected
-        local level = autoindent:get_indent(cursor.y)
-        autoindent:set_indent(cursor.y, level + 1)
-    else
-        -- Multiple lines selected
-        if cursor.y > select.y then
-            for line = select.y, cursor.y do
-                editor:move_to(0, line)
-                local indent = autoindent:get_indent(line)
-                autoindent:set_indent(line, indent + 1)
-            end
+    if editor.cursor ~= nil then
+        local cursor = editor.cursor
+        local select = editor.selection
+        if cursor.y == select.y then
+            -- Single line is selected
+            local level = autoindent:get_indent(cursor.y)
+            autoindent:set_indent(cursor.y, level + 1)
         else
-            for line = cursor.y, select.y do
-                editor:move_to(0, line)
-                local indent = autoindent:get_indent(line)
-                autoindent:set_indent(line, indent + 1)
+            -- Multiple lines selected
+            if cursor.y > select.y then
+                for line = select.y, cursor.y do
+                    editor:move_to(0, line)
+                    local indent = autoindent:get_indent(line)
+                    autoindent:set_indent(line, indent + 1)
+                end
+            else
+                for line = cursor.y, select.y do
+                    editor:move_to(0, line)
+                    local indent = autoindent:get_indent(line)
+                    autoindent:set_indent(line, indent + 1)
+                end
             end
+            local cursor_tabs = dedent_amount(cursor.y)
+            local select_tabs = dedent_amount(select.y)
+            editor:move_to(cursor.x + cursor_tabs, cursor.y)
+            editor:select_to(select.x + select_tabs, select.y)
         end
-        local cursor_tabs = dedent_amount(cursor.y)
-        local select_tabs = dedent_amount(select.y)
-        editor:move_to(cursor.x + cursor_tabs, cursor.y)
-        editor:select_to(select.x + select_tabs, select.y)
+        editor:cursor_snap()
     end
-    editor:cursor_snap()
 end
 
 -- Shortcut to dedent a line
 event_mapping["shift_tab"] = function()
-    local cursor = editor.cursor
-    local select = editor.selection
-    if cursor.x == select.x and cursor.y == select.y then
-        -- Dedent a single line
-        local level = autoindent:get_indent(editor.cursor.y)
-        autoindent:set_indent(editor.cursor.y, level - 1)
-    else
-        -- Dedent a group of lines
-        if cursor.y > select.y then
-            for line = select.y, cursor.y do
-                editor:move_to(0, line)
-                local indent = autoindent:get_indent(line)
-                autoindent:set_indent(line, indent - 1)
-            end
+    if editor.cursor ~= nil then
+        local cursor = editor.cursor
+        local select = editor.selection
+        if cursor.x == select.x and cursor.y == select.y then
+            -- Dedent a single line
+            local level = autoindent:get_indent(editor.cursor.y)
+            autoindent:set_indent(editor.cursor.y, level - 1)
         else
-            for line = cursor.y, select.y do
-                editor:move_to(0, line)
-                local indent = autoindent:get_indent(line)
-                autoindent:set_indent(line, indent - 1)
+            -- Dedent a group of lines
+            if cursor.y > select.y then
+                for line = select.y, cursor.y do
+                    editor:move_to(0, line)
+                    local indent = autoindent:get_indent(line)
+                    autoindent:set_indent(line, indent - 1)
+                end
+            else
+                for line = cursor.y, select.y do
+                    editor:move_to(0, line)
+                    local indent = autoindent:get_indent(line)
+                    autoindent:set_indent(line, indent - 1)
+                end
             end
+            local cursor_tabs = dedent_amount(cursor.y)
+            local select_tabs = dedent_amount(select.y)
+            editor:move_to(cursor.x - cursor_tabs, cursor.y)
+            editor:select_to(select.x - select_tabs, select.y)
         end
-        local cursor_tabs = dedent_amount(cursor.y)
-        local select_tabs = dedent_amount(select.y)
-        editor:move_to(cursor.x - cursor_tabs, cursor.y)
-        editor:select_to(select.x - select_tabs, select.y)
+        editor:cursor_snap()
     end
-    editor:cursor_snap()
 end

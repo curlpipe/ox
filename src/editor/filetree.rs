@@ -247,6 +247,23 @@ impl FileTree {
             }
         }
     }
+
+    /// Find the file path at a certain index
+    pub fn flatten(&self) -> Vec<String> {
+        match self {
+            Self::File { path } => vec![path.to_string()],
+            Self::Dir { path, files } => {
+                let mut result = vec![];
+                result.push(path.to_string());
+                if let Some(files) = files {
+                    for file in files {
+                        result.append(&mut file.flatten());
+                    }
+                }
+                result
+            }
+        }
+    }
 }
 
 impl Editor {
