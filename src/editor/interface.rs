@@ -25,6 +25,7 @@ pub struct RenderCache {
     pub help_message_width: usize,
     pub help_message_span: Range<usize>,
     pub file_tree: Vec<String>,
+    pub file_tree_selection: Option<usize>,
 }
 
 impl Editor {
@@ -54,11 +55,10 @@ impl Editor {
         self.render_cache.help_message_span = help_start..help_end + 1;
         // Calculate file tree display representation
         if let Some(file_tree) = self.file_tree.as_ref() {
-            let filetree = format!("{file_tree}");
-            self.render_cache.file_tree = filetree
-                .split('\n')
-                .map(std::string::ToString::to_string)
-                .collect();
+            let (files, sel) =
+                file_tree.display(self.file_tree_selection.as_ref().unwrap_or(&String::new()));
+            self.render_cache.file_tree = files;
+            self.render_cache.file_tree_selection = sel;
         }
     }
 
@@ -549,6 +549,8 @@ impl Editor {
     fn render_file_tree(&mut self, y: usize, length: usize) -> Result<String> {
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
+        let selection_bg = Bg(config!(self.config, colors).selection_bg.to_color()?);
+        let selection_fg = Fg(config!(self.config, colors).selection_fg.to_color()?);
         // Work out which line to use
         let line = self
             .render_cache
@@ -575,7 +577,11 @@ impl Editor {
         }
         result += &" ".repeat(available);
         // Return result
-        Ok(format!("{editor_bg}{editor_fg}{result}"))
+        if self.render_cache.file_tree_selection == Some(y) {
+            Ok(format!("{selection_bg}{selection_fg}{result}"))
+        } else {
+            Ok(format!("{editor_bg}{editor_fg}{result}"))
+        }
     }
 
     /// Display a prompt in the document

@@ -2,9 +2,7 @@
 use crate::editor::FileLayout;
 use crate::{Editor, OxError, Result};
 use kaolinite::utils::{get_cwd, get_file_name};
-use std::fmt::{Display, Error, Formatter};
 use std::path::{Path, PathBuf};
-use std::result::Result as RResult;
 
 #[derive(Debug)]
 pub enum FileTree {
@@ -196,34 +194,58 @@ impl FileTree {
             (true, true, _) => "󰘓  ",
         }
     }
-}
 
-impl Display for FileTree {
-    fn fmt(&self, f: &mut Formatter<'_>) -> RResult<(), Error> {
+    /// Work out if this node is selected
+    pub fn is_selected(&self, selection: &str) -> bool {
         match self {
-            Self::File { path } => writeln!(
-                f,
-                "{}{}",
-                self.icon(),
-                get_file_name(path).unwrap_or(path.to_string())
-            )?,
-            Self::Dir { path, files } => {
-                // Write self
-                writeln!(
-                    f,
+            Self::File { path } | Self::Dir { path, .. } => path == selection,
+        }
+    }
+
+    /// Display this file tree
+    pub fn display(&self, selection: &str) -> (Vec<String>, Option<usize>) {
+        match self {
+            Self::File { path } => (
+                vec![format!(
                     "{}{}",
                     self.icon(),
                     get_file_name(path).unwrap_or(path.to_string())
-                )?;
+                )],
+                if self.is_selected(selection) {
+                    Some(0)
+                } else {
+                    None
+                },
+            ),
+            Self::Dir { path, files } => {
+                let mut result = vec![];
+                let mut at = None;
+                // Write self
+                result.push(format!(
+                    "{}{}",
+                    self.icon(),
+                    get_file_name(path).unwrap_or(path.to_string())
+                ));
+                if self.is_selected(selection) {
+                    at = Some(result.len().saturating_sub(1));
+                }
+                // Write child nodes
                 if let Some(files) = files {
-                    // Write child nodes
                     for file in files {
-                        write!(f, "  {file}")?;
+                        let (sub_display, sub_at) = file.display(selection);
+                        for (c, s) in sub_display.iter().enumerate() {
+                            result.push(format!("  {s}"));
+                            if let Some(sub_at) = sub_at {
+                                if sub_at == c {
+                                    at = Some(result.len().saturating_sub(1));
+                                }
+                            }
+                        }
                     }
                 }
+                (result, at)
             }
         }
-        Ok(())
     }
 }
 
@@ -232,9 +254,11 @@ impl Editor {
     #[allow(clippy::cast_precision_loss)]
     pub fn open_file_tree(&mut self) {
         if !self.file_tree_is_open() {
+            self.old_ptr = self.ptr.clone();
             if let Some(cwd) = get_cwd() {
                 if let Ok(ft) = FileTree::build(&cwd) {
                     self.file_tree = Some(ft);
+                    self.file_tree_selection = Some(cwd);
                 }
             }
             // Wrap existing file layout in new file layout
@@ -270,6 +294,15 @@ impl Editor {
             if let Some(at) = ftp {
                 // Delete the file tree
                 self.files.remove(vec![at]);
+                // Clear up any leftovers sidebyside
+                if let FileLayout::SideBySide(layouts) = &self.files {
+                    if layouts.len() == 1 {
+                        // Remove leftover
+                        self.files = layouts[0].0.clone();
+                    }
+                }
+                // Reset pointer back to what it used to be
+                self.ptr = self.old_ptr.clone();
             }
         }
     }

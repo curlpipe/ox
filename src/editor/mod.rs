@@ -74,6 +74,10 @@ pub struct Editor {
     pub render_cache: RenderCache,
     /// For storing the current file tree value
     pub file_tree: Option<FileTree>,
+    /// The selected file in the file tree
+    pub file_tree_selection: Option<String>,
+    /// For caching a pointer to go back to when in a file tree
+    pub old_ptr: Vec<usize>,
 }
 
 impl Editor {
@@ -100,6 +104,8 @@ impl Editor {
             macro_man: MacroMan::default(),
             render_cache: RenderCache::default(),
             file_tree: None,
+            file_tree_selection: None,
+            old_ptr: vec![],
         })
     }
 
