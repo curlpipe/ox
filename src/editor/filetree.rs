@@ -2,6 +2,9 @@
 use crate::editor::FileLayout;
 use crate::{Editor, OxError, Result};
 use std::path::{Path, PathBuf};
+use kaolinite::utils::{get_cwd, get_file_name};
+use std::fmt::{Error, Display, Formatter};
+use std::result::Result as RResult;
 
 #[derive(Debug)]
 pub enum FileTree {
@@ -118,8 +121,8 @@ impl FileTree {
     /// Sort a file tree to have directories and files separated and ordered alphabetically
     fn sort(&mut self) {
         match self {
-            FileTree::File { .. } => (),
-            FileTree::Dir { files, .. } => {
+            Self::File { .. } => (),
+            Self::Dir { files, .. } => {
                 // Sort child directories
                 if let Some(files) = files {
                     for file in files.iter_mut() {
@@ -128,28 +131,87 @@ impl FileTree {
 
                     // Sort this directory
                     files.sort_by(|a, b| {
+                        let a_is_hidden = a.is_hidden();
+                        let b_is_hidden = b.is_hidden();
                         let a_is_dir = matches!(a, FileTree::Dir { .. });
                         let b_is_dir = matches!(b, FileTree::Dir { .. });
 
                         // Directories come first
-                        match (a_is_dir, b_is_dir) {
+                        match (a_is_hidden, b_is_hidden) {
                             (true, false) => std::cmp::Ordering::Less,
                             (false, true) => std::cmp::Ordering::Greater,
                             _ => {
-                                // If both are the same type, compare by path
-                                let a_path = match a {
-                                    FileTree::File { path } | FileTree::Dir { path, .. } => path,
-                                };
-                                let b_path = match b {
-                                    FileTree::File { path } | FileTree::Dir { path, .. } => path,
-                                };
-                                a_path.cmp(b_path)
+                                // If both are the same hidden status, directories come first
+                                match (a_is_dir, b_is_dir) {
+                                    (true, false) => std::cmp::Ordering::Less,
+                                    (false, true) => std::cmp::Ordering::Greater,
+                                    _ => {
+                                        // If both are the same type, compare by path
+                                        let a_path = match a {
+                                            FileTree::File { path } | FileTree::Dir { path, .. } => path,
+                                        };
+                                        let b_path = match b {
+                                            FileTree::File { path } | FileTree::Dir { path, .. } => path,
+                                        };
+                                        a_path.cmp(b_path)
+                                    }
+                                }
                             }
                         }
                     });
                 }
             }
         }
+    }
+
+    /// Work out if this node is hidden or not
+    fn is_hidden(&self) -> bool {
+        let path = match self {
+            Self::File { path } | Self::Dir { path, .. } => path,
+        };
+        get_file_name(path).is_some_and(|name| name.starts_with('.'))
+    }
+
+    /// Get the appropriate icon
+    fn icon(&self) -> &str {
+        let is_file = match self {
+            Self::File { .. } => true,
+            Self::Dir { .. } => false,
+        };
+        let is_expanded = match self {
+            Self::File { .. } => false,
+            Self::Dir { files, .. } => files.is_some(),
+        };
+        let is_hidden = self.is_hidden();
+        match (is_file, is_hidden, is_expanded) {
+            // Closed folders
+            (false, false, false) => "󰉖  ",
+            (false, true, false) => "󱞞  ",
+            // Opened folders
+            (false, _, true) => "󰷏  ",
+            // Files
+            (true, false, _) => "󰈤  ",
+            (true, true, _) => "󰘓  ",
+        }
+    }
+}
+
+impl Display for FileTree {
+    fn fmt(&self, f: &mut Formatter<'_>) -> RResult<(), Error> {
+        match self {
+            Self::File { path } => writeln!(f, "{}{}", self.icon(), get_file_name(path).unwrap_or(path.to_string()))?,
+            Self::Dir { path, files } => {
+                // Write self
+                writeln!(f, "{}{}", self.icon(), get_file_name(path).unwrap_or(path.to_string()))?;
+                if let Some(files) = files {
+                    // Write child nodes
+                    for file in files {
+                        write!(f, "  {file}")?;
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -158,6 +220,11 @@ impl Editor {
     #[allow(clippy::cast_precision_loss)]
     pub fn open_file_tree(&mut self) {
         if !self.file_tree_is_open() {
+            if let Some(cwd) = get_cwd() {
+                if let Ok(ft) = FileTree::build(&cwd) {
+                    self.file_tree = Some(ft);
+                }
+            }
             // Wrap existing file layout in new file layout
             if let FileLayout::SideBySide(ref mut layouts) = &mut self.files {
                 // Shrink existing splits

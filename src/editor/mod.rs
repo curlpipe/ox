@@ -31,6 +31,7 @@ pub use documents::{FileContainer, FileLayout};
 pub use filetypes::{FileType, FileTypes};
 pub use interface::RenderCache;
 pub use macros::MacroMan;
+pub use filetree::FileTree;
 
 /// For managing all editing and rendering of cactus
 #[allow(clippy::struct_excessive_bools)]
@@ -71,6 +72,8 @@ pub struct Editor {
     pub macro_man: MacroMan,
     /// Render cache
     pub render_cache: RenderCache,
+    /// For storing the current file tree value
+    pub file_tree: Option<FileTree>,
 }
 
 impl Editor {
@@ -96,6 +99,7 @@ impl Editor {
             alt_click_state: None,
             macro_man: MacroMan::default(),
             render_cache: RenderCache::default(),
+            file_tree: None,
         })
     }
 

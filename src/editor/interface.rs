@@ -24,6 +24,7 @@ pub struct RenderCache {
     pub help_message: Vec<(bool, String)>,
     pub help_message_width: usize,
     pub help_message_span: Range<usize>,
+    pub file_tree: Vec<String>,
 }
 
 impl Editor {
@@ -51,6 +52,11 @@ impl Editor {
         let help_start = (size.h / 2).saturating_sub(help_length / 2) + 1;
         let help_end = help_start + help_length;
         self.render_cache.help_message_span = help_start..help_end + 1;
+        // Calculate file tree display representation
+        if let Some(file_tree) = self.file_tree.as_ref() {
+            let filetree = format!("{file_tree}");
+            self.render_cache.file_tree = filetree.split('\n').map(std::string::ToString::to_string).collect();
+        }
     }
 
     /// Render a specific line
@@ -99,7 +105,7 @@ impl Editor {
             let rel_y = y.saturating_sub(rows.start);
             if in_file_tree {
                 // Part of file tree!
-                result += &self.render_file_tree(length)?;
+                result += &self.render_file_tree(y, length)?;
             } else if y == rows.start && tab_line_enabled {
                 // Tab line
                 result += &self.render_tab_line(fc, lua, length)?;
@@ -537,10 +543,35 @@ impl Editor {
 
     /// Render a line in the file tree
     #[allow(clippy::similar_names)]
-    fn render_file_tree(&mut self, length: usize) -> Result<String> {
+    fn render_file_tree(&mut self, y: usize, length: usize) -> Result<String> {
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
-        Ok(format!("{editor_bg}{editor_fg}{}", " ".repeat(length)))
+        // Work out which line to use
+        let line = self.render_cache
+            .file_tree
+            .get(y)
+            .map(std::string::ToString::to_string)
+            .unwrap_or_default();
+        let mut line = line.chars();
+        // Trim to fit
+        let mut result = String::new();
+        let mut available = length;
+        loop {
+            if available > 0 {
+                if let Some(next) = line.next() {
+                    let ch = width_char(&next, 4);
+                    available = available.saturating_sub(ch);
+                    result.push(next);
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        result += &" ".repeat(available);
+        // Return result
+        Ok(format!("{editor_bg}{editor_fg}{result}"))
     }
 
     /// Display a prompt in the document
