@@ -1,15 +1,12 @@
 /// Utilities for handling the file tree
-
 use crate::editor::FileLayout;
-use crate::{Editor, Result, OxError};
+use crate::{Editor, OxError, Result};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum FileTree {
     /// Represents a file
-    File {
-        path: String
-    },
+    File { path: String },
     /// Represents a directory
     Dir {
         path: String,
@@ -32,15 +29,22 @@ impl FileTree {
     /// Expands into a directory
     fn build_shallow(path: &PathBuf) -> Result<Self> {
         if path.is_file() {
-            Ok(Self::File { path: Self::path_to_string(path) })
+            Ok(Self::File {
+                path: Self::path_to_string(path),
+            })
         } else if path.is_dir() {
             let mut files = vec![];
             for entry in std::fs::read_dir(path)? {
                 let entry = entry?;
                 if entry.path().is_file() {
-                    files.push(Self::File { path: Self::path_to_string(&entry.path()) });
+                    files.push(Self::File {
+                        path: Self::path_to_string(&entry.path()),
+                    });
                 } else if entry.path().is_dir() {
-                    files.push(Self::Dir { path: Self::path_to_string(&entry.path()), files: None });
+                    files.push(Self::Dir {
+                        path: Self::path_to_string(&entry.path()),
+                        files: None,
+                    });
                 }
             }
             Ok(Self::Dir {
@@ -77,7 +81,10 @@ impl FileTree {
                 if needle == path {
                     // This directory is what we're searching for
                     Some(self)
-                } else if let Self::Dir { files: Some(files), .. } = self {
+                } else if let Self::Dir {
+                    files: Some(files), ..
+                } = self
+                {
                     // Not directly what we're looking for, let's go deeper
                     for file in files {
                         if let Some(result) = file.get_mut(needle) {
@@ -123,7 +130,7 @@ impl FileTree {
                     files.sort_by(|a, b| {
                         let a_is_dir = matches!(a, FileTree::Dir { .. });
                         let b_is_dir = matches!(b, FileTree::Dir { .. });
-    
+
                         // Directories come first
                         match (a_is_dir, b_is_dir) {
                             (true, false) => std::cmp::Ordering::Less,
