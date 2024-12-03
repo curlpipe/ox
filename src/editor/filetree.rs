@@ -1,6 +1,5 @@
 /// Utilities for handling the file tree
-
-use crate::config::{FileTree as CfgFT, Color};
+use crate::config::{Color, FileTree as CfgFT};
 use crate::editor::FileLayout;
 use crate::{config, Editor, FileTypes, OxError, Result};
 use kaolinite::utils::{file_or_dir, get_cwd, get_file_name};

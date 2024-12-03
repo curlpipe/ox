@@ -1,5 +1,4 @@
 /// Tools for managing and identifying file types
-
 use crate::config;
 use crate::config::Color;
 use crate::editor::Config;

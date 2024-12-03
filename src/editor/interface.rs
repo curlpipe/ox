@@ -1,6 +1,6 @@
 use crate::config::SyntaxHighlighting as SH;
 /// Functions for rendering the UI
-use crate::editor::{FileLayout, FTParts};
+use crate::editor::{FTParts, FileLayout};
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
 use crate::ui::{key_event, size, Feedback};
