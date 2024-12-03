@@ -4,6 +4,7 @@ use crate::{Editor, OxError, Result};
 use kaolinite::utils::{get_cwd, get_file_name};
 use std::path::{Path, PathBuf};
 
+/// The backend of a file tree - stores the structure of the files and directories
 #[derive(Debug)]
 pub enum FileTree {
     /// Represents a file
@@ -304,6 +305,7 @@ impl Editor {
     /// Close the file tree
     pub fn close_file_tree(&mut self) {
         if let Some(FileLayout::SideBySide(layouts)) = self.files.get_raw(vec![]) {
+            let in_file_tree = matches!(self.files.get_raw(self.ptr.clone()), Some(FileLayout::FileTree));
             // Locate where the file tree is
             let ftp = layouts
                 .iter()
@@ -318,8 +320,14 @@ impl Editor {
                         self.files = layouts[0].0.clone();
                     }
                 }
-                // Reset pointer back to what it used to be
-                self.ptr = self.old_ptr.clone();
+                // Reset pointer back to what it used to be IF we're in the file tree
+                if in_file_tree {
+                    self.ptr = self.old_ptr.clone();
+                } else if !self.ptr.is_empty() {
+                    // If we're outside the file tree
+                    // just take the existing pointer and remove file tree aspect
+                    self.ptr.remove(0);
+                }
             }
         }
     }
@@ -342,5 +350,61 @@ impl Editor {
         } else {
             false
         }
+    }
+
+    /// Move file tree selection upwards
+    pub fn file_tree_select_up(&mut self) {
+        if let Some(ref mut fts) = self.render_cache.file_tree_selection {
+            // Move up a file (in the render cache)
+            *fts = fts.saturating_sub(1);
+            // Move up a file (in the backend)
+            let flat = self
+                .file_tree
+                .as_ref()
+                .map(FileTree::flatten)
+                .unwrap_or_default();
+            let new_path = flat.get(*fts);
+            self.file_tree_selection = new_path.cloned();
+        }
+    }
+
+    /// Move file tree selection upwards
+    pub fn file_tree_select_down(&mut self) {
+        if let Some(ref mut fts) = self.render_cache.file_tree_selection {
+            let flat = self
+                .file_tree
+                .as_ref()
+                .map(FileTree::flatten)
+                .unwrap_or_default();
+            if *fts + 1 < flat.len() {
+                // Move up a file (in the render cache)
+                *fts += 1;
+                // Move up a file (in the backend)
+                let new_path = flat.get(*fts);
+                self.file_tree_selection = new_path.cloned();
+            }
+        }
+    }
+
+    /// Open a file from the file tree
+    pub fn file_tree_open_file(&mut self) -> Result<()> {
+        // Default behaviour is open a file in the background and return to file tree
+        if let Some(file_name) = &self.file_tree_selection.clone() {
+            // Quickly restore to old pointer
+            let mut temp = self.old_ptr.clone();
+            if let Some(part) = temp.get_mut(0) {
+                *part += 1;
+            } else {
+                temp = vec![1];
+            }
+            std::mem::swap(&mut temp, &mut self.ptr);
+            // Perform open operation
+            self.open(file_name)?;
+            self.next();
+            self.update_cwd();
+            // Restore old pointer
+            std::mem::swap(&mut temp, &mut self.ptr);
+        }
+        Ok(())
     }
 }

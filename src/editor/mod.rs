@@ -449,36 +449,9 @@ impl Editor {
         if in_file_tree {
             // File tree key behaviour
             match (modifiers, code) {
-                (KMod::NONE, KCode::Up) => {
-                    if let Some(ref mut fts) = self.render_cache.file_tree_selection {
-                        // Move up a file (in the render cache)
-                        *fts = fts.saturating_sub(1);
-                        // Move up a file (in the backend)
-                        let flat = self
-                            .file_tree
-                            .as_ref()
-                            .map(FileTree::flatten)
-                            .unwrap_or_default();
-                        let new_path = flat.get(*fts);
-                        self.file_tree_selection = new_path.cloned();
-                    }
-                }
-                (KMod::NONE, KCode::Down) => {
-                    if let Some(ref mut fts) = self.render_cache.file_tree_selection {
-                        let flat = self
-                            .file_tree
-                            .as_ref()
-                            .map(FileTree::flatten)
-                            .unwrap_or_default();
-                        if *fts + 1 < flat.len() {
-                            // Move up a file (in the render cache)
-                            *fts += 1;
-                            // Move up a file (in the backend)
-                            let new_path = flat.get(*fts);
-                            self.file_tree_selection = new_path.cloned();
-                        }
-                    }
-                }
+                (KMod::NONE, KCode::Up) => self.file_tree_select_up(),
+                (KMod::NONE, KCode::Down) => self.file_tree_select_down(),
+                (KMod::NONE, KCode::Enter) => self.file_tree_open_file()?,
                 _ => (),
             }
         } else {
