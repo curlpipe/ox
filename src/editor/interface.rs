@@ -1,6 +1,6 @@
 use crate::config::SyntaxHighlighting as SH;
 /// Functions for rendering the UI
-use crate::editor::FileLayout;
+use crate::editor::{FileLayout, FTParts};
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
 use crate::ui::{key_event, size, Feedback};
@@ -24,7 +24,7 @@ pub struct RenderCache {
     pub help_message: Vec<(bool, String)>,
     pub help_message_width: usize,
     pub help_message_span: Range<usize>,
-    pub file_tree: Vec<String>,
+    pub file_tree: FTParts,
     pub file_tree_selection: Option<usize>,
 }
 
@@ -552,6 +552,7 @@ impl Editor {
     /// Render a line in the file tree
     #[allow(clippy::similar_names)]
     fn render_file_tree(&mut self, y: usize, length: usize) -> Result<String> {
+        let selected = self.render_cache.file_tree_selection == Some(y);
         let ft_bg = Bg(config!(self.config, colors).file_tree_bg.to_color()?);
         let ft_fg = Fg(config!(self.config, colors).file_tree_fg.to_color()?);
         let ft_selection_bg = Bg(config!(self.config, colors)
@@ -560,36 +561,26 @@ impl Editor {
         let ft_selection_fg = Fg(config!(self.config, colors)
             .file_tree_selection_fg
             .to_color()?);
-        // Work out which line to use
-        let line = self
-            .render_cache
-            .file_tree
-            .get(y)
-            .map(std::string::ToString::to_string)
-            .unwrap_or_default();
-        let mut line = line.chars();
-        // Trim to fit
-        let mut result = String::new();
-        let mut available = length;
-        loop {
-            if available > 0 {
-                if let Some(next) = line.next() {
-                    let ch = width_char(&next, 4);
-                    available = available.saturating_sub(ch);
-                    result.push(next);
-                } else {
-                    break;
-                }
+        // Perform the rendering
+        let mut total_length = 0;
+        let line = self.render_cache.file_tree.get(y);
+        let mut line = if let Some((padding, icon, icon_colour, name)) = line {
+            total_length = padding * 2 + width(icon, 4) + width(name, 4);
+            if let (Some(colour), false) = (icon_colour, selected) {
+                let colour = Fg(colour.to_color()?);
+                format!("{}{colour}{icon}{ft_fg}{name}", "  ".repeat(*padding))
             } else {
-                break;
+                format!("{}{icon}{name}", "  ".repeat(*padding))
             }
-        }
-        result += &" ".repeat(available);
-        // Return result
-        if self.render_cache.file_tree_selection == Some(y) {
-            Ok(format!("{ft_selection_bg}{ft_selection_fg}{result}"))
         } else {
-            Ok(format!("{ft_bg}{ft_fg}{result}"))
+            String::new()
+        };
+        line += &" ".repeat(length.saturating_sub(total_length));
+        // Return result
+        if selected {
+            Ok(format!("{ft_selection_bg}{ft_selection_fg}{line}"))
+        } else {
+            Ok(format!("{ft_bg}{ft_fg}{line}"))
         }
     }
 

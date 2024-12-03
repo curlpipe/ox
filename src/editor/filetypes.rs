@@ -1,5 +1,7 @@
-use crate::config;
 /// Tools for managing and identifying file types
+
+use crate::config;
+use crate::config::Color;
 use crate::editor::Config;
 use kaolinite::utils::get_file_name;
 use kaolinite::Document;
@@ -64,6 +66,8 @@ pub struct FileType {
     pub extensions: Vec<String>,
     /// The modelines that files of this type have
     pub modelines: Vec<String>,
+    /// The colour associated with this file type
+    pub color: Color,
 }
 
 impl Default for FileType {
@@ -74,6 +78,7 @@ impl Default for FileType {
             files: vec![],
             extensions: vec![],
             modelines: vec![],
+            color: Color::Transparent,
         }
     }
 }

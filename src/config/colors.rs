@@ -6,7 +6,7 @@ use mlua::prelude::*;
 
 use super::issue_warning;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Colors {
     pub editor_bg: Color,
     pub editor_fg: Color,
@@ -226,7 +226,7 @@ impl LuaUserData for Colors {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Color {
     Rgb(u8, u8, u8),
     Hex(String),

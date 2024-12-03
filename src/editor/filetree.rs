@@ -1,9 +1,14 @@
-use crate::config::FileTree as CfgFT;
 /// Utilities for handling the file tree
+
+use crate::config::{FileTree as CfgFT, Color};
 use crate::editor::FileLayout;
 use crate::{config, Editor, FileTypes, OxError, Result};
 use kaolinite::utils::{file_or_dir, get_cwd, get_file_name};
 use std::path::{Path, PathBuf};
+
+/// How parts of a file tree are stored
+/// (Padding, Icon, Icon Color, File Name)
+pub type FTParts = Vec<(usize, String, Option<Color>, String)>;
 
 /// The backend of a file tree - stores the structure of the files and directories
 #[derive(Debug)]
@@ -175,19 +180,20 @@ impl FileTree {
     }
 
     /// Get a language-related icon for this node
-    fn lang_icon(&self, fts: &FileTypes, config: &CfgFT) -> Option<String> {
+    fn lang_icon(&self, fts: &FileTypes, config: &CfgFT) -> Option<(String, Color)> {
         if config.language_icons {
             let path = match self {
                 Self::File { path } | Self::Dir { path, .. } => path,
             };
-            fts.identify_from_path(path).map(|ft| ft.icon + " ")
-        } else {
-            None
+            if let Some(ft) = fts.identify_from_path(path) {
+                return Some((ft.icon, ft.color));
+            }
         }
+        None
     }
 
     /// Get the appropriate icon
-    fn icon(&self, fts: &FileTypes, config: &CfgFT) -> String {
+    fn icon(&self, fts: &FileTypes, config: &CfgFT) -> (String, Option<Color>) {
         let is_file = match self {
             Self::File { .. } => true,
             Self::Dir { .. } => false,
@@ -199,15 +205,15 @@ impl FileTree {
         let is_hidden = self.is_hidden();
         match (self.lang_icon(fts, config), is_file, is_hidden, is_expanded) {
             // Language specific icons
-            (Some(icon), _, _, _) => icon,
+            (Some((icon, colour)), _, _, _) => (icon + " ", Some(colour)),
             // Closed folders
-            (_, false, false, false) => "󰉖  ".to_string(),
-            (_, false, true, false) => "󱞞  ".to_string(),
+            (_, false, false, false) => ("󰉖  ".to_string(), None),
+            (_, false, true, false) => ("󱞞  ".to_string(), None),
             // Opened folders
-            (_, false, _, true) => "󰷏  ".to_string(),
+            (_, false, _, true) => ("󰷏  ".to_string(), None),
             // Files
-            (_, true, false, _) => "󰈤  ".to_string(),
-            (_, true, true, _) => "󰘓  ".to_string(),
+            (_, true, false, _) => ("󰈤  ".to_string(), None),
+            (_, true, true, _) => ("󰘓  ".to_string(), None),
         }
     }
 
@@ -219,34 +225,32 @@ impl FileTree {
     }
 
     /// Display this file tree
-    pub fn display(&self, sel: &str, fts: &FileTypes, cfg: &CfgFT) -> (Vec<String>, Option<usize>) {
+    pub fn display(&self, sel: &str, fts: &FileTypes, cfg: &CfgFT) -> (FTParts, Option<usize>) {
         let icons = cfg.icons;
         match self {
-            Self::File { path } => (
-                vec![format!(
-                    "{}{}",
-                    if icons {
-                        self.icon(fts, cfg)
-                    } else {
-                        String::new()
-                    },
-                    get_file_name(path).unwrap_or(path.to_string())
-                )],
-                if self.is_selected(sel) { Some(0) } else { None },
-            ),
+            Self::File { path } => {
+                let (icon, icon_color) = if icons {
+                    self.icon(fts, cfg)
+                } else {
+                    (String::new(), None)
+                };
+                let file_name = get_file_name(path).unwrap_or(path.to_string());
+                (
+                    vec![(0, icon, icon_color, file_name)],
+                    if self.is_selected(sel) { Some(0) } else { None },
+                )
+            }
             Self::Dir { path, files } => {
                 let mut result = vec![];
                 let mut at = None;
                 // Write self
-                result.push(format!(
-                    "{}{}",
-                    if icons {
-                        self.icon(fts, cfg)
-                    } else {
-                        String::new()
-                    },
-                    get_file_name(path).unwrap_or(path.to_string())
-                ));
+                let (icon, icon_color) = if icons {
+                    self.icon(fts, cfg)
+                } else {
+                    (String::new(), None)
+                };
+                let file_name = get_file_name(path).unwrap_or(path.to_string());
+                result.push((0, icon, icon_color, file_name));
                 if self.is_selected(sel) {
                     at = Some(result.len().saturating_sub(1));
                 }
@@ -255,7 +259,9 @@ impl FileTree {
                     for file in files {
                         let (sub_display, sub_at) = file.display(sel, fts, cfg);
                         for (c, s) in sub_display.iter().enumerate() {
-                            result.push(format!("  {s}"));
+                            let mut s = s.clone();
+                            s.0 += 1;
+                            result.push(s);
                             if let Some(sub_at) = sub_at {
                                 if sub_at == c {
                                     at = Some(result.len().saturating_sub(1));

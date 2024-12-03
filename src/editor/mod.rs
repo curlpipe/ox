@@ -28,7 +28,7 @@ mod scanning;
 
 pub use cursor::{allowed_by_multi_cursor, handle_multiple_cursors};
 pub use documents::{FileContainer, FileLayout};
-pub use filetree::FileTree;
+pub use filetree::{FileTree, FTParts};
 pub use filetypes::{FileType, FileTypes};
 pub use interface::RenderCache;
 pub use macros::MacroMan;
