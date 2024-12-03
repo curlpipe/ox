@@ -44,6 +44,11 @@ colors.error_fg = red
 colors.selection_bg = grey1
 colors.selection_fg = lightblue
 
+colors.file_tree_bg = black
+colors.file_tree_fg = white
+colors.file_tree_selection_bg = purple
+colors.file_tree_selection_fg = black
+
 -- Configure Syntax Highlighting Colours --
 syntax:set("string", green)  -- Strings, bright green
 syntax:set("comment", grey3)  -- Comments, light purple/gray

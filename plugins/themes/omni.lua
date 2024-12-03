@@ -44,6 +44,11 @@ colors.error_fg = red
 colors.selection_bg = selection
 colors.selection_fg = foreground
 
+colors.file_tree_bg = background
+colors.file_tree_fg = foreground
+colors.file_tree_selection_bg = pink
+colors.file_tree_selection_fg = background
+
 -- Configure Syntax Highlighting Colours --
 syntax:set("string", yellow)  -- Strings, fresh green
 syntax:set("comment", comment)  -- Comments, muted and subtle
