@@ -305,10 +305,7 @@ impl Editor {
     /// Close the file tree
     pub fn close_file_tree(&mut self) {
         if let Some(FileLayout::SideBySide(layouts)) = self.files.get_raw(vec![]) {
-            let in_file_tree = matches!(
-                self.files.get_raw(self.ptr.clone()),
-                Some(FileLayout::FileTree)
-            );
+            let in_file_tree = matches!(self.files.get_raw(self.ptr.clone()), Some(FileLayout::FileTree));
             // Locate where the file tree is
             let ftp = layouts
                 .iter()
@@ -393,20 +390,14 @@ impl Editor {
     pub fn file_tree_open_file(&mut self) -> Result<()> {
         // Default behaviour is open a file in the background and return to file tree
         if let Some(file_name) = &self.file_tree_selection.clone() {
-            // Quickly restore to old pointer
+            // Restore to old pointer to open
             let mut temp = self.old_ptr.clone();
-            if let Some(part) = temp.get_mut(0) {
-                *part += 1;
-            } else {
-                temp = vec![1];
-            }
-            std::mem::swap(&mut temp, &mut self.ptr);
+            temp.insert(0, 1);
+            self.ptr = temp;
             // Perform open operation
             self.open(file_name)?;
             self.next();
             self.update_cwd();
-            // Restore old pointer
-            std::mem::swap(&mut temp, &mut self.ptr);
         }
         Ok(())
     }

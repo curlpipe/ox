@@ -326,6 +326,7 @@ impl Editor {
     pub fn quit(&mut self) -> Result<()> {
         // Get the atom we're currently at
         if let Some((fcs, ptr)) = self.files.get_atom(self.ptr.clone()) {
+            let last_file = fcs.len() == 1;
             // Remove the file that is currently open and selected
             let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
             let doc = &fcs[ptr].doc;
@@ -334,10 +335,13 @@ impl Editor {
                 fcs.remove(*ptr);
                 self.prev();
             }
-            // Clean up the file structure
-            self.files.clean_up();
-            // Find a new pointer position
-            self.ptr = self.files.new_pointer_position(&self.ptr);
+            // Perform cleanup / pointer reassignment if this atom is now empty
+            if last_file {
+                // Clean up the file structure
+                self.files.clean_up();
+                // Find a new pointer position
+                self.ptr = self.files.new_pointer_position(&self.ptr);
+            }
         }
         // If there are no longer any active atoms, quit the entire editor
         self.active = !matches!(self.files, FileLayout::None);
