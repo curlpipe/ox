@@ -1,6 +1,6 @@
 /// Utilities for handling the file tree
 use crate::editor::FileLayout;
-use crate::{config, Editor, OxError, Result};
+use crate::{config, Editor, OxError, Result, FileTypes};
 use kaolinite::utils::{file_or_dir, get_cwd, get_file_name};
 use std::path::{Path, PathBuf};
 
@@ -173,8 +173,16 @@ impl FileTree {
         get_file_name(path).is_some_and(|name| name.starts_with('.'))
     }
 
+    /// Get a language-related icon for this node
+    fn lang_icon(&self, fts: &FileTypes) -> Option<String> {
+        let path = match self {
+            Self::File { path } | Self::Dir { path, .. } => path,
+        };
+        fts.identify_from_path(path).map(|ft| ft.icon + " ")
+    }
+
     /// Get the appropriate icon
-    fn icon(&self) -> &str {
+    fn icon(&self, fts: &FileTypes) -> String {
         let is_file = match self {
             Self::File { .. } => true,
             Self::Dir { .. } => false,
@@ -184,15 +192,17 @@ impl FileTree {
             Self::Dir { files, .. } => files.is_some(),
         };
         let is_hidden = self.is_hidden();
-        match (is_file, is_hidden, is_expanded) {
+        match (self.lang_icon(fts), is_file, is_hidden, is_expanded) {
+            // Language specific icons
+            (Some(icon), _, _, _) => icon,
             // Closed folders
-            (false, false, false) => "󰉖  ",
-            (false, true, false) => "󱞞  ",
+            (_, false, false, false) => "󰉖  ".to_string(),
+            (_, false, true, false) => "󱞞  ".to_string(),
             // Opened folders
-            (false, _, true) => "󰷏  ",
+            (_, false, _, true) => "󰷏  ".to_string(),
             // Files
-            (true, false, _) => "󰈤  ",
-            (true, true, _) => "󰘓  ",
+            (_, true, false, _) => "󰈤  ".to_string(),
+            (_, true, true, _) => "󰘓  ".to_string(),
         }
     }
 
@@ -204,12 +214,12 @@ impl FileTree {
     }
 
     /// Display this file tree
-    pub fn display(&self, selection: &str) -> (Vec<String>, Option<usize>) {
+    pub fn display(&self, selection: &str, fts: &FileTypes) -> (Vec<String>, Option<usize>) {
         match self {
             Self::File { path } => (
                 vec![format!(
                     "{}{}",
-                    self.icon(),
+                    self.icon(fts),
                     get_file_name(path).unwrap_or(path.to_string())
                 )],
                 if self.is_selected(selection) {
@@ -224,7 +234,7 @@ impl FileTree {
                 // Write self
                 result.push(format!(
                     "{}{}",
-                    self.icon(),
+                    self.icon(fts),
                     get_file_name(path).unwrap_or(path.to_string())
                 ));
                 if self.is_selected(selection) {
@@ -233,7 +243,7 @@ impl FileTree {
                 // Write child nodes
                 if let Some(files) = files {
                     for file in files {
-                        let (sub_display, sub_at) = file.display(selection);
+                        let (sub_display, sub_at) = file.display(selection, fts);
                         for (c, s) in sub_display.iter().enumerate() {
                             result.push(format!("  {s}"));
                             if let Some(sub_at) = sub_at {

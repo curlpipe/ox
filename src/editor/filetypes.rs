@@ -33,6 +33,19 @@ impl FileTypes {
         None
     }
 
+    pub fn identify_from_path(&self, path: &str) -> Option<FileType> {
+        if let Some(e) = Path::new(&path).extension() {
+            let file_name = get_file_name(path).unwrap_or_default();
+            let extension = e.to_str().unwrap_or_default().to_string();
+            for t in &self.types {
+                if t.fits(&extension, &file_name, "") {
+                    return Some(t.clone());
+                }
+            }
+        }
+        None
+    }
+
     pub fn get_name(&self, name: &str) -> Option<FileType> {
         self.types.iter().find(|t| t.name == name).cloned()
     }
