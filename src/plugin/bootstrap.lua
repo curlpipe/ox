@@ -291,7 +291,7 @@ file_types = {
         files = {},
         extensions = {"cr"},
         modelines = {},
-        color = 233,
+        color = 241,
     },
     ["Cuda"] = {
         icon = " ",
@@ -662,7 +662,7 @@ file_types = {
         files = {},
         extensions = {"md", "markdown"},
         modelines = {},
-        color = 234,
+        color = 243,
     },
     ["Nix"] = {
         icon = " ",
@@ -746,7 +746,7 @@ file_types = {
         files = {},
         extensions = {"rst"},
         modelines = {},
-        color = 234,
+        color = 243,
     },
     ["Racket"] = {
         icon = "󰅩 ",
@@ -812,7 +812,7 @@ file_types = {
         files = {},
         extensions = {"scm"},
         modelines = {},
-        color = 233,
+        color = 243,
     },
     ["Smalltalk"] = {
         icon = "󰅩 ",
@@ -847,7 +847,7 @@ file_types = {
         files = {},
         extensions = {"tex"},
         modelines = {},
-        color = 233,
+        color = 243,
     },
     ["TypeScript"] = {
         icon = " ",
