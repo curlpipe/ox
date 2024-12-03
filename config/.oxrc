@@ -422,7 +422,8 @@ terminal.scroll_amount = 4
 -- Configure File Tree --
 file_tree.width = 0.2
 file_tree.move_focus_to_file = true
-file_tree.icons = true
+file_tree.icons = false
+file_tree.language_icons = true
 
 -- Configure Tab Line --
 tab_line.enabled = true

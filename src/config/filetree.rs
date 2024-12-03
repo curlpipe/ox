@@ -6,6 +6,7 @@ pub struct FileTree {
     pub width: f64,
     pub move_focus_to_file: bool,
     pub icons: bool,
+    pub language_icons: bool,
 }
 
 impl Default for FileTree {
@@ -14,6 +15,7 @@ impl Default for FileTree {
             width: 0.2,
             move_focus_to_file: true,
             icons: false,
+            language_icons: true,
         }
     }
 }
@@ -33,6 +35,11 @@ impl LuaUserData for FileTree {
         fields.add_field_method_get("icons", |_, this| Ok(this.icons));
         fields.add_field_method_set("icons", |_, this, value| {
             this.icons = value;
+            Ok(())
+        });
+        fields.add_field_method_get("language_icons", |_, this| Ok(this.language_icons));
+        fields.add_field_method_set("language_icons", |_, this, value| {
+            this.language_icons = value;
             Ok(())
         });
     }

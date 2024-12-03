@@ -55,9 +55,13 @@ impl Editor {
         self.render_cache.help_message_span = help_start..help_end + 1;
         // Calculate file tree display representation
         let fts = &config!(self.config, document).file_types;
+        let ft_config = &config!(self.config, file_tree);
         if let Some(file_tree) = self.file_tree.as_ref() {
-            let (files, sel) =
-                file_tree.display(self.file_tree_selection.as_ref().unwrap_or(&String::new()), fts);
+            let (files, sel) = file_tree.display(
+                self.file_tree_selection.as_ref().unwrap_or(&String::new()),
+                fts,
+                ft_config,
+            );
             self.render_cache.file_tree = files;
             self.render_cache.file_tree_selection = sel;
         }
