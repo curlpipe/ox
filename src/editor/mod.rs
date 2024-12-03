@@ -455,7 +455,7 @@ impl Editor {
             match (modifiers, code) {
                 (KMod::NONE, KCode::Up) => self.file_tree_select_up(),
                 (KMod::NONE, KCode::Down) => self.file_tree_select_down(),
-                (KMod::NONE, KCode::Enter) => self.file_tree_open_file()?,
+                (KMod::NONE, KCode::Enter) => self.file_tree_open_node()?,
                 _ => (),
             }
         } else {

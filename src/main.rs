@@ -250,8 +250,13 @@ fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
     if let Err(err) = event_result {
         // Nicely display error to user
         match err {
-            OxError::Lua(err) => handle_lua_error("event", Err(err), &mut ged!(mut &editor).feedback),
-            OxError::AlreadyOpen { file } => ged!(mut &editor).feedback = Feedback::Error(format!("File '{file}' is already open")),
+            OxError::Lua(err) => {
+                handle_lua_error("event", Err(err), &mut ged!(mut &editor).feedback)
+            }
+            OxError::AlreadyOpen { file } => {
+                ged!(mut &editor).feedback =
+                    Feedback::Error(format!("File '{file}' is already open"))
+            }
             _ => ged!(mut &editor).feedback = Feedback::Error(format!("{err:?}")),
         }
     }

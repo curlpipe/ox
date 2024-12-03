@@ -1,7 +1,7 @@
 /// Utilities for handling the file tree
 use crate::editor::FileLayout;
 use crate::{Editor, OxError, Result};
-use kaolinite::utils::{get_cwd, get_file_name};
+use kaolinite::utils::{file_or_dir, get_cwd, get_file_name};
 use std::path::{Path, PathBuf};
 
 /// The backend of a file tree - stores the structure of the files and directories
@@ -389,6 +389,18 @@ impl Editor {
         }
     }
 
+    /// Open a certain file / directory in a file tree
+    pub fn file_tree_open_node(&mut self) -> Result<()> {
+        if let Some(file_name) = &self.file_tree_selection.clone() {
+            match file_or_dir(file_name) {
+                "file" => self.file_tree_open_file()?,
+                "directory" => self.file_tree_toggle_dir(),
+                _ => (),
+            }
+        }
+        Ok(())
+    }
+
     /// Open a file from the file tree
     pub fn file_tree_open_file(&mut self) -> Result<()> {
         // Default behaviour is open a file in the background and return to file tree
@@ -403,5 +415,23 @@ impl Editor {
             self.update_cwd();
         }
         Ok(())
+    }
+
+    pub fn file_tree_toggle_dir(&mut self) {
+        if let Some(ref mut file_tree) = &mut self.file_tree {
+            if let Some(file_name) = self.file_tree_selection.as_ref() {
+                if let Some(node) = file_tree.get_mut(file_name) {
+                    if let FileTree::Dir { files, .. } = node {
+                        if files.is_some() {
+                            // Clear expansion if already expanded
+                            *files = None;
+                        } else {
+                            // Expand if not already expanded
+                            node.expand();
+                        }
+                    }
+                }
+            }
+        }
     }
 }
