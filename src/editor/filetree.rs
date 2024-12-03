@@ -305,7 +305,10 @@ impl Editor {
     /// Close the file tree
     pub fn close_file_tree(&mut self) {
         if let Some(FileLayout::SideBySide(layouts)) = self.files.get_raw(vec![]) {
-            let in_file_tree = matches!(self.files.get_raw(self.ptr.clone()), Some(FileLayout::FileTree));
+            let in_file_tree = matches!(
+                self.files.get_raw(self.ptr.clone()),
+                Some(FileLayout::FileTree)
+            );
             // Locate where the file tree is
             let ftp = layouts
                 .iter()
