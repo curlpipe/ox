@@ -1,6 +1,6 @@
 /// Utilities for handling the file tree
 use crate::editor::FileLayout;
-use crate::{Editor, OxError, Result};
+use crate::{config, Editor, OxError, Result};
 use kaolinite::utils::{file_or_dir, get_cwd, get_file_name};
 use std::path::{Path, PathBuf};
 
@@ -272,6 +272,10 @@ impl Editor {
     #[allow(clippy::cast_precision_loss)]
     pub fn open_file_tree(&mut self) {
         if !self.file_tree_is_open() {
+            // Calculate display proportions
+            let width = config!(self.config, file_tree).width;
+            let other = if width <= 1.0 { 1.0 - width } else { 0.0 };
+            // Set up file tree values
             self.old_ptr = self.ptr.clone();
             if let Some(cwd) = get_cwd() {
                 if let Ok(ft) = FileTree::build(&cwd) {
@@ -282,7 +286,7 @@ impl Editor {
             // Wrap existing file layout in new file layout
             if let FileLayout::SideBySide(ref mut layouts) = &mut self.files {
                 // Shrink existing splits
-                let redistribute = 0.2 / layouts.len() as f64;
+                let redistribute = width / layouts.len() as f64;
                 for (_, prop) in &mut *layouts {
                     if *prop >= redistribute {
                         *prop -= redistribute;
@@ -291,11 +295,11 @@ impl Editor {
                     }
                 }
                 // Insert file tree
-                layouts.insert(0, (FileLayout::FileTree, 0.2));
+                layouts.insert(0, (FileLayout::FileTree, width));
             } else {
                 self.files = FileLayout::SideBySide(vec![
-                    (FileLayout::FileTree, 0.2),
-                    (self.files.clone(), 0.8),
+                    (FileLayout::FileTree, width),
+                    (self.files.clone(), other),
                 ]);
             }
             self.ptr = vec![0];
@@ -403,9 +407,11 @@ impl Editor {
 
     /// Open a file from the file tree
     pub fn file_tree_open_file(&mut self) -> Result<()> {
-        // Default behaviour is open a file in the background and return to file tree
+        // Work out how to behave when opening files
+        let move_focus = config!(self.config, file_tree).move_focus_to_file;
         if let Some(file_name) = &self.file_tree_selection.clone() {
             // Restore to old pointer to open
+            let ptr_cache = self.ptr.clone();
             let mut temp = self.old_ptr.clone();
             temp.insert(0, 1);
             self.ptr = temp;
@@ -413,6 +419,10 @@ impl Editor {
             self.open(file_name)?;
             self.next();
             self.update_cwd();
+            // If we don't want to move focus, then move focus back to the file tree
+            if !move_focus {
+                self.ptr = ptr_cache;
+            }
         }
         Ok(())
     }

@@ -547,10 +547,14 @@ impl Editor {
     /// Render a line in the file tree
     #[allow(clippy::similar_names)]
     fn render_file_tree(&mut self, y: usize, length: usize) -> Result<String> {
-        let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
-        let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?);
-        let selection_bg = Bg(config!(self.config, colors).selection_bg.to_color()?);
-        let selection_fg = Fg(config!(self.config, colors).selection_fg.to_color()?);
+        let ft_bg = Bg(config!(self.config, colors).file_tree_bg.to_color()?);
+        let ft_fg = Fg(config!(self.config, colors).file_tree_fg.to_color()?);
+        let ft_selection_bg = Bg(config!(self.config, colors)
+            .file_tree_selection_bg
+            .to_color()?);
+        let ft_selection_fg = Fg(config!(self.config, colors)
+            .file_tree_selection_fg
+            .to_color()?);
         // Work out which line to use
         let line = self
             .render_cache
@@ -578,9 +582,9 @@ impl Editor {
         result += &" ".repeat(available);
         // Return result
         if self.render_cache.file_tree_selection == Some(y) {
-            Ok(format!("{selection_bg}{selection_fg}{result}"))
+            Ok(format!("{ft_selection_bg}{ft_selection_fg}{result}"))
         } else {
-            Ok(format!("{editor_bg}{editor_fg}{result}"))
+            Ok(format!("{ft_bg}{ft_fg}{result}"))
         }
     }
 

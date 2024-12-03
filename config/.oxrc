@@ -405,6 +405,11 @@ colors.error_bg = {41, 41, 61}
 colors.selection_fg = {255, 255, 255}
 colors.selection_bg = {59, 59, 130}
 
+colors.file_tree_bg = {41, 41, 61}
+colors.file_tree_fg = {255, 255, 255}
+colors.file_tree_selection_fg = {255, 255, 255}
+colors.file_tree_selection_bg = {59, 59, 130}
+
 -- Configure Line Numbers --
 line_numbers.enabled = true
 line_numbers.padding_left = 1
@@ -413,6 +418,11 @@ line_numbers.padding_right = 1
 -- Configure Mouse Behaviour --
 terminal.mouse_enabled = true
 terminal.scroll_amount = 4
+
+-- Configure File Tree --
+file_tree.width = 0.2
+file_tree.move_focus_to_file = true
+file_tree.icons = true
 
 -- Configure Tab Line --
 tab_line.enabled = true

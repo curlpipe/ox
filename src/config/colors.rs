@@ -36,6 +36,11 @@ pub struct Colors {
 
     pub selection_fg: Color,
     pub selection_bg: Color,
+
+    pub file_tree_fg: Color,
+    pub file_tree_bg: Color,
+    pub file_tree_selection_fg: Color,
+    pub file_tree_selection_bg: Color,
 }
 
 impl Default for Colors {
@@ -67,8 +72,13 @@ impl Default for Colors {
             error_bg: Color::Rgb(41, 41, 61),
             error_fg: Color::Rgb(255, 100, 100),
 
-            selection_fg: Color::Rgb(41, 41, 61),
-            selection_bg: Color::Rgb(41, 41, 61),
+            selection_fg: Color::Rgb(255, 255, 255),
+            selection_bg: Color::Rgb(59, 59, 130),
+
+            file_tree_bg: Color::Rgb(41, 41, 61),
+            file_tree_fg: Color::Rgb(255, 255, 255),
+            file_tree_selection_bg: Color::Rgb(59, 59, 130),
+            file_tree_selection_fg: Color::Rgb(255, 255, 255),
         }
     }
 }
@@ -195,6 +205,22 @@ impl LuaUserData for Colors {
         });
         fields.add_field_method_set("selection_bg", |_, this, value| {
             this.selection_bg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_bg", |_, this, value| {
+            this.file_tree_bg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_fg", |_, this, value| {
+            this.file_tree_fg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_selection_bg", |_, this, value| {
+            this.file_tree_selection_bg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_selection_fg", |_, this, value| {
+            this.file_tree_selection_fg = Color::from_lua(value);
             Ok(())
         });
     }
