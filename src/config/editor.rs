@@ -661,7 +661,11 @@ impl LuaUserData for Editor {
         });
         methods.add_method_mut("focus_split_left", |_, editor, ()| {
             let new_ptr = FileLayout::move_left(editor.ptr.clone(), &editor.render_cache.span);
-            if matches!(editor.files.get_raw(new_ptr.clone()), Some(FileLayout::FileTree)) {
+            let in_file_tree = matches!(
+                editor.files.get_raw(new_ptr.clone()),
+                Some(FileLayout::FileTree)
+            );
+            if in_file_tree {
                 // We just entered into a file tree, cache where we were (minus the file tree itself)
                 editor.old_ptr = editor.ptr.clone();
                 editor.old_ptr.pop();
