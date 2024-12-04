@@ -410,6 +410,17 @@ colors.file_tree_fg = {255, 255, 255}
 colors.file_tree_selection_fg = {255, 255, 255}
 colors.file_tree_selection_bg = {59, 59, 130}
 
+colors.file_tree_red = {240, 56, 36}
+colors.file_tree_orange = {240, 107, 36}
+colors.file_tree_yellow = {240, 236, 36}
+colors.file_tree_green = {35, 240, 144}
+colors.file_tree_lightblue = {36, 219, 240}
+colors.file_tree_darkblue = {36, 117, 240}
+colors.file_tree_purple = {104, 36, 240}
+colors.file_tree_pink = {206, 36, 240}
+colors.file_tree_brown = {158, 94, 94}
+colors.file_tree_grey = {150, 144, 201}
+
 -- Configure Line Numbers --
 line_numbers.enabled = true
 line_numbers.padding_left = 1

@@ -1,5 +1,6 @@
-use crate::config::SyntaxHighlighting as SH;
 /// Functions for rendering the UI
+
+use crate::config::SyntaxHighlighting as SH;
 use crate::editor::{FTParts, FileLayout};
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
@@ -561,13 +562,26 @@ impl Editor {
         let ft_selection_fg = Fg(config!(self.config, colors)
             .file_tree_selection_fg
             .to_color()?);
+        let ft_colors = config!(self.config, colors);
         // Perform the rendering
         let mut total_length = 0;
         let line = self.render_cache.file_tree.get(y);
         let mut line = if let Some((padding, icon, icon_colour, name)) = line {
             total_length = padding * 2 + width(icon, 4) + width(name, 4);
             if let (Some(colour), false) = (icon_colour, selected) {
-                let colour = Fg(colour.to_color()?);
+                let colour = Fg(match colour.as_str() {
+                    "red" => ft_colors.file_tree_red.to_color()?,
+                    "orange" => ft_colors.file_tree_orange.to_color()?,
+                    "yellow" => ft_colors.file_tree_yellow.to_color()?,
+                    "green" => ft_colors.file_tree_green.to_color()?,
+                    "lightblue" => ft_colors.file_tree_lightblue.to_color()?,
+                    "darkblue" => ft_colors.file_tree_darkblue.to_color()?,
+                    "purple" => ft_colors.file_tree_purple.to_color()?,
+                    "pink" => ft_colors.file_tree_pink.to_color()?,
+                    "brown" => ft_colors.file_tree_brown.to_color()?,
+                    "grey" => ft_colors.file_tree_grey.to_color()?,
+                    _ => Color::White,
+                });
                 format!("{}{colour}{icon}{ft_fg}{name}", "  ".repeat(*padding))
             } else {
                 format!("{}{icon}{name}", "  ".repeat(*padding))

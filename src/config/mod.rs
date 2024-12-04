@@ -376,7 +376,7 @@ impl FromLua for FileTypes {
                     .pairs::<usize, String>()
                     .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
                     .collect::<Vec<String>>();
-                let color = Color::from_lua(info.get("color")?);
+                let color = info.get::<String>("color")?;
                 result.push(FileType {
                     name,
                     icon,

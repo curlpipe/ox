@@ -1,5 +1,5 @@
 /// Utilities for handling the file tree
-use crate::config::{Color, FileTree as CfgFT};
+use crate::config::FileTree as CfgFT;
 use crate::editor::FileLayout;
 use crate::{config, Editor, FileTypes, OxError, Result};
 use kaolinite::utils::{file_or_dir, get_cwd, get_file_name};
@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 /// How parts of a file tree are stored
 /// (Padding, Icon, Icon Color, File Name)
-pub type FTParts = Vec<(usize, String, Option<Color>, String)>;
+pub type FTParts = Vec<(usize, String, Option<String>, String)>;
 
 /// The backend of a file tree - stores the structure of the files and directories
 #[derive(Debug)]
@@ -179,7 +179,7 @@ impl FileTree {
     }
 
     /// Get a language-related icon for this node
-    fn lang_icon(&self, fts: &FileTypes, config: &CfgFT) -> Option<(String, Color)> {
+    fn lang_icon(&self, fts: &FileTypes, config: &CfgFT) -> Option<(String, String)> {
         if config.language_icons {
             let path = match self {
                 Self::File { path } | Self::Dir { path, .. } => path,
@@ -192,7 +192,7 @@ impl FileTree {
     }
 
     /// Get the appropriate icon
-    fn icon(&self, fts: &FileTypes, config: &CfgFT) -> (String, Option<Color>) {
+    fn icon(&self, fts: &FileTypes, config: &CfgFT) -> (String, Option<String>) {
         let is_file = match self {
             Self::File { .. } => true,
             Self::Dir { .. } => false,
