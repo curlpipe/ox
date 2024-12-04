@@ -1,6 +1,7 @@
 /// Utilities for handling the file tree
 use crate::config::FileTree as CfgFT;
 use crate::editor::FileLayout;
+use crate::ui::size;
 use crate::{config, Editor, FileTypes, OxError, Result};
 use kaolinite::utils::{file_or_dir, get_cwd, get_file_name};
 use std::path::{Path, PathBuf};
@@ -298,8 +299,9 @@ impl Editor {
     pub fn open_file_tree(&mut self) {
         if !self.file_tree_is_open() {
             // Calculate display proportions
-            let width = config!(self.config, file_tree).width;
-            let other = if width <= 1.0 { 1.0 - width } else { 0.0 };
+            let total_width = size().map(|s| s.w as f64).unwrap_or(1.0);
+            let width = config!(self.config, file_tree).width as f64 / total_width;
+            let other = 1.0 - width as f64;
             // Set up file tree values
             self.old_ptr = self.ptr.clone();
             if let Some(cwd) = get_cwd() {

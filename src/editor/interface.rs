@@ -1,5 +1,4 @@
 /// Functions for rendering the UI
-
 use crate::config::SyntaxHighlighting as SH;
 use crate::editor::{FTParts, FileLayout};
 use crate::error::{OxError, Result};
@@ -589,6 +588,13 @@ impl Editor {
         } else {
             String::new()
         };
+        while total_length > length {
+            if let Some(ch) = line.pop() {
+                total_length -= width_char(&ch, 4);
+            } else {
+                break;
+            }
+        }
         line += &" ".repeat(length.saturating_sub(total_length));
         // Return result
         if selected {

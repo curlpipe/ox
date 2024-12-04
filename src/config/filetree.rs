@@ -3,7 +3,7 @@ use mlua::prelude::*;
 
 #[derive(Debug)]
 pub struct FileTree {
-    pub width: f64,
+    pub width: usize,
     pub move_focus_to_file: bool,
     pub icons: bool,
     pub language_icons: bool,
@@ -12,7 +12,7 @@ pub struct FileTree {
 impl Default for FileTree {
     fn default() -> Self {
         Self {
-            width: 0.2,
+            width: 30,
             move_focus_to_file: true,
             icons: false,
             language_icons: true,
