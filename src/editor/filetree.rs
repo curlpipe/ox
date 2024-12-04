@@ -2,7 +2,7 @@
 use crate::config::FileTree as CfgFT;
 use crate::editor::FileLayout;
 use crate::ui::size;
-use crate::{config, Editor, FileTypes, OxError, Result};
+use crate::{config, Editor, Feedback, FileTypes, OxError, Result};
 use kaolinite::utils::{file_or_dir, get_cwd, get_file_name};
 use std::path::{Path, PathBuf};
 
@@ -331,6 +331,45 @@ impl FileTree {
             Err(OxError::InvalidPath)
         }
     }
+
+    /// Get all directories that have been expanded
+    pub fn get_expanded(&mut self) -> Vec<String> {
+        let mut result = vec![];
+        match self {
+            Self::File { .. } => (),
+            Self::Dir { files, path } => {
+                if let Some(files) = files {
+                    // Pre-order traversal - very important this remains!
+                    result.push(path.clone());
+                    for file in files {
+                        result.append(&mut file.get_expanded());
+                    }
+                }
+            }
+        }
+        result
+    }
+
+    /// Refresh all open directories
+    pub fn refresh(&mut self) {
+        if let Self::Dir {
+            files: Some(_),
+            path,
+        } = self
+        {
+            // Rebuild the tree
+            if let Ok(mut result) = Self::build(path) {
+                // Re expand the tree
+                let expanded = self.get_expanded();
+                for dir in expanded {
+                    if let Some(dir) = result.get_mut(&dir) {
+                        dir.expand();
+                    }
+                }
+                *self = result;
+            }
+        }
+    }
 }
 
 impl Editor {
@@ -559,6 +598,79 @@ impl Editor {
                 .flatten()
                 .last()
                 .map(std::string::ToString::to_string);
+        }
+    }
+
+    /// Create a new file / folder
+    pub fn file_tree_new(&mut self) -> Result<()> {
+        let path = self.path_prompt()?;
+        if path.ends_with(std::path::MAIN_SEPARATOR) {
+            std::fs::create_dir_all(path)?;
+            self.file_tree_refresh();
+            self.feedback = Feedback::Info("Folder created".to_string());
+        } else {
+            std::fs::File::create(path)?;
+            self.file_tree_refresh();
+            self.feedback = Feedback::Info("File created".to_string());
+        }
+        Ok(())
+    }
+
+    /// Delete a file
+    pub fn file_tree_delete(&mut self) -> Result<()> {
+        if let Some(file_name) = &self.file_tree_selection.clone() {
+            let prompt =
+                self.prompt(format!("Are you sure you wish to delete {file_name} (y/n)"))?;
+            if prompt == "y" {
+                if file_or_dir(file_name) == "file" {
+                    std::fs::remove_file(file_name)?;
+                    self.file_tree_refresh();
+                    self.file_tree_select_up();
+                    self.feedback = Feedback::Info("File deleted".to_string());
+                } else {
+                    self.feedback = Feedback::Error(
+                        "Folders can't be deleted in Ox: too dangerous".to_string(),
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Copy a file
+    pub fn file_tree_copy(&mut self) -> Result<()> {
+        if let Some(old_file) = &self.file_tree_selection.clone() {
+            let path = self.path_prompt()?;
+            if file_or_dir(old_file) == "file" {
+                std::fs::copy(old_file, path)?;
+                self.file_tree_refresh();
+                self.feedback = Feedback::Info("File copied".to_string());
+            } else {
+                self.feedback = Feedback::Error("Not a file".to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Move (or rename) a file / folder
+    pub fn file_tree_move(&mut self) -> Result<()> {
+        if let Some(old_file) = &self.file_tree_selection.clone() {
+            let path = self.path_prompt()?;
+            std::fs::rename(old_file, path.clone())?;
+            self.file_tree_refresh();
+            if file_or_dir(&path) == "file" {
+                self.feedback = Feedback::Info("File moved".to_string());
+            } else if file_or_dir(&path) == "directory" {
+                self.feedback = Feedback::Info("Folder moved".to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Refresh the file tree
+    pub fn file_tree_refresh(&mut self) {
+        if let Some(ref mut file_tree) = self.file_tree {
+            file_tree.refresh();
         }
     }
 }

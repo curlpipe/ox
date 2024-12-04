@@ -459,6 +459,10 @@ impl Editor {
                 (KMod::CONTROL, KCode::Up) => self.file_tree_move_to_top(),
                 (KMod::CONTROL, KCode::Down) => self.file_tree_move_to_bottom(),
                 (KMod::CONTROL, KCode::Enter) => self.file_tree_move_into(),
+                (KMod::NONE, KCode::Char('n')) => self.file_tree_new()?,
+                (KMod::NONE, KCode::Char('d')) => self.file_tree_delete()?,
+                (KMod::NONE, KCode::Char('m')) => self.file_tree_move()?,
+                (KMod::NONE, KCode::Char('c')) => self.file_tree_copy()?,
                 _ => (),
             }
         } else {
