@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 pub type FTParts = Vec<(usize, String, Option<String>, String)>;
 
 /// The backend of a file tree - stores the structure of the files and directories
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FileTree {
     /// Represents a file
     File { path: String },
@@ -226,6 +226,25 @@ impl FileTree {
 
     /// Display this file tree
     pub fn display(&self, sel: &str, fts: &FileTypes, cfg: &CfgFT) -> (FTParts, Option<usize>) {
+        let mut result = self.display_recursive(sel, fts, cfg);
+        result
+            .0
+            .insert(0, (0, "󰉖  ".to_string(), None, "..".to_string()));
+        if sel == ".." {
+            result.1 = Some(0);
+        } else if let Some(ref mut at) = result.1 {
+            *at += 1;
+        }
+        result
+    }
+
+    /// Display this file tree (recursive)
+    pub fn display_recursive(
+        &self,
+        sel: &str,
+        fts: &FileTypes,
+        cfg: &CfgFT,
+    ) -> (FTParts, Option<usize>) {
         let icons = cfg.icons;
         match self {
             Self::File { path } => {
@@ -257,7 +276,7 @@ impl FileTree {
                 // Write child nodes
                 if let Some(files) = files {
                     for file in files {
-                        let (sub_display, sub_at) = file.display(sel, fts, cfg);
+                        let (sub_display, sub_at) = file.display_recursive(sel, fts, cfg);
                         for (c, s) in sub_display.iter().enumerate() {
                             let mut s = s.clone();
                             s.0 += 1;
@@ -277,6 +296,13 @@ impl FileTree {
 
     /// Find the file path at a certain index
     pub fn flatten(&self) -> Vec<String> {
+        let mut result = self.flatten_recursive();
+        result.insert(0, "..".to_string());
+        result
+    }
+
+    /// Find the file path at a certain index (recursive)
+    pub fn flatten_recursive(&self) -> Vec<String> {
         match self {
             Self::File { path } => vec![path.to_string()],
             Self::Dir { path, files } => {
@@ -284,11 +310,25 @@ impl FileTree {
                 result.push(path.to_string());
                 if let Some(files) = files {
                     for file in files {
-                        result.append(&mut file.flatten());
+                        result.append(&mut file.flatten_recursive());
                     }
                 }
                 result
             }
+        }
+    }
+
+    /// Expand this file tree upwards towards parent
+    pub fn open_parent(&self) -> Result<Self> {
+        if let Self::Dir { path, files } = self {
+            let parent_path = format!("{path}/..");
+            let mut parent = Self::build(&parent_path)?;
+            if let Some(Self::Dir { files: child, .. }) = parent.get_mut(path) {
+                child.clone_from(&files.clone());
+            }
+            Ok(parent)
+        } else {
+            Err(OxError::InvalidPath)
         }
     }
 }
@@ -423,10 +463,14 @@ impl Editor {
     /// Open a certain file / directory in a file tree
     pub fn file_tree_open_node(&mut self) -> Result<()> {
         if let Some(file_name) = &self.file_tree_selection.clone() {
-            match file_or_dir(file_name) {
-                "file" => self.file_tree_open_file()?,
-                "directory" => self.file_tree_toggle_dir(),
-                _ => (),
+            if file_name == ".." {
+                self.file_tree_open_parent()?;
+            } else {
+                match file_or_dir(file_name) {
+                    "file" => self.file_tree_open_file()?,
+                    "directory" => self.file_tree_toggle_dir(),
+                    _ => (),
+                }
             }
         }
         Ok(())
@@ -454,6 +498,7 @@ impl Editor {
         Ok(())
     }
 
+    /// Toggle a directory to expand or contract
     pub fn file_tree_toggle_dir(&mut self) {
         if let Some(ref mut file_tree) = &mut self.file_tree {
             if let Some(file_name) = self.file_tree_selection.as_ref() {
@@ -470,5 +515,13 @@ impl Editor {
                 }
             }
         }
+    }
+
+    /// Expand this tree up to the parent
+    pub fn file_tree_open_parent(&mut self) -> Result<()> {
+        if let Some(ref mut file_tree) = &mut self.file_tree {
+            self.file_tree = Some(file_tree.open_parent()?);
+        }
+        Ok(())
     }
 }
