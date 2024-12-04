@@ -524,4 +524,41 @@ impl Editor {
         }
         Ok(())
     }
+
+    /// Expand this tree up to the parent
+    pub fn file_tree_move_into(&mut self) {
+        if let Some(ref mut file_tree) = &mut self.file_tree {
+            if let Some(file_name) = self.file_tree_selection.as_ref() {
+                if let Some(node) = file_tree.get_mut(file_name) {
+                    if let FileTree::Dir { files, .. } = node {
+                        if files.is_none() {
+                            // Expand if not already expanded
+                            node.expand();
+                        }
+                        *file_tree = node.clone();
+                    }
+                }
+            }
+        }
+    }
+
+    /// Move to the top of the file tree
+    pub fn file_tree_move_to_top(&mut self) {
+        if let Some(ref mut file_tree) = &mut self.file_tree {
+            self.file_tree_selection = file_tree
+                .flatten()
+                .first()
+                .map(std::string::ToString::to_string);
+        }
+    }
+
+    /// Move to the bottom of the file tree
+    pub fn file_tree_move_to_bottom(&mut self) {
+        if let Some(ref mut file_tree) = &mut self.file_tree {
+            self.file_tree_selection = file_tree
+                .flatten()
+                .last()
+                .map(std::string::ToString::to_string);
+        }
+    }
 }

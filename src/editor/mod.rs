@@ -456,6 +456,9 @@ impl Editor {
                 (KMod::NONE, KCode::Up) => self.file_tree_select_up(),
                 (KMod::NONE, KCode::Down) => self.file_tree_select_down(),
                 (KMod::NONE, KCode::Enter) => self.file_tree_open_node()?,
+                (KMod::CONTROL, KCode::Up) => self.file_tree_move_to_top(),
+                (KMod::CONTROL, KCode::Down) => self.file_tree_move_to_bottom(),
+                (KMod::CONTROL, KCode::Enter) => self.file_tree_move_into(),
                 _ => (),
             }
         } else {
