@@ -12,7 +12,7 @@ file_types["Todo"] = {
     extensions = {"todo"},
     files = {".todo.md", ".todo"},
     modelines = {},
-    color = 247,
+    color = "grey",
 }
 
 -- Add syntax highlighting to .todo files (done todos are comments)
