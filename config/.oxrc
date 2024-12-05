@@ -276,6 +276,19 @@ event_mapping = {
         editor:macro_record_stop()
         editor:display_info("Macro recorded")
     end,
+    -- Splits
+    ["ctrl_alt_left"] = function()
+        editor:focus_split_left()
+    end,
+    ["ctrl_alt_right"] = function()
+        editor:focus_split_right()
+    end,
+    ["ctrl_alt_down"] = function()
+        editor:focus_split_down()
+    end,
+    ["ctrl_alt_up"] = function()
+        editor:focus_split_up()
+    end,
     -- File Tree
     ["ctrl_space"] = function()
         editor:toggle_file_tree()
