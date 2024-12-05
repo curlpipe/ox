@@ -380,7 +380,7 @@ impl Editor {
     /// Updates the current working directory of the editor
     pub fn update_cwd(&self) {
         if let Some(doc) = self.try_doc() {
-            if let Some(name) = get_absolute_path(&doc.file_name.clone().unwrap_or_default()) {
+            if let Some(name) = &doc.file_name {
                 let file = Path::new(&name);
                 if let Some(cwd) = file.parent() {
                     let _ = env::set_current_dir(cwd);
