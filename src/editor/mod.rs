@@ -286,8 +286,8 @@ impl Editor {
             self.try_doc_mut().unwrap().save_as(&file_name)?;
             if self.try_doc().unwrap().file_name.is_none() {
                 let tab_width = config!(self.config, document).tab_width;
-                if let Some((files, _)) = self.files.get_atom_mut(self.ptr.clone()) {
-                    let file = files.last_mut().unwrap();
+                if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
+                    let file = files.get_mut(*ptr).unwrap();
                     // Set the file name
                     file.doc.file_name = Some(file_name.clone());
                     // Update the file type
