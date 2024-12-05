@@ -7,7 +7,7 @@ use crossterm::event::{
     Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEvent, MouseEventKind,
 };
 use kaolinite::event::Error as KError;
-use kaolinite::utils::{get_absolute_path, get_file_name};
+use kaolinite::utils::{file_or_dir, get_absolute_path, get_file_name};
 use kaolinite::{Document, Loc};
 use mlua::{Error as LuaError, Lua};
 use std::env;
@@ -179,6 +179,13 @@ impl Editor {
 
     /// Function to create a file container
     pub fn open_fc(&mut self, file_name: &str) -> Result<FileContainer> {
+        // Reject the opening of directories
+        if file_or_dir(file_name) != "file" {
+            return Err(OxError::Kaolinite(KError::Io(std::io::Error::new(
+                std::io::ErrorKind::IsADirectory,
+                "This is a directory, not a file",
+            ))));
+        }
         // Check if a file is already opened
         if let Some((idx, ptr)) =
             self.already_open(&get_absolute_path(file_name).unwrap_or_default())
