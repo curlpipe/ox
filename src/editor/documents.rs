@@ -324,6 +324,24 @@ impl FileLayout {
         }
     }
 
+    /// Remove any empty atoms
+    pub fn clean_up_multis(&mut self, mut idx: Vec<usize>) -> Vec<usize> {
+        // Continue checking for redundant sidebyside / toptobottom
+        while let Some(redundant_idx) = self.redundant_multis(vec![]) {
+            let multi = self.get_raw_mut(redundant_idx.clone());
+            if let Some(layout) = multi {
+                if let Self::SideBySide(layouts) | Self::TopToBottom(layouts) = layout {
+                    *layout = layouts[0].0.clone();
+                    if idx.starts_with(&redundant_idx) {
+                        idx.remove(redundant_idx.len());
+                        return idx;
+                    }
+                }
+            }
+        }
+        idx
+    }
+
     /// Remove a certain index from this tree
     #[allow(clippy::cast_precision_loss)]
     pub fn remove(&mut self, at: Vec<usize>) {
@@ -373,6 +391,27 @@ impl FileLayout {
                         let mut idx = at.clone();
                         idx.push(c);
                         if let Some(result) = layout.0.empty_atoms(idx) {
+                            return Some(result);
+                        }
+                    }
+                    None
+                }
+            }
+        }
+    }
+
+    /// Traverse the tree and return a list of indices to redundant sidebyside/toptobottom
+    pub fn redundant_multis(&self, at: Vec<usize>) -> Option<Vec<usize>> {
+        match self {
+            Self::None | Self::FileTree | Self::Atom(_, _) => None,
+            Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
+                if layouts.len() == 1 {
+                    Some(at)
+                } else {
+                    for (c, layout) in layouts.iter().enumerate() {
+                        let mut idx = at.clone();
+                        idx.push(c);
+                        if let Some(result) = layout.0.redundant_multis(idx) {
                             return Some(result);
                         }
                     }

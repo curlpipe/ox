@@ -348,10 +348,12 @@ impl Editor {
                 self.files.clean_up();
                 // Find a new pointer position
                 self.ptr = self.files.new_pointer_position(&self.ptr);
+                // Clean up the redundant sidebyside/toptobottom
+                self.ptr = self.files.clean_up_multis(self.ptr.clone());
             }
         }
         // If there are no longer any active atoms, quit the entire editor
-        self.active = !matches!(self.files, FileLayout::None);
+        self.active = !matches!(self.files, FileLayout::None | FileLayout::FileTree);
         Ok(())
     }
 
