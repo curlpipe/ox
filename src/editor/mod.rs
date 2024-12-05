@@ -284,6 +284,7 @@ impl Editor {
         if self.try_doc().is_some() {
             let file_name = self.prompt("Save as")?;
             self.try_doc_mut().unwrap().save_as(&file_name)?;
+            // If this file is currently unnamed, give it a name, syntax highlighting and a type
             if self.try_doc().unwrap().file_name.is_none() {
                 let tab_width = config!(self.config, document).tab_width;
                 if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
