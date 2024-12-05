@@ -107,6 +107,7 @@ impl Editor {
                     }
                     match self.find_mouse_location(lua, event) {
                         MouseLocation::File(idx, mut loc) => {
+                            self.cache_old_ptr(&idx);
                             self.ptr.clone_from(&idx);
                             if let Some(doc) = self.try_doc_mut() {
                                 doc.clear_cursors();
@@ -117,6 +118,7 @@ impl Editor {
                         }
                         MouseLocation::Tabs(idx, i) => {
                             self.files.move_to(idx.clone(), i);
+                            self.cache_old_ptr(&idx);
                             self.ptr.clone_from(&idx);
                             self.update_cwd();
                         }
@@ -126,6 +128,7 @@ impl Editor {
                 MouseEventKind::Down(MouseButton::Right) => {
                     // Select the current line
                     if let MouseLocation::File(idx, loc) = self.find_mouse_location(lua, event) {
+                        self.cache_old_ptr(&idx);
                         self.ptr.clone_from(&idx);
                         if let Some(doc) = self.try_doc_mut() {
                             doc.select_line_at(loc.y);
@@ -158,6 +161,7 @@ impl Editor {
                     match self.find_mouse_location(lua, event) {
                         MouseLocation::File(idx, mut loc) => {
                             if self.try_doc().is_some() {
+                                self.cache_old_ptr(&idx);
                                 self.ptr.clone_from(&idx);
                                 let doc = self.try_doc().unwrap();
                                 loc.x = doc.character_idx(&loc);
@@ -189,6 +193,7 @@ impl Editor {
                     match self.find_mouse_location(lua, event) {
                         MouseLocation::File(idx, mut loc) => {
                             if self.try_doc().is_some() {
+                                self.cache_old_ptr(&idx);
                                 self.ptr.clone_from(&idx);
                                 let doc = self.try_doc_mut().unwrap();
                                 loc.x = doc.character_idx(&loc);
@@ -219,6 +224,7 @@ impl Editor {
                 MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
                     let scroll_amount = config!(self.config, terminal).scroll_amount;
                     if let MouseLocation::File(idx, _) = self.find_mouse_location(lua, event) {
+                        self.cache_old_ptr(&idx);
                         self.ptr.clone_from(&idx);
                         if let Some(doc) = self.try_doc_mut() {
                             for _ in 0..scroll_amount {
@@ -247,6 +253,7 @@ impl Editor {
             KeyModifiers::CONTROL => {
                 if let MouseEventKind::Down(MouseButton::Left) = event.kind {
                     if let MouseLocation::File(idx, loc) = self.find_mouse_location(lua, event) {
+                        self.cache_old_ptr(&idx);
                         self.ptr.clone_from(&idx);
                         if let Some(doc) = self.try_doc_mut() {
                             doc.new_cursor(loc);
@@ -263,6 +270,7 @@ impl Editor {
     pub fn handle_double_click(&mut self, lua: &Lua, event: MouseEvent) {
         // Select the current word
         if let MouseLocation::File(idx, loc) = self.find_mouse_location(lua, event) {
+            self.cache_old_ptr(&idx);
             self.ptr.clone_from(&idx);
             if let Some(doc) = self.try_doc_mut() {
                 doc.select_word_at(&loc);
@@ -272,6 +280,14 @@ impl Editor {
                 cursor.x = doc.character_idx(&cursor);
                 self.alt_click_state = Some((selection, cursor));
             }
+        }
+    }
+
+    /// Cache the old ptr
+    fn cache_old_ptr(&mut self, idx: &Vec<usize>) {
+        self.old_ptr.clone_from(idx);
+        if self.file_tree_is_open() && !self.old_ptr.is_empty() {
+            self.old_ptr.remove(0);
         }
     }
 }

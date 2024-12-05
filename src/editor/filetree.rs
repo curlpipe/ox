@@ -390,24 +390,10 @@ impl Editor {
                 }
             }
             // Wrap existing file layout in new file layout
-            if let FileLayout::SideBySide(ref mut layouts) = &mut self.files {
-                // Shrink existing splits
-                let redistribute = width / layouts.len() as f64;
-                for (_, prop) in &mut *layouts {
-                    if *prop >= redistribute {
-                        *prop -= redistribute;
-                    } else {
-                        *prop = 0.0;
-                    }
-                }
-                // Insert file tree
-                layouts.insert(0, (FileLayout::FileTree, width));
-            } else {
-                self.files = FileLayout::SideBySide(vec![
-                    (FileLayout::FileTree, width),
-                    (self.files.clone(), other),
-                ]);
-            }
+            self.files = FileLayout::SideBySide(vec![
+                (FileLayout::FileTree, width),
+                (self.files.clone(), other),
+            ]);
             self.ptr = vec![0];
         }
     }
