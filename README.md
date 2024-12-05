@@ -62,6 +62,7 @@ It works best on linux, but macOS and Windows are also supported.
 - :writing_hand: Convenient shortcuts when writing code
 - :crossed_swords: Multi-editing features such as multiple cursors and recordable macros
 - :window: Splits to view multiple documents on the same screen at the same time
+- :file_folder: File tree to view, open, create, delete, copy and move files
 
 ### Robustness
 
