@@ -1,5 +1,5 @@
 /// For handling mouse events
-use crate::config;
+use crate::{config, Result};
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use kaolinite::{utils::width, Loc};
 use mlua::Lua;
@@ -13,6 +13,8 @@ enum MouseLocation {
     File(Vec<usize>, Loc),
     /// Where the mouse has clicked on a tab
     Tabs(Vec<usize>, usize),
+    /// Where the mouse has clicked in the file tree
+    FileTree(usize),
     /// Mouse has clicked nothing of importance
     Out,
 }
@@ -80,7 +82,7 @@ impl Editor {
                 }
             } else {
                 // Pretty sure we just clicked on the file tree (split with no atom!)
-                MouseLocation::Out
+                MouseLocation::FileTree(row)
             }
         } else {
             MouseLocation::Out
@@ -89,23 +91,26 @@ impl Editor {
 
     /// Handles a mouse event (dragging / clicking)
     #[allow(clippy::too_many_lines)]
-    pub fn handle_mouse_event(&mut self, lua: &Lua, event: MouseEvent) {
+    pub fn handle_mouse_event(&mut self, lua: &Lua, event: MouseEvent) -> Result<()> {
         match event.modifiers {
             KeyModifiers::NONE => match event.kind {
                 // Single click
                 MouseEventKind::Down(MouseButton::Left) => {
+                    let location = self.find_mouse_location(lua, event);
+                    let clicked_in_ft = matches!(location, MouseLocation::FileTree(_));
                     // Determine if there has been a click within 500ms
                     if let Some((time, last_event)) = self.last_click {
                         let now = Instant::now();
                         let short_period = now.duration_since(time) <= Duration::from_millis(500);
                         let same_location =
                             last_event.column == event.column && last_event.row == event.row;
-                        if short_period && same_location {
+                        // If the user quickly clicked twice in the same location (outside the file tree)
+                        if short_period && same_location && !clicked_in_ft {
                             self.handle_double_click(lua, event);
-                            return;
+                            return Ok(());
                         }
                     }
-                    match self.find_mouse_location(lua, event) {
+                    match location {
                         MouseLocation::File(idx, mut loc) => {
                             self.cache_old_ptr(&idx);
                             self.ptr.clone_from(&idx);
@@ -121,6 +126,19 @@ impl Editor {
                             self.cache_old_ptr(&idx);
                             self.ptr.clone_from(&idx);
                             self.update_cwd();
+                        }
+                        MouseLocation::FileTree(y) => {
+                            // Move the focus into the file tree
+                            self.ptr = vec![0];
+                            // Handle the click
+                            if let Some(ft) = &self.file_tree {
+                                // Move selection to where we clicked
+                                if let Some(item) = ft.flatten().get(y) {
+                                    self.file_tree_selection = Some(item.to_string());
+                                    // Toggle the node
+                                    self.file_tree_open_node()?;
+                                }
+                            }
                         }
                         MouseLocation::Out => (),
                     }
@@ -186,7 +204,9 @@ impl Editor {
                                 }
                             }
                         }
-                        MouseLocation::Tabs(_, _) | MouseLocation::Out => (),
+                        MouseLocation::Tabs(_, _)
+                        | MouseLocation::Out
+                        | MouseLocation::FileTree(_) => (),
                     }
                 }
                 MouseEventKind::Drag(MouseButton::Right) => {
@@ -217,7 +237,9 @@ impl Editor {
                                 }
                             }
                         }
-                        MouseLocation::Tabs(_, _) | MouseLocation::Out => (),
+                        MouseLocation::Tabs(_, _)
+                        | MouseLocation::Out
+                        | MouseLocation::FileTree(_) => (),
                     }
                 }
                 // Mouse scroll behaviour
@@ -264,6 +286,7 @@ impl Editor {
             }
             _ => (),
         }
+        Ok(())
     }
 
     /// Handle a double-click event

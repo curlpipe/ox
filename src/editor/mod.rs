@@ -446,7 +446,7 @@ impl Editor {
         match event {
             CEvent::Key(key) => self.handle_key_event(key.modifiers, key.code)?,
             CEvent::Resize(_, _) => self.handle_resize(lua)?,
-            CEvent::Mouse(mouse_event) => self.handle_mouse_event(lua, mouse_event),
+            CEvent::Mouse(mouse_event) => self.handle_mouse_event(lua, mouse_event)?,
             CEvent::Paste(text) => self.handle_paste(&text)?,
             _ => (),
         }
