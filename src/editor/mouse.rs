@@ -128,8 +128,6 @@ impl Editor {
                             self.update_cwd();
                         }
                         MouseLocation::FileTree(y) => {
-                            // Move the focus into the file tree
-                            self.ptr = vec![0];
                             // Handle the click
                             if let Some(ft) = &self.file_tree {
                                 // Move selection to where we clicked
