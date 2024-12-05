@@ -653,10 +653,12 @@ impl LuaUserData for Editor {
         );
         methods.add_method_mut("focus_split_up", |_, editor, ()| {
             editor.ptr = FileLayout::move_up(editor.ptr.clone(), &editor.render_cache.span);
+            editor.update_cwd();
             Ok(())
         });
         methods.add_method_mut("focus_split_down", |_, editor, ()| {
             editor.ptr = FileLayout::move_down(editor.ptr.clone(), &editor.render_cache.span);
+            editor.update_cwd();
             Ok(())
         });
         methods.add_method_mut("focus_split_left", |_, editor, ()| {
@@ -671,10 +673,12 @@ impl LuaUserData for Editor {
                 editor.old_ptr.pop();
             }
             editor.ptr = new_ptr;
+            editor.update_cwd();
             Ok(())
         });
         methods.add_method_mut("focus_split_right", |_, editor, ()| {
             editor.ptr = FileLayout::move_right(editor.ptr.clone(), &editor.render_cache.span);
+            editor.update_cwd();
             Ok(())
         });
         // Searching and replacing
