@@ -265,7 +265,7 @@ impl Editor {
         // Refuse to render help message on splits - awkward edge case
         let help_message_here = config!(self.config, help_message).enabled
             && self.render_cache.help_message_span.contains(&y)
-            && self.files.len() == 1;
+            && self.files.n_atoms() == 1;
         // Render short of the help message
         let mut total_width = if help_message_here {
             self.render_cache.help_message_width

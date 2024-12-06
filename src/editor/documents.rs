@@ -164,6 +164,16 @@ impl FileLayout {
         }
     }
 
+    /// Work out how many atoms are currently open
+    pub fn n_atoms(&self) -> usize {
+        match self {
+            Self::None | Self::FileTree => 0,
+            Self::Atom(_, _) => 1,
+            Self::SideBySide(layouts) => layouts.iter().map(|(layout, _)| layout.n_atoms()).sum(),
+            Self::TopToBottom(layouts) => layouts.iter().map(|(layout, _)| layout.n_atoms()).sum(),
+        }
+    }
+
     /// Find a file container location from it's path
     pub fn find(&self, idx: Vec<usize>, path: &str) -> Option<(Vec<usize>, usize)> {
         match self {
