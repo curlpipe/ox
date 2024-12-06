@@ -594,6 +594,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_up(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.update_cwd();
                 Ok(true)
             } else {
                 Ok(false)
@@ -604,6 +605,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_down(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.update_cwd();
                 Ok(true)
             } else {
                 Ok(false)
@@ -614,6 +616,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_left(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.update_cwd();
                 Ok(true)
             } else {
                 Ok(false)
@@ -624,6 +627,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_right(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.update_cwd();
                 Ok(true)
             } else {
                 Ok(false)
