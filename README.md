@@ -11,14 +11,11 @@
     The simple but flexible text editor
     <br><br>
     <div align="center" style="display:inline;">
-      <!--
-      <img src="https://i.postimg.cc/zXB5y0r3/ox-blank.gif" width="49%">
-      <img src="https://i.postimg.cc/pVkRV33g/ox-code.gif" width="49%">
-      -->
-      <img src="https://images4.imagebam.com/f5/2f/71/MEXVOVO_o.gif" width="100%">
+      <img src="https://curlpipe.github.io/showcase-original.gif" width="100%">
     </div>
     <br>
 </p>
+
 
 ![Build Status](https://img.shields.io/github/forks/curlpipe/ox.svg?style=for-the-badge)
 ![Build Status](https://img.shields.io/github/stars/curlpipe/ox.svg?style=for-the-badge)
