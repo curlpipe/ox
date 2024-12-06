@@ -19,7 +19,7 @@ use events::wait_for_event;
 use kaolinite::event::{Error as KError, Event};
 use kaolinite::searching::Searcher;
 use kaolinite::utils::{file_or_dir, get_cwd};
-use kaolinite::Loc;
+use kaolinite::{Document, Loc};
 use mlua::Error::{RuntimeError, SyntaxError};
 use mlua::{AnyUserData, FromLua, Lua, Value};
 use std::io::ErrorKind;
@@ -184,7 +184,10 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         let event = wait_for_event(&editor, &lua)?;
 
         // Handle the event
-        let original_loc = ged!(&editor).doc().char_loc();
+        let original_loc = ged!(&editor)
+            .try_doc()
+            .map(Document::char_loc)
+            .unwrap_or_default();
         handle_event(&editor, &event, &lua)?;
 
         // Handle multi cursors
@@ -243,8 +246,19 @@ fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
     }
 
     // Actually handle editor event (errors included)
-    if let Err(err) = ged!(mut &editor).handle_event(lua, event.clone()) {
-        ged!(mut &editor).feedback = Feedback::Error(format!("{err:?}"));
+    let event_result = ged!(mut &editor).handle_event(lua, event.clone());
+    if let Err(err) = event_result {
+        // Nicely display error to user
+        match err {
+            OxError::Lua(err) => {
+                handle_lua_error("event", Err(err), &mut ged!(mut &editor).feedback);
+            }
+            OxError::AlreadyOpen { file } => {
+                ged!(mut &editor).feedback =
+                    Feedback::Error(format!("File '{file}' is already open"));
+            }
+            _ => ged!(mut &editor).feedback = Feedback::Error(format!("{err:?}")),
+        }
     }
 
     // Handle paste event (after event)

@@ -53,8 +53,11 @@ impl Document {
     /// disk errors.
     #[cfg(not(tarpaulin_include))]
     pub fn open<S: Into<String>>(size: Size, file_name: S) -> Result<Self> {
+        // Try to find the absolute path and load it into the reader
         let file_name = file_name.into();
-        let file = load_rope_from_reader(BufReader::new(File::open(&file_name)?));
+        let full_path = std::fs::canonicalize(&file_name)?;
+        let file = load_rope_from_reader(BufReader::new(File::open(&full_path)?));
+        // Find the string representation of the absolute path
         let file_name = get_absolute_path(&file_name);
         Ok(Self {
             info: DocumentInfo {

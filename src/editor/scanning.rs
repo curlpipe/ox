@@ -15,8 +15,13 @@ use super::Editor;
 impl Editor {
     /// Use search feature
     pub fn search(&mut self, lua: &Lua) -> Result<()> {
+        // Block any non-documents from activating search
+        if self.try_doc().is_none() {
+            return Ok(());
+        }
+        // Gather data
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
-        let cache = self.doc().char_loc();
+        let cache = self.try_doc().unwrap().char_loc();
         // Prompt for a search term
         let mut target = String::new();
         let mut done = false;
@@ -51,20 +56,20 @@ impl Editor {
                     (KMod::NONE, KCode::Enter) => done = true,
                     // Cancel operation
                     (KMod::NONE, KCode::Esc) => {
-                        self.doc_mut().move_to(&cache);
-                        self.doc_mut().cancel_selection();
+                        self.try_doc_mut().unwrap().move_to(&cache);
+                        self.try_doc_mut().unwrap().cancel_selection();
                         return Err(OxError::Cancelled);
                     }
                     // Remove from the input string if the user presses backspace
                     (KMod::NONE, KCode::Backspace) => {
                         target.pop();
-                        self.doc_mut().move_to(&cache);
+                        self.try_doc_mut().unwrap().move_to(&cache);
                         self.next_match(&target);
                     }
                     // Add to the input string if the user presses a character
                     (KMod::NONE | KMod::SHIFT, KCode::Char(c)) => {
                         target.push(c);
-                        self.doc_mut().move_to(&cache);
+                        self.try_doc_mut().unwrap().move_to(&cache);
                         self.next_match(&target);
                     }
                     _ => (),
@@ -104,7 +109,7 @@ impl Editor {
                     // On return or escape key, exit menu
                     (KMod::NONE, KCode::Enter) => done = true,
                     (KMod::NONE, KCode::Esc) => {
-                        self.doc_mut().move_to(&cache);
+                        self.try_doc_mut().unwrap().move_to(&cache);
                         done = true;
                     }
                     // On left key, move to the previous match in the document
@@ -116,41 +121,54 @@ impl Editor {
             }
             self.update_highlighter();
         }
-        self.doc_mut().cancel_selection();
+        self.try_doc_mut().unwrap().cancel_selection();
         Ok(())
     }
 
     /// Move to the next match
     pub fn next_match(&mut self, target: &str) -> Option<String> {
-        let mtch = self.doc_mut().next_match(target, 1)?;
-        // Select match
-        self.doc_mut().cancel_selection();
-        let mut move_to = mtch.loc;
-        move_to.x += mtch.text.chars().count();
-        self.doc_mut().move_to(&move_to);
-        self.doc_mut().select_to(&mtch.loc);
-        // Update highlighting
-        self.update_highlighter();
-        Some(mtch.text)
+        if let Some(doc) = self.try_doc_mut() {
+            let mtch = doc.next_match(target, 1)?;
+            // Select match
+            doc.cancel_selection();
+            let mut move_to = mtch.loc;
+            move_to.x += mtch.text.chars().count();
+            doc.move_to(&move_to);
+            doc.select_to(&mtch.loc);
+            // Update highlighting
+            self.update_highlighter();
+            Some(mtch.text)
+        } else {
+            None
+        }
     }
 
     /// Move to the previous match
     pub fn prev_match(&mut self, target: &str) -> Option<String> {
-        let mtch = self.doc_mut().prev_match(target)?;
-        self.doc_mut().move_to(&mtch.loc);
-        // Select match
-        self.doc_mut().cancel_selection();
-        let mut move_to = mtch.loc;
-        move_to.x += mtch.text.chars().count();
-        self.doc_mut().move_to(&move_to);
-        self.doc_mut().select_to(&mtch.loc);
-        // Update highlighting
-        self.update_highlighter();
-        Some(mtch.text)
+        if let Some(doc) = self.try_doc_mut() {
+            let mtch = doc.prev_match(target)?;
+            doc.move_to(&mtch.loc);
+            // Select match
+            doc.cancel_selection();
+            let mut move_to = mtch.loc;
+            move_to.x += mtch.text.chars().count();
+            doc.move_to(&move_to);
+            doc.select_to(&mtch.loc);
+            // Update highlighting
+            self.update_highlighter();
+            Some(mtch.text)
+        } else {
+            None
+        }
     }
 
     /// Use replace feature
     pub fn replace(&mut self, lua: &Lua) -> Result<()> {
+        // Block any non-documents from activating replace
+        if self.try_doc().is_none() {
+            return Ok(());
+        }
+        // Gather data
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         // Request replace information
         let target = self.prompt("Replace")?;
@@ -215,38 +233,46 @@ impl Editor {
             // Update syntax highlighter if necessary
             self.update_highlighter();
         }
-        self.doc_mut().cancel_selection();
+        self.try_doc_mut().unwrap().cancel_selection();
         Ok(())
     }
 
     /// Replace an instance in a document
     fn do_replace(&mut self, into: &str, text: &str) -> Result<()> {
-        // Commit events to event manager (for undo / redo)
-        self.doc_mut().commit();
-        // Do the replacement
-        let loc = self.doc().char_loc();
-        self.doc_mut().replace(loc, text, into)?;
-        self.doc_mut().move_to(&loc);
-        // Update syntax highlighter
-        self.update_highlighter();
-        if let Some(file) = self.files.get_mut(self.ptr.clone()) {
-            file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+        if let Some(doc) = self.try_doc_mut() {
+            // Commit events to event manager (for undo / redo)
+            doc.commit();
+            // Do the replacement
+            let loc = doc.char_loc();
+            doc.replace(loc, text, into)?;
+            doc.move_to(&loc);
+            // Update syntax highlighter
+            self.update_highlighter();
+            if let Some(file) = self.files.get_mut(self.ptr.clone()) {
+                file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
+            }
         }
         Ok(())
     }
 
     /// Replace all instances in a document
     fn do_replace_all(&mut self, target: &str, into: &str) {
-        // Commit events to event manager (for undo / redo)
-        self.doc_mut().commit();
-        // Replace everything top to bottom
-        self.doc_mut().move_to(&Loc::at(0, 0));
-        while let Some(mtch) = self.doc_mut().next_match(target, 1) {
-            drop(self.doc_mut().replace(mtch.loc, &mtch.text, into));
-            self.update_highlighter();
-            if let Some(file) = self.files.get_mut(self.ptr.clone()) {
-                file.highlighter
-                    .edit(mtch.loc.y, &file.doc.lines[mtch.loc.y]);
+        if self.try_doc().is_some() {
+            // Commit events to event manager (for undo / redo)
+            self.try_doc_mut().unwrap().commit();
+            // Replace everything top to bottom
+            self.try_doc_mut().unwrap().move_to(&Loc::at(0, 0));
+            while let Some(mtch) = self.try_doc_mut().unwrap().next_match(target, 1) {
+                drop(
+                    self.try_doc_mut()
+                        .unwrap()
+                        .replace(mtch.loc, &mtch.text, into),
+                );
+                self.update_highlighter();
+                if let Some(file) = self.files.get_mut(self.ptr.clone()) {
+                    file.highlighter
+                        .edit(mtch.loc.y, &file.doc.lines[mtch.loc.y]);
+                }
             }
         }
     }

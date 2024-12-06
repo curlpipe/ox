@@ -1,6 +1,6 @@
-use crate::config::SyntaxHighlighting as SH;
 /// Functions for rendering the UI
-use crate::editor::FileLayout;
+use crate::config::SyntaxHighlighting as SH;
+use crate::editor::{FTParts, FileLayout};
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
 use crate::ui::{key_event, size, Feedback};
@@ -24,6 +24,8 @@ pub struct RenderCache {
     pub help_message: Vec<(bool, String)>,
     pub help_message_width: usize,
     pub help_message_span: Range<usize>,
+    pub file_tree: FTParts,
+    pub file_tree_selection: Option<usize>,
 }
 
 impl Editor {
@@ -51,6 +53,18 @@ impl Editor {
         let help_start = (size.h / 2).saturating_sub(help_length / 2) + 1;
         let help_end = help_start + help_length;
         self.render_cache.help_message_span = help_start..help_end + 1;
+        // Calculate file tree display representation
+        let fts = &config!(self.config, document).file_types;
+        let ft_config = &config!(self.config, file_tree);
+        if let Some(file_tree) = self.file_tree.as_ref() {
+            let (files, sel) = file_tree.display(
+                self.file_tree_selection.as_ref().unwrap_or(&String::new()),
+                fts,
+                ft_config,
+            );
+            self.render_cache.file_tree = files;
+            self.render_cache.file_tree_selection = sel;
+        }
     }
 
     /// Render a specific line
@@ -65,6 +79,10 @@ impl Editor {
         let mut accounted_for = 0;
         // Render each component of this line
         for (c, (fc, rows, range)) in fcs.iter().enumerate() {
+            let in_file_tree = matches!(
+                self.files.get_raw(fc.to_owned()),
+                Some(FileLayout::FileTree)
+            );
             // Check if we have encountered an area of discontinuity in the line
             if range.start != accounted_for {
                 // Discontinuity detected, fill with vertical bar!
@@ -93,7 +111,10 @@ impl Editor {
             let length = range.end.saturating_sub(range.start);
             let height = rows.end.saturating_sub(rows.start);
             let rel_y = y.saturating_sub(rows.start);
-            if y == rows.start && tab_line_enabled {
+            if in_file_tree {
+                // Part of file tree!
+                result += &self.render_file_tree(y, length)?;
+            } else if y == rows.start && tab_line_enabled {
                 // Tab line
                 result += &self.render_tab_line(fc, lua, length)?;
             } else if y == rows.end.saturating_sub(1) {
@@ -201,13 +222,19 @@ impl Editor {
 
     /// Function to calculate the cursor's position on screen
     pub fn cursor_position(&self) -> Option<Loc> {
-        let Loc { x, y } = self.doc().cursor_loc_in_screen()?;
-        for (ptr, rows, cols) in &self.render_cache.span {
-            if ptr == &self.ptr {
-                return Some(Loc {
-                    x: cols.start + x + self.dent(),
-                    y: rows.start + y + self.push_down,
-                });
+        let in_file_tree = matches!(
+            self.files.get_raw(self.ptr.clone()),
+            Some(FileLayout::FileTree)
+        );
+        if !in_file_tree {
+            let Loc { x, y } = self.try_doc().unwrap().cursor_loc_in_screen()?;
+            for (ptr, rows, cols) in &self.render_cache.span {
+                if ptr == &self.ptr {
+                    return Some(Loc {
+                        x: cols.start + x + self.dent(),
+                        y: rows.start + y + self.push_down,
+                    });
+                }
             }
         }
         None
@@ -238,7 +265,7 @@ impl Editor {
         // Refuse to render help message on splits - awkward edge case
         let help_message_here = config!(self.config, help_message).enabled
             && self.render_cache.help_message_span.contains(&y)
-            && self.files.len() == 1;
+            && self.files.n_atoms() == 1;
         // Render short of the help message
         let mut total_width = if help_message_here {
             self.render_cache.help_message_width
@@ -520,6 +547,61 @@ impl Editor {
         }
         // Output
         Ok(content)
+    }
+
+    /// Render a line in the file tree
+    #[allow(clippy::similar_names)]
+    fn render_file_tree(&mut self, y: usize, length: usize) -> Result<String> {
+        let selected = self.render_cache.file_tree_selection == Some(y);
+        let ft_bg = Bg(config!(self.config, colors).file_tree_bg.to_color()?);
+        let ft_fg = Fg(config!(self.config, colors).file_tree_fg.to_color()?);
+        let ft_selection_bg = Bg(config!(self.config, colors)
+            .file_tree_selection_bg
+            .to_color()?);
+        let ft_selection_fg = Fg(config!(self.config, colors)
+            .file_tree_selection_fg
+            .to_color()?);
+        let ft_colors = config!(self.config, colors);
+        // Perform the rendering
+        let mut total_length = 0;
+        let line = self.render_cache.file_tree.get(y);
+        let mut line = if let Some((padding, icon, icon_colour, name)) = line {
+            total_length = padding * 2 + width(icon, 4) + width(name, 4);
+            if let (Some(colour), false) = (icon_colour, selected) {
+                let colour = Fg(match colour.as_str() {
+                    "red" => ft_colors.file_tree_red.to_color()?,
+                    "orange" => ft_colors.file_tree_orange.to_color()?,
+                    "yellow" => ft_colors.file_tree_yellow.to_color()?,
+                    "green" => ft_colors.file_tree_green.to_color()?,
+                    "lightblue" => ft_colors.file_tree_lightblue.to_color()?,
+                    "darkblue" => ft_colors.file_tree_darkblue.to_color()?,
+                    "purple" => ft_colors.file_tree_purple.to_color()?,
+                    "pink" => ft_colors.file_tree_pink.to_color()?,
+                    "brown" => ft_colors.file_tree_brown.to_color()?,
+                    "grey" => ft_colors.file_tree_grey.to_color()?,
+                    _ => Color::White,
+                });
+                format!("{}{colour}{icon}{ft_fg}{name}", "  ".repeat(*padding))
+            } else {
+                format!("{}{icon}{name}", "  ".repeat(*padding))
+            }
+        } else {
+            String::new()
+        };
+        while total_length > length {
+            if let Some(ch) = line.pop() {
+                total_length -= width_char(&ch, 4);
+            } else {
+                break;
+            }
+        }
+        line += &" ".repeat(length.saturating_sub(total_length));
+        // Return result
+        if selected {
+            Ok(format!("{ft_selection_bg}{ft_selection_fg}{line}"))
+        } else {
+            Ok(format!("{ft_bg}{ft_fg}{line}"))
+        }
     }
 
     /// Display a prompt in the document

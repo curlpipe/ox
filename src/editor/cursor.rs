@@ -9,91 +9,113 @@ use super::Editor;
 impl Editor {
     /// Move the cursor up
     pub fn select_up(&mut self) {
-        self.doc_mut().select_up();
+        if let Some(doc) = self.try_doc_mut() {
+            doc.select_up();
+        }
     }
 
     /// Move the cursor down
     pub fn select_down(&mut self) {
-        self.doc_mut().select_down();
+        if let Some(doc) = self.try_doc_mut() {
+            doc.select_down();
+        }
     }
 
     /// Move the cursor left
     pub fn select_left(&mut self) {
-        let status = self.doc_mut().select_left();
-        // Cursor wrapping if cursor hits the start of the line
         let wrapping = config!(self.config, document).wrap_cursor;
-        if status == Status::StartOfLine && self.doc().loc().y != 0 && wrapping {
-            self.doc_mut().select_up();
-            self.doc_mut().select_end();
+        if let Some(doc) = self.try_doc_mut() {
+            let status = doc.select_left();
+            // Cursor wrapping if cursor hits the start of the line
+            if status == Status::StartOfLine && doc.loc().y != 0 && wrapping {
+                doc.select_up();
+                doc.select_end();
+            }
         }
     }
 
     /// Move the cursor right
     pub fn select_right(&mut self) {
-        let status = self.doc_mut().select_right();
-        // Cursor wrapping if cursor hits the end of a line
         let wrapping = config!(self.config, document).wrap_cursor;
-        if status == Status::EndOfLine && wrapping {
-            self.doc_mut().select_down();
-            self.doc_mut().select_home();
+        if let Some(doc) = self.try_doc_mut() {
+            let status = doc.select_right();
+            // Cursor wrapping if cursor hits the end of a line
+            if status == Status::EndOfLine && wrapping {
+                doc.select_down();
+                doc.select_home();
+            }
         }
     }
 
     /// Select the whole document
     pub fn select_all(&mut self) {
-        self.doc_mut().move_top();
-        self.doc_mut().select_bottom();
+        if let Some(doc) = self.try_doc_mut() {
+            doc.move_top();
+            doc.select_bottom();
+        }
     }
 
     /// Move the cursor up
     pub fn up(&mut self) {
-        self.doc_mut().move_up();
+        if let Some(doc) = self.try_doc_mut() {
+            doc.move_up();
+        }
     }
 
     /// Move the cursor down
     pub fn down(&mut self) {
-        self.doc_mut().move_down();
+        if let Some(doc) = self.try_doc_mut() {
+            doc.move_down();
+        }
     }
 
     /// Move the cursor left
     pub fn left(&mut self) {
-        let status = self.doc_mut().move_left();
-        // Cursor wrapping if cursor hits the start of the line
         let wrapping = config!(self.config, document).wrap_cursor;
-        if status == Status::StartOfLine && self.doc().loc().y != 0 && wrapping {
-            self.doc_mut().move_up();
-            self.doc_mut().move_end();
+        if let Some(doc) = self.try_doc_mut() {
+            let status = doc.move_left();
+            // Cursor wrapping if cursor hits the start of the line
+            if status == Status::StartOfLine && doc.loc().y != 0 && wrapping {
+                doc.move_up();
+                doc.move_end();
+            }
         }
     }
 
     /// Move the cursor right
     pub fn right(&mut self) {
-        let status = self.doc_mut().move_right();
-        // Cursor wrapping if cursor hits the end of a line
         let wrapping = config!(self.config, document).wrap_cursor;
-        if status == Status::EndOfLine && wrapping {
-            self.doc_mut().move_down();
-            self.doc_mut().move_home();
+        if let Some(doc) = self.try_doc_mut() {
+            let status = doc.move_right();
+            // Cursor wrapping if cursor hits the end of a line
+            if status == Status::EndOfLine && wrapping {
+                doc.move_down();
+                doc.move_home();
+            }
         }
     }
 
     /// Move the cursor to the previous word in the line
     pub fn prev_word(&mut self) {
-        let status = self.doc_mut().move_prev_word();
         let wrapping = config!(self.config, document).wrap_cursor;
-        if status == Status::StartOfLine && wrapping {
-            self.doc_mut().move_up();
-            self.doc_mut().move_end();
+        if let Some(doc) = self.try_doc_mut() {
+            let status = doc.move_prev_word();
+            if status == Status::StartOfLine && wrapping {
+                doc.move_up();
+                doc.move_end();
+            }
         }
     }
 
     /// Move the cursor to the next word in the line
     pub fn next_word(&mut self) {
-        let status = self.doc_mut().move_next_word();
         let wrapping = config!(self.config, document).wrap_cursor;
-        if status == Status::EndOfLine && wrapping {
-            self.doc_mut().move_down();
-            self.doc_mut().move_home();
+        if let Some(doc) = self.try_doc_mut() {
+            let status = doc.move_next_word();
+            if status == Status::EndOfLine && wrapping {
+                doc.move_down();
+                doc.move_home();
+            }
         }
     }
 }
@@ -105,12 +127,14 @@ pub fn handle_multiple_cursors(
     lua: &Lua,
     original_loc: &Loc,
 ) -> Result<()> {
+    if ged!(&editor).try_doc().is_none() {
+        return Ok(());
+    }
     let mut original_loc = *original_loc;
     // Cache the state of the document
-    let mut cursor = ged!(&editor).doc().cursor;
-    // For each secondary cursor, replay the key event
+    let mut cursor = ged!(&editor).try_doc().unwrap().cursor;
+    let mut secondary_cursors = ged!(&editor).try_doc().unwrap().secondary_cursors.clone();
     ged!(mut &editor).macro_man.playing = true;
-    let mut secondary_cursors = ged!(&editor).doc().secondary_cursors.clone();
     // Prevent interference
     adjust_other_cursors(
         &mut secondary_cursors,
@@ -124,12 +148,15 @@ pub fn handle_multiple_cursors(
     while ptr < secondary_cursors.len() {
         // Move to the secondary cursor position
         let sec_cursor = secondary_cursors[ptr];
-        ged!(mut &editor).doc_mut().move_to(&sec_cursor);
+        ged!(mut &editor)
+            .try_doc_mut()
+            .unwrap()
+            .move_to(&sec_cursor);
         // Replay the event
-        let old_loc = ged!(&editor).doc().char_loc();
+        let old_loc = ged!(&editor).try_doc().unwrap().char_loc();
         handle_event(editor, event, lua)?;
         // Prevent any interference
-        let char_loc = ged!(&editor).doc().char_loc();
+        let char_loc = ged!(&editor).try_doc().unwrap().char_loc();
         cursor.loc = adjust_other_cursors(
             &mut secondary_cursors,
             &old_loc,
@@ -142,15 +169,15 @@ pub fn handle_multiple_cursors(
         // Move to the next secondary cursor
         ptr += 1;
     }
-    ged!(mut &editor).doc_mut().secondary_cursors = secondary_cursors;
+    ged!(mut &editor).try_doc_mut().unwrap().secondary_cursors = secondary_cursors;
     ged!(mut &editor).macro_man.playing = false;
     // Restore back to the state of the document beforehand
     // TODO: calculate char_ptr and old_cursor too
-    ged!(mut &editor).doc_mut().cursor = cursor;
-    let char_ptr = ged!(&editor).doc().character_idx(&cursor.loc);
-    ged!(mut &editor).doc_mut().char_ptr = char_ptr;
-    ged!(mut &editor).doc_mut().old_cursor = cursor.loc.x;
-    ged!(mut &editor).doc_mut().cancel_selection();
+    ged!(mut &editor).try_doc_mut().unwrap().cursor = cursor;
+    let char_ptr = ged!(&editor).try_doc().unwrap().character_idx(&cursor.loc);
+    ged!(mut &editor).try_doc_mut().unwrap().char_ptr = char_ptr;
+    ged!(mut &editor).try_doc_mut().unwrap().old_cursor = cursor.loc.x;
+    ged!(mut &editor).try_doc_mut().unwrap().cancel_selection();
     Ok(())
 }
 

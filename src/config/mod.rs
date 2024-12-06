@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 mod assistant;
 mod colors;
 mod editor;
+mod filetree;
 mod highlighting;
 mod interface;
 mod keys;
@@ -15,6 +16,7 @@ mod tasks;
 
 pub use assistant::Assistant;
 pub use colors::{Color, Colors};
+pub use filetree::FileTree;
 pub use highlighting::SyntaxHighlighting;
 pub use interface::{GreetingMessage, HelpMessage, LineNumbers, StatusLine, TabLine, Terminal};
 pub use keys::{get_listeners, key_to_string, run_key, run_key_before};
@@ -82,6 +84,9 @@ macro_rules! config {
             .borrow::<$crate::config::HelpMessage>()
             .unwrap()
     };
+    ($cfg:expr, file_tree) => {
+        $cfg.file_tree.borrow::<$crate::config::FileTree>().unwrap()
+    };
     ($cfg:expr, terminal) => {
         $cfg.terminal.borrow::<$crate::config::Terminal>().unwrap()
     };
@@ -97,6 +102,7 @@ pub struct Config {
     pub tab_line: LuaAnyUserData,
     pub greeting_message: LuaAnyUserData,
     pub help_message: LuaAnyUserData,
+    pub file_tree: LuaAnyUserData,
     pub terminal: LuaAnyUserData,
     pub document: LuaAnyUserData,
     pub task_manager: Arc<Mutex<TaskManager>>,
@@ -113,6 +119,7 @@ impl Config {
         let colors = lua.create_userdata(Colors::default())?;
         let status_line = lua.create_userdata(StatusLine::default())?;
         let tab_line = lua.create_userdata(TabLine::default())?;
+        let file_tree = lua.create_userdata(FileTree::default())?;
         let terminal = lua.create_userdata(Terminal::default())?;
         let document = lua.create_userdata(Document::default())?;
 
@@ -132,6 +139,7 @@ impl Config {
         lua.globals().set("help_message", help_message.clone())?;
         lua.globals().set("status_line", status_line.clone())?;
         lua.globals().set("tab_line", tab_line.clone())?;
+        lua.globals().set("file_tree", file_tree.clone())?;
         lua.globals().set("colors", colors.clone())?;
         lua.globals().set("terminal", terminal.clone())?;
         lua.globals().set("document", document.clone())?;
@@ -178,6 +186,7 @@ impl Config {
             tab_line,
             greeting_message,
             help_message,
+            file_tree,
             terminal,
             document,
             task_manager,
@@ -367,12 +376,14 @@ impl FromLua for FileTypes {
                     .pairs::<usize, String>()
                     .filter_map(|val| if let Ok((_, v)) = val { Some(v) } else { None })
                     .collect::<Vec<String>>();
+                let color = info.get::<String>("color")?;
                 result.push(FileType {
                     name,
                     icon,
                     files,
                     extensions,
                     modelines,
+                    color,
                 });
             }
         }

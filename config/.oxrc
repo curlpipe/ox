@@ -276,6 +276,23 @@ event_mapping = {
         editor:macro_record_stop()
         editor:display_info("Macro recorded")
     end,
+    -- Splits
+    ["ctrl_alt_left"] = function()
+        editor:focus_split_left()
+    end,
+    ["ctrl_alt_right"] = function()
+        editor:focus_split_right()
+    end,
+    ["ctrl_alt_down"] = function()
+        editor:focus_split_down()
+    end,
+    ["ctrl_alt_up"] = function()
+        editor:focus_split_up()
+    end,
+    -- File Tree
+    ["ctrl_space"] = function()
+        editor:toggle_file_tree()
+    end,
 }
 
 -- Define user-defined commands
@@ -401,6 +418,22 @@ colors.error_bg = {41, 41, 61}
 colors.selection_fg = {255, 255, 255}
 colors.selection_bg = {59, 59, 130}
 
+colors.file_tree_bg = {41, 41, 61}
+colors.file_tree_fg = {255, 255, 255}
+colors.file_tree_selection_fg = {255, 255, 255}
+colors.file_tree_selection_bg = {59, 59, 130}
+
+colors.file_tree_red = {240, 104, 89}
+colors.file_tree_orange = {240, 142, 89}
+colors.file_tree_yellow = {240, 237, 89}
+colors.file_tree_green = {89, 240, 169}
+colors.file_tree_lightblue = {89, 225, 240}
+colors.file_tree_darkblue = {89, 149, 240}
+colors.file_tree_purple = {139, 89, 240}
+colors.file_tree_pink = {215, 89, 240}
+colors.file_tree_brown = {158, 94, 94}
+colors.file_tree_grey = {150, 144, 201}
+
 -- Configure Line Numbers --
 line_numbers.enabled = true
 line_numbers.padding_left = 1
@@ -409,6 +442,12 @@ line_numbers.padding_right = 1
 -- Configure Mouse Behaviour --
 terminal.mouse_enabled = true
 terminal.scroll_amount = 4
+
+-- Configure File Tree --
+file_tree.width = 30
+file_tree.move_focus_to_file = true
+file_tree.icons = false
+file_tree.language_icons = true
 
 -- Configure Tab Line --
 tab_line.enabled = true

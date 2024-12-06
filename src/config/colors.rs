@@ -6,7 +6,7 @@ use mlua::prelude::*;
 
 use super::issue_warning;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Colors {
     pub editor_bg: Color,
     pub editor_fg: Color,
@@ -36,6 +36,22 @@ pub struct Colors {
 
     pub selection_fg: Color,
     pub selection_bg: Color,
+
+    pub file_tree_fg: Color,
+    pub file_tree_bg: Color,
+    pub file_tree_selection_fg: Color,
+    pub file_tree_selection_bg: Color,
+
+    pub file_tree_red: Color,
+    pub file_tree_orange: Color,
+    pub file_tree_yellow: Color,
+    pub file_tree_green: Color,
+    pub file_tree_lightblue: Color,
+    pub file_tree_darkblue: Color,
+    pub file_tree_purple: Color,
+    pub file_tree_pink: Color,
+    pub file_tree_brown: Color,
+    pub file_tree_grey: Color,
 }
 
 impl Default for Colors {
@@ -67,8 +83,24 @@ impl Default for Colors {
             error_bg: Color::Rgb(41, 41, 61),
             error_fg: Color::Rgb(255, 100, 100),
 
-            selection_fg: Color::Rgb(41, 41, 61),
-            selection_bg: Color::Rgb(41, 41, 61),
+            selection_fg: Color::Rgb(255, 255, 255),
+            selection_bg: Color::Rgb(59, 59, 130),
+
+            file_tree_bg: Color::Rgb(41, 41, 61),
+            file_tree_fg: Color::Rgb(255, 255, 255),
+            file_tree_selection_bg: Color::Rgb(59, 59, 130),
+            file_tree_selection_fg: Color::Rgb(255, 255, 255),
+
+            file_tree_red: Color::Rgb(240, 56, 36),
+            file_tree_orange: Color::Rgb(240, 107, 36),
+            file_tree_yellow: Color::Rgb(240, 236, 36),
+            file_tree_green: Color::Rgb(35, 240, 144),
+            file_tree_lightblue: Color::Rgb(36, 219, 240),
+            file_tree_darkblue: Color::Rgb(36, 117, 240),
+            file_tree_purple: Color::Rgb(104, 36, 240),
+            file_tree_pink: Color::Rgb(206, 36, 240),
+            file_tree_brown: Color::Rgb(158, 94, 94),
+            file_tree_grey: Color::Rgb(150, 144, 201),
         }
     }
 }
@@ -197,10 +229,106 @@ impl LuaUserData for Colors {
             this.selection_bg = Color::from_lua(value);
             Ok(())
         });
+        fields.add_field_method_set("file_tree_bg", |_, this, value| {
+            this.file_tree_bg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_fg", |_, this, value| {
+            this.file_tree_fg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_selection_bg", |_, this, value| {
+            this.file_tree_selection_bg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_selection_fg", |_, this, value| {
+            this.file_tree_selection_fg = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_red", |_, this, value| {
+            this.file_tree_red = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_red", |_, this, value| {
+            this.file_tree_red = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_orange", |_, this, value| {
+            this.file_tree_orange = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_orange", |_, this, value| {
+            this.file_tree_orange = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_yellow", |_, this, value| {
+            this.file_tree_yellow = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_yellow", |_, this, value| {
+            this.file_tree_yellow = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_green", |_, this, value| {
+            this.file_tree_green = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_green", |_, this, value| {
+            this.file_tree_green = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_lightblue", |_, this, value| {
+            this.file_tree_lightblue = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_lightblue", |_, this, value| {
+            this.file_tree_lightblue = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_darkblue", |_, this, value| {
+            this.file_tree_darkblue = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_darkblue", |_, this, value| {
+            this.file_tree_darkblue = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_purple", |_, this, value| {
+            this.file_tree_purple = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_purple", |_, this, value| {
+            this.file_tree_purple = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_pink", |_, this, value| {
+            this.file_tree_pink = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_pink", |_, this, value| {
+            this.file_tree_pink = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_brown", |_, this, value| {
+            this.file_tree_brown = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_brown", |_, this, value| {
+            this.file_tree_brown = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_grey", |_, this, value| {
+            this.file_tree_grey = Color::from_lua(value);
+            Ok(())
+        });
+        fields.add_field_method_set("file_tree_grey", |_, this, value| {
+            this.file_tree_grey = Color::from_lua(value);
+            Ok(())
+        });
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Color {
     Rgb(u8, u8, u8),
     Hex(String),

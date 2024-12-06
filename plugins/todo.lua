@@ -1,5 +1,5 @@
 --[[
-Todo Lists v0.2
+Todo Lists v0.3
 
 This plug-in will provide todo list functionality on files with the extension .todo
 You can mark todos as done / not done by using the Ctrl + Enter key combination
@@ -12,6 +12,7 @@ file_types["Todo"] = {
     extensions = {"todo"},
     files = {".todo.md", ".todo"},
     modelines = {},
+    color = "grey",
 }
 
 -- Add syntax highlighting to .todo files (done todos are comments)

@@ -7,7 +7,7 @@ use crossterm::event::{
     Event as CEvent, KeyCode as KCode, KeyModifiers as KMod, MouseEvent, MouseEventKind,
 };
 use kaolinite::event::Error as KError;
-use kaolinite::utils::{get_absolute_path, get_file_name};
+use kaolinite::utils::{file_or_dir, get_absolute_path, get_file_name};
 use kaolinite::{Document, Loc};
 use mlua::{Error as LuaError, Lua};
 use std::env;
@@ -19,6 +19,7 @@ use synoptic::Highlighter;
 mod cursor;
 mod documents;
 mod editing;
+mod filetree;
 mod filetypes;
 mod interface;
 mod macros;
@@ -27,6 +28,7 @@ mod scanning;
 
 pub use cursor::{allowed_by_multi_cursor, handle_multiple_cursors};
 pub use documents::{FileContainer, FileLayout};
+pub use filetree::{FTParts, FileTree};
 pub use filetypes::{FileType, FileTypes};
 pub use interface::RenderCache;
 pub use macros::MacroMan;
@@ -70,6 +72,12 @@ pub struct Editor {
     pub macro_man: MacroMan,
     /// Render cache
     pub render_cache: RenderCache,
+    /// For storing the current file tree value
+    pub file_tree: Option<FileTree>,
+    /// The selected file in the file tree
+    pub file_tree_selection: Option<String>,
+    /// For caching a pointer to go back to when in a file tree
+    pub old_ptr: Vec<usize>,
 }
 
 impl Editor {
@@ -95,6 +103,9 @@ impl Editor {
             alt_click_state: None,
             macro_man: MacroMan::default(),
             render_cache: RenderCache::default(),
+            file_tree: None,
+            file_tree_selection: None,
+            old_ptr: vec![],
         })
     }
 
@@ -168,6 +179,13 @@ impl Editor {
 
     /// Function to create a file container
     pub fn open_fc(&mut self, file_name: &str) -> Result<FileContainer> {
+        // Reject the opening of directories
+        if file_or_dir(file_name) != "file" {
+            return Err(OxError::Kaolinite(KError::Io(std::io::Error::new(
+                std::io::ErrorKind::IsADirectory,
+                "This is a directory, not a file",
+            ))));
+        }
         // Check if a file is already opened
         if let Some((idx, ptr)) =
             self.already_open(&get_absolute_path(file_name).unwrap_or_default())
@@ -252,45 +270,50 @@ impl Editor {
 
     /// save the document to the disk
     pub fn save(&mut self) -> Result<()> {
-        // Perform the save
-        self.doc_mut().save()?;
-        // All done
-        self.feedback = Feedback::Info("Document saved successfully".to_string());
+        if let Some(doc) = self.try_doc_mut() {
+            // Perform the save
+            doc.save()?;
+            // All done
+            self.feedback = Feedback::Info("Document saved successfully".to_string());
+        }
         Ok(())
     }
 
     /// save the document to the disk at a specified path
     pub fn save_as(&mut self) -> Result<()> {
-        let file_name = self.prompt("Save as")?;
-        self.doc_mut().save_as(&file_name)?;
-        if self.doc().file_name.is_none() {
-            if let Some((files, _)) = self.files.get_atom_mut(self.ptr.clone()) {
+        if self.try_doc().is_some() {
+            let file_name = self.prompt("Save as")?;
+            self.try_doc_mut().unwrap().save_as(&file_name)?;
+            // If this file is currently unnamed, give it a name, syntax highlighting and a type
+            if self.try_doc().unwrap().file_name.is_none() {
                 let tab_width = config!(self.config, document).tab_width;
-                let file = files.last_mut().unwrap();
-                // Set the file name
-                file.doc.file_name = Some(file_name.clone());
-                // Update the file type
-                file.file_type = config!(self.config, document)
-                    .file_types
-                    .identify(&mut file.doc);
-                // Reattach an appropriate highlighter
-                let highlighter = file
-                    .file_type
-                    .clone()
-                    .map_or(Highlighter::new(tab_width), |t| {
-                        t.get_highlighter(&self.config, tab_width)
-                    });
-                file.highlighter = highlighter;
-                file.highlighter.run(&file.doc.lines);
-                // Set up to date with disk
-                file.doc.event_mgmt.force_not_with_disk = false;
-                file.doc.event_mgmt.disk_write(&file.doc.take_snapshot());
+                if let Some((files, ptr)) = self.files.get_atom_mut(self.ptr.clone()) {
+                    let file = files.get_mut(*ptr).unwrap();
+                    // Set the file name
+                    file.doc.file_name = Some(file_name.clone());
+                    // Update the file type
+                    file.file_type = config!(self.config, document)
+                        .file_types
+                        .identify(&mut file.doc);
+                    // Reattach an appropriate highlighter
+                    let highlighter = file
+                        .file_type
+                        .clone()
+                        .map_or(Highlighter::new(tab_width), |t| {
+                            t.get_highlighter(&self.config, tab_width)
+                        });
+                    file.highlighter = highlighter;
+                    file.highlighter.run(&file.doc.lines);
+                    // Set up to date with disk
+                    file.doc.event_mgmt.force_not_with_disk = false;
+                    file.doc.event_mgmt.disk_write(&file.doc.take_snapshot());
+                }
             }
+            // Commit events to event manager (for undo / redo)
+            self.try_doc_mut().unwrap().commit();
+            // All done
+            self.feedback = Feedback::Info(format!("Document saved as {file_name} successfully"));
         }
-        // Commit events to event manager (for undo / redo)
-        self.doc_mut().commit();
-        // All done
-        self.feedback = Feedback::Info(format!("Document saved as {file_name} successfully"));
         Ok(())
     }
 
@@ -311,6 +334,7 @@ impl Editor {
     pub fn quit(&mut self) -> Result<()> {
         // Get the atom we're currently at
         if let Some((fcs, ptr)) = self.files.get_atom(self.ptr.clone()) {
+            let last_file = fcs.len() == 1;
             // Remove the file that is currently open and selected
             let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
             let doc = &fcs[ptr].doc;
@@ -319,13 +343,18 @@ impl Editor {
                 fcs.remove(*ptr);
                 self.prev();
             }
-            // Clean up the file structure
-            self.files.clean_up();
-            // Find a new pointer position
-            self.ptr = self.files.new_pointer_position(&self.ptr);
+            // Perform cleanup / pointer reassignment if this atom is now empty
+            if last_file {
+                // Clean up the file structure
+                self.files.clean_up();
+                // Find a new pointer position
+                self.ptr = self.files.new_pointer_position(&self.ptr);
+                // Clean up the redundant sidebyside/toptobottom
+                self.ptr = self.files.clean_up_multis(self.ptr.clone());
+            }
         }
         // If there are no longer any active atoms, quit the entire editor
-        self.active = !matches!(self.files, FileLayout::None);
+        self.active = !matches!(self.files, FileLayout::None | FileLayout::FileTree);
         Ok(())
     }
 
@@ -351,10 +380,12 @@ impl Editor {
 
     /// Updates the current working directory of the editor
     pub fn update_cwd(&self) {
-        if let Some(name) = get_absolute_path(&self.doc().file_name.clone().unwrap_or_default()) {
-            let file = Path::new(&name);
-            if let Some(cwd) = file.parent() {
-                let _ = env::set_current_dir(cwd);
+        if let Some(doc) = self.try_doc() {
+            if let Some(name) = &doc.file_name {
+                let file = Path::new(&name);
+                if let Some(cwd) = file.parent() {
+                    let _ = env::set_current_dir(cwd);
+                }
             }
         }
     }
@@ -374,16 +405,6 @@ impl Editor {
     /// Returns a document at a certain index
     pub fn get_doc(&mut self, idx: usize) -> &mut Document {
         &mut self.files.get_atom_mut(self.ptr.clone()).unwrap().0[idx].doc
-    }
-
-    /// Gets a reference to the current document
-    pub fn doc(&self) -> &Document {
-        &self.files.get(self.ptr.clone()).unwrap().doc
-    }
-
-    /// Gets a mutable reference to the current document
-    pub fn doc_mut(&mut self) -> &mut Document {
-        &mut self.files.get_mut(self.ptr.clone()).unwrap().doc
     }
 
     /// Gets the number of documents currently open
@@ -426,7 +447,7 @@ impl Editor {
         match event {
             CEvent::Key(key) => self.handle_key_event(key.modifiers, key.code)?,
             CEvent::Resize(_, _) => self.handle_resize(lua)?,
-            CEvent::Mouse(mouse_event) => self.handle_mouse_event(lua, mouse_event),
+            CEvent::Mouse(mouse_event) => self.handle_mouse_event(lua, mouse_event)?,
             CEvent::Paste(text) => self.handle_paste(&text)?,
             _ => (),
         }
@@ -435,24 +456,46 @@ impl Editor {
 
     /// Handle key event
     pub fn handle_key_event(&mut self, modifiers: KMod, code: KCode) -> Result<()> {
-        // Check period of inactivity
-        let end = Instant::now();
-        let inactivity = end.duration_since(self.last_active).as_millis() as usize;
-        // Commit if over user-defined period of inactivity
-        if inactivity > config!(self.config, document).undo_period * 1000 {
-            self.doc_mut().commit();
-        }
-        // Register this activity
-        self.last_active = Instant::now();
-        // Editing - these key bindings can't be modified (only added to)!
-        match (modifiers, code) {
-            // Core key bindings (non-configurable behaviour)
-            (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
-            (KMod::NONE, KCode::Tab) => self.handle_tab()?,
-            (KMod::NONE, KCode::Backspace) => self.backspace()?,
-            (KMod::NONE, KCode::Delete) => self.delete()?,
-            (KMod::NONE, KCode::Enter) => self.enter()?,
-            _ => (),
+        let in_file_tree = matches!(
+            self.files.get_raw(self.ptr.clone()),
+            Some(FileLayout::FileTree)
+        );
+        if in_file_tree {
+            // File tree key behaviour
+            match (modifiers, code) {
+                (KMod::NONE, KCode::Up) => self.file_tree_select_up(),
+                (KMod::NONE, KCode::Down) => self.file_tree_select_down(),
+                (KMod::NONE, KCode::Enter) => self.file_tree_open_node()?,
+                (KMod::CONTROL, KCode::Up) => self.file_tree_move_to_top(),
+                (KMod::CONTROL, KCode::Down) => self.file_tree_move_to_bottom(),
+                (KMod::CONTROL, KCode::Enter) => self.file_tree_move_into(),
+                (KMod::NONE, KCode::Char('n')) => self.file_tree_new()?,
+                (KMod::NONE, KCode::Char('d')) => self.file_tree_delete()?,
+                (KMod::NONE, KCode::Char('m')) => self.file_tree_move()?,
+                (KMod::NONE, KCode::Char('c')) => self.file_tree_copy()?,
+                _ => (),
+            }
+        } else {
+            // Non file tree behaviour
+            // Check period of inactivity
+            let end = Instant::now();
+            let inactivity = end.duration_since(self.last_active).as_millis() as usize;
+            // Commit if over user-defined period of inactivity
+            if inactivity > config!(self.config, document).undo_period * 1000 {
+                self.try_doc_mut().unwrap().commit();
+            }
+            // Register this activity
+            self.last_active = Instant::now();
+            // Editing - these key bindings can't be modified (only added to)!
+            match (modifiers, code) {
+                // Core key bindings (non-configurable behaviour)
+                (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
+                (KMod::NONE, KCode::Tab) => self.handle_tab()?,
+                (KMod::NONE, KCode::Backspace) => self.backspace()?,
+                (KMod::NONE, KCode::Delete) => self.delete()?,
+                (KMod::NONE, KCode::Enter) => self.enter()?,
+                _ => (),
+            }
         }
         Ok(())
     }
@@ -466,23 +509,25 @@ impl Editor {
 
     /// Handle paste
     pub fn handle_paste(&mut self, text: &str) -> Result<()> {
-        // If we're playing back a macro, use the last text the user copied
-        // (to prevent hard-coded pasting)
-        let text = if self.macro_man.playing {
-            self.terminal.last_copy.to_string()
-        } else {
-            text.to_string()
-        };
-        // Save state before paste
-        self.doc_mut().commit();
-        // Apply paste
-        self.pasting = true;
-        for ch in text.chars() {
-            self.character(ch)?;
+        if self.try_doc().is_some() {
+            // If we're playing back a macro, use the last text the user copied
+            // (to prevent hard-coded pasting)
+            let text = if self.macro_man.playing {
+                self.terminal.last_copy.to_string()
+            } else {
+                text.to_string()
+            };
+            // Save state before paste
+            self.try_doc_mut().unwrap().commit();
+            // Apply paste
+            self.pasting = true;
+            for ch in text.chars() {
+                self.character(ch)?;
+            }
+            self.pasting = false;
+            // Save state after paste
+            self.try_doc_mut().unwrap().commit();
         }
-        self.pasting = false;
-        // Save state after paste
-        self.doc_mut().commit();
         Ok(())
     }
 

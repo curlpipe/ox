@@ -1,5 +1,5 @@
-use crate::config;
 /// Tools for managing and identifying file types
+use crate::config;
 use crate::editor::Config;
 use kaolinite::utils::get_file_name;
 use kaolinite::Document;
@@ -33,6 +33,19 @@ impl FileTypes {
         None
     }
 
+    pub fn identify_from_path(&self, path: &str) -> Option<FileType> {
+        if let Some(e) = Path::new(&path).extension() {
+            let file_name = get_file_name(path).unwrap_or_default();
+            let extension = e.to_str().unwrap_or_default().to_string();
+            for t in &self.types {
+                if t.fits(&extension, &file_name, "") {
+                    return Some(t.clone());
+                }
+            }
+        }
+        None
+    }
+
     pub fn get_name(&self, name: &str) -> Option<FileType> {
         self.types.iter().find(|t| t.name == name).cloned()
     }
@@ -51,6 +64,8 @@ pub struct FileType {
     pub extensions: Vec<String>,
     /// The modelines that files of this type have
     pub modelines: Vec<String>,
+    /// The colour associated with this file type
+    pub color: String,
 }
 
 impl Default for FileType {
@@ -61,6 +76,7 @@ impl Default for FileType {
             files: vec![],
             extensions: vec![],
             modelines: vec![],
+            color: "grey".to_string(),
         }
     }
 }

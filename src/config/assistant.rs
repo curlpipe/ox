@@ -176,6 +176,8 @@ pub struct Assistant {
     pub tab_line: bool,
     pub tab_line_sep: bool,
     pub greeting_message: bool,
+    pub file_tree_icons: bool,
+    pub file_tree_language_icons: bool,
     pub plugins: Vec<Plugin>,
 }
 
@@ -195,6 +197,9 @@ impl Default for Assistant {
             tab_line_sep: true,
             // Greeting Message
             greeting_message: true,
+            // File Tree
+            file_tree_icons: false,
+            file_tree_language_icons: true,
             // Mouse and Cursor Behaviour
             mouse: true,
             scroll_sensitivity: 4,
@@ -229,6 +234,8 @@ impl Assistant {
             Self::ask_mouse_cursor(&mut result)?;
             // Icons
             Self::ask_icons(&mut result)?;
+            // File tree
+            Self::ask_file_tree(&mut result)?;
             // Plug-Ins
             Self::ask_plugins(&mut result)?;
             // Create the configuration file (and print it)
@@ -453,6 +460,28 @@ impl Assistant {
             "Would you like the greeting message to be visible on start-up",
             true,
         );
+        Ok(())
+    }
+
+    pub fn ask_file_tree(result: &mut Self) -> Result<()> {
+        if result.icons {
+            let orange = Fg(Color::Ansi(202).to_color()?);
+            let yellow = Fg(Color::Ansi(220).to_color()?);
+            let green = Fg(Color::Ansi(34).to_color()?);
+            let reset = Fg(Color::Transparent.to_color()?);
+            println!("🖹  file1.txt \n🖹  file2.txt \n🖹  file3.txt \n");
+            result.file_tree_icons =
+                Self::confirmation("Would you like icons in the file tree?", false);
+            if result.file_tree_icons {
+                println!(
+                    "\n {green}🎵{reset}  file1.mp3 \n {orange}{{}}{reset}  file2.css \n {yellow}</>{reset} file3.html \n"
+                );
+                result.file_tree_language_icons = Self::confirmation(
+                    "Would you like the tab line to have language specific icons?",
+                    true,
+                );
+            }
+        }
         Ok(())
     }
 
@@ -690,6 +719,7 @@ impl Assistant {
     }
 
     /// Turn the configuration assistant details into a lua file
+    #[allow(clippy::too_many_lines)]
     pub fn to_config(&self) -> String {
         let mut result = String::new();
         let (sections, fields) = self.diff();
@@ -779,6 +809,19 @@ impl Assistant {
             result += "\n-- Greeting Message Configuration --\n";
             result += &format!("greeting_message.enabled = {}\n", self.greeting_message);
         }
+        // Configuration of file tree
+        if sections.contains(&"file_tree") {
+            result += "\n-- File Tree Configuration --\n";
+            if fields.contains(&"file_tree_icons") {
+                result += &format!("file_tree.icons = {}\n", self.file_tree_icons);
+            }
+            if fields.contains(&"file_tree_language_icons") {
+                result += &format!(
+                    "file_tree.language_icons = {}\n",
+                    self.file_tree_language_icons
+                );
+            }
+        }
         // Configuration of mouse and cursor behaviour
         if sections.contains(&"cursors") {
             result += "\n-- Cursor Configuration --\n";
@@ -820,6 +863,14 @@ impl Assistant {
             ("mouse", self.mouse != def.mouse),
             ("cursor_wrap", self.cursor_wrap != def.cursor_wrap),
             ("icons", self.icons != def.icons),
+            (
+                "file_tree_icons",
+                self.file_tree_icons != def.file_tree_icons,
+            ),
+            (
+                "file_tree_language_icons",
+                self.file_tree_language_icons != def.file_tree_language_icons,
+            ),
             (
                 "line_number_padding",
                 self.line_number_padding != def.line_number_padding,
@@ -864,6 +915,10 @@ impl Assistant {
                 fields.contains(&"mouse")
                     || fields.contains(&"scroll_sensitivity")
                     || fields.contains(&"cursor_wrap"),
+            ),
+            (
+                "file_tree",
+                fields.contains(&"file_tree_icons") || fields.contains(&"file_tree_language_icons"),
             ),
         ];
         let sections = sections

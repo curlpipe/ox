@@ -28,6 +28,7 @@ error_set! {
         AlreadyOpen {
             file: String,
         },
+        InvalidPath,
         // None, <--- Needed???
     };
 }

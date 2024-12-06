@@ -11,11 +11,11 @@
     The simple but flexible text editor
     <br><br>
     <div align="center" style="display:inline;">
-      <img src="https://i.postimg.cc/zXB5y0r3/ox-blank.gif" width="49%">
-      <img src="https://i.postimg.cc/pVkRV33g/ox-code.gif" width="49%">
+      <img src="/assets/showcase.gif?raw=true" width="100%">
     </div>
     <br>
 </p>
+
 
 ![Build Status](https://img.shields.io/github/forks/curlpipe/ox.svg?style=for-the-badge)
 ![Build Status](https://img.shields.io/github/stars/curlpipe/ox.svg?style=for-the-badge)
@@ -28,7 +28,7 @@ Ox is an independent text editor that can be used to write everything from text 
 If you're looking for a text editor that...
 1. :feather: Is lightweight and efficient
 2. :wrench: Can be configured to your heart's content
-3. :package: Has useful features out of the box
+3. :package: Has useful features out of the box and a library of plug-ins for everything else
 
 ...then Ox is right up your street
 
@@ -46,8 +46,12 @@ It works best on linux, but macOS and Windows are also supported.
 
 ### Strong configurability
 
-- :electric_plug: Plug-In system where you can write your own plug-ins or integrate other people's
-- :wrench: A wide number of options for configuration with everything from colours to the status line to syntax highlighting being open to customisation
+- :electric_plug: Plug-In system where you can write your own plug-ins or choose from pre-existing ones
+    - 💬 Discord RPC
+    - 📗 Git integration with diffs, stats and more
+    - 🕸️ Handy web development tools such as Emmet and live HTML viewer
+    - ⏲️ Productivity tools such as a pomodoro timer and todo list tracker
+- :wrench: A wide number of options for configuration including colours, key bindings and behaviours
 - :moon: Ox uses Lua as a configuration language for familiarity when scripting and configuring
 - :handshake: A configuration assistant to quickly get Ox set up for you from the get-go
 
@@ -62,6 +66,7 @@ It works best on linux, but macOS and Windows are also supported.
 - :writing_hand: Convenient shortcuts when writing code
 - :crossed_swords: Multi-editing features such as multiple cursors and recordable macros
 - :window: Splits to view multiple documents on the same screen at the same time
+- :file_cabinet: File tree to view, open, create, delete, copy and move files
 
 ### Robustness
 

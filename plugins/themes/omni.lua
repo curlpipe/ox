@@ -44,6 +44,22 @@ colors.error_fg = red
 colors.selection_bg = selection
 colors.selection_fg = foreground
 
+colors.file_tree_bg = background
+colors.file_tree_fg = foreground
+colors.file_tree_selection_bg = pink
+colors.file_tree_selection_fg = background
+
+colors.file_tree_red = {255, 128, 128}
+colors.file_tree_orange = {255, 155, 128}
+colors.file_tree_yellow = {255, 204, 128}
+colors.file_tree_green = {196, 255, 128}
+colors.file_tree_lightblue = {128, 236, 255}
+colors.file_tree_darkblue = {128, 147, 255}
+colors.file_tree_purple = {204, 128, 255}
+colors.file_tree_pink = {255, 128, 200}
+colors.file_tree_brown = {163, 108, 108}
+colors.file_tree_grey = {155, 153, 176}
+
 -- Configure Syntax Highlighting Colours --
 syntax:set("string", yellow)  -- Strings, fresh green
 syntax:set("comment", comment)  -- Comments, muted and subtle
