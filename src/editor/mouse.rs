@@ -312,7 +312,7 @@ impl Editor {
     }
 
     /// Cache the old ptr
-    fn cache_old_ptr(&mut self, idx: &Vec<usize>) {
+    pub fn cache_old_ptr(&mut self, idx: &Vec<usize>) {
         self.old_ptr.clone_from(idx);
         if self.file_tree_is_open() && !self.old_ptr.is_empty() {
             self.old_ptr.remove(0);

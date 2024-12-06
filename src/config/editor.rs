@@ -594,6 +594,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_up(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.cache_old_ptr(&editor.ptr.clone());
                 editor.update_cwd();
                 Ok(true)
             } else {
@@ -605,6 +606,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_down(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.cache_old_ptr(&editor.ptr.clone());
                 editor.update_cwd();
                 Ok(true)
             } else {
@@ -616,6 +618,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_left(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.cache_old_ptr(&editor.ptr.clone());
                 editor.update_cwd();
                 Ok(true)
             } else {
@@ -627,6 +630,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_right(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.cache_old_ptr(&editor.ptr.clone());
                 editor.update_cwd();
                 Ok(true)
             } else {
@@ -657,11 +661,13 @@ impl LuaUserData for Editor {
         );
         methods.add_method_mut("focus_split_up", |_, editor, ()| {
             editor.ptr = FileLayout::move_up(editor.ptr.clone(), &editor.render_cache.span);
+            editor.cache_old_ptr(&editor.ptr.clone());
             editor.update_cwd();
             Ok(())
         });
         methods.add_method_mut("focus_split_down", |_, editor, ()| {
             editor.ptr = FileLayout::move_down(editor.ptr.clone(), &editor.render_cache.span);
+            editor.cache_old_ptr(&editor.ptr.clone());
             editor.update_cwd();
             Ok(())
         });
@@ -672,9 +678,13 @@ impl LuaUserData for Editor {
                 Some(FileLayout::FileTree)
             );
             if in_file_tree {
-                // We just entered into a file tree, cache where we were (minus the file tree itself)
+                // We are about to enter a file tree, cache where we were (minus the file tree itself)
                 editor.old_ptr = editor.ptr.clone();
-                editor.old_ptr.pop();
+            } else {
+                editor.old_ptr = new_ptr.clone();
+            }
+            if editor.file_tree_is_open() && !editor.old_ptr.is_empty() {
+                editor.old_ptr.remove(0);
             }
             editor.ptr = new_ptr;
             editor.update_cwd();
@@ -682,6 +692,7 @@ impl LuaUserData for Editor {
         });
         methods.add_method_mut("focus_split_right", |_, editor, ()| {
             editor.ptr = FileLayout::move_right(editor.ptr.clone(), &editor.render_cache.span);
+            editor.cache_old_ptr(&editor.ptr.clone());
             editor.update_cwd();
             Ok(())
         });
