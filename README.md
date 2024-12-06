@@ -11,7 +11,7 @@
     The simple but flexible text editor
     <br><br>
     <div align="center" style="display:inline;">
-      <img src="https://curlpipe.github.io/showcase-original.gif" width="100%">
+      <img src="/assets/showcase.gif?raw=true" width="100%">
     </div>
     <br>
 </p>
