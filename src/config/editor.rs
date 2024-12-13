@@ -817,7 +817,7 @@ impl LuaUserData for Editor {
             }
         });
         methods.add_method_mut("open_terminal_right", |_, editor, ()| {
-            if let Ok(mut term) = Pty::new(Shell::Bash) {
+            if let Ok(term) = Pty::new(Shell::Bash) {
                 editor.ptr = editor
                     .files
                     .open_right(editor.ptr.clone(), FileLayout::Terminal(term));

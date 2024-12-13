@@ -373,7 +373,7 @@ pub fn strip_escape_codes(input: &str) -> String {
             code.to_string()
         } else {
             // Return an empty string for non-allowed escape codes (including cursor styling)
-            "".to_string()
+            String::new()
         }
     })
     .to_string()

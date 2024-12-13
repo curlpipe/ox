@@ -636,6 +636,7 @@ impl Editor {
     }
 
     /// Render the line of a terminal
+    #[allow(clippy::similar_names)]
     fn render_terminal(
         &mut self,
         fc: &Vec<usize>,
@@ -655,7 +656,7 @@ impl Editor {
             let mut lines = term.output.split('\n').skip(shift_down);
             let (line, pad) = if let Some(line) = lines.nth(y) {
                 // Calculate line and padding
-                let line = line.replace("\r", "").replace("\n", "");
+                let line = line.replace(['\n', '\r'], "");
                 let visible_line = strip_escape_codes(&line);
                 let w = width(&remove_ansi_codes(&line), 4);
                 // Work out if this is where the cursor should be

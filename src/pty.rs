@@ -59,7 +59,7 @@ impl Pty {
         std::thread::sleep(std::time::Duration::from_millis(100));
         if self.shell.manual_input_echo() {
             // println!("Adding (pre-cmd) {:?}", cmd);
-            self.output += &cmd;
+            self.output += cmd;
         }
         // Read the output
         let mut reader = BufReader::new(stream);
