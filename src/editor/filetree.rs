@@ -391,10 +391,8 @@ impl Editor {
             }
             // Wrap existing file layout in new file layout
             let files = std::mem::take(&mut self.files);
-            self.files = FileLayout::SideBySide(vec![
-                (FileLayout::FileTree, width),
-                (files, other),
-            ]);
+            self.files =
+                FileLayout::SideBySide(vec![(FileLayout::FileTree, width), (files, other)]);
             self.ptr = vec![0];
         }
     }

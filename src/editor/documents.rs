@@ -365,7 +365,9 @@ impl FileLayout {
             // Determine behaviour based on parent
             if let Some(parent) = self.get_raw_mut(at_parent) {
                 match parent {
-                    Self::None | Self::Atom(_, _) | Self::FileTree | Self::Terminal(_) => unreachable!(),
+                    Self::None | Self::Atom(_, _) | Self::FileTree | Self::Terminal(_) => {
+                        unreachable!()
+                    }
                     Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
                         // Get the proportion of what we're removing
                         let removed_prop = layouts[within_parent].1;
@@ -460,7 +462,10 @@ impl FileLayout {
         if let Some(old_fl) = self.get_raw_mut(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
-                Self::Atom(_, _) | Self::SideBySide(_) | Self::TopToBottom(_) | Self::Terminal(_) => {
+                Self::Atom(_, _)
+                | Self::SideBySide(_)
+                | Self::TopToBottom(_)
+                | Self::Terminal(_) => {
                     new_ptr.push(0);
                     let old_fl = std::mem::replace(old_fl, FileLayout::None);
                     Self::TopToBottom(vec![(fl, 0.5), (old_fl, 0.5)])
@@ -478,7 +483,10 @@ impl FileLayout {
         if let Some(old_fl) = self.get_raw_mut(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
-                Self::Atom(_, _) | Self::SideBySide(_) | Self::TopToBottom(_) | Self::Terminal(_) => {
+                Self::Atom(_, _)
+                | Self::SideBySide(_)
+                | Self::TopToBottom(_)
+                | Self::Terminal(_) => {
                     new_ptr.push(1);
                     let old_fl = std::mem::replace(old_fl, FileLayout::None);
                     Self::TopToBottom(vec![(old_fl, 0.5), (fl, 0.5)])
@@ -496,7 +504,10 @@ impl FileLayout {
         if let Some(old_fl) = self.get_raw_mut(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
-                Self::Atom(_, _) | Self::SideBySide(_) | Self::TopToBottom(_) | Self::Terminal(_) => {
+                Self::Atom(_, _)
+                | Self::SideBySide(_)
+                | Self::TopToBottom(_)
+                | Self::Terminal(_) => {
                     new_ptr.push(0);
                     let old_fl = std::mem::replace(old_fl, FileLayout::None);
                     Self::SideBySide(vec![(fl, 0.5), (old_fl, 0.5)])
@@ -514,7 +525,10 @@ impl FileLayout {
         if let Some(old_fl) = self.get_raw_mut(at.clone()) {
             let new_fl = match old_fl {
                 Self::None => fl,
-                Self::Atom(_, _) | Self::SideBySide(_) | Self::TopToBottom(_) | Self::Terminal(_) => {
+                Self::Atom(_, _)
+                | Self::SideBySide(_)
+                | Self::TopToBottom(_)
+                | Self::Terminal(_) => {
                     new_ptr.push(1);
                     let old_fl = std::mem::replace(old_fl, FileLayout::None);
                     Self::SideBySide(vec![(old_fl, 0.5), (fl, 0.5)])
