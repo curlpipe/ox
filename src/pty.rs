@@ -63,7 +63,7 @@ impl Pty {
         }
         // Read the output
         let mut reader = BufReader::new(stream);
-        let mut buf = [0u8; 1024];
+        let mut buf = [0u8; 10240];
         let bytes_read = reader.read(&mut buf)?;
         let mut output = String::from_utf8_lossy(&buf[..bytes_read]).to_string();
         // Add on the output

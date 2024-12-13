@@ -329,13 +329,29 @@ commands = {
         local file = arguments[2]
         local result = false
         if arguments[1] == "left" then
-            result = editor:open_split_left(file)
+            if arguments[2] == "terminal" then
+                result = editor:open_terminal_left()
+            else
+                result = editor:open_split_left(file)
+            end
         elseif arguments[1] == "right" then
-            result = editor:open_split_right(file)
+            if arguments[2] == "terminal" then
+                result = editor:open_terminal_right()
+            else
+                result = editor:open_split_right(file)
+            end
         elseif arguments[1] == "up" then
-            result = editor:open_split_up(file)
+            if arguments[2] == "terminal" then
+                result = editor:open_terminal_up()
+            else
+                result = editor:open_split_up(file)
+            end
         elseif arguments[1] == "down" then
-            result = editor:open_split_down(file)
+            if arguments[2] == "terminal" then
+                result = editor:open_terminal_down()
+            else
+                result = editor:open_split_down(file)
+            end
         elseif arguments[1] == "grow" then
             result = true
             local amount = tonumber(arguments[3]) or 0.15

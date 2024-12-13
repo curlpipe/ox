@@ -3,7 +3,7 @@ use crate::config::SyntaxHighlighting as SH;
 use crate::editor::{FTParts, FileLayout};
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
-use crate::ui::{key_event, size, Feedback};
+use crate::ui::{key_event, remove_ansi_codes, size, strip_escape_codes, Feedback};
 use crate::{config, display, handle_lua_error};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
@@ -26,6 +26,7 @@ pub struct RenderCache {
     pub help_message_span: Range<usize>,
     pub file_tree: FTParts,
     pub file_tree_selection: Option<usize>,
+    pub term_cursor: Option<Loc>,
 }
 
 impl Editor {
@@ -65,6 +66,8 @@ impl Editor {
             self.render_cache.file_tree = files;
             self.render_cache.file_tree_selection = sel;
         }
+        // Clear the terminal cursor position
+        self.render_cache.term_cursor = None;
     }
 
     /// Render a specific line
@@ -82,6 +85,10 @@ impl Editor {
             let in_file_tree = matches!(
                 self.files.get_raw(fc.to_owned()),
                 Some(FileLayout::FileTree)
+            );
+            let in_terminal = matches!(
+                self.files.get_raw(fc.to_owned()),
+                Some(FileLayout::Terminal(_))
             );
             // Check if we have encountered an area of discontinuity in the line
             if range.start != accounted_for {
@@ -114,6 +121,9 @@ impl Editor {
             if in_file_tree {
                 // Part of file tree!
                 result += &self.render_file_tree(y, length)?;
+            } else if in_terminal {
+                // Part of terminal!
+                result += &self.render_terminal(fc, y, length, height)?;
             } else if y == rows.start && tab_line_enabled {
                 // Tab line
                 result += &self.render_tab_line(fc, lua, length)?;
@@ -226,16 +236,37 @@ impl Editor {
             self.files.get_raw(self.ptr.clone()),
             Some(FileLayout::FileTree)
         );
-        if !in_file_tree {
-            let Loc { x, y } = self.try_doc().unwrap().cursor_loc_in_screen()?;
-            for (ptr, rows, cols) in &self.render_cache.span {
-                if ptr == &self.ptr {
-                    return Some(Loc {
-                        x: cols.start + x + self.dent(),
-                        y: rows.start + y + self.push_down,
-                    });
+        let in_terminal = matches!(
+            self.files.get_raw(self.ptr.clone()),
+            Some(FileLayout::Terminal(_))
+        );
+        match (in_file_tree, in_terminal) {
+            // Move cursor to location within file
+            (false, false) => {
+                let Loc { x, y } = self.try_doc().unwrap().cursor_loc_in_screen()?;
+                for (ptr, rows, cols) in &self.render_cache.span {
+                    if ptr == &self.ptr {
+                        return Some(Loc {
+                            x: cols.start + x + self.dent(),
+                            y: rows.start + y + self.push_down,
+                        });
+                    }
                 }
             }
+            // Move cursor to location within a terminal
+            (false, true) => {
+                if let Some(loc) = self.render_cache.term_cursor {
+                    for (ptr, rows, cols) in &self.render_cache.span {
+                        if ptr == &self.ptr {
+                            return Some(Loc {
+                                x: cols.start + loc.x,
+                                y: rows.start + loc.y,
+                            });
+                        }
+                    }
+                }
+            }
+            _ => (),
         }
         None
     }
@@ -601,6 +632,45 @@ impl Editor {
             Ok(format!("{ft_selection_bg}{ft_selection_fg}{line}"))
         } else {
             Ok(format!("{ft_bg}{ft_fg}{line}"))
+        }
+    }
+
+    /// Render the line of a terminal
+    fn render_terminal(
+        &mut self,
+        fc: &Vec<usize>,
+        y: usize,
+        length: usize,
+        height: usize,
+    ) -> Result<String> {
+        if let Some(FileLayout::Terminal(term)) = self.files.get_raw(fc.to_owned()) {
+            let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?).to_string();
+            let editor_bg = Fg(config!(self.config, colors).editor_fg.to_color()?).to_string();
+            let shift_down = term
+                .output
+                .matches('\n')
+                .count()
+                .saturating_sub(height.saturating_sub(1));
+            // Calculate the contents and amount of padding for this line of the terminal
+            let mut lines = term.output.split('\n').skip(shift_down);
+            let (line, pad) = if let Some(line) = lines.nth(y) {
+                // Calculate line and padding
+                let line = line.replace("\r", "").replace("\n", "");
+                let visible_line = strip_escape_codes(&line);
+                let w = width(&remove_ansi_codes(&line), 4);
+                // Work out if this is where the cursor should be
+                if lines.nth(y + 1).is_none() && self.ptr == *fc {
+                    self.render_cache.term_cursor = Some(Loc { x: w, y });
+                }
+                // Return the result
+                (visible_line, length.saturating_sub(w))
+            } else {
+                (" ".repeat(length), 0)
+            };
+            // Calculate the final result
+            Ok(format!("{editor_fg}{editor_bg}{line}{}", " ".repeat(pad)))
+        } else {
+            unreachable!()
         }
     }
 
