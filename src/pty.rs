@@ -3,6 +3,7 @@ use ptyprocess::PtyProcess;
 use std::io::{BufReader, Read, Result, Write};
 use std::process::Command;
 
+#[derive(Debug)]
 pub struct Pty {
     pub process: PtyProcess,
     pub output: String,
@@ -10,6 +11,7 @@ pub struct Pty {
     pub shell: Shell,
 }
 
+#[derive(Debug)]
 pub enum Shell {
     Bash,
     Dash,
@@ -81,11 +83,5 @@ impl Pty {
             self.input.clear();
         }
         Ok(())
-    }
-}
-
-impl Drop for Pty {
-    fn drop(&mut self) {
-        let _ = self.process.exit(true);
     }
 }

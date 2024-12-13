@@ -390,9 +390,10 @@ impl Editor {
                 }
             }
             // Wrap existing file layout in new file layout
+            let files = std::mem::take(&mut self.files);
             self.files = FileLayout::SideBySide(vec![
                 (FileLayout::FileTree, width),
-                (self.files.clone(), other),
+                (files, other),
             ]);
             self.ptr = vec![0];
         }
@@ -413,10 +414,11 @@ impl Editor {
                 // Delete the file tree
                 self.files.remove(vec![at]);
                 // Clear up any leftovers sidebyside
-                if let FileLayout::SideBySide(layouts) = &self.files {
+                if let FileLayout::SideBySide(layouts) = &mut self.files {
                     if layouts.len() == 1 {
                         // Remove leftover
-                        self.files = layouts[0].0.clone();
+                        let layout = std::mem::take(&mut layouts[0].0);
+                        self.files = layout;
                     }
                 }
                 // Reset pointer back to what it used to be IF we're in the file tree
