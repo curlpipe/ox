@@ -5,6 +5,7 @@ mod config;
 mod editor;
 mod error;
 mod events;
+mod pty;
 mod ui;
 
 use cli::CommandLineInterface;
