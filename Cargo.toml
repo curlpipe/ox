@@ -43,3 +43,5 @@ shellexpand = "3.1.0"
 synoptic = "2.2.9"
 ptyprocess = "0.4.1"
 regex = "1.11.1"
+mio = { version = "1.0.3", features = ["os-ext"] }
+nix = { version = "0.29.0", features = ["fs"] }

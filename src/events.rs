@@ -24,6 +24,11 @@ pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
                             Feedback::Warning(format!("Function '{task}' was not found"));
                     }
                 }
+                // If a terminal dictates, force a rerender
+                if ged!(mut &editor).files.terminal_rerender() {
+                    ged!(mut &editor).needs_rerender = true;
+                    ged!(mut &editor).render(lua)?;
+                }
             }
         }
 

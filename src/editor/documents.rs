@@ -6,6 +6,8 @@ use kaolinite::Document;
 use kaolinite::Size;
 use std::ops::Range;
 use synoptic::Highlighter;
+use std::sync::{Arc, Mutex};
+
 
 pub type Span = Vec<(Vec<usize>, Range<usize>, Range<usize>)>;
 
@@ -23,7 +25,7 @@ pub enum FileLayout {
     /// Representing a file tree
     FileTree,
     /// Representing a terminal
-    Terminal(Pty),
+    Terminal(Arc<Mutex<Pty>>),
 }
 
 impl Default for FileLayout {
@@ -433,6 +435,30 @@ impl FileLayout {
                     }
                     None
                 }
+            }
+        }
+    }
+
+    /// Traverse the tree and return a list of indices to empty atoms
+    pub fn terminal_rerender(&mut self) -> bool {
+        match self {
+            Self::None | Self::FileTree | Self::Atom(_, _) => false,
+            Self::Terminal(term) => {
+                let mut term = term.lock().unwrap();
+                if term.force_rerender {
+                    term.force_rerender = false;
+                    true
+                } else {
+                    false
+                }
+            }
+            Self::SideBySide(layouts) | Self::TopToBottom(layouts) => {
+                for layout in layouts.iter_mut() {
+                    if layout.0.terminal_rerender() {
+                        return true;
+                    }
+                }
+                false
             }
         }
     }

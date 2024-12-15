@@ -1,8 +1,15 @@
+//! User friendly interface for dealing with pseudo terminals
+
 use mlua::prelude::*;
-/// User friendly interface for dealing with pseudo terminals
 use ptyprocess::PtyProcess;
 use std::io::{BufReader, Read, Result, Write};
 use std::process::Command;
+use std::sync::{Arc, Mutex};
+use mio::{Events, Interest, Poll, Token};
+use mio::unix::SourceFd;
+use std::os::unix::io::AsRawFd;
+use std::time::Duration;
+use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
 #[derive(Debug)]
 pub struct Pty {
@@ -10,6 +17,7 @@ pub struct Pty {
     pub output: String,
     pub input: String,
     pub shell: Shell,
+    pub force_rerender: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -66,16 +74,28 @@ impl FromLua for Shell {
 }
 
 impl Pty {
-    pub fn new(shell: Shell) -> Result<Self> {
-        let mut pty = Self {
+    pub fn new(shell: Shell) -> Result<Arc<Mutex<Self>>> {
+        let pty = Arc::new(Mutex::new(Self {
             process: PtyProcess::spawn(Command::new(shell.command()))?,
             output: String::new(),
             input: String::new(),
             shell,
-        };
-        pty.process.set_echo(false, None)?;
+            force_rerender: false,
+        }));
+        pty.lock().unwrap().process.set_echo(false, None)?;
         std::thread::sleep(std::time::Duration::from_millis(100));
-        pty.run_command("")?;
+        pty.lock().unwrap().run_command("")?;
+        // Spawn thread to constantly read from the terminal
+        let pty_clone = Arc::clone(&pty);
+        std::thread::spawn(move || {
+            loop {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                let mut pty = pty_clone.lock().unwrap();
+                pty.force_rerender = matches!(pty.catch_up(), Ok(true));
+                std::mem::drop(pty);
+            }
+        });
+        // Return the pty
         Ok(pty)
     }
 
@@ -130,5 +150,41 @@ impl Pty {
         self.run_command("\n")?;
         self.output = self.output.trim_start_matches('\n').to_string();
         Ok(())
+    }
+
+    pub fn catch_up(&mut self) -> Result<bool> {
+        let stream = self.process.get_raw_handle()?;
+        let raw_fd = stream.as_raw_fd();
+        let flags = fcntl(raw_fd, FcntlArg::F_GETFL).unwrap();
+        fcntl(raw_fd, FcntlArg::F_SETFL(OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK)).unwrap();
+        let mut source = SourceFd(&raw_fd);
+        // Set up mio Poll and register the raw_fd
+        let mut poll = Poll::new()?;
+        let mut events = Events::with_capacity(128);
+        poll.registry()
+            .register(&mut source, Token(0), Interest::READABLE)?;
+        match poll.poll(&mut events, Some(Duration::from_millis(100))) {
+            Ok(()) => {
+                // Data is available to read
+                let mut reader = BufReader::new(stream);
+                let mut buf = [0u8; 10240];
+                let bytes_read = reader.read(&mut buf)?;
+
+                // Process the read data
+                let mut output = String::from_utf8_lossy(&buf[..bytes_read]).to_string();
+                if self.shell.inserts_extra_newline() {
+                    output = output.replace("\u{1b}[?2004l\r\r\n", "");
+                }
+
+                // Append the output to self.output
+                // println!("Adding (aftercmd) \"{:?}\"", output);
+                self.output += &output;
+                Ok(!output.is_empty())
+            }
+            Err(e) => {
+                // Handle polling errors
+                return Err(e);
+            }
+        }
     }
 }

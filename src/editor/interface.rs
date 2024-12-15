@@ -642,14 +642,14 @@ impl Editor {
     #[allow(clippy::similar_names)]
     fn render_terminal(&mut self, fc: &Vec<usize>, y: usize, l: usize, h: usize) -> Result<String> {
         if let Some(FileLayout::Terminal(term)) = self.files.get_raw(fc.to_owned()) {
+            let term = term.lock().unwrap();
             let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?).to_string();
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?).to_string();
             let reset = SetAttribute(Attribute::NoBold);
             let n_lines = term.output.matches('\n').count();
             let shift_down = n_lines.saturating_sub(h.saturating_sub(1));
             // Calculate the contents and amount of padding for this line of the terminal
-            let mut lines = term.output.split('\n').skip(shift_down);
-            let (line, pad) = if let Some(line) = lines.nth(y) {
+            let (line, pad) = if let Some(line) = term.output.split('\n').skip(shift_down).nth(y) {
                 // Calculate line and padding
                 let line = line.replace(['\n', '\r'], "");
                 let mut visible_line = strip_escape_codes(&line);
@@ -668,6 +668,7 @@ impl Editor {
             } else {
                 (" ".repeat(l), 0)
             };
+            std::mem::drop(term);
             // Calculate the final result
             Ok(format!(
                 "{reset}{editor_fg}{editor_bg}{line}{}",
