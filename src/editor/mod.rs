@@ -485,15 +485,13 @@ impl Editor {
                 _ => (),
             },
             // Terminal behaviour
-            Some(FileLayout::Terminal(term)) => {
-                match (modifiers, code) {
-                    (KMod::NONE, KCode::Enter) => term.char_input('\n')?,
-                    (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => term.char_input(ch)?,
-                    (KMod::NONE, KCode::Backspace) => term.char_pop(),
-                    (KMod::CONTROL, KCode::Char('l')) => term.clear()?,
-                    _ => (),
-                }
-            }
+            Some(FileLayout::Terminal(term)) => match (modifiers, code) {
+                (KMod::NONE, KCode::Enter) => term.char_input('\n')?,
+                (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => term.char_input(ch)?,
+                (KMod::NONE, KCode::Backspace) => term.char_pop(),
+                (KMod::CONTROL, KCode::Char('l')) => term.clear()?,
+                _ => (),
+            },
             // File behaviour
             _ => {
                 // Check period of inactivity
