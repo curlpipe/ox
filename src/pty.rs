@@ -75,6 +75,15 @@ impl Pty {
         Ok(())
     }
 
+    pub fn silent_run_command(&mut self, cmd: &str) -> Result<()> {
+        self.output.clear();
+        self.run_command(cmd)?;
+        if self.output.starts_with(cmd) {
+            self.output = self.output.chars().skip(cmd.chars().count()).collect();
+        }
+        Ok(())
+    }
+
     pub fn char_input(&mut self, c: char) -> Result<()> {
         self.input.push(c);
         if c == '\n' {
@@ -87,5 +96,12 @@ impl Pty {
 
     pub fn char_pop(&mut self) {
         self.input.pop();
+    }
+
+    pub fn clear(&mut self) -> Result<()> {
+        self.output.clear();
+        self.run_command("\n")?;
+        self.output = self.output.trim_start_matches('\n').to_string();
+        Ok(())
     }
 }

@@ -14,7 +14,7 @@ use config::{
     PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN,
 };
 use crossterm::event::{Event as CEvent, KeyEvent, KeyEventKind};
-use editor::{allowed_by_multi_cursor, handle_multiple_cursors, Editor, FileLayout, FileTypes};
+use editor::{allowed_by_multi_cursor, handle_multiple_cursors, Editor, FileTypes};
 use error::{OxError, Result};
 use events::wait_for_event;
 use kaolinite::event::{Error as KError, Event};

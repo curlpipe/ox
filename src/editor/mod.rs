@@ -490,12 +490,7 @@ impl Editor {
                     (KMod::NONE, KCode::Enter) => term.char_input('\n')?,
                     (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => term.char_input(ch)?,
                     (KMod::NONE, KCode::Backspace) => term.char_pop(),
-                    (KMod::CONTROL, KCode::Char('l')) => {
-                        // Clear the terminal
-                        term.output.clear();
-                        term.run_command("\n")?;
-                        term.output = term.output.trim_start_matches('\n').to_string();
-                    }
+                    (KMod::CONTROL, KCode::Char('l')) => term.clear()?,
                     _ => (),
                 }
             }

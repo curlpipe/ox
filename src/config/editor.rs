@@ -783,8 +783,11 @@ impl LuaUserData for Editor {
             Ok(())
         });
         // Terminal
-        methods.add_method_mut("open_terminal_up", |_, editor, ()| {
-            if let Ok(term) = Pty::new(Shell::Bash) {
+        methods.add_method_mut("open_terminal_up", |_, editor, cmd: Option<String>| {
+            if let Ok(mut term) = Pty::new(Shell::Bash) {
+                if let Some(cmd) = cmd {
+                    term.silent_run_command(&format!("{cmd}\n"))?;
+                }
                 editor.ptr = editor
                     .files
                     .open_up(editor.ptr.clone(), FileLayout::Terminal(term));
@@ -794,8 +797,11 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
-        methods.add_method_mut("open_terminal_down", |_, editor, ()| {
-            if let Ok(term) = Pty::new(Shell::Bash) {
+        methods.add_method_mut("open_terminal_down", |_, editor, cmd: Option<String>| {
+            if let Ok(mut term) = Pty::new(Shell::Bash) {
+                if let Some(cmd) = cmd {
+                    term.silent_run_command(&format!("{cmd}\n"))?;
+                }
                 editor.ptr = editor
                     .files
                     .open_down(editor.ptr.clone(), FileLayout::Terminal(term));
@@ -805,8 +811,11 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
-        methods.add_method_mut("open_terminal_left", |_, editor, ()| {
-            if let Ok(term) = Pty::new(Shell::Bash) {
+        methods.add_method_mut("open_terminal_left", |_, editor, cmd: Option<String>| {
+            if let Ok(mut term) = Pty::new(Shell::Bash) {
+                if let Some(cmd) = cmd {
+                    term.silent_run_command(&format!("{cmd}\n"))?;
+                }
                 editor.ptr = editor
                     .files
                     .open_left(editor.ptr.clone(), FileLayout::Terminal(term));
@@ -816,8 +825,11 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
-        methods.add_method_mut("open_terminal_right", |_, editor, ()| {
-            if let Ok(term) = Pty::new(Shell::Bash) {
+        methods.add_method_mut("open_terminal_right", |_, editor, cmd: Option<String>| {
+            if let Ok(mut term) = Pty::new(Shell::Bash) {
+                if let Some(cmd) = cmd {
+                    term.silent_run_command(&format!("{cmd}\n"))?;
+                }
                 editor.ptr = editor
                     .files
                     .open_right(editor.ptr.clone(), FileLayout::Terminal(term));
