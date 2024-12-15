@@ -786,7 +786,9 @@ impl LuaUserData for Editor {
         methods.add_method_mut("open_terminal_up", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
-                    term.lock().unwrap().silent_run_command(&format!("{cmd}\n"))?;
+                    term.lock()
+                        .unwrap()
+                        .silent_run_command(&format!("{cmd}\n"))?;
                 }
                 editor.ptr = editor
                     .files
@@ -800,7 +802,9 @@ impl LuaUserData for Editor {
         methods.add_method_mut("open_terminal_down", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
-                    term.lock().unwrap().silent_run_command(&format!("{cmd}\n"))?;
+                    term.lock()
+                        .unwrap()
+                        .silent_run_command(&format!("{cmd}\n"))?;
                 }
                 editor.ptr = editor
                     .files
@@ -814,7 +818,9 @@ impl LuaUserData for Editor {
         methods.add_method_mut("open_terminal_left", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
-                    term.lock().unwrap().silent_run_command(&format!("{cmd}\n"))?;
+                    term.lock()
+                        .unwrap()
+                        .silent_run_command(&format!("{cmd}\n"))?;
                 }
                 editor.ptr = editor
                     .files
@@ -828,7 +834,9 @@ impl LuaUserData for Editor {
         methods.add_method_mut("open_terminal_right", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
-                    term.lock().unwrap().silent_run_command(&format!("{cmd}\n"))?;
+                    term.lock()
+                        .unwrap()
+                        .silent_run_command(&format!("{cmd}\n"))?;
                 }
                 editor.ptr = editor
                     .files

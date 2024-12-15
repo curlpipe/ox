@@ -5,9 +5,8 @@ use crate::Loc;
 use kaolinite::Document;
 use kaolinite::Size;
 use std::ops::Range;
-use synoptic::Highlighter;
 use std::sync::{Arc, Mutex};
-
+use synoptic::Highlighter;
 
 pub type Span = Vec<(Vec<usize>, Range<usize>, Range<usize>)>;
 

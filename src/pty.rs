@@ -1,15 +1,15 @@
 //! User friendly interface for dealing with pseudo terminals
 
+use mio::unix::SourceFd;
+use mio::{Events, Interest, Poll, Token};
 use mlua::prelude::*;
+use nix::fcntl::{fcntl, FcntlArg, OFlag};
 use ptyprocess::PtyProcess;
 use std::io::{BufReader, Read, Result, Write};
+use std::os::unix::io::AsRawFd;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-use mio::{Events, Interest, Poll, Token};
-use mio::unix::SourceFd;
-use std::os::unix::io::AsRawFd;
 use std::time::Duration;
-use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
 #[derive(Debug)]
 pub struct Pty {
@@ -87,13 +87,11 @@ impl Pty {
         pty.lock().unwrap().run_command("")?;
         // Spawn thread to constantly read from the terminal
         let pty_clone = Arc::clone(&pty);
-        std::thread::spawn(move || {
-            loop {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                let mut pty = pty_clone.lock().unwrap();
-                pty.force_rerender = matches!(pty.catch_up(), Ok(true));
-                std::mem::drop(pty);
-            }
+        std::thread::spawn(move || loop {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            let mut pty = pty_clone.lock().unwrap();
+            pty.force_rerender = matches!(pty.catch_up(), Ok(true));
+            std::mem::drop(pty);
         });
         // Return the pty
         Ok(pty)
@@ -156,7 +154,11 @@ impl Pty {
         let stream = self.process.get_raw_handle()?;
         let raw_fd = stream.as_raw_fd();
         let flags = fcntl(raw_fd, FcntlArg::F_GETFL).unwrap();
-        fcntl(raw_fd, FcntlArg::F_SETFL(OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK)).unwrap();
+        fcntl(
+            raw_fd,
+            FcntlArg::F_SETFL(OFlag::from_bits_truncate(flags) | OFlag::O_NONBLOCK),
+        )
+        .unwrap();
         let mut source = SourceFd(&raw_fd);
         // Set up mio Poll and register the raw_fd
         let mut poll = Poll::new()?;
