@@ -644,6 +644,7 @@ impl Editor {
         if let Some(FileLayout::Terminal(term)) = self.files.get_raw(fc.to_owned()) {
             let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?).to_string();
             let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?).to_string();
+            let reset = SetAttribute(Attribute::NoBold);
             let n_lines = term.output.matches('\n').count();
             let shift_down = n_lines.saturating_sub(h.saturating_sub(1));
             // Calculate the contents and amount of padding for this line of the terminal
@@ -658,7 +659,7 @@ impl Editor {
                 let mut w = width(&remove_ansi_codes(&line), 4);
                 // Work out if this is where the cursor should be
                 if n_lines.saturating_sub(shift_down) == y && self.ptr == *fc {
-                    visible_line += &term.input;
+                    visible_line += &format!("{editor_fg}{reset}{}", term.input);
                     w += width(&term.input, 4);
                     self.render_cache.term_cursor = Some(Loc { x: w, y });
                 }
@@ -668,7 +669,10 @@ impl Editor {
                 (" ".repeat(l), 0)
             };
             // Calculate the final result
-            Ok(format!("{editor_fg}{editor_bg}{line}{}", " ".repeat(pad)))
+            Ok(format!(
+                "{reset}{editor_fg}{editor_bg}{line}{}",
+                " ".repeat(pad)
+            ))
         } else {
             unreachable!()
         }

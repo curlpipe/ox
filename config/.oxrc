@@ -459,6 +459,9 @@ line_numbers.padding_right = 1
 terminal.mouse_enabled = true
 terminal.scroll_amount = 4
 
+-- Configure Terminal Behaviour --
+terminal.shell = "bash"
+
 -- Configure File Tree --
 file_tree.width = 30
 file_tree.move_focus_to_file = true

@@ -1,7 +1,7 @@
 /// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
 use crate::editor::{Editor, FileContainer, FileLayout};
-use crate::pty::{Pty, Shell};
+use crate::pty::Pty;
 use crate::ui::Feedback;
 use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
@@ -784,7 +784,7 @@ impl LuaUserData for Editor {
         });
         // Terminal
         methods.add_method_mut("open_terminal_up", |_, editor, cmd: Option<String>| {
-            if let Ok(mut term) = Pty::new(Shell::Bash) {
+            if let Ok(mut term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
                     term.silent_run_command(&format!("{cmd}\n"))?;
                 }
@@ -798,7 +798,7 @@ impl LuaUserData for Editor {
             }
         });
         methods.add_method_mut("open_terminal_down", |_, editor, cmd: Option<String>| {
-            if let Ok(mut term) = Pty::new(Shell::Bash) {
+            if let Ok(mut term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
                     term.silent_run_command(&format!("{cmd}\n"))?;
                 }
@@ -812,7 +812,7 @@ impl LuaUserData for Editor {
             }
         });
         methods.add_method_mut("open_terminal_left", |_, editor, cmd: Option<String>| {
-            if let Ok(mut term) = Pty::new(Shell::Bash) {
+            if let Ok(mut term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
                     term.silent_run_command(&format!("{cmd}\n"))?;
                 }
@@ -826,7 +826,7 @@ impl LuaUserData for Editor {
             }
         });
         methods.add_method_mut("open_terminal_right", |_, editor, cmd: Option<String>| {
-            if let Ok(mut term) = Pty::new(Shell::Bash) {
+            if let Ok(mut term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
                     term.silent_run_command(&format!("{cmd}\n"))?;
                 }

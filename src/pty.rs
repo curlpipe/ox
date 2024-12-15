@@ -1,3 +1,4 @@
+use mlua::prelude::*;
 /// User friendly interface for dealing with pseudo terminals
 use ptyprocess::PtyProcess;
 use std::io::{BufReader, Read, Result, Write};
@@ -11,7 +12,7 @@ pub struct Pty {
     pub shell: Shell,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Shell {
     Bash,
     Dash,
@@ -20,11 +21,11 @@ pub enum Shell {
 }
 
 impl Shell {
-    pub fn manual_input_echo(&self) -> bool {
+    pub fn manual_input_echo(self) -> bool {
         matches!(self, Self::Bash | Self::Dash)
     }
 
-    pub fn inserts_extra_newline(&self) -> bool {
+    pub fn inserts_extra_newline(self) -> bool {
         !matches!(self, Self::Zsh)
     }
 
@@ -35,6 +36,32 @@ impl Shell {
             Self::Zsh => "zsh",
             Self::Fish => "fish",
         }
+    }
+}
+
+impl IntoLua for Shell {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
+        let string = lua.create_string(self.command())?;
+        Ok(LuaValue::String(string))
+    }
+}
+
+impl FromLua for Shell {
+    fn from_lua(val: LuaValue, _: &Lua) -> LuaResult<Self> {
+        Ok(if let LuaValue::String(inner) = val {
+            if let Ok(s) = inner.to_str() {
+                match s.to_owned().as_str() {
+                    "dash" => Self::Dash,
+                    "zsh" => Self::Zsh,
+                    "fish" => Self::Fish,
+                    _ => Self::Bash,
+                }
+            } else {
+                Self::Bash
+            }
+        } else {
+            Self::Bash
+        })
     }
 }
 

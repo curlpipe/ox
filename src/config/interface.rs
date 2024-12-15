@@ -1,6 +1,7 @@
 /// Utilities for configuring and rendering parts of the interface
 use crate::cli::VERSION;
 use crate::editor::{Editor, FileContainer};
+use crate::pty::Shell;
 use crate::Feedback;
 use kaolinite::searching::Searcher;
 use kaolinite::utils::{get_absolute_path, get_file_ext, get_file_name};
@@ -16,6 +17,7 @@ type LuaRes<T> = RResult<T, LuaError>;
 pub struct Terminal {
     pub mouse_enabled: bool,
     pub scroll_amount: usize,
+    pub shell: Shell,
 }
 
 impl Default for Terminal {
@@ -23,6 +25,7 @@ impl Default for Terminal {
         Self {
             mouse_enabled: true,
             scroll_amount: 1,
+            shell: Shell::Bash,
         }
     }
 }
@@ -37,6 +40,11 @@ impl LuaUserData for Terminal {
         fields.add_field_method_get("scroll_amount", |_, this| Ok(this.scroll_amount));
         fields.add_field_method_set("scroll_amount", |_, this, value| {
             this.scroll_amount = value;
+            Ok(())
+        });
+        fields.add_field_method_get("shell", |_, this| Ok(this.shell));
+        fields.add_field_method_set("shell", |_, this, value| {
+            this.shell = value;
             Ok(())
         });
     }

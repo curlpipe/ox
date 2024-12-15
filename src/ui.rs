@@ -345,38 +345,58 @@ pub fn get_xterm_lookup() -> HashMap<u8, (u8, u8, u8)> {
 pub fn remove_ansi_codes(input: &str) -> String {
     // Define a regular expression to match ANSI escape codes and other control sequences
     let invisible_regex =
-        Regex::new(r"[\x00-\x1F\x7F-\x9F]|\x1b(?:[@-_]|\[[0-9;?]*[a-zA-Z])|\[[0-9;?]*[a-zA-Z]")
+        // Regex::new(r"[\x00-\x1F\x7F-\x9F]|\x1b(?:[@-_]|\[[0-9;?]*[a-zA-Z])|\[[0-9;?]*[a-zA-Z]")
+        Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]|\x1b\([a-zA-Z]|\x1b\].*?(\x07|\x1b\\)|\x1b(:?>|=)")
             .unwrap();
+    let weird_newline = Regex::new(r"⏎\s*⏎\s?").unwrap();
+    let long_spaces = Regex::new(r"%(?:\x1b\[1m)?\s{5,}").unwrap();
     // Replace all matches with an empty string
-    invisible_regex.replace_all(input, "").to_string()
+    let result = invisible_regex.replace_all(input, "").to_string();
+    // Replace weird new line stuff
+    let result = weird_newline.replace_all(&result, "").to_string();
+    // Replace long spaces
+    let result = long_spaces.replace_all(&result, "").to_string();
+    // Return result
+    result
 }
 
 /// Remove all ANSI codes outside of color and attribute codes
 pub fn strip_escape_codes(input: &str) -> String {
     // Define a regular expression to match all escape sequences
-    let re = Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]").unwrap();
-
+    // let re = Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]").unwrap();
+    let re =
+        Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]|\x1b\([a-zA-Z]|\x1b\].*?(\x07|\x1b\\)|\x1b(:?>|=)")
+            .unwrap();
+    let weird_newline = Regex::new(r"⏎\s*⏎\s?").unwrap();
+    let long_spaces = Regex::new(r"%(?:\x1b\[1m)?\s{5,}").unwrap();
     // Replace escape sequences, keeping those for attributes and colors
-    re.replace_all(input, |caps: &regex::Captures| {
-        let code = caps.get(0).unwrap().as_str();
+    let result = re
+        .replace_all(input, |caps: &regex::Captures| {
+            let code = caps.get(0).unwrap().as_str();
 
-        // Check if the escape code is for an allowed attribute or color
-        if code.contains("1m")    // Bold
+            // Check if the escape code is for an allowed attribute or color
+            if code.contains("1m")    // Bold
             || code.contains("4m")  // Underline
             || code.contains("38;5") // Foreground color (256-color mode)
             || code.contains("48;5") // Background color (256-color mode)
             || code.contains("38;2") // Foreground color (true color)
             || code.contains("48;2")
-        // Background color (true color)
-        {
-            // Return the escape code unchanged
-            code.to_string()
-        } else {
-            // Return an empty string for non-allowed escape codes (including cursor styling)
-            String::new()
-        }
-    })
-    .to_string()
+            // Background color (true color)
+            {
+                // Return the escape code unchanged
+                code.to_string()
+            } else {
+                // Return an empty string for non-allowed escape codes (including cursor styling)
+                String::new()
+            }
+        })
+        .to_string();
+    // Replace weird new line stuff
+    let result = weird_newline.replace_all(&result, "").to_string();
+    // Replace long spaces
+    let result = long_spaces.replace_all(&result, "").to_string();
+    // Return result
+    result
 }
 
 /// Replace reset background ANSI codes with a custom background color.
