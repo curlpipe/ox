@@ -379,7 +379,6 @@ pub fn strip_escape_codes(input: &str) -> String {
     .to_string()
 }
 
-/*
 /// Replace reset background ANSI codes with a custom background color.
 pub fn replace_reset_background(input: &str, custom_bg: &str) -> String {
     // Define the regex to match reset background ANSI codes
@@ -395,4 +394,3 @@ pub fn replace_reset_foreground(input: &str, custom_fg: &str) -> String {
     // Replace reset foreground with the custom foreground color
     reset_fg_regex.replace_all(input, custom_fg).to_string()
 }
-*/

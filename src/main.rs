@@ -14,7 +14,7 @@ use config::{
     PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN,
 };
 use crossterm::event::{Event as CEvent, KeyEvent, KeyEventKind};
-use editor::{allowed_by_multi_cursor, handle_multiple_cursors, Editor, FileTypes};
+use editor::{allowed_by_multi_cursor, handle_multiple_cursors, Editor, FileLayout, FileTypes};
 use error::{OxError, Result};
 use events::wait_for_event;
 use kaolinite::event::{Error as KError, Event};
@@ -226,11 +226,14 @@ fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
         ged!(mut &editor).feedback = Feedback::None;
     }
 
-    // Only access plug-ins in atoms
+    // Only access plug-ins in certain layouts
     let ptr = ged!(&editor).ptr.clone();
-    let in_atom = ged!(&editor).files.get_atom(ptr).is_some();
+    let feed_in_plugins = matches!(
+        ged!(&editor).files.get_raw(ptr),
+        Some(FileLayout::FileTree | FileLayout::Atom(_, _))
+    );
 
-    if in_atom {
+    if feed_in_plugins {
         // Handle plug-in before key press mappings
         if let CEvent::Key(key) = event {
             let key_str = key_to_string(key.modifiers, key.code);
@@ -268,7 +271,7 @@ fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
         }
     }
 
-    if in_atom {
+    if feed_in_plugins {
         // Handle paste event (after event)
         if let CEvent::Paste(ref paste_text) = event {
             let listeners = get_listeners("paste", lua)?;

@@ -3,7 +3,10 @@ use crate::config::SyntaxHighlighting as SH;
 use crate::editor::{FTParts, FileLayout};
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
-use crate::ui::{key_event, remove_ansi_codes, size, strip_escape_codes, Feedback};
+use crate::ui::{
+    key_event, remove_ansi_codes, replace_reset_background, replace_reset_foreground, size,
+    strip_escape_codes, Feedback,
+};
 use crate::{config, display, handle_lua_error};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
@@ -123,7 +126,7 @@ impl Editor {
                 result += &self.render_file_tree(y, length)?;
             } else if in_terminal {
                 // Part of terminal!
-                result += &self.render_terminal(fc, y, length, height)?;
+                result += &self.render_terminal(fc, rel_y, length, height)?;
             } else if y == rows.start && tab_line_enabled {
                 // Tab line
                 result += &self.render_tab_line(fc, lua, length)?;
@@ -640,7 +643,7 @@ impl Editor {
     fn render_terminal(&mut self, fc: &Vec<usize>, y: usize, l: usize, h: usize) -> Result<String> {
         if let Some(FileLayout::Terminal(term)) = self.files.get_raw(fc.to_owned()) {
             let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?).to_string();
-            let editor_bg = Fg(config!(self.config, colors).editor_fg.to_color()?).to_string();
+            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?).to_string();
             let n_lines = term.output.matches('\n').count();
             let shift_down = n_lines.saturating_sub(h.saturating_sub(1));
             // Calculate the contents and amount of padding for this line of the terminal
@@ -649,6 +652,9 @@ impl Editor {
                 // Calculate line and padding
                 let line = line.replace(['\n', '\r'], "");
                 let mut visible_line = strip_escape_codes(&line);
+                // Replace resets with editor style
+                visible_line = replace_reset_background(&visible_line, &editor_bg);
+                visible_line = replace_reset_foreground(&visible_line, &editor_fg);
                 let mut w = width(&remove_ansi_codes(&line), 4);
                 // Work out if this is where the cursor should be
                 if n_lines.saturating_sub(shift_down) == y && self.ptr == *fc {
