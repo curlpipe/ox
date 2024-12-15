@@ -637,36 +637,29 @@ impl Editor {
 
     /// Render the line of a terminal
     #[allow(clippy::similar_names)]
-    fn render_terminal(
-        &mut self,
-        fc: &Vec<usize>,
-        y: usize,
-        length: usize,
-        height: usize,
-    ) -> Result<String> {
+    fn render_terminal(&mut self, fc: &Vec<usize>, y: usize, l: usize, h: usize) -> Result<String> {
         if let Some(FileLayout::Terminal(term)) = self.files.get_raw(fc.to_owned()) {
             let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?).to_string();
             let editor_bg = Fg(config!(self.config, colors).editor_fg.to_color()?).to_string();
-            let shift_down = term
-                .output
-                .matches('\n')
-                .count()
-                .saturating_sub(height.saturating_sub(1));
+            let n_lines = term.output.matches('\n').count();
+            let shift_down = n_lines.saturating_sub(h.saturating_sub(1));
             // Calculate the contents and amount of padding for this line of the terminal
             let mut lines = term.output.split('\n').skip(shift_down);
             let (line, pad) = if let Some(line) = lines.nth(y) {
                 // Calculate line and padding
                 let line = line.replace(['\n', '\r'], "");
-                let visible_line = strip_escape_codes(&line);
-                let w = width(&remove_ansi_codes(&line), 4);
+                let mut visible_line = strip_escape_codes(&line);
+                let mut w = width(&remove_ansi_codes(&line), 4);
                 // Work out if this is where the cursor should be
-                if lines.nth(y + 1).is_none() && self.ptr == *fc {
+                if n_lines.saturating_sub(shift_down) == y && self.ptr == *fc {
+                    visible_line += &term.input;
+                    w += width(&term.input, 4);
                     self.render_cache.term_cursor = Some(Loc { x: w, y });
                 }
                 // Return the result
-                (visible_line, length.saturating_sub(w))
+                (visible_line, l.saturating_sub(w))
             } else {
-                (" ".repeat(length), 0)
+                (" ".repeat(l), 0)
             };
             // Calculate the final result
             Ok(format!("{editor_fg}{editor_bg}{line}{}", " ".repeat(pad)))

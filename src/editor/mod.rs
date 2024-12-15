@@ -332,29 +332,42 @@ impl Editor {
 
     /// Quit the editor
     pub fn quit(&mut self) -> Result<()> {
-        // Get the atom we're currently at
-        if let Some((fcs, ptr)) = self.files.get_atom(self.ptr.clone()) {
-            let last_file = fcs.len() == 1;
-            // Remove the file that is currently open and selected
-            let msg = "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
-            let doc = &fcs[ptr].doc;
-            if doc.event_mgmt.with_disk(&doc.take_snapshot()) || self.confirm(msg)? {
-                let (fcs, ptr) = self.files.get_atom_mut(self.ptr.clone()).unwrap();
-                fcs.remove(*ptr);
-                self.prev();
+        match self.files.get_raw(self.ptr.clone()) {
+            Some(FileLayout::Atom(fcs, ptr)) => {
+                let last_file = fcs.len() == 1;
+                // Remove the file that is currently open and selected
+                let msg =
+                    "This document isn't saved, press Ctrl + Q to force quit or Esc to cancel";
+                let doc = &fcs[*ptr].doc;
+                if doc.event_mgmt.with_disk(&doc.take_snapshot()) || self.confirm(msg)? {
+                    let (fcs, ptr) = self.files.get_atom_mut(self.ptr.clone()).unwrap();
+                    fcs.remove(*ptr);
+                    self.prev();
+                }
+                // Perform cleanup / pointer reassignment if this atom is now empty
+                if last_file {
+                    // Clean up the file structure
+                    self.files.clean_up();
+                    // Find a new pointer position
+                    self.ptr = self.files.new_pointer_position(&self.ptr);
+                    // Clean up the redundant sidebyside/toptobottom
+                    self.ptr = self.files.clean_up_multis(self.ptr.clone());
+                }
             }
-            // Perform cleanup / pointer reassignment if this atom is now empty
-            if last_file {
-                // Clean up the file structure
-                self.files.clean_up();
+            Some(FileLayout::Terminal(_)) => {
+                self.files.remove(self.ptr.clone());
                 // Find a new pointer position
                 self.ptr = self.files.new_pointer_position(&self.ptr);
                 // Clean up the redundant sidebyside/toptobottom
                 self.ptr = self.files.clean_up_multis(self.ptr.clone());
             }
+            _ => (),
         }
         // If there are no longer any active atoms, quit the entire editor
-        self.active = !matches!(self.files, FileLayout::None | FileLayout::FileTree);
+        self.active = !matches!(
+            self.files,
+            FileLayout::None | FileLayout::FileTree | FileLayout::Terminal(_)
+        );
         Ok(())
     }
 
@@ -456,13 +469,9 @@ impl Editor {
 
     /// Handle key event
     pub fn handle_key_event(&mut self, modifiers: KMod, code: KCode) -> Result<()> {
-        let in_file_tree = matches!(
-            self.files.get_raw(self.ptr.clone()),
-            Some(FileLayout::FileTree)
-        );
-        if in_file_tree {
+        match self.files.get_raw_mut(self.ptr.clone()) {
             // File tree key behaviour
-            match (modifiers, code) {
+            Some(FileLayout::FileTree) => match (modifiers, code) {
                 (KMod::NONE, KCode::Up) => self.file_tree_select_up(),
                 (KMod::NONE, KCode::Down) => self.file_tree_select_down(),
                 (KMod::NONE, KCode::Enter) => self.file_tree_open_node()?,
@@ -474,27 +483,43 @@ impl Editor {
                 (KMod::NONE, KCode::Char('m')) => self.file_tree_move()?,
                 (KMod::NONE, KCode::Char('c')) => self.file_tree_copy()?,
                 _ => (),
+            },
+            // Terminal behaviour
+            Some(FileLayout::Terminal(term)) => {
+                match (modifiers, code) {
+                    (KMod::NONE, KCode::Enter) => term.char_input('\n')?,
+                    (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => term.char_input(ch)?,
+                    (KMod::NONE, KCode::Backspace) => term.char_pop(),
+                    (KMod::CONTROL, KCode::Char('l')) => {
+                        // Clear the terminal
+                        term.output.clear();
+                        term.run_command("\n")?;
+                        term.output = term.output.trim_start_matches('\n').to_string();
+                    }
+                    _ => (),
+                }
             }
-        } else {
-            // Non file tree behaviour
-            // Check period of inactivity
-            let end = Instant::now();
-            let inactivity = end.duration_since(self.last_active).as_millis() as usize;
-            // Commit if over user-defined period of inactivity
-            if inactivity > config!(self.config, document).undo_period * 1000 {
-                self.try_doc_mut().unwrap().commit();
-            }
-            // Register this activity
-            self.last_active = Instant::now();
-            // Editing - these key bindings can't be modified (only added to)!
-            match (modifiers, code) {
-                // Core key bindings (non-configurable behaviour)
-                (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
-                (KMod::NONE, KCode::Tab) => self.handle_tab()?,
-                (KMod::NONE, KCode::Backspace) => self.backspace()?,
-                (KMod::NONE, KCode::Delete) => self.delete()?,
-                (KMod::NONE, KCode::Enter) => self.enter()?,
-                _ => (),
+            // File behaviour
+            _ => {
+                // Check period of inactivity
+                let end = Instant::now();
+                let inactivity = end.duration_since(self.last_active).as_millis() as usize;
+                // Commit if over user-defined period of inactivity
+                if inactivity > config!(self.config, document).undo_period * 1000 {
+                    self.try_doc_mut().unwrap().commit();
+                }
+                // Register this activity
+                self.last_active = Instant::now();
+                // Editing - these key bindings can't be modified (only added to)!
+                match (modifiers, code) {
+                    // Core key bindings (non-configurable behaviour)
+                    (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => self.character(ch)?,
+                    (KMod::NONE, KCode::Tab) => self.handle_tab()?,
+                    (KMod::NONE, KCode::Backspace) => self.backspace()?,
+                    (KMod::NONE, KCode::Delete) => self.delete()?,
+                    (KMod::NONE, KCode::Enter) => self.enter()?,
+                    _ => (),
+                }
             }
         }
         Ok(())

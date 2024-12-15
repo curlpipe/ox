@@ -84,4 +84,8 @@ impl Pty {
         }
         Ok(())
     }
+
+    pub fn char_pop(&mut self) {
+        self.input.pop();
+    }
 }
