@@ -496,10 +496,6 @@ impl Editor {
                         term.run_command("\n")?;
                         term.output = term.output.trim_start_matches('\n').to_string();
                     }
-                    (KMod::CONTROL, KCode::Char('q')) => {
-                        // Exit the terminal
-                        self.quit()?;
-                    }
                     _ => (),
                 }
             }

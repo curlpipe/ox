@@ -226,32 +226,23 @@ fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
         ged!(mut &editor).feedback = Feedback::None;
     }
 
-    // Only access plug-ins in certain layouts
-    let ptr = ged!(&editor).ptr.clone();
-    let feed_in_plugins = matches!(
-        ged!(&editor).files.get_raw(ptr),
-        Some(FileLayout::FileTree | FileLayout::Atom(_, _))
-    );
+    // Handle plug-in before key press mappings
+    if let CEvent::Key(key) = event {
+        let key_str = key_to_string(key.modifiers, key.code);
+        let code = run_key_before(&key_str);
+        let result = lua.load(&code).exec();
+        handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
+    }
 
-    if feed_in_plugins {
-        // Handle plug-in before key press mappings
-        if let CEvent::Key(key) = event {
-            let key_str = key_to_string(key.modifiers, key.code);
-            let code = run_key_before(&key_str);
-            let result = lua.load(&code).exec();
-            handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
-        }
-
-        // Handle paste event (before event)
-        if let CEvent::Paste(ref paste_text) = event {
-            let listeners = get_listeners("before:paste", lua)?;
-            for listener in listeners {
-                handle_lua_error(
-                    "paste",
-                    listener.call(paste_text.clone()),
-                    &mut ged!(mut &editor).feedback,
-                );
-            }
+    // Handle paste event (before event)
+    if let CEvent::Paste(ref paste_text) = event {
+        let listeners = get_listeners("before:paste", lua)?;
+        for listener in listeners {
+            handle_lua_error(
+                "paste",
+                listener.call(paste_text.clone()),
+                &mut ged!(mut &editor).feedback,
+            );
         }
     }
 
@@ -271,26 +262,24 @@ fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
         }
     }
 
-    if feed_in_plugins {
-        // Handle paste event (after event)
-        if let CEvent::Paste(ref paste_text) = event {
-            let listeners = get_listeners("paste", lua)?;
-            for listener in listeners {
-                handle_lua_error(
-                    "paste",
-                    listener.call(paste_text.clone()),
-                    &mut ged!(mut &editor).feedback,
-                );
-            }
+    // Handle paste event (after event)
+    if let CEvent::Paste(ref paste_text) = event {
+        let listeners = get_listeners("paste", lua)?;
+        for listener in listeners {
+            handle_lua_error(
+                "paste",
+                listener.call(paste_text.clone()),
+                &mut ged!(mut &editor).feedback,
+            );
         }
+    }
 
-        // Handle plug-in after key press mappings (if no errors occured)
-        if let CEvent::Key(key) = event {
-            let key_str = key_to_string(key.modifiers, key.code);
-            let code = run_key(&key_str);
-            let result = lua.load(&code).exec();
-            handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
-        }
+    // Handle plug-in after key press mappings (if no errors occured)
+    if let CEvent::Key(key) = event {
+        let key_str = key_to_string(key.modifiers, key.code);
+        let code = run_key(&key_str);
+        let result = lua.load(&code).exec();
+        handle_lua_error(&key_str, result, &mut ged!(mut &editor).feedback);
     }
 
     Ok(())
