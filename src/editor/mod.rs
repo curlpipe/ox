@@ -488,7 +488,7 @@ impl Editor {
             Some(FileLayout::Terminal(term)) => match (modifiers, code) {
                 (KMod::NONE, KCode::Enter) => term.lock().unwrap().char_input('\n')?,
                 (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => {
-                    term.lock().unwrap().char_input(ch)?
+                    term.lock().unwrap().char_input(ch)?;
                 }
                 (KMod::NONE, KCode::Backspace) => term.lock().unwrap().char_pop(),
                 (KMod::CONTROL, KCode::Char('l')) => term.lock().unwrap().clear()?,

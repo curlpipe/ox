@@ -649,7 +649,7 @@ impl Editor {
             let n_lines = term.output.matches('\n').count();
             let shift_down = n_lines.saturating_sub(h.saturating_sub(1));
             // Calculate the contents and amount of padding for this line of the terminal
-            let (line, pad) = if let Some(line) = term.output.split('\n').skip(shift_down).nth(y) {
+            let (line, pad) = if let Some(line) = term.output.split('\n').nth(shift_down + y) {
                 // Calculate line and padding
                 let line = line.replace(['\n', '\r'], "");
                 let mut visible_line = strip_escape_codes(&line);

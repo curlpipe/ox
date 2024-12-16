@@ -183,10 +183,7 @@ impl Pty {
                 self.output += &output;
                 Ok(!output.is_empty())
             }
-            Err(e) => {
-                // Handle polling errors
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 }
