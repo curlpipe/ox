@@ -1,3 +1,4 @@
+use crate::editor::FileLayout;
 /// For handling mouse events
 use crate::{config, Result};
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
@@ -15,6 +16,8 @@ enum MouseLocation {
     Tabs(Vec<usize>, usize),
     /// Where the mouse has clicked in the file tree
     FileTree(usize),
+    /// Where the mouse has clicked in the terminal
+    Terminal(Vec<usize>),
     /// Mouse has clicked nothing of importance
     Out,
 }
@@ -36,53 +39,55 @@ impl Editor {
         if let Some((idx, rows, cols)) = at_idx {
             let idx = idx.clone();
             // Calculate the current dent in this split
-            if let Some((_, doc_idx)) = self.files.get_atom(idx.clone()) {
-                let dent = self.dent_for(&idx, doc_idx);
-                // Split that user clicked in located - adjust event location
-                let clicked = Loc {
-                    x: col.saturating_sub(cols.start),
-                    y: row.saturating_sub(rows.start),
-                };
-                // Work out where the user clicked
-                if clicked.y == 0 && tab_enabled {
-                    // Clicked on tab line
-                    let (tabs, _, offset) =
-                        self.get_tab_parts(&idx, lua, cols.end.saturating_sub(cols.start));
-                    // Try to work out which tab we clicked on
-                    let mut c = u16::try_from(clicked.x).unwrap_or(u16::MAX) + 2;
-                    for (i, header) in tabs.iter().enumerate() {
-                        let header_len = width(header, 4) + 1;
-                        c = c.saturating_sub(u16::try_from(header_len).unwrap_or(u16::MAX));
-                        if c == 0 {
-                            // This tab was clicked on
-                            return MouseLocation::Tabs(idx.clone(), i + offset);
+            match self.files.get_raw(idx.clone()) {
+                Some(FileLayout::Atom(_, doc_idx)) => {
+                    let dent = self.dent_for(&idx, *doc_idx);
+                    // Split that user clicked in located - adjust event location
+                    let clicked = Loc {
+                        x: col.saturating_sub(cols.start),
+                        y: row.saturating_sub(rows.start),
+                    };
+                    // Work out where the user clicked
+                    if clicked.y == 0 && tab_enabled {
+                        // Clicked on tab line
+                        let (tabs, _, offset) =
+                            self.get_tab_parts(&idx, lua, cols.end.saturating_sub(cols.start));
+                        // Try to work out which tab we clicked on
+                        let mut c = u16::try_from(clicked.x).unwrap_or(u16::MAX) + 2;
+                        for (i, header) in tabs.iter().enumerate() {
+                            let header_len = width(header, 4) + 1;
+                            c = c.saturating_sub(u16::try_from(header_len).unwrap_or(u16::MAX));
+                            if c == 0 {
+                                // This tab was clicked on
+                                return MouseLocation::Tabs(idx.clone(), i + offset);
+                            }
                         }
+                        // Did not click on a tab
+                        MouseLocation::Out
+                    } else if clicked.y == rows.end.saturating_sub(1) {
+                        // Clicked on status line
+                        MouseLocation::Out
+                    } else if clicked.x < dent {
+                        // Clicked on line numbers
+                        MouseLocation::Out
+                    } else if let Some((fcs, ptr)) = self.files.get_atom(idx.clone()) {
+                        // Clicked on document
+                        let offset = fcs[ptr].doc.offset;
+                        MouseLocation::File(
+                            idx.clone(),
+                            Loc {
+                                x: clicked.x.saturating_sub(dent) + offset.x,
+                                y: clicked.y.saturating_sub(tab) + offset.y,
+                            },
+                        )
+                    } else {
+                        // We can't seem to get the atom for some reason, just default to Out
+                        MouseLocation::Out
                     }
-                    // Did not click on a tab
-                    MouseLocation::Out
-                } else if clicked.y == rows.end.saturating_sub(1) {
-                    // Clicked on status line
-                    MouseLocation::Out
-                } else if clicked.x < dent {
-                    // Clicked on line numbers
-                    MouseLocation::Out
-                } else if let Some((fcs, ptr)) = self.files.get_atom(idx.clone()) {
-                    // Clicked on document
-                    let offset = fcs[ptr].doc.offset;
-                    MouseLocation::File(
-                        idx.clone(),
-                        Loc {
-                            x: clicked.x.saturating_sub(dent) + offset.x,
-                            y: clicked.y.saturating_sub(tab) + offset.y,
-                        },
-                    )
-                } else {
-                    // We can't seem to get the atom for some reason, just default to Out
-                    MouseLocation::Out
                 }
-            } else {
-                // Pretty sure we just clicked on the file tree (split with no atom!)
-                MouseLocation::FileTree(row)
+                Some(FileLayout::FileTree) => MouseLocation::FileTree(row),
+                Some(FileLayout::Terminal(_)) => MouseLocation::Terminal(idx),
+                _ => MouseLocation::Out,
             }
         } else {
             MouseLocation::Out
@@ -138,6 +143,11 @@ impl Editor {
                                     self.file_tree_open_node()?;
                                 }
                             }
+                        }
+                        MouseLocation::Terminal(idx) => {
+                            // Move focus to the index
+                            self.cache_old_ptr(&idx);
+                            self.ptr.clone_from(&idx);
                         }
                         MouseLocation::Out => (),
                     }
@@ -207,7 +217,8 @@ impl Editor {
                         }
                         MouseLocation::Tabs(_, _)
                         | MouseLocation::Out
-                        | MouseLocation::FileTree(_) => (),
+                        | MouseLocation::FileTree(_)
+                        | MouseLocation::Terminal(_) => (),
                     }
                 }
                 MouseEventKind::Drag(MouseButton::Right) => {
@@ -241,7 +252,8 @@ impl Editor {
                         }
                         MouseLocation::Tabs(_, _)
                         | MouseLocation::Out
-                        | MouseLocation::FileTree(_) => (),
+                        | MouseLocation::FileTree(_)
+                        | MouseLocation::Terminal(_) => (),
                     }
                 }
                 // Mouse scroll behaviour
@@ -312,7 +324,7 @@ impl Editor {
     }
 
     /// Cache the old ptr
-    fn cache_old_ptr(&mut self, idx: &Vec<usize>) {
+    pub fn cache_old_ptr(&mut self, idx: &Vec<usize>) {
         self.old_ptr.clone_from(idx);
         if self.file_tree_is_open() && !self.old_ptr.is_empty() {
             self.old_ptr.remove(0);

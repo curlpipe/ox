@@ -390,10 +390,9 @@ impl Editor {
                 }
             }
             // Wrap existing file layout in new file layout
-            self.files = FileLayout::SideBySide(vec![
-                (FileLayout::FileTree, width),
-                (self.files.clone(), other),
-            ]);
+            let files = std::mem::take(&mut self.files);
+            self.files =
+                FileLayout::SideBySide(vec![(FileLayout::FileTree, width), (files, other)]);
             self.ptr = vec![0];
         }
     }
@@ -413,10 +412,11 @@ impl Editor {
                 // Delete the file tree
                 self.files.remove(vec![at]);
                 // Clear up any leftovers sidebyside
-                if let FileLayout::SideBySide(layouts) = &self.files {
+                if let FileLayout::SideBySide(layouts) = &mut self.files {
                     if layouts.len() == 1 {
                         // Remove leftover
-                        self.files = layouts[0].0.clone();
+                        let layout = std::mem::take(&mut layouts[0].0);
+                        self.files = layout;
                     }
                 }
                 // Reset pointer back to what it used to be IF we're in the file tree
@@ -628,8 +628,9 @@ impl Editor {
         if let Some(old_file) = &self.file_tree_selection.clone() {
             let path = self.path_prompt()?;
             if file_or_dir(old_file) == "file" {
-                std::fs::copy(old_file, path)?;
+                std::fs::copy(old_file, path.clone())?;
                 self.file_tree_refresh();
+                self.file_tree_selection = Some(path.clone());
                 self.feedback = Feedback::Info("File copied".to_string());
             } else {
                 self.feedback = Feedback::Error("Not a file".to_string());
@@ -644,6 +645,7 @@ impl Editor {
             let path = self.path_prompt()?;
             std::fs::rename(old_file, path.clone())?;
             self.file_tree_refresh();
+            self.file_tree_selection = Some(path.clone());
             if file_or_dir(&path) == "file" {
                 self.feedback = Feedback::Info("File moved".to_string());
             } else if file_or_dir(&path) == "directory" {

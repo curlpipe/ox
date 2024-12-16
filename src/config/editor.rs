@@ -1,6 +1,7 @@
 /// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
 use crate::editor::{Editor, FileContainer, FileLayout};
+use crate::pty::Pty;
 use crate::ui::Feedback;
 use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
@@ -594,6 +595,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_up(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.cache_old_ptr(&editor.ptr.clone());
                 editor.update_cwd();
                 Ok(true)
             } else {
@@ -605,6 +607,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_down(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.cache_old_ptr(&editor.ptr.clone());
                 editor.update_cwd();
                 Ok(true)
             } else {
@@ -616,6 +619,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_left(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.cache_old_ptr(&editor.ptr.clone());
                 editor.update_cwd();
                 Ok(true)
             } else {
@@ -627,6 +631,7 @@ impl LuaUserData for Editor {
                 editor.ptr = editor
                     .files
                     .open_right(editor.ptr.clone(), FileLayout::Atom(vec![fc], 0));
+                editor.cache_old_ptr(&editor.ptr.clone());
                 editor.update_cwd();
                 Ok(true)
             } else {
@@ -657,11 +662,13 @@ impl LuaUserData for Editor {
         );
         methods.add_method_mut("focus_split_up", |_, editor, ()| {
             editor.ptr = FileLayout::move_up(editor.ptr.clone(), &editor.render_cache.span);
+            editor.cache_old_ptr(&editor.ptr.clone());
             editor.update_cwd();
             Ok(())
         });
         methods.add_method_mut("focus_split_down", |_, editor, ()| {
             editor.ptr = FileLayout::move_down(editor.ptr.clone(), &editor.render_cache.span);
+            editor.cache_old_ptr(&editor.ptr.clone());
             editor.update_cwd();
             Ok(())
         });
@@ -672,9 +679,13 @@ impl LuaUserData for Editor {
                 Some(FileLayout::FileTree)
             );
             if in_file_tree {
-                // We just entered into a file tree, cache where we were (minus the file tree itself)
+                // We are about to enter a file tree, cache where we were (minus the file tree itself)
                 editor.old_ptr = editor.ptr.clone();
-                editor.old_ptr.pop();
+            } else {
+                editor.old_ptr = new_ptr.clone();
+            }
+            if editor.file_tree_is_open() && !editor.old_ptr.is_empty() {
+                editor.old_ptr.remove(0);
             }
             editor.ptr = new_ptr;
             editor.update_cwd();
@@ -682,6 +693,7 @@ impl LuaUserData for Editor {
         });
         methods.add_method_mut("focus_split_right", |_, editor, ()| {
             editor.ptr = FileLayout::move_right(editor.ptr.clone(), &editor.render_cache.span);
+            editor.cache_old_ptr(&editor.ptr.clone());
             editor.update_cwd();
             Ok(())
         });
@@ -769,6 +781,71 @@ impl LuaUserData for Editor {
         methods.add_method_mut("toggle_file_tree", |_, editor, ()| {
             editor.toggle_file_tree();
             Ok(())
+        });
+        // Terminal
+        methods.add_method_mut("open_terminal_up", |_, editor, cmd: Option<String>| {
+            if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
+                if let Some(cmd) = cmd {
+                    term.lock()
+                        .unwrap()
+                        .silent_run_command(&format!("{cmd}\n"))?;
+                }
+                editor.ptr = editor
+                    .files
+                    .open_up(editor.ptr.clone(), FileLayout::Terminal(term));
+                editor.cache_old_ptr(&editor.ptr.clone());
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("open_terminal_down", |_, editor, cmd: Option<String>| {
+            if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
+                if let Some(cmd) = cmd {
+                    term.lock()
+                        .unwrap()
+                        .silent_run_command(&format!("{cmd}\n"))?;
+                }
+                editor.ptr = editor
+                    .files
+                    .open_down(editor.ptr.clone(), FileLayout::Terminal(term));
+                editor.cache_old_ptr(&editor.ptr.clone());
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("open_terminal_left", |_, editor, cmd: Option<String>| {
+            if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
+                if let Some(cmd) = cmd {
+                    term.lock()
+                        .unwrap()
+                        .silent_run_command(&format!("{cmd}\n"))?;
+                }
+                editor.ptr = editor
+                    .files
+                    .open_left(editor.ptr.clone(), FileLayout::Terminal(term));
+                editor.cache_old_ptr(&editor.ptr.clone());
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        });
+        methods.add_method_mut("open_terminal_right", |_, editor, cmd: Option<String>| {
+            if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
+                if let Some(cmd) = cmd {
+                    term.lock()
+                        .unwrap()
+                        .silent_run_command(&format!("{cmd}\n"))?;
+                }
+                editor.ptr = editor
+                    .files
+                    .open_right(editor.ptr.clone(), FileLayout::Terminal(term));
+                editor.cache_old_ptr(&editor.ptr.clone());
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         });
         // Miscellaneous
         methods.add_method_mut("open_command_line", |_, editor, ()| {

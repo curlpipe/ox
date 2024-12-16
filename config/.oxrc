@@ -329,13 +329,29 @@ commands = {
         local file = arguments[2]
         local result = false
         if arguments[1] == "left" then
-            result = editor:open_split_left(file)
+            if arguments[2] == "terminal" or arguments[2] == "term" then
+                result = editor:open_terminal_left(table.concat(arguments, " ", 3))
+            else
+                result = editor:open_split_left(file)
+            end
         elseif arguments[1] == "right" then
-            result = editor:open_split_right(file)
+            if arguments[2] == "terminal" or arguments[2] == "term" then
+                result = editor:open_terminal_right(table.concat(arguments, " ", 3))
+            else
+                result = editor:open_split_right(file)
+            end
         elseif arguments[1] == "up" then
-            result = editor:open_split_up(file)
+            if arguments[2] == "terminal" or arguments[2] == "term" then
+                result = editor:open_terminal_up(table.concat(arguments, " ", 3))
+            else
+                result = editor:open_split_up(file)
+            end
         elseif arguments[1] == "down" then
-            result = editor:open_split_down(file)
+            if arguments[2] == "terminal" or arguments[2] == "term" then
+                result = editor:open_terminal_down(table.concat(arguments, " ", 3))
+            else
+                result = editor:open_split_down(file)
+            end
         elseif arguments[1] == "grow" then
             result = true
             local amount = tonumber(arguments[3]) or 0.15
@@ -442,6 +458,9 @@ line_numbers.padding_right = 1
 -- Configure Mouse Behaviour --
 terminal.mouse_enabled = true
 terminal.scroll_amount = 4
+
+-- Configure Terminal Behaviour --
+terminal.shell = "bash"
 
 -- Configure File Tree --
 file_tree.width = 30

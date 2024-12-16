@@ -38,8 +38,8 @@ impl Editor {
         if self.try_doc().is_some() {
             let doc = self.try_doc().unwrap();
             if !doc.is_selection_empty() && !doc.info.read_only {
+                self.try_doc_mut().unwrap().commit();
                 self.try_doc_mut().unwrap().remove_selection();
-                self.reload_highlight();
             }
             self.new_row()?;
             // Handle the character insertion

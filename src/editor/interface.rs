@@ -3,7 +3,10 @@ use crate::config::SyntaxHighlighting as SH;
 use crate::editor::{FTParts, FileLayout};
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
-use crate::ui::{key_event, size, Feedback};
+use crate::ui::{
+    key_event, remove_ansi_codes, replace_reset_background, replace_reset_foreground, size,
+    strip_escape_codes, Feedback,
+};
 use crate::{config, display, handle_lua_error};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
@@ -26,6 +29,7 @@ pub struct RenderCache {
     pub help_message_span: Range<usize>,
     pub file_tree: FTParts,
     pub file_tree_selection: Option<usize>,
+    pub term_cursor: Option<Loc>,
 }
 
 impl Editor {
@@ -65,6 +69,8 @@ impl Editor {
             self.render_cache.file_tree = files;
             self.render_cache.file_tree_selection = sel;
         }
+        // Clear the terminal cursor position
+        self.render_cache.term_cursor = None;
     }
 
     /// Render a specific line
@@ -82,6 +88,10 @@ impl Editor {
             let in_file_tree = matches!(
                 self.files.get_raw(fc.to_owned()),
                 Some(FileLayout::FileTree)
+            );
+            let in_terminal = matches!(
+                self.files.get_raw(fc.to_owned()),
+                Some(FileLayout::Terminal(_))
             );
             // Check if we have encountered an area of discontinuity in the line
             if range.start != accounted_for {
@@ -114,6 +124,9 @@ impl Editor {
             if in_file_tree {
                 // Part of file tree!
                 result += &self.render_file_tree(y, length)?;
+            } else if in_terminal {
+                // Part of terminal!
+                result += &self.render_terminal(fc, rel_y, length, height)?;
             } else if y == rows.start && tab_line_enabled {
                 // Tab line
                 result += &self.render_tab_line(fc, lua, length)?;
@@ -226,16 +239,37 @@ impl Editor {
             self.files.get_raw(self.ptr.clone()),
             Some(FileLayout::FileTree)
         );
-        if !in_file_tree {
-            let Loc { x, y } = self.try_doc().unwrap().cursor_loc_in_screen()?;
-            for (ptr, rows, cols) in &self.render_cache.span {
-                if ptr == &self.ptr {
-                    return Some(Loc {
-                        x: cols.start + x + self.dent(),
-                        y: rows.start + y + self.push_down,
-                    });
+        let in_terminal = matches!(
+            self.files.get_raw(self.ptr.clone()),
+            Some(FileLayout::Terminal(_))
+        );
+        match (in_file_tree, in_terminal) {
+            // Move cursor to location within file
+            (false, false) => {
+                let Loc { x, y } = self.try_doc().unwrap().cursor_loc_in_screen()?;
+                for (ptr, rows, cols) in &self.render_cache.span {
+                    if ptr == &self.ptr {
+                        return Some(Loc {
+                            x: cols.start + x + self.dent(),
+                            y: rows.start + y + self.push_down,
+                        });
+                    }
                 }
             }
+            // Move cursor to location within a terminal
+            (false, true) => {
+                if let Some(loc) = self.render_cache.term_cursor {
+                    for (ptr, rows, cols) in &self.render_cache.span {
+                        if ptr == &self.ptr {
+                            return Some(Loc {
+                                x: cols.start + loc.x,
+                                y: rows.start + loc.y,
+                            });
+                        }
+                    }
+                }
+            }
+            _ => (),
         }
         None
     }
@@ -601,6 +635,47 @@ impl Editor {
             Ok(format!("{ft_selection_bg}{ft_selection_fg}{line}"))
         } else {
             Ok(format!("{ft_bg}{ft_fg}{line}"))
+        }
+    }
+
+    /// Render the line of a terminal
+    #[allow(clippy::similar_names)]
+    fn render_terminal(&mut self, fc: &Vec<usize>, y: usize, l: usize, h: usize) -> Result<String> {
+        if let Some(FileLayout::Terminal(term)) = self.files.get_raw(fc.to_owned()) {
+            let term = term.lock().unwrap();
+            let editor_fg = Fg(config!(self.config, colors).editor_fg.to_color()?).to_string();
+            let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?).to_string();
+            let reset = SetAttribute(Attribute::NoBold);
+            let n_lines = term.output.matches('\n').count();
+            let shift_down = n_lines.saturating_sub(h.saturating_sub(1));
+            // Calculate the contents and amount of padding for this line of the terminal
+            let (line, pad) = if let Some(line) = term.output.split('\n').nth(shift_down + y) {
+                // Calculate line and padding
+                let line = line.replace(['\n', '\r'], "");
+                let mut visible_line = strip_escape_codes(&line);
+                // Replace resets with editor style
+                visible_line = replace_reset_background(&visible_line, &editor_bg);
+                visible_line = replace_reset_foreground(&visible_line, &editor_fg);
+                let mut w = width(&remove_ansi_codes(&line), 4);
+                // Work out if this is where the cursor should be
+                if n_lines.saturating_sub(shift_down) == y && self.ptr == *fc {
+                    visible_line += &format!("{editor_fg}{reset}{}", term.input);
+                    w += width(&term.input, 4);
+                    self.render_cache.term_cursor = Some(Loc { x: w, y });
+                }
+                // Return the result
+                (visible_line, l.saturating_sub(w))
+            } else {
+                (" ".repeat(l), 0)
+            };
+            std::mem::drop(term);
+            // Calculate the final result
+            Ok(format!(
+                "{reset}{editor_fg}{editor_bg}{line}{}",
+                " ".repeat(pad)
+            ))
+        } else {
+            unreachable!()
         }
     }
 

@@ -5,6 +5,7 @@ mod config;
 mod editor;
 mod error;
 mod events;
+mod pty;
 mod ui;
 
 use cli::CommandLineInterface;
@@ -96,6 +97,12 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         lua.load(PLUGIN_RUN).exec(),
         &mut ged!(mut &editor).feedback,
     );
+
+    // Ensure focus is on the initial atom
+    let init_atom = ged!(&editor).files.empty_atoms(vec![]);
+    if let Some(init_atom) = init_atom {
+        ged!(mut &editor).ptr = init_atom;
+    }
 
     // Load in the file types
     let file_types = lua
@@ -355,7 +362,7 @@ fn handle_lua_error(key_str: &str, error: RResult<(), mlua::Error>, feedback: &m
 fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
     // Block any directories from being opened (we'll wait until file tree is implemented)
     if file_or_dir(name) == "directory" {
-        fatal_error(&format!("'{name}' is a directory, not a file"));
+        fatal_error(&format!("'{name}' is not a file"));
     }
     match result {
         Ok(()) => (),
