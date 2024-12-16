@@ -98,6 +98,12 @@ fn run(cli: &CommandLineInterface) -> Result<()> {
         &mut ged!(mut &editor).feedback,
     );
 
+    // Ensure focus is on the initial atom
+    let init_atom = ged!(&editor).files.empty_atoms(vec![]);
+    if let Some(init_atom) = init_atom {
+        ged!(mut &editor).ptr = init_atom;
+    }
+
     // Load in the file types
     let file_types = lua
         .globals()
