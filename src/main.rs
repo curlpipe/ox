@@ -5,6 +5,7 @@ mod config;
 mod editor;
 mod error;
 mod events;
+#[cfg(not(target_os = "windows"))]
 mod pty;
 mod ui;
 
