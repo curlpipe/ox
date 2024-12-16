@@ -628,8 +628,9 @@ impl Editor {
         if let Some(old_file) = &self.file_tree_selection.clone() {
             let path = self.path_prompt()?;
             if file_or_dir(old_file) == "file" {
-                std::fs::copy(old_file, path)?;
+                std::fs::copy(old_file, path.clone())?;
                 self.file_tree_refresh();
+                self.file_tree_selection = Some(path.clone());
                 self.feedback = Feedback::Info("File copied".to_string());
             } else {
                 self.feedback = Feedback::Error("Not a file".to_string());
@@ -644,6 +645,7 @@ impl Editor {
             let path = self.path_prompt()?;
             std::fs::rename(old_file, path.clone())?;
             self.file_tree_refresh();
+            self.file_tree_selection = Some(path.clone());
             if file_or_dir(&path) == "file" {
                 self.feedback = Feedback::Info("File moved".to_string());
             } else if file_or_dir(&path) == "directory" {
