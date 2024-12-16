@@ -647,6 +647,13 @@ file_types = {
         modelines = {},
         color = "orange",
     },
+    ["Nushell"] = {
+        icon = " ",
+        files = {},
+        extensions = {"nu"},
+        modelines = {},
+        color = "green",
+    },
     ["Objective-C"] = {
         icon = " ",
         files = {},
