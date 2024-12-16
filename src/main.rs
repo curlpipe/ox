@@ -356,7 +356,7 @@ fn handle_lua_error(key_str: &str, error: RResult<(), mlua::Error>, feedback: &m
 fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
     // Block any directories from being opened (we'll wait until file tree is implemented)
     if file_or_dir(name) == "directory" {
-        fatal_error(&format!("'{name}' is a directory, not a file"));
+        fatal_error(&format!("'{name}' is not a file"));
     }
     match result {
         Ok(()) => (),

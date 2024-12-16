@@ -233,7 +233,7 @@ impl Editor {
     pub fn open_or_new(&mut self, file_name: String) -> Result<()> {
         let file = self.open(&file_name);
         if let Err(OxError::Kaolinite(KError::Io(ref os))) = file {
-            if os.kind() == ErrorKind::NotFound {
+            if os.kind() == ErrorKind::NotFound || os.kind() == ErrorKind::IsADirectory {
                 // Create a new document if not found
                 self.blank()?;
                 if let Some((files, _)) = self.files.get_atom_mut(self.ptr.clone()) {
