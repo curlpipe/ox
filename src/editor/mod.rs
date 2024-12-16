@@ -152,11 +152,16 @@ impl Editor {
 
     /// Create a blank document if none are already opened
     pub fn new_if_empty(&mut self) -> Result<()> {
-        // If no documents were provided, create a new empty document
-        if self.files.len() == 0 {
+        let cache = self.ptr.clone();
+        // For each atom, ensure they have files in them
+        while let Some(empty_idx) = self.files.empty_atoms(vec![]) {
+            // This atom doesn't have a file in it, add a blank one and enable greeting message
+            self.ptr = empty_idx;
             self.blank()?;
             self.greet = config!(self.config, greeting_message).enabled;
         }
+        // Restore original pointer position
+        self.ptr = cache;
         Ok(())
     }
 
