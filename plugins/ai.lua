@@ -10,7 +10,6 @@ It has two different options:
 
 You can select between different models, including
 - gemini - Google's Gemini
-- chatgpt - OpenAI's ChatGPT
 ]]--
 
 ai = {
@@ -98,7 +97,7 @@ function ai:code_prompt(file, language, instruction)
         "Take the following code as context (language is %s):\n```\n%s\n```\n\n\
 Can you complete the code as the comment suggests, taking into account the above code if required?\n\
 ```\n%s\n```\nYour response should ONLY include the section of code you've written excluding the above comment\
-Start the code with the marker `(OX START)` and end the code with the marker `(OX END)`",
+Start the code with the marker `(OX START)` and end the code with the marker `(OX END)`, both inside the code",
         language,
         file,
         instruction
@@ -153,9 +152,14 @@ function ai:send_to_gemini(prompt)
     
     text = text:match("%(OX START%)(.-)%(OX END%)")
     text = text:gsub("\n+$", "\n")
-    text = text:gsub("^\n+", "")
-    
-    
+    text = text:gsub("^\n+", "\n")
+
+    -- Convert any weird unicode stuff into their actual characters
+    text = text:gsub("\\u(%x%x%x%x)", function(hex)
+        local codepoint = tonumber(hex, 16)  -- Convert hex to a number
+        return utf8.char(codepoint)         -- Convert number to a UTF-8 character
+    end)
+
     editor:display_info("Request processed!")
     return text
 end
