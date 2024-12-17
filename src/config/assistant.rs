@@ -62,6 +62,7 @@ Ox has an ecosystem of plug-ins that you can make use of, they are as follows:
 AutoIndent - A plug-in that will insert and remove code indentation automatically
 Pairs - A plug-in that will insert end brackets and end quotes automatically
 QuickComment - A plug-in that will help you quickly comment and uncomment lines of code
+AI - A plug-in that will provide advice and code within your code files
 
 ─────────────────── Web Development ──────────────────
 Emmet - A neat language to help you write HTML quickly - requires python and the py-emmet module
@@ -100,6 +101,28 @@ if not plugin_manager:plugin_downloaded('{name}') then
 end
 "#;
 
+const AI_INTRO: &str = r"
+Let's set up the AI plug-in.
+
+You'll need a Google Gemini API key.
+Don't worry, as of 2024, you can use this API free of charge (but it is rate limited).
+More information regarding pricing: https://ai.google.dev/pricing#1_5flash
+
+Follow the instructions below to obtain your own free API key:
+
+1. Navigate to the following link:
+https://aistudio.google.com/app/apikey
+
+2. Sign in with a google account if asked
+
+3. Click 'Create API key'
+
+4. Check that your API key is free of charge under the `Plan` field in the table (to avoid any surprise bills)
+
+5. Copy the stream of letters and numbers underneath the `API Key` field in the table
+
+6. Paste it below (without spaces)";
+
 #[derive(PartialEq)]
 pub enum Theme {
     Tropical,
@@ -137,6 +160,7 @@ pub enum Plugin {
     Todo,
     TypingSpeed,
     UpdateNotification,
+    AI,
 }
 
 impl Plugin {
@@ -158,6 +182,7 @@ impl Plugin {
             Self::Todo => "todo",
             Self::TypingSpeed => "typing_speed",
             Self::UpdateNotification => "update_notification",
+            Self::AI => "ai",
         }
     }
 }
@@ -178,6 +203,7 @@ pub struct Assistant {
     pub greeting_message: bool,
     pub file_tree_icons: bool,
     pub file_tree_language_icons: bool,
+    pub ai_key: Option<String>,
     pub plugins: Vec<Plugin>,
 }
 
@@ -204,6 +230,8 @@ impl Default for Assistant {
             mouse: true,
             scroll_sensitivity: 4,
             cursor_wrap: true,
+            // AI
+            ai_key: None,
             // Plug-ins
             plugins: vec![Plugin::AutoIndent, Plugin::Pairs, Plugin::QuickComment],
             // Misc
@@ -551,6 +579,7 @@ impl Assistant {
                     "todo",
                     "typing_speed",
                     "update_notification",
+                    "ai",
                     "exit",
                 ],
                 "exit",
@@ -567,6 +596,7 @@ impl Assistant {
                 "todo" => Plugin::Todo,
                 "typing_speed" => Plugin::TypingSpeed,
                 "update_notification" => Plugin::UpdateNotification,
+                "ai" => Plugin::AI,
                 _ => continue,
             };
             if result.plugins.contains(&plugin) {
@@ -574,6 +604,18 @@ impl Assistant {
             } else {
                 result.plugins.push(plugin);
             }
+        }
+        // Plugin-specific configuration options
+        Self::plugin_specific_config(result)?;
+        Ok(())
+    }
+
+    pub fn plugin_specific_config(result: &mut Self) -> Result<()> {
+        if result.plugins.contains(&Plugin::AI) {
+            Self::reset()?;
+            // AI specific questions
+            println!("{AI_INTRO}");
+            result.ai_key = Some(gets!("\n> "));
         }
         Ok(())
     }
@@ -841,6 +883,10 @@ impl Assistant {
             result += &plugin.to_config();
             if plugin == &Plugin::Git && self.icons {
                 result += "git = { icons = true }\n";
+            } else if plugin == &Plugin::AI {
+                if let Some(api_key) = &self.ai_key {
+                    result += &format!("ai = {{ model = \"gemini\", key = \"{api_key}\" }}");
+                }
             }
         }
         // Ready to go
