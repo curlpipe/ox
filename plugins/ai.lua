@@ -15,7 +15,7 @@ You can select between different models, including
 
 ai = {
     model = "gemini", -- Gemini is free by default!
-    key = nil, -- API key
+    key = (ai or { key = nil }).key, -- API key
 }
 
 -- Entry point of the plug-in
@@ -107,8 +107,14 @@ end
 
 -- Send prompt to Google Gemini
 function ai:send_to_gemini(prompt)
-    editor:display_info("Please wait while your request is processed...")
-    editor:rerender()
+    if self.key ~= nil then
+        editor:display_info("Please wait while your request is processed...")
+        editor:rerender()
+    else
+        editor:display_error("Please specify an API key in your configuration file")
+        editor:rerender()
+        return
+    end
     prompt = prompt:gsub("\\", "\\\\")
                    :gsub('"', '\\"')
                    :gsub("'", "\\'")
