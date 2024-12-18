@@ -15,7 +15,7 @@ You can select between different models, including
 ]]--
 
 ai = {
-    model = "gemini", -- Gemini is free by default!
+    model = (ai or { model = "gemini" }).model, -- Gemini is free by default!
     key = (ai or { key = nil }).key, -- API key
 }
 

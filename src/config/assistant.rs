@@ -101,10 +101,7 @@ if not plugin_manager:plugin_downloaded('{name}') then
 end
 "#;
 
-const AI_INTRO: &str = r"
-Let's set up the AI plug-in.
-
-You'll need a Google Gemini API key.
+const AI_INTRO_GEMINI: &str = r"You'll need a Google Gemini API key.
 Don't worry, as of 2024, you can use this API free of charge (but it is rate limited).
 More information regarding pricing: https://ai.google.dev/pricing#1_5flash
 
@@ -204,6 +201,7 @@ pub struct Assistant {
     pub file_tree_icons: bool,
     pub file_tree_language_icons: bool,
     pub ai_key: Option<String>,
+    pub model: String,
     pub plugins: Vec<Plugin>,
 }
 
@@ -232,6 +230,7 @@ impl Default for Assistant {
             cursor_wrap: true,
             // AI
             ai_key: None,
+            model: "gemini".to_string(),
             // Plug-ins
             plugins: vec![Plugin::AutoIndent, Plugin::Pairs, Plugin::QuickComment],
             // Misc
@@ -614,8 +613,24 @@ impl Assistant {
         if result.plugins.contains(&Plugin::AI) {
             Self::reset()?;
             // AI specific questions
-            println!("{AI_INTRO}");
-            result.ai_key = Some(gets!("\n> "));
+            println!("Let's set up the AI plug-in.");
+            println!("NOTE: you will need an API key, `gemini` is free, the other options are not\n");
+            result.model = Self::options(
+                "Which AI model would you like to use?",
+                &[
+                    "gemini",
+                    "chatgpt",
+                    "claude",
+                ],
+                "gemini",
+            );
+            if result.model == "gemini" {
+                println!("{AI_INTRO_GEMINI}");
+                result.ai_key = Some(gets!("\n> "));
+            } else {
+                println!("Please paste your API key for {} below:", result.model);
+                result.ai_key = Some(gets!("\n> "));
+            }
         }
         Ok(())
     }
@@ -885,7 +900,7 @@ impl Assistant {
                 result += "git = { icons = true }\n";
             } else if plugin == &Plugin::AI {
                 if let Some(api_key) = &self.ai_key {
-                    result += &format!("ai = {{ model = \"gemini\", key = \"{api_key}\" }}");
+                    result += &format!("ai = {{ model = \"{}\", key = \"{api_key}\" }}", self.model);
                 }
             }
         }
