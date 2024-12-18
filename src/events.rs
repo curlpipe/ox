@@ -25,6 +25,7 @@ pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
                     }
                 }
                 // If a terminal dictates, force a rerender
+                #[cfg(not(target_os = "windows"))]
                 if ged!(mut &editor).files.terminal_rerender() {
                     ged!(mut &editor).needs_rerender = true;
                     ged!(mut &editor).render(lua)?;

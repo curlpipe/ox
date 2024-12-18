@@ -22,6 +22,7 @@ use mlua::AnyUserData;
 use std::collections::HashMap;
 use std::env;
 use std::io::{stdout, Stdout, Write};
+#[cfg(not(target_os = "windows"))]
 use synoptic::Regex;
 
 /// Printing macro
@@ -341,6 +342,7 @@ pub fn get_xterm_lookup() -> HashMap<u8, (u8, u8, u8)> {
     result
 }
 
+#[cfg(not(target_os = "windows"))]
 /// Remove ANSI codes from a string
 pub fn remove_ansi_codes(input: &str) -> String {
     // Define a regular expression to match ANSI escape codes and other control sequences
@@ -360,6 +362,7 @@ pub fn remove_ansi_codes(input: &str) -> String {
     result
 }
 
+#[cfg(not(target_os = "windows"))]
 /// Remove all ANSI codes outside of color and attribute codes
 pub fn strip_escape_codes(input: &str) -> String {
     // Define a regular expression to match all escape sequences
@@ -399,6 +402,7 @@ pub fn strip_escape_codes(input: &str) -> String {
     result
 }
 
+#[cfg(not(target_os = "windows"))]
 /// Replace reset background ANSI codes with a custom background color.
 pub fn replace_reset_background(input: &str, custom_bg: &str) -> String {
     // Define the regex to match reset background ANSI codes
@@ -407,6 +411,7 @@ pub fn replace_reset_background(input: &str, custom_bg: &str) -> String {
     reset_bg_regex.replace_all(input, custom_bg).to_string()
 }
 
+#[cfg(not(target_os = "windows"))]
 /// Replace reset foreground ANSI codes with a custom foreground color.
 pub fn replace_reset_foreground(input: &str, custom_fg: &str) -> String {
     // Define the regex to match reset foreground ANSI codes

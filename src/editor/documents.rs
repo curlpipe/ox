@@ -1,10 +1,12 @@
 /// Tools for placing all information about open files into one place
 use crate::editor::{get_absolute_path, Editor, FileType};
+#[cfg(not(target_os = "windows"))]
 use crate::pty::Pty;
 use crate::Loc;
 use kaolinite::Document;
 use kaolinite::Size;
 use std::ops::Range;
+#[cfg(not(target_os = "windows"))]
 use std::sync::{Arc, Mutex};
 use synoptic::Highlighter;
 
@@ -24,7 +26,11 @@ pub enum FileLayout {
     /// Representing a file tree
     FileTree,
     /// Representing a terminal
+    #[cfg(not(target_os = "windows"))]
     Terminal(Arc<Mutex<Pty>>),
+    #[allow(dead_code)]
+    #[cfg(target_os = "windows")]
+    Terminal(()),
 }
 
 impl Default for FileLayout {
@@ -439,6 +445,7 @@ impl FileLayout {
     }
 
     /// Traverse the tree and return a list of indices to empty atoms
+    #[cfg(not(target_os = "windows"))]
     pub fn terminal_rerender(&mut self) -> bool {
         match self {
             Self::None | Self::FileTree | Self::Atom(_, _) => false,

@@ -37,7 +37,8 @@ impl Editor {
     pub fn character(&mut self, ch: char) -> Result<()> {
         if self.try_doc().is_some() {
             let doc = self.try_doc().unwrap();
-            if !doc.is_selection_empty() && !doc.info.read_only {
+            let selection_overwrite = !doc.is_selection_empty() && !doc.info.read_only;
+            if selection_overwrite {
                 self.try_doc_mut().unwrap().commit();
                 self.try_doc_mut().unwrap().remove_selection();
             }
@@ -54,6 +55,9 @@ impl Editor {
                         file.highlighter.edit(loc.y, &file.doc.lines[loc.y]);
                     }
                 }
+            }
+            if selection_overwrite {
+                self.reload_highlight();
             }
         }
         Ok(())

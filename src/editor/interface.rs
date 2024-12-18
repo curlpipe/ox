@@ -3,9 +3,10 @@ use crate::config::SyntaxHighlighting as SH;
 use crate::editor::{FTParts, FileLayout};
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
+use crate::ui::{key_event, size, Feedback};
+#[cfg(not(target_os = "windows"))]
 use crate::ui::{
-    key_event, remove_ansi_codes, replace_reset_background, replace_reset_foreground, size,
-    strip_escape_codes, Feedback,
+    remove_ansi_codes, replace_reset_background, replace_reset_foreground, strip_escape_codes,
 };
 use crate::{config, display, handle_lua_error};
 use crossterm::{
@@ -640,6 +641,7 @@ impl Editor {
 
     /// Render the line of a terminal
     #[allow(clippy::similar_names)]
+    #[cfg(not(target_os = "windows"))]
     fn render_terminal(&mut self, fc: &Vec<usize>, y: usize, l: usize, h: usize) -> Result<String> {
         if let Some(FileLayout::Terminal(term)) = self.files.get_raw(fc.to_owned()) {
             let term = term.lock().unwrap();
@@ -677,6 +679,12 @@ impl Editor {
         } else {
             unreachable!()
         }
+    }
+
+    /// Just render a blank space in place of terminal if on windows
+    #[cfg(target_os = "windows")]
+    fn render_terminal(&mut self, _: &Vec<usize>, _: usize, l: usize, _: usize) -> Result<String> {
+        Ok(" ".repeat(l))
     }
 
     /// Display a prompt in the document

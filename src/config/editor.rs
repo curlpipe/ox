@@ -1,6 +1,7 @@
 /// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
 use crate::editor::{Editor, FileContainer, FileLayout};
+#[cfg(not(target_os = "windows"))]
 use crate::pty::Pty;
 use crate::ui::Feedback;
 use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
@@ -783,6 +784,7 @@ impl LuaUserData for Editor {
             Ok(())
         });
         // Terminal
+        #[cfg(not(target_os = "windows"))]
         methods.add_method_mut("open_terminal_up", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
@@ -799,6 +801,7 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
+        #[cfg(not(target_os = "windows"))]
         methods.add_method_mut("open_terminal_down", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
@@ -815,6 +818,7 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
+        #[cfg(not(target_os = "windows"))]
         methods.add_method_mut("open_terminal_left", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
@@ -831,6 +835,7 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
+        #[cfg(not(target_os = "windows"))]
         methods.add_method_mut("open_terminal_right", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {

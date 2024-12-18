@@ -490,6 +490,7 @@ impl Editor {
                 _ => (),
             },
             // Terminal behaviour
+            #[cfg(not(target_os = "windows"))]
             Some(FileLayout::Terminal(term)) => match (modifiers, code) {
                 (KMod::NONE, KCode::Enter) => term.lock().unwrap().char_input('\n')?,
                 (KMod::SHIFT | KMod::NONE, KCode::Char(ch)) => {
