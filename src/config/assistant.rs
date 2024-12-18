@@ -614,14 +614,12 @@ impl Assistant {
             Self::reset()?;
             // AI specific questions
             println!("Let's set up the AI plug-in.");
-            println!("NOTE: you will need an API key, `gemini` is free, the other options are not\n");
+            println!(
+                "NOTE: you will need an API key, `gemini` is free, the other options are not\n"
+            );
             result.model = Self::options(
                 "Which AI model would you like to use?",
-                &[
-                    "gemini",
-                    "chatgpt",
-                    "claude",
-                ],
+                &["gemini", "chatgpt", "claude"],
                 "gemini",
             );
             if result.model == "gemini" {
@@ -900,7 +898,8 @@ impl Assistant {
                 result += "git = { icons = true }\n";
             } else if plugin == &Plugin::AI {
                 if let Some(api_key) = &self.ai_key {
-                    result += &format!("ai = {{ model = \"{}\", key = \"{api_key}\" }}", self.model);
+                    result +=
+                        &format!("ai = {{ model = \"{}\", key = \"{api_key}\" }}", self.model);
                 }
             }
         }
