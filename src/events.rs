@@ -3,12 +3,33 @@ use crossterm::event::{poll, read};
 use mlua::{AnyUserData, Lua};
 use std::time::Duration;
 
+pub fn term_force(editor: &AnyUserData) -> bool {
+    #[cfg(not(target_os = "windows"))]
+    return ged!(mut &editor).files.terminal_rerender();
+    #[cfg(target_os = "windows")]
+    return false;
+}
+
+pub fn mm_active(editor: &AnyUserData) -> bool {
+    ged!(mut &editor).macro_man.playing
+}
+
+pub fn hold_event(editor: &AnyUserData) -> bool {
+    matches!(
+        (
+            mm_active(editor),
+            term_force(editor),
+            poll(Duration::from_millis(50))
+        ),
+        (false, false, Ok(false))
+    )
+}
+
 pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
     loop {
-        let mm_active = ged!(mut &editor).macro_man.playing;
         // While waiting for an event to come along, service the task manager
-        if !mm_active {
-            while let (false, Ok(false)) = (mm_active, poll(Duration::from_millis(50))) {
+        if !mm_active(editor) {
+            while hold_event(editor) {
                 let exec = ged!(mut &editor)
                     .config
                     .task_manager
@@ -26,7 +47,7 @@ pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
                 }
                 // If a terminal dictates, force a rerender
                 #[cfg(not(target_os = "windows"))]
-                if ged!(mut &editor).files.terminal_rerender() {
+                if term_force(editor) {
                     ged!(mut &editor).needs_rerender = true;
                     ged!(mut &editor).render(lua)?;
                 }

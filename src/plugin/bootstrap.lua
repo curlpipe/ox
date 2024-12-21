@@ -158,18 +158,20 @@ function shell:kill(pid)
     end
 end
 
+-- Behaviour for compiling / running projects
+runner = {
+    ["Rust"] = {
+        compile = "cargo build",
+        run = "cargo run",
+    },
+    ["Python"] = {
+        compile = nil,
+        run = "python -i {file_path}",
+    },
+}
+
 -- Add types for built-in file type detection
 -- Colours are in the format of a string of:
--- red
--- orange
--- yellow
--- green
--- dark blue
--- light blue
--- purple
--- pink
--- brown
--- gray
 file_types = {
     ["ABAP"] = {
         icon = "󰅩 ",

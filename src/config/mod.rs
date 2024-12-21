@@ -12,6 +12,7 @@ mod filetree;
 mod highlighting;
 mod interface;
 mod keys;
+mod runner;
 mod tasks;
 
 pub use assistant::Assistant;

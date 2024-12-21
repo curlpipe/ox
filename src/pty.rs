@@ -117,6 +117,7 @@ impl Pty {
         }
         // println!("Adding (aftercmd) \"{:?}\"", output);
         self.output += &output;
+        self.force_rerender = true;
         Ok(())
     }
 
@@ -126,6 +127,7 @@ impl Pty {
         if self.output.starts_with(cmd) {
             self.output = self.output.chars().skip(cmd.chars().count()).collect();
         }
+        self.force_rerender = true;
         Ok(())
     }
 

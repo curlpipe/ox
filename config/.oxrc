@@ -271,6 +271,9 @@ event_mapping = {
     ["ctrl_w"] = function()
         editor:remove_word()
     end,
+    ["ctrl_f5"] = function()
+        editor:run_file()
+    end,
     -- Macros
     ["ctrl_esc"] = function()
         editor:macro_record_stop()
