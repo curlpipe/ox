@@ -14,14 +14,15 @@ pub fn mm_active(editor: &AnyUserData) -> bool {
     ged!(mut &editor).macro_man.playing
 }
 
-pub fn hold_event(editor: &AnyUserData) -> bool {
-    matches!(
-        (
-            mm_active(editor),
-            term_force(editor),
-            poll(Duration::from_millis(50))
+/// (should hold event, triggered by term force?)
+pub fn hold_event(editor: &AnyUserData) -> (bool, bool) {
+    let tf = term_force(editor);
+    (
+        matches!(
+            (mm_active(editor), tf, poll(Duration::from_millis(50))),
+            (false, false, Ok(false))
         ),
-        (false, false, Ok(false))
+        !tf,
     )
 }
 
@@ -29,7 +30,7 @@ pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
     loop {
         // While waiting for an event to come along, service the task manager
         if !mm_active(editor) {
-            while hold_event(editor) {
+            while let (true, was_term) = hold_event(editor) {
                 let exec = ged!(mut &editor)
                     .config
                     .task_manager
@@ -47,7 +48,7 @@ pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
                 }
                 // If a terminal dictates, force a rerender
                 #[cfg(not(target_os = "windows"))]
-                if term_force(editor) {
+                if was_term {
                     ged!(mut &editor).needs_rerender = true;
                     ged!(mut &editor).render(lua)?;
                 }
@@ -100,9 +101,13 @@ pub fn get_event(editor: &mut Editor) -> Option<CEvent> {
     if let Some(ev) = editor.macro_man.next() {
         // Take from macro man
         Some(ev)
-    } else if let Ok(ev) = read() {
-        // Use standard crossterm event
-        Some(ev)
+    } else if let Ok(true) = poll(Duration::from_millis(50)) {
+        if let Ok(ev) = read() {
+            // Use standard crossterm event
+            Some(ev)
+        } else {
+            None
+        }
     } else {
         None
     }
