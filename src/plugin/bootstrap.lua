@@ -168,6 +168,10 @@ runner = {
         compile = nil,
         run = "python -i {file_path}",
     },
+    ["Ruby"] = {
+        compile = nil,
+        run = "irb -r {file_path}",
+    },
 }
 
 -- Add types for built-in file type detection
