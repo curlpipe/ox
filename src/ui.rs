@@ -342,18 +342,33 @@ pub fn get_xterm_lookup() -> HashMap<u8, (u8, u8, u8)> {
     result
 }
 
+/// Define various ANSI code regex patterns for matching
+#[cfg(not(target_os = "windows"))]
+pub const CURSORS: &str = r"\x1b(?:\[(?:\d+(?:;\d+)?(?:A|B|C|D|F|f|G|H)|(?:#[A-G]|6n|s|u|H)|[0-6] q|(?:[0-9]{1,3};)*[0-9]{1,3}t)|[7-8])";
+#[cfg(not(target_os = "windows"))]
+pub const ERASING: &str = r"\x1b\[[0-3]?(?:J|K)";
+#[cfg(not(target_os = "windows"))]
+pub const DISPLAY: &str =
+    r"\x1b\[(?:(?:[0-9]|22|23|24|25|27|28|29)(?:t|m)|(?:[0-9]{1,3};)*[0-9]{1,3}m)";
+#[cfg(not(target_os = "windows"))]
+pub const SC_MODE: &str = r"\x1b\[(?:=|\?)[0-9]{1,4}(?:h|l)";
+#[cfg(not(target_os = "windows"))]
+pub const AC_JUNK: &str = r"(\a|\b|\n|\v|\f|\r)";
+
+/// Global ANSI removal
+fn global() -> String {
+    format!("({CURSORS}|{ERASING}|{DISPLAY}|{SC_MODE}|{AC_JUNK})")
+}
+
 #[cfg(not(target_os = "windows"))]
 /// Remove ANSI codes from a string
 pub fn remove_ansi_codes(input: &str) -> String {
     // Define a regular expression to match ANSI escape codes and other control sequences
-    let invisible_regex =
-        // Regex::new(r"[\x00-\x1F\x7F-\x9F]|\x1b(?:[@-_]|\[[0-9;?]*[a-zA-Z])|\[[0-9;?]*[a-zA-Z]")
-        Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]|\x1b\([a-zA-Z]|\x1b\].*?(\x07|\x1b\\)|\x1b(:?>|=)")
-            .unwrap();
+    let re = Regex::new(&global()).unwrap();
     let weird_newline = Regex::new(r"⏎\s*⏎\s?").unwrap();
     let long_spaces = Regex::new(r"%(?:\x1b\[1m)?\s{5,}").unwrap();
     // Replace all matches with an empty string
-    let result = invisible_regex.replace_all(input, "").to_string();
+    let result = re.replace_all(input, "").to_string();
     // Replace weird new line stuff
     let result = weird_newline.replace_all(&result, "").to_string();
     // Replace long spaces
@@ -365,27 +380,15 @@ pub fn remove_ansi_codes(input: &str) -> String {
 #[cfg(not(target_os = "windows"))]
 /// Remove all ANSI codes outside of color and attribute codes
 pub fn strip_escape_codes(input: &str) -> String {
-    // Define a regular expression to match all escape sequences
-    // let re = Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]").unwrap();
-    let re =
-        Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]|\x1b\([a-zA-Z]|\x1b\].*?(\x07|\x1b\\)|\x1b(:?>|=)")
-            .unwrap();
+    let re = Regex::new(&global()).unwrap();
+    let display = Regex::new(DISPLAY).unwrap();
     let weird_newline = Regex::new(r"⏎\s*⏎\s?").unwrap();
     let long_spaces = Regex::new(r"%(?:\x1b\[1m)?\s{5,}").unwrap();
     // Replace escape sequences, keeping those for attributes and colors
     let result = re
         .replace_all(input, |caps: &regex::Captures| {
             let code = caps.get(0).unwrap().as_str();
-
-            // Check if the escape code is for an allowed attribute or color
-            if code.contains("1m")    // Bold
-            || code.contains("4m")  // Underline
-            || code.contains("38;5") // Foreground color (256-color mode)
-            || code.contains("48;5") // Background color (256-color mode)
-            || code.contains("38;2") // Foreground color (true color)
-            || code.contains("48;2")
-            // Background color (true color)
-            {
+            if display.is_match(code) {
                 // Return the escape code unchanged
                 code.to_string()
             } else {
@@ -403,19 +406,21 @@ pub fn strip_escape_codes(input: &str) -> String {
 }
 
 #[cfg(not(target_os = "windows"))]
-/// Replace reset background ANSI codes with a custom background color.
-pub fn replace_reset_background(input: &str, custom_bg: &str) -> String {
+#[allow(clippy::similar_names)]
+/// Replace reset colour ANSI codes with a custom background color.
+pub fn replace_reset(input: &str, custom_bg: &str, custom_fg: &str) -> String {
+    // Replace total reset with appropriate codes
+    let total_reset_regex = Regex::new(r"\x1b\[0m").unwrap();
     // Define the regex to match reset background ANSI codes
-    let reset_bg_regex = Regex::new(r"\x1b\[49m|\x1b\[0m").unwrap();
-    // Replace reset background with the custom background color
-    reset_bg_regex.replace_all(input, custom_bg).to_string()
-}
-
-#[cfg(not(target_os = "windows"))]
-/// Replace reset foreground ANSI codes with a custom foreground color.
-pub fn replace_reset_foreground(input: &str, custom_fg: &str) -> String {
+    let reset_bg_regex = Regex::new(r"\x1b\[49m").unwrap();
     // Define the regex to match reset foreground ANSI codes
-    let reset_fg_regex = Regex::new(r"\x1b\[39m|\x1b\[0m").unwrap();
-    // Replace reset foreground with the custom foreground color
-    reset_fg_regex.replace_all(input, custom_fg).to_string()
+    let reset_fg_regex = Regex::new(r"\x1b\[39m").unwrap();
+    // Replace reset background with the custom background color
+    let attr_full_reset =
+        "\u{1b}[22m\u{1b}[23m\u{1b}[24m\u{1b}[25m\u{1b}[27m\u{1b}[28m\u{1b}[29m".to_string();
+    let full_reset = format!("{custom_bg}{custom_fg}{attr_full_reset}");
+    let input = total_reset_regex.replace_all(input, full_reset).to_string();
+    let input = reset_bg_regex.replace_all(&input, custom_bg).to_string();
+    let input = reset_fg_regex.replace_all(&input, custom_fg).to_string();
+    input
 }

@@ -5,9 +5,7 @@ use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
 use crate::ui::{key_event, size, Feedback};
 #[cfg(not(target_os = "windows"))]
-use crate::ui::{
-    remove_ansi_codes, replace_reset_background, replace_reset_foreground, strip_escape_codes,
-};
+use crate::ui::{remove_ansi_codes, replace_reset, strip_escape_codes};
 use crate::{config, display, handle_lua_error};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
@@ -656,8 +654,7 @@ impl Editor {
                 let line = line.replace(['\n', '\r'], "");
                 let mut visible_line = strip_escape_codes(&line);
                 // Replace resets with editor style
-                visible_line = replace_reset_background(&visible_line, &editor_bg);
-                visible_line = replace_reset_foreground(&visible_line, &editor_fg);
+                visible_line = replace_reset(&visible_line, &editor_bg, &editor_fg);
                 let mut w = width(&remove_ansi_codes(&line), 4);
                 // Work out if this is where the cursor should be
                 if n_lines.saturating_sub(shift_down) == y && self.ptr == *fc {
