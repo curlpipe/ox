@@ -54,7 +54,7 @@ pub fn fatal_error(msg: &str) {
         LeaveAlternateScreen,
         Show,
         DisableMouseCapture,
-        EnableBracketedPaste,
+        DisableBracketedPaste,
     )
     .unwrap();
     // Display the error information
@@ -184,7 +184,7 @@ impl Terminal {
                 LeaveAlternateScreen,
                 Show,
                 DisableMouseCapture,
-                EnableBracketedPaste,
+                DisableBracketedPaste,
             )
             .unwrap();
             eprintln!("{e}");
@@ -194,7 +194,6 @@ impl Terminal {
             EnterAlternateScreen,
             Clear(ClType::All),
             DisableLineWrap,
-            EnableBracketedPaste,
         )?;
         let cfg = self.config.borrow::<TerminalConfig>().unwrap();
         if cfg.mouse_enabled {
@@ -204,7 +203,8 @@ impl Terminal {
         if cfg!(not(target_os = "windows")) {
             execute!(
                 self.stdout,
-                PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+                PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES),
+                EnableBracketedPaste,
             )?;
         }
         self.flush()?;
@@ -215,12 +215,10 @@ impl Terminal {
     pub fn end(&mut self) -> Result<()> {
         self.show_cursor();
         terminal::disable_raw_mode()?;
-        execute!(
-            self.stdout,
-            LeaveAlternateScreen,
-            EnableLineWrap,
-            DisableBracketedPaste
-        )?;
+        execute!(self.stdout, LeaveAlternateScreen, EnableLineWrap,)?;
+        if cfg!(not(target_os = "windows")) {
+            execute!(self.stdout, DisableBracketedPaste,)?;
+        }
         let cfg = self.config.borrow::<TerminalConfig>().unwrap();
         if cfg.mouse_enabled {
             execute!(self.stdout, DisableMouseCapture)?;

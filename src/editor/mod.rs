@@ -535,6 +535,8 @@ impl Editor {
 
     /// Handle paste
     pub fn handle_paste(&mut self, text: &str) -> Result<()> {
+        // Take the text and ensure there are no nasty surprises when it comes to newlines
+        let text = text.replace("\r\n", "\n").replace('\r', "\n");
         if self.try_doc().is_some() {
             // If we're playing back a macro, use the last text the user copied
             // (to prevent hard-coded pasting)
