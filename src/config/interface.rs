@@ -1,7 +1,6 @@
 /// Utilities for configuring and rendering parts of the interface
 use crate::cli::VERSION;
 use crate::editor::{Editor, FileContainer};
-#[cfg(not(target_os = "windows"))]
 use crate::pty::Shell;
 use crate::Feedback;
 use kaolinite::searching::Searcher;
@@ -18,7 +17,6 @@ type LuaRes<T> = RResult<T, LuaError>;
 pub struct Terminal {
     pub mouse_enabled: bool,
     pub scroll_amount: usize,
-    #[cfg(not(target_os = "windows"))]
     pub shell: Shell,
 }
 
@@ -27,7 +25,6 @@ impl Default for Terminal {
         Self {
             mouse_enabled: true,
             scroll_amount: 1,
-            #[cfg(not(target_os = "windows"))]
             shell: Shell::Bash,
         }
     }
@@ -45,9 +42,7 @@ impl LuaUserData for Terminal {
             this.scroll_amount = value;
             Ok(())
         });
-        #[cfg(not(target_os = "windows"))]
         fields.add_field_method_get("shell", |_, this| Ok(this.shell));
-        #[cfg(not(target_os = "windows"))]
         fields.add_field_method_set("shell", |_, this, value| {
             this.shell = value;
             Ok(())
