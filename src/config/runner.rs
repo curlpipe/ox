@@ -4,6 +4,7 @@ use mlua::prelude::*;
 
 /// Main struct to determine how a language should be compiled / run
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 pub struct RunCommand {
     pub compile: Option<String>,
     pub run: Option<String>,

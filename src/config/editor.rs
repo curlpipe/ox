@@ -1,5 +1,6 @@
 /// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
+#[cfg(not(target_os = "windows"))]
 use crate::config::runner::RunCommand;
 use crate::editor::{Editor, FileContainer, FileLayout};
 #[cfg(not(target_os = "windows"))]
@@ -9,6 +10,7 @@ use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWOR
 use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
 use kaolinite::Loc;
 use mlua::prelude::*;
+#[cfg(not(target_os = "windows"))]
 use std::collections::HashMap;
 
 impl LuaUserData for Editor {

@@ -3,6 +3,7 @@ use crossterm::event::{poll, read};
 use mlua::{AnyUserData, Lua};
 use std::time::Duration;
 
+#[allow(unused_variables)]
 pub fn term_force(editor: &AnyUserData) -> bool {
     #[cfg(not(target_os = "windows"))]
     return ged!(mut &editor).files.terminal_rerender();
@@ -26,6 +27,7 @@ pub fn hold_event(editor: &AnyUserData) -> (bool, bool) {
     )
 }
 
+#[allow(unused_variables)]
 pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
     loop {
         // While waiting for an event to come along, service the task manager

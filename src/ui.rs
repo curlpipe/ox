@@ -356,6 +356,7 @@ pub const SC_MODE: &str = r"\x1b\[(?:=|\?)[0-9]{1,4}(?:h|l)";
 pub const AC_JUNK: &str = r"(\a|\b|\n|\v|\f|\r)";
 
 /// Global ANSI removal
+#[cfg(not(target_os = "windows"))]
 fn global() -> String {
     format!("({CURSORS}|{ERASING}|{DISPLAY}|{SC_MODE}|{AC_JUNK})")
 }
