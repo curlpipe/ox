@@ -57,6 +57,12 @@ impl LuaUserData for Terminal {
             this.shell = value;
             Ok(())
         });
+        #[cfg(target_os = "windows")]
+        fields.add_field_method_get("shell", |_, this| Ok("windows not supported"));
+        #[cfg(target_os = "windows")]
+        fields.add_field_method_set("shell", |_, _, _: String| {
+            Ok(())
+        });
     }
 }
 
