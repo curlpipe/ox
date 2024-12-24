@@ -51,6 +51,7 @@ It works best on linux, but macOS and Windows are also supported.
     - 📗 Git integration with diffs, stats and more
     - 🕸️ Handy web development tools such as Emmet and live HTML viewer
     - ⏲️ Productivity tools such as a pomodoro timer and todo list tracker
+    - 🤖 AI features that will provide with advice and code
 - :wrench: A wide number of options for configuration including colours, key bindings and behaviours
 - :moon: Ox uses Lua as a configuration language for familiarity when scripting and configuring
 - :handshake: A configuration assistant to quickly get Ox set up for you from the get-go
@@ -67,6 +68,7 @@ It works best on linux, but macOS and Windows are also supported.
 - :crossed_swords: Multi-editing features such as multiple cursors and recordable macros
 - :window: Splits to view multiple documents on the same screen at the same time
 - :file_cabinet: File tree to view, open, create, delete, copy and move files
+- :keyboard: Access to terminals within the editor
 
 ### Robustness
 

@@ -6,7 +6,7 @@ members = [
 
 [package]
 name = "ox"
-version = "0.7.5"
+version = "0.7.6"
 edition = "2021"
 authors = ["Curlpipe <11898833+curlpipe@users.noreply.github.com>"]
 description = "A simple but flexible text editor."
@@ -41,7 +41,10 @@ mlua = { version = "0.10", features = ["lua54", "vendored"] }
 error_set = "0.7"
 shellexpand = "3.1.0"
 synoptic = "2.2.9"
-ptyprocess = "0.4.1"
 regex = "1.11.1"
+
+# Non-windows dependencies (for terminal)
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+ptyprocess = "0.4.1"
 mio = { version = "1.0.3", features = ["os-ext"] }
 nix = { version = "0.29.0", features = ["fs"] }

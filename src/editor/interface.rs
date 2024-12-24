@@ -3,10 +3,9 @@ use crate::config::SyntaxHighlighting as SH;
 use crate::editor::{FTParts, FileLayout};
 use crate::error::{OxError, Result};
 use crate::events::wait_for_event_hog;
-use crate::ui::{
-    key_event, remove_ansi_codes, replace_reset_background, replace_reset_foreground, size,
-    strip_escape_codes, Feedback,
-};
+use crate::ui::{key_event, size, Feedback};
+#[cfg(not(target_os = "windows"))]
+use crate::ui::{remove_ansi_codes, replace_reset, strip_escape_codes};
 use crate::{config, display, handle_lua_error};
 use crossterm::{
     event::{KeyCode as KCode, KeyModifiers as KMod},
@@ -640,6 +639,7 @@ impl Editor {
 
     /// Render the line of a terminal
     #[allow(clippy::similar_names)]
+    #[cfg(not(target_os = "windows"))]
     fn render_terminal(&mut self, fc: &Vec<usize>, y: usize, l: usize, h: usize) -> Result<String> {
         if let Some(FileLayout::Terminal(term)) = self.files.get_raw(fc.to_owned()) {
             let term = term.lock().unwrap();
@@ -654,8 +654,7 @@ impl Editor {
                 let line = line.replace(['\n', '\r'], "");
                 let mut visible_line = strip_escape_codes(&line);
                 // Replace resets with editor style
-                visible_line = replace_reset_background(&visible_line, &editor_bg);
-                visible_line = replace_reset_foreground(&visible_line, &editor_fg);
+                visible_line = replace_reset(&visible_line, &editor_bg, &editor_fg);
                 let mut w = width(&remove_ansi_codes(&line), 4);
                 // Work out if this is where the cursor should be
                 if n_lines.saturating_sub(shift_down) == y && self.ptr == *fc {
@@ -677,6 +676,12 @@ impl Editor {
         } else {
             unreachable!()
         }
+    }
+
+    /// Just render a blank space in place of terminal if on windows
+    #[cfg(target_os = "windows")]
+    fn render_terminal(&mut self, _: &Vec<usize>, _: usize, l: usize, _: usize) -> Result<String> {
+        Ok(" ".repeat(l))
     }
 
     /// Display a prompt in the document

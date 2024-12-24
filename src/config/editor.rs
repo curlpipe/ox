@@ -1,12 +1,17 @@
 /// Defines the Editor API for plug-ins to use
 use crate::cli::VERSION;
+#[cfg(not(target_os = "windows"))]
+use crate::config::runner::RunCommand;
 use crate::editor::{Editor, FileContainer, FileLayout};
+#[cfg(not(target_os = "windows"))]
 use crate::pty::Pty;
 use crate::ui::Feedback;
 use crate::{config, fatal_error, PLUGIN_BOOTSTRAP, PLUGIN_MANAGER, PLUGIN_NETWORKING, PLUGIN_RUN};
 use kaolinite::utils::{get_absolute_path, get_cwd, get_file_ext, get_file_name};
 use kaolinite::Loc;
 use mlua::prelude::*;
+#[cfg(not(target_os = "windows"))]
+use std::collections::HashMap;
 
 impl LuaUserData for Editor {
     fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
@@ -783,6 +788,7 @@ impl LuaUserData for Editor {
             Ok(())
         });
         // Terminal
+        #[cfg(not(target_os = "windows"))]
         methods.add_method_mut("open_terminal_up", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
@@ -799,6 +805,7 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
+        #[cfg(not(target_os = "windows"))]
         methods.add_method_mut("open_terminal_down", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
@@ -815,6 +822,7 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
+        #[cfg(not(target_os = "windows"))]
         methods.add_method_mut("open_terminal_left", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
@@ -831,6 +839,7 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
+        #[cfg(not(target_os = "windows"))]
         methods.add_method_mut("open_terminal_right", |_, editor, cmd: Option<String>| {
             if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
                 if let Some(cmd) = cmd {
@@ -847,6 +856,53 @@ impl LuaUserData for Editor {
                 Ok(false)
             }
         });
+        #[cfg(not(target_os = "windows"))]
+        methods.add_method_mut("run_file", |lua, editor, ()| {
+            if let Some(doc) = editor.try_doc() {
+                // Get file type
+                let kind = editor
+                    .files
+                    .get(editor.ptr.clone())
+                    .unwrap_or(&FileContainer::default())
+                    .file_type
+                    .clone()
+                    .map_or("Unknown".to_string(), |ft| ft.name);
+                // Get the file path
+                let file_path = get_absolute_path(&doc.file_name.clone().unwrap_or_default());
+                // If the file path is valid...
+                if let Some(path) = file_path {
+                    // ...and we know how to run the file...
+                    let runcmds = lua.globals().get::<HashMap<String, RunCommand>>("runner")?;
+                    if let Some(cmds) = runcmds.get(&kind) {
+                        let RunCommand { compile, run } = cmds;
+                        // ...open a terminal...
+                        if let Ok(term) = Pty::new(config!(editor.config, terminal).shell) {
+                            editor.ptr = editor
+                                .files
+                                .open_right(editor.ptr.clone(), FileLayout::Terminal(term));
+                            editor.cache_old_ptr(&editor.ptr.clone());
+                            let _ = editor.render(lua);
+                            // ...then compile and run the code
+                            if let Some(FileLayout::Terminal(term)) =
+                                editor.files.get_raw(editor.ptr.clone())
+                            {
+                                if let Some(compile_cmd) = compile {
+                                    let compile_cmd = compile_cmd.replace("{file_path}", &path);
+                                    term.lock()
+                                        .unwrap()
+                                        .run_command(&format!("{compile_cmd}\n"))?;
+                                }
+                                if let Some(run_cmd) = run {
+                                    let run_cmd = run_cmd.replace("{file_path}", &path);
+                                    term.lock().unwrap().run_command(&format!("{run_cmd}\n"))?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(())
+        });
         // Miscellaneous
         methods.add_method_mut("open_command_line", |_, editor, ()| {
             match editor.prompt("Command") {
@@ -859,6 +915,7 @@ impl LuaUserData for Editor {
             }
             Ok(())
         });
+        // Macro
         methods.add_method_mut("macro_record_start", |_, editor, ()| {
             editor.macro_man.record();
             Ok(())

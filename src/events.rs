@@ -3,12 +3,36 @@ use crossterm::event::{poll, read};
 use mlua::{AnyUserData, Lua};
 use std::time::Duration;
 
+#[allow(unused_variables)]
+pub fn term_force(editor: &AnyUserData) -> bool {
+    #[cfg(not(target_os = "windows"))]
+    return ged!(mut &editor).files.terminal_rerender();
+    #[cfg(target_os = "windows")]
+    return false;
+}
+
+pub fn mm_active(editor: &AnyUserData) -> bool {
+    ged!(mut &editor).macro_man.playing
+}
+
+/// (should hold event, triggered by term force?)
+pub fn hold_event(editor: &AnyUserData) -> (bool, bool) {
+    let tf = term_force(editor);
+    (
+        matches!(
+            (mm_active(editor), tf, poll(Duration::from_millis(50))),
+            (false, false, Ok(false))
+        ),
+        !tf,
+    )
+}
+
+#[allow(unused_variables)]
 pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
     loop {
-        let mm_active = ged!(mut &editor).macro_man.playing;
         // While waiting for an event to come along, service the task manager
-        if !mm_active {
-            while let (false, Ok(false)) = (mm_active, poll(Duration::from_millis(50))) {
+        if !mm_active(editor) {
+            while let (true, was_term) = hold_event(editor) {
                 let exec = ged!(mut &editor)
                     .config
                     .task_manager
@@ -25,7 +49,8 @@ pub fn wait_for_event(editor: &AnyUserData, lua: &Lua) -> Result<CEvent> {
                     }
                 }
                 // If a terminal dictates, force a rerender
-                if ged!(mut &editor).files.terminal_rerender() {
+                #[cfg(not(target_os = "windows"))]
+                if was_term {
                     ged!(mut &editor).needs_rerender = true;
                     ged!(mut &editor).render(lua)?;
                 }
@@ -78,9 +103,13 @@ pub fn get_event(editor: &mut Editor) -> Option<CEvent> {
     if let Some(ev) = editor.macro_man.next() {
         // Take from macro man
         Some(ev)
-    } else if let Ok(ev) = read() {
-        // Use standard crossterm event
-        Some(ev)
+    } else if let Ok(true) = poll(Duration::from_millis(50)) {
+        if let Ok(ev) = read() {
+            // Use standard crossterm event
+            Some(ev)
+        } else {
+            None
+        }
     } else {
         None
     }
