@@ -21,9 +21,11 @@
 ![Build Status](https://img.shields.io/github/stars/curlpipe/ox.svg?style=for-the-badge)
 ![License](https://img.shields.io/github/license/curlpipe/ox.svg?style=for-the-badge)
 
+[About](#about)    -    [Installation](#installation)    -    [Quick Start Guide](#quick-start-guide)
+
 ## About
 
-Ox is an independent text editor that can be used to write everything from text to code.
+Ox is a text editor that can be used to write everything from text to code.
 
 If you're looking for a text editor that...
 1. :feather: Is lightweight and efficient
@@ -38,23 +40,17 @@ It works best on linux, but macOS and Windows are also supported.
 
 ## Selling Points
 
-### Lightweight and Efficient
-
-- :feather: Ox is lightweight, with the precompiled binary taking up a few megabytes in storage space.
-- :knot: It uses a `rope` data structure which allows incremental editing, file reading and file writing, which will speed up performance, particularly on huge files.
-- :crab: It was built in Rust, which is a quick lower-level language that has a strong reputation in the performance department.
-
 ### Strong configurability
 
 - :electric_plug: Plug-In system where you can write your own plug-ins or choose from pre-existing ones
     - 💬 Discord RPC
-    - 📗 Git integration with diffs, stats and more
-    - 🕸️ Handy web development tools such as Emmet and live HTML viewer
-    - ⏲️ Productivity tools such as a pomodoro timer and todo list tracker
-    - 🤖 AI features that will provide with advice and code
-- :wrench: A wide number of options for configuration including colours, key bindings and behaviours
-- :moon: Ox uses Lua as a configuration language for familiarity when scripting and configuring
-- :handshake: A configuration assistant to quickly get Ox set up for you from the get-go
+    - 📗 Git integration
+    - 🕸️ Emmet and HTML viewer
+    - ⏲️ Pomodoro timer and todo list tracker
+    - 🤖 AI code & advice
+- :wrench: Configure everything including colours, key bindings and behaviours
+- :moon: Write Lua code for configuration
+- :handshake: A set-up wizard to make Ox yours from the start
 
 ### Out of the box features
 
@@ -70,11 +66,20 @@ It works best on linux, but macOS and Windows are also supported.
 - :file_cabinet: File tree to view, open, create, delete, copy and move files
 - :keyboard: Access to terminals within the editor
 
-### Robustness
+### Detailed Documentation
 
-- :globe_with_meridians: Handles double-width unicode characters like a charm, including those of the Chinese, Korean and Japanese languages and emojis
-- :boxing_glove: Backend has been thoroughly tested via automated unit tests
-- :rainbow: Automatically adapts your colour schemes to work on terminals with limited colours
+Become a power user and take advantage of everything on offer.
+
+Found on the [wiki page](https://github.com/curlpipe/ox/wiki/)
+
+This will take you step-by-step in great detail through 6 different stages:
+
+1. **Installation** - advice and how-tos on installation
+2. **Configuring** - changing the layout, adding to and changing the syntax highlighting
+3. **General Editing** - editing a document and controlling the editor
+4. **Command Line** - using the command line interface
+5. **Plugins** - installing or uninstalling community plug-ins and writing or distributing your own plug-ins
+6. **Roadmap** - planned features
 
 ## Installation
 
@@ -178,111 +183,73 @@ Please note that you should add `.cargo/bin` to your path, which is where the `o
 
 ## Quick Start Guide
 
-This is just a quick guide to help get you up to speed quickly with how to use the editor. You dive into more details in the documentation section below, but this quick start guide is a good place to start.
+Once you have installed Ox, it's time to get started.
 
-### Opening Files
+### Set-Up
 
-At the moment, you can open ox by using the command
+You can open Ox using the command
 
 ```sh
 ox
 ```
 
-This will open up an empty document.
+At first, if you don't have a configuration file in place, Ox will walk you through a set-up wizard.
 
-However, if you've just downloaded Ox, the configuration assistant will automatically start up and help you configure the editor initially.
+When you've completed it, you should be greeted by ox itself, with an empty, unnamed document.
 
-If you wish to open a file straight from the command line, you can run
+At the top is your tab line, this shows you files that are open.
+
+At the bottom is your status line, this shows you the state of the editor.
+
+At the far bottom is your feedback line, you'll see information, warnings and errors appear there.
+
+### Editing
+
+Toggle the built-in help message using <kbd>Ctrl</kbd> + <kbd>H</kbd>. You can press <kbd>Ctrl</kbd> + <kbd>H</kbd> again to hide this message if it gets in the way. This should introduce you to most of the key bindings on offer.
+
+Ox isn't a modal text editor, so you can begin typing straight away. Give it a go! Type in letters and numbers, delete with backspace, indent with tab, break up lines with the enter key.
+
+Move your cursor by clicking, or using the arrow keys. You can also click and drag to select text.
+
+If you modify a file, you may notice a `[+]` symbol, this means the file open in the editor differs from it's state on the disk. Save the file to update it on the disk and this indicator will disappear.
+
+Because the file we're editing is new and doesn't have a name, you'll need to save as using <kbd>Alt</kbd> + <kbd>S</kbd> and give it a name.
+
+Now, if you were to edit it again, because it is on the disk and has a name, you can use the standard <kbd>Ctrl</kbd> + <kbd>S</kbd> to save it.
+
+You can open files through <kbd>Ctrl</kbd> + <kbd>O</kbd> - try opening a file!
+
+If you modify it you can then use the standard <kbd>Ctrl</kbd> + <kbd>S</kbd> to update it on the disk, as this file already exists.
+
+When mutltiple files are open, you can navigate back and forth using <kbd>Alt</kbd> + <kbd>Left</kbd> and <kbd>Alt</kbd> + <kbd>Right</kbd>
+
+Once you're done with a file, you can use <kbd>Ctrl</kbd> + <kbd>Q</kbd> to quit out of it.
+
+If all files are closed, Ox will exit.
+
+If you're interested in finding out all the key bindings on offer, click [here](https://github.com/curlpipe/ox/wiki/General-editing#quick-reference)
+
+Now you've exited Ox, let's check out some command line options.
+
+### CLI
+
+You can open files straight from the command line like this:
+
 ```sh
-ox /path/to/file
+ox /path/to/file1 /path/to/file2
 ```
 
-To open and edit a file. You can provide multiple arguments of files if you wish to open more than one, for example:
+If you try to open a file that doesn't actually exist, Ox will open it in memory, and as soon as you save, it will save it will create it for you.
 
-```sh
-ox file1.txt file2.txt
-```
+See more information regarding command line options using the command.
 
-You can also open a file from within Ox by using the <kbd>Ctrl</kbd>  + <kbd>O</kbd> key binding
-
-If at any time, you wish to create a new file, you can use <kbd>Ctrl</kbd>  + <kbd>N</kbd> to do so.
-
-You can find more command line options for Ox by typing:
 ```sh
 ox --help
 ```
 
-When you open multiple files, notice the tabs at the top.
+This provides everything you need to know to do some basic editing, but there is so much more you can take advantage of, from plug-ins to opening multiple files on the same screen, to using the built-in terminal and using the file tree to manage your project.
 
-You can close the file you're looking at using the <kbd>Ctrl</kbd>  + <kbd>Q</kbd> key binding. When no more documents are open, the editor will automatically close for you.
-
-If you want to move tabs and look at other files that are open, you can use <kbd>Shift</kbd>  + <kbd>Left</kbd> and <kbd>Shift</kbd>  + <kbd>Right</kbd> to move back and forth respectively.
-
-### Editing Files
-
-There are no modes in Ox, so you can just type straight into an open file, just as you would Nano, or Windows notepad.
-
-You can move the cursor around the file using the standard arrow keys. 
-
-You can also use:
-- <kbd>PageUp</kbd> - Move up a page in the viewport
-- <kbd>PageDown</kbd> - Move down a page in the viewport
-- <kbd>Home</kbd> - Go to the start of the current line
-- <kbd>End</kbd> - Go to the end of the current line
-- <kbd>Ctrl</kbd>  + <kbd>Left</kbd> - Go to the previous word
-- <kbd>Ctrl</kbd>  + <kbd>Right</kbd> - Go to the next word
-- <kbd>Ctrl</kbd>  + <kbd>Up</kbd> - Go to the top of the document
-- <kbd>Ctrl</kbd>  + <kbd>Down</kbd> - Go to the bottom of the document
-
-No surprises here, to insert characters, use the letters and numbers on your keyboard. <kbd>Enter</kbd> will put a new line in, <kbd>Tab</kbd> will create a tab (or indent) and <kbd>Backspace</kbd> / <kbd>Delete</kbd> to delete characters.
-
-If you modify a file, you may notice a `[+]` symbol, this means the file has been modified without saving. You can save a document in many ways, including <kbd>Ctrl</kbd>  + <kbd>S</kbd> to save it to the file it was opened from. <kbd>Ctrl</kbd>  + <kbd>A</kbd> to save all files that are open and <kbd>Alt</kbd>  + <kbd>S</kbd> to save as, where a prompt for a new file name to write to will be shown.
-
-We've covered most keyboard shortcuts, but there are some other features you might want to make use of, the following table shows the keyboard shortcuts we haven't covered yet.
-
-| Keybinding  | What it does  |
-| ------------ | ------------ |
-| `Ctrl + F`  | Searches the document for a search query. Allows pressing of <kbd>←</kbd> to move the cursor to the previous occurrence of the query and <kbd>→</kbd> to move to the next occurrence of the query. Press <kbd>Return</kbd> or <kbd>Esc</kbd> to leave the search. Note: you can use regular expressions for search queries. | 
-| `Ctrl + Z`  | Undoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
-| `Ctrl + Y`  | Redoes your last action. The changes are committed to the undo stack every time you press the space bar, create / destroy a new line and when there is no activity after a certain period of time which can be used to capture points where you pause for thought or grab a coffee etc... | 
-| `Ctrl + R`  | Allows replacing of occurrences in the document. Uses the same keybindings as the search feature: <kbd>←</kbd> to move the cursor to the previous occurrence of the query and <kbd>→</kbd> to move to the next occurrence of the query. You can also press <kbd>Return</kbd> to carry out the replace action. To exit replace mode once you're finished, you can press <kbd>Esc</kbd>. You can also use <kbd>Tab</kbd> to replace every instance in the document at once. Note: you can use regular expressions for search queries. | 
-| `Ctrl + K`  | Opens the command line.  |
-| `Ctrl + W`  | Shortcut to delete a whole word.  |
-| `Alt + Up`  | Move the current line up.  |
-| `Alt + Down`| Move the current line down.  |
-| `Ctrl + D`  | Delete the current line.  |
-| `Ctrl + C`  | Copy selected text.  |
-| `Alt + Left`| Move to the previous tab.  |
-| `Alt + Right`| Move to the next tab.  |
-
-### Configuration
-
-Ox features a configuration system that allows the editor to be modified and personalised.
-
-By default, you will be greeted by a configuration assistant when first starting Ox, when no configuration file is in place. This will help you generate a configuration file.
-
-By default, Ox will look for a file here: `$XDG_CONFIG_HOME/.oxrc` or `~/.oxrc`.
-
-On Windows, Ox will try to look here `C:/Users/user/ox/.oxrc` (where `user` is the user name of your account)
-
-Ox's configuration language is [Lua](https://lua.org).
-
-For reference, there is a default config in the `config` folder in the repository. You can either download it and place it in the default config directory or create your own using the example ones as a reference.
-
-## Documentation
-
-If you've been through the quick start guide above, but are looking for more detail, you can find in-depth documentation on the [wiki page](https://github.com/curlpipe/ox/wiki/)
-
-This will take you step-by-step in great detail through 6 different stages:
-
-1. **Installation** - advice and how-tos on installation
-2. **Configuring** - changing the layout, adding to and changing the syntax highlighting
-3. **General Editing** - editing a document and controlling the editor
-4. **Command Line** - using the command line interface
-5. **Plugins** - installing or uninstalling community plug-ins and writing or distributing your own plug-ins
-6. **Roadmap** - planned features
-
-Hopefully, it contains everything you need to take you from a beginner to a power user.
+If you are curious in learning more, click [here](https://github.com/curlpipe/ox/wiki) to access the wiki where you will be introduced to all the wide range of features and really make your experience smooth like butter 🧈.
 
 ## License
 
