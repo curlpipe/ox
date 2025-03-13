@@ -77,6 +77,11 @@ impl Editor {
             }
         }
 
+        // If no target is given, do nothing
+        if target.is_empty() {
+            return Ok(());
+        }
+
         // Main body of the search feature
         let mut done = false;
         let Size { w, h } = size()?;
@@ -127,6 +132,10 @@ impl Editor {
 
     /// Move to the next match
     pub fn next_match(&mut self, target: &str) -> Option<String> {
+        if target.is_empty() {
+            return None;
+        }
+
         if let Some(doc) = self.try_doc_mut() {
             let mtch = doc.next_match(target, 1)?;
             // Select match
@@ -145,6 +154,10 @@ impl Editor {
 
     /// Move to the previous match
     pub fn prev_match(&mut self, target: &str) -> Option<String> {
+        if target.is_empty() {
+            return None;
+        }
+
         if let Some(doc) = self.try_doc_mut() {
             let mtch = doc.prev_match(target)?;
             doc.move_to(&mtch.loc);
@@ -172,6 +185,10 @@ impl Editor {
         let editor_bg = Bg(config!(self.config, colors).editor_bg.to_color()?);
         // Request replace information
         let target = self.prompt("Replace")?;
+        // If no target is given, do nothing
+        if target.is_empty() {
+            return Ok(());
+        }
         let into = self.prompt("With")?;
         let mut done = false;
         let Size { w, h } = size()?;
