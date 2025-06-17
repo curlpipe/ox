@@ -310,7 +310,7 @@ impl TabLine {
                         result = result.replace(&m.text, r.to_string_lossy().as_str());
                     }
                     Err(e) => {
-                        *fb = Feedback::Error(format!("Error occured in tab line: {e:?}"));
+                        *fb = Feedback::Error(format!("Error occurred in tab line: {e:?}"));
                         break;
                     }
                 }

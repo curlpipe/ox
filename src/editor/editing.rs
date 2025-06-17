@@ -22,7 +22,7 @@ impl Editor {
                     self.try_doc_mut().unwrap().commit();
                 }
             } else if self.try_doc().unwrap().event_mgmt.history.is_empty() {
-                // If there is no initial commit and a plug-in changes things without commiting
+                // If there is no initial commit and a plug-in changes things without committing
                 // It can cause the initial state of the document to be lost
                 // This condition makes sure there is a copy to go back to if this is the case
                 self.try_doc_mut().unwrap().commit();

@@ -35,7 +35,7 @@ fn regex() {
     assert_eq!(reg.captures("aaac").as_slice().len(), 1);
     let reg = regex!(r"\\{\{\{{}");
     assert_eq!(reg.as_str(), "a^");
-    assert_eq!(reg.captures("abd").as_slice().len(), 0);
+    assert_eq!(reg.captures("and").as_slice().len(), 0);
 }
 
 #[test]

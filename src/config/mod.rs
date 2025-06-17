@@ -257,7 +257,7 @@ impl Config {
             if let Some(idx) = plugins.iter().position(|p| p.ends_with(name)) {
                 // User wants the plug-in
                 let path = &plugins[idx];
-                // true if plug-in isn't avilable
+                // true if plug-in isn't available
                 !std::path::Path::new(path).exists()
             } else {
                 // User doesn't want the plug-in

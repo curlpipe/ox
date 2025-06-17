@@ -121,7 +121,7 @@ impl LuaUserData for SyntaxHighlighting {
                 for rule_idx in 1..=(rules.len()?) {
                     // Get rule
                     let rule = rules.get::<HashMap<String, String>>(rule_idx)?;
-                    // Find type of rule and attatch it to the highlighter
+                    // Find type of rule and attach it to the highlighter
                     match rule["kind"].as_str() {
                         "keyword" => {
                             highlighter.keyword(rule["name"].clone(), &rule["pattern"]);

@@ -281,7 +281,7 @@ fn handle_event(editor: &AnyUserData, event: &CEvent, lua: &Lua) -> Result<()> {
         }
     }
 
-    // Handle plug-in after key press mappings (if no errors occured)
+    // Handle plug-in after key press mappings (if no errors occurred)
     if let CEvent::Key(key) = event {
         let key_str = key_to_string(key.modifiers, key.code);
         let code = run_key(&key_str);
@@ -384,7 +384,7 @@ fn handle_file_opening(editor: &AnyUserData, result: Result<()>, name: &str) {
                 ErrorKind::ReadOnlyFilesystem => fatal_error("You are on a read only file system"),
                 ErrorKind::ResourceBusy => fatal_error(&format!("The resource '{name}' is busy")),
                 ErrorKind::OutOfMemory => fatal_error("You are out of memory"),
-                kind => fatal_error(&format!("I/O error occured: {kind:?}")),
+                kind => fatal_error(&format!("I/O error occurred: {kind:?}")),
             },
             _ => fatal_error(&format!("Backend error opening '{name}': {kerr:?}")),
         },
