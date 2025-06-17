@@ -132,7 +132,7 @@ impl Document {
         self.file.line_to_char(loc.y) + loc.x
     }
 
-    /// Function to search the document to find the next occurance of a regex
+    /// Function to search the document to find the next occurrence of a regex
     pub fn next_match(&mut self, regex: &str, inc: usize) -> Option<Match> {
         // Prepare
         let mut srch = Searcher::new(regex);
@@ -161,7 +161,7 @@ impl Document {
         None
     }
 
-    /// Function to search the document to find the previous occurance of a regex
+    /// Function to search the document to find the previous occurrence of a regex
     pub fn prev_match(&mut self, regex: &str) -> Option<Match> {
         // Prepare
         let mut srch = Searcher::new(regex);

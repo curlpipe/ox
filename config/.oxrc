@@ -543,10 +543,10 @@ syntax:set("macro", {223, 52, 249}) -- Macro names in various programming langua
 syntax:set("namespace", {47, 141, 252}) -- Namespaces in various programming languages
 syntax:set("struct", {47, 141, 252}) -- The names of structs, classes, enums in various programming languages
 syntax:set("operator", {113, 113, 169}) -- Operators in various programming languages e.g. +, -, * etc
-syntax:set("boolean", {86, 217, 178}) -- Booleans in various programming langauges e.g. true / false
+syntax:set("boolean", {86, 217, 178}) -- Booleans in various programming languages e.g. true / false
 syntax:set("table", {47, 141, 252}) -- Tables in various programming languages
 syntax:set("reference", {134, 76, 232}) -- References in various programming languages
-syntax:set("tag", {40, 198, 232}) -- Tags in various markup langauges e.g. HTML <p> tags
+syntax:set("tag", {40, 198, 232}) -- Tags in various markup languages e.g. HTML <p> tags
 syntax:set("heading", {47, 141, 252}) -- Headings in various markup languages e.g. # in markdown
 syntax:set("link", {223, 52, 249}) -- Links in various markup languages e.g. URLs
 syntax:set("key", {223, 52, 249}) -- Keys in various markup languages

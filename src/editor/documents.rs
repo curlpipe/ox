@@ -337,7 +337,7 @@ impl FileLayout {
 
     /// Remove any empty atoms
     pub fn clean_up(&mut self) {
-        // Continue checking for obselete nodes until none are remaining
+        // Continue checking for obsolete nodes until none are remaining
         while let Some(empty_idx) = self.empty_atoms(vec![]) {
             // Delete the empty node
             self.remove(empty_idx.clone());

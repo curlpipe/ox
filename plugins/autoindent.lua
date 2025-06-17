@@ -124,7 +124,7 @@ function autoindent:get_indent(y)
     return #(line:match("^\t+") or "") + #(line:match("^ +") or "") / document.tab_width
 end
 
--- Utilties for when moving lines around
+-- Utilities for when moving lines around
 function autoindent:fix_indent()
     -- Check the indentation of the line above this one (and match the line the cursor is currently on)
     local indents_above = autoindent:get_indent(editor.cursor.y - 1)

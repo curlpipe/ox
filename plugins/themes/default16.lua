@@ -1,5 +1,5 @@
 
--- Pallette --
+-- Palette --
 black = 'black'
 darkgrey = 'darkgrey'
 red = 'red'

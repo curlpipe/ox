@@ -190,7 +190,7 @@ function ai:send_to_chatgpt(prompt)
                    :gsub("([$`!])", "\\%1")
     local url = "https://api.openai.com/v1/chat/completions"
     local headers = '-H "Content-Type: application/json" -H "Authorization: Bearer ' .. self.key .. '"'
-    local cmd = 'curl -s ' .. headers .. ' -d "{\'model\': \'gpt-4\', \'messages\':[{\'role\':\'user\', \'content\':\'' .. prompt .. '\'}], \'temprature\':0.7}" "' .. url .. '"'
+    local cmd = 'curl -s ' .. headers .. ' -d "{\'model\': \'gpt-4\', \'messages\':[{\'role\':\'user\', \'content\':\'' .. prompt .. '\'}], \'temperature\':0.7}" "' .. url .. '"'
     local json = shell:output(cmd)
 
     -- Find the `content` field within the JSON string

@@ -891,14 +891,14 @@ impl Editor {
 
     /// Update highlighter of a certain document
     pub fn update_highlighter_for(&mut self, ptr: &[usize], doc: usize) {
-        let percieved = self.highlighter_for(ptr.to_owned(), doc).line_ref.len();
+        let perceived = self.highlighter_for(ptr.to_owned(), doc).line_ref.len();
         if self.active {
             if let Some((ref mut fcs, _)) = self.files.get_atom_mut(ptr.to_owned()) {
                 let actual = fcs[doc].doc.info.loaded_to;
-                if percieved < actual {
-                    let diff = actual.saturating_sub(percieved);
+                if perceived < actual {
+                    let diff = actual.saturating_sub(perceived);
                     for i in 0..diff {
-                        let line = fcs[doc].doc.lines[percieved + i].clone();
+                        let line = fcs[doc].doc.lines[perceived + i].clone();
                         fcs[doc].highlighter.append(&line);
                     }
                 }

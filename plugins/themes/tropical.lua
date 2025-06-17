@@ -1,5 +1,5 @@
 
--- Pallette --
+-- Palette --
 black = '#232336'
 grey1 = '#353552'
 grey2 = '#484863'
