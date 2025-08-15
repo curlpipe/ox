@@ -1,6 +1,7 @@
 use crate::event::Status;
 use crate::utils::{tab_boundaries_backward, tab_boundaries_forward, width};
 use crate::{Document, Loc};
+use std::cmp::{max, min};
 use std::ops::Range;
 
 /// Defines a cursor's position and any selection it may be covering
@@ -21,6 +22,7 @@ impl Document {
     /// Select with the cursor up
     pub fn select_up(&mut self) -> Status {
         // Return if already at start of document
+        self.secondary_cursors.retain(|loc| loc.y != 0);
         if self.loc().y == 0 {
             return Status::StartOfFile;
         }
@@ -45,8 +47,11 @@ impl Document {
 
     /// Select with the cursor down
     pub fn select_down(&mut self) -> Status {
+        let len_lines = self.len_lines();
         // Return if already on end of document
-        if self.len_lines() < self.loc().y + 1 {
+        self.secondary_cursors
+            .retain(|loc| loc.y != (len_lines - 1));
+        if len_lines < self.loc().y + 1 {
             return Status::EndOfFile;
         }
         self.cursor.loc.y += 1;
@@ -169,6 +174,90 @@ impl Document {
     pub fn move_bottom(&mut self) {
         let last = self.len_lines();
         self.move_to(&Loc::at(0, last));
+    }
+
+    /// Add a cursor above
+    pub fn add_cursor_above(&mut self) {
+        let loc_y_now = self.cursor.loc.y;
+        let min_y = min(
+            loc_y_now,
+            self.secondary_cursors
+                .iter()
+                .map(|loc| loc.y)
+                .min()
+                .unwrap_or(loc_y_now),
+        );
+
+        if min_y > 0 {
+            self.secondary_cursors
+                .push(Loc::at(self.cursor.loc.x, min_y - 1));
+        }
+    }
+
+    /// Add a cursor below
+    pub fn add_cursor_below(&mut self) {
+        let loc_y_now = self.cursor.loc.y;
+        let max_y = max(
+            loc_y_now,
+            self.secondary_cursors
+                .iter()
+                .map(|loc| loc.y)
+                .max()
+                .unwrap_or(loc_y_now),
+        );
+
+        if max_y < self.len_lines() {
+            self.secondary_cursors
+                .push(Loc::at(self.cursor.loc.x, max_y + 1));
+        }
+    }
+
+    /// Delete a cursor above
+    pub fn delete_cursor_above(&mut self) {
+        if self.secondary_cursors.is_empty() {
+            return;
+        }
+
+        let loc_y_now = self.cursor.loc.y;
+        let mut min_y = min(
+            loc_y_now,
+            self.secondary_cursors
+                .iter()
+                .map(|loc| loc.y)
+                .min()
+                .unwrap_or(loc_y_now),
+        );
+
+        if min_y == loc_y_now {
+            self.move_down();
+            min_y += 1;
+        }
+
+        self.secondary_cursors.retain(|loc| loc.y != min_y);
+    }
+
+    /// Delete a cursor below
+    pub fn delete_cursor_below(&mut self) {
+        if self.secondary_cursors.is_empty() {
+            return;
+        }
+
+        let loc_y_now = self.cursor.loc.y;
+        let mut max_y = max(
+            loc_y_now,
+            self.secondary_cursors
+                .iter()
+                .map(|loc| loc.y)
+                .max()
+                .unwrap_or(loc_y_now),
+        );
+
+        if max_y == loc_y_now {
+            self.move_up();
+            max_y -= 1;
+        }
+
+        self.secondary_cursors.retain(|loc| loc.y != max_y);
     }
 
     /// Select to the top of the document
@@ -421,6 +510,11 @@ impl Document {
     /// Cancels the current selection
     pub fn cancel_selection(&mut self) {
         self.cursor.selection_end = self.cursor.loc;
+    }
+
+    /// Cancels the current multi cursors in the buffer
+    pub fn cancel_multi_cursors(&mut self) {
+        self.secondary_cursors.clear();
     }
 
     /// Create a new alternative cursor

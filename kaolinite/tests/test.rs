@@ -1045,6 +1045,30 @@ fn fuzz() {
                 }
                 23 => doc.undo(),
                 24 => doc.redo(),
+                25 => {
+                    doc.add_cursor_above();
+                    Ok(())
+                }
+                26 => {
+                    doc.add_cursor_below();
+                    Ok(())
+                }
+                27 => {
+                    doc.delete_cursor_above();
+                    Ok(())
+                }
+                28 => {
+                    doc.delete_cursor_below();
+                    Ok(())
+                }
+                29 => {
+                    doc.delete_cursor_below();
+                    Ok(())
+                }
+                30 => {
+                    doc.delete_cursor_below();
+                    Ok(())
+                }
                 _ => Ok(()),
             };
             println!("{} | {}", doc.loc().x, doc.char_ptr);

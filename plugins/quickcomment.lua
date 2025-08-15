@@ -102,8 +102,8 @@ function quickcomment:comment_start()
         comment_start = "#"
     elseif editor.document_type == "Clojure" then
         comment_start = ";"
-    elseif editor.document_type == "Zsh" then
-        comment_start = "#"
+    elseif editor.document_type == "Batch" then
+        comment_start = "@REM"
     else
         comment_start = "//"
     end

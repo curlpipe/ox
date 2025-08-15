@@ -25,6 +25,18 @@ event_mapping = {
     ["ctrl_right"] = function() 
         editor:move_next_word() 
     end,
+    ["ctrl_shift_up"] = function() 
+        editor:add_cursor_above() 
+    end,
+    ["ctrl_shift_down"] = function() 
+        editor:add_cursor_below() 
+    end,
+    ["alt_shift_up"] = function() 
+        editor:delete_cursor_below() 
+    end,
+    ["alt_shift_down"] = function() 
+        editor:delete_cursor_above() 
+    end,
     ["home"] = function() 
         editor:move_home() 
     end,
@@ -59,6 +71,7 @@ event_mapping = {
     end,
     ["esc"] = function()
         editor:cancel_selection()
+        editor:cancel_multi_cursors()
     end,
     ["shift_home"] = function()
         local n_moves = editor.cursor.x

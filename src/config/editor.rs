@@ -274,6 +274,30 @@ impl LuaUserData for Editor {
             }
             Ok(())
         });
+        methods.add_method_mut("add_cursor_above", |_, editor, ()| {
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.add_cursor_above();
+            }
+            Ok(())
+        });
+        methods.add_method_mut("add_cursor_below", |_, editor, ()| {
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.add_cursor_below();
+            }
+            Ok(())
+        });
+        methods.add_method_mut("delete_cursor_above", |_, editor, ()| {
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.delete_cursor_above();
+            }
+            Ok(())
+        });
+        methods.add_method_mut("delete_cursor_below", |_, editor, ()| {
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.delete_cursor_below();
+            }
+            Ok(())
+        });
         methods.add_method_mut("move_previous_word", |_, editor, ()| {
             editor.prev_word();
             editor.update_highlighter();
@@ -347,6 +371,12 @@ impl LuaUserData for Editor {
         methods.add_method_mut("cancel_selection", |_, editor, ()| {
             if let Some(doc) = editor.try_doc_mut() {
                 doc.cancel_selection();
+            }
+            Ok(())
+        });
+        methods.add_method_mut("cancel_multi_cursors", |_, editor, ()| {
+            if let Some(doc) = editor.try_doc_mut() {
+                doc.cancel_multi_cursors();
             }
             Ok(())
         });
