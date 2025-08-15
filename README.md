@@ -129,8 +129,15 @@ sudo dpkg -i /path/to/deb/file
 Here are the list of available methods for installing on Windows:
 - [Manually (best)](#manual)
 - [Binary](#binaries)
+- [WinGet](#winget)
 
+### WinGet
 
+Install `ox` from Windows Package Manager.
+
+```ps1
+winget install --id=curlpipe.ox -e
+```
 
 ### MacOS
 
